@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29230.47
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Captain Ameribro Mod", "Captain Ameribro Mod\Captain Ameribro Mod.csproj", "{B9AA834D-845C-47A9-8F0F-2C0BB89CFCAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B9AA834D-845C-47A9-8F0F-2C0BB89CFCAD}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{B9AA834D-845C-47A9-8F0F-2C0BB89CFCAD}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{B9AA834D-845C-47A9-8F0F-2C0BB89CFCAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9AA834D-845C-47A9-8F0F-2C0BB89CFCAD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B9776F74-5311-4D4F-81AE-8173C6AE2B4C}
+	EndGlobalSection
+EndGlobal
