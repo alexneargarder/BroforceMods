@@ -7,6 +7,12 @@
  * 
  * Make dying as captain america not break the game
  * 
+ * Beating the level and going to next also breaks spawning
+ * 
+ * Can't do fancy edge mantle thing
+ * 
+ * Shield gets stuck on doors
+ * 
  * 
  * 
  * Invinicibility flash seems like it could be broken, character sometimes appears dark for some reason
@@ -24,9 +30,13 @@
 /**
  * IDEAS
  * 
+ * Reflecting bullets is currently enabled for shield, it seems like bromax has this ability, maybe captain america should too?
+ * Although what would his crouch be if throwing the shield reflects projectiles
+ * Maybe when thrown it blocks bullets but crouch will reflect?
+ * 
  * If shield sticking into wall is implemented, shield should stick into explosives and then shoot back when explosives explode
  * 
- * Ricochet could be limited based on momentum? Maybe based on how many enemies have been hit. 
+ * Ricochet (shield bouncing) could be limited based on momentum? Maybe based on how many enemies have been hit. 
  * Maybe it doesn't ricochet off walls, although it seems like it should
  * 
  * Instakilling normal enemies may be OP? needs testing
@@ -546,20 +556,23 @@ namespace Captain_Ameribro_Mod
     [HarmonyPatch(typeof(Player), "SpawnHero")]
     static class Player_SpawnHero_Patch
     {
-        static bool Prefix(Player __instance, ref HeroType nextHeroType)
+        static void Prefix(Player __instance, ref HeroType nextHeroType)
         {
             if (!Main.enabled)
-                return true;
-            if (Main.isCaptainAmeribro)
+                return;
+            // This code works for getting rid of bro when collecting new character but it breaks when you try and restart the level because 
+            // it trys to remove bro when it shouldn't (aka when restarting or continuing on to next level) should only run when collecting new character
+            //  need to add some check for this, maybe some way to try remove or check for restart / level finish
+            /*if (Main.isCaptainAmeribro)
             {
                 UnityEngine.Object.Destroy(Main.bro.gameObject);
                 Main.isCaptainAmeribro = false;
-            }
+            }*/
             nextHeroType = HeroType.BroMax;
             
 
             //Main.Log("returning");
-            return true;
+            return;
 
         }
 
