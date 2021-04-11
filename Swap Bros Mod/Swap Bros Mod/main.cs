@@ -1,13 +1,11 @@
 ﻿/*
  * TODO
  * 
- * FIX not respawning on hell levels
+ * FIX not respawning on hell levels (this might actually be multiplayer mod)
  * 
  * Somehow preserve special count between swaps and add toggle for it on options
  * 
  * Allow swapping forward and back with rebindable keys
- * 
- * 
  * 
  */
 /*
@@ -17,6 +15,8 @@
 * Make the order you swap in the same as the order shown on the mod options screen for normal and ironbro
 * 
 * Enable switching to unfinished characters if they exist
+* 
+* Bug in IronBro where BroLee is skipped over even if you have him unlocked
 * 
 */
 using System;
@@ -167,6 +167,11 @@ namespace Swap_Bros_Mod
         {
             enabled = value;
             return true;
+        }
+
+        public static void Log(String str)
+        {
+            mod.Logger.Log(str);
         }
 
 
@@ -333,14 +338,16 @@ namespace Swap_Bros_Mod
                     }
                     else
                     {
-                        int max = 34;
+                        int max = 35;
                         if (Main.settings.includeUnfinishedCharacters)
                         {
-                            max = 46;
+                            max = 47;
                         }
                         int num = -1;
+                        
                         for (; Main.settings.selGridInt < max; Main.settings.selGridInt++)
                         {
+                            //Main.Log("checking hero: " + Main.settings.getSelectedHero());
                             num = GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.IndexOf(Main.settings.getSelectedHero());
                             if (num != -1)
                                 break;
@@ -349,6 +356,7 @@ namespace Swap_Bros_Mod
                         {
                             for (Main.settings.selGridInt = 0; Main.settings.selGridInt < max; Main.settings.selGridInt++)
                             {
+                                //Main.Log("checking hero: " + Main.settings.getSelectedHero());
                                 num = GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.IndexOf(Main.settings.getSelectedHero());
                                 if (num != -1)
                                     break;
@@ -410,7 +418,7 @@ namespace Swap_Bros_Mod
                     
                     if (Main.settings.swapChangesChosen)
                     {
-                        int max = 34;
+                        int max = 35;
                         if (Main.settings.includeUnfinishedCharacters)
                         {
                             max = 46;
@@ -418,12 +426,12 @@ namespace Swap_Bros_Mod
                         int num = -1;
                         for (Main.settings.selGridInt++; Main.settings.selGridInt < max; Main.settings.selGridInt++)
                         {
-
+                            //Main.Log("checking hero: " + Main.settings.getSelectedHero());
                             num = GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.IndexOf(Main.settings.getSelectedHero());
 
                             if (num != -1)
                             {
-                                Main.mod.Logger.Log("found hero " + num + " " + Main.settings.getSelectedHero());
+                                // Main.mod.Logger.Log("found hero " + num + " " + Main.settings.getSelectedHero());
                                 break;
                             }
                         }
@@ -431,6 +439,7 @@ namespace Swap_Bros_Mod
                         {
                             for (Main.settings.selGridInt = 0; Main.settings.selGridInt < max; Main.settings.selGridInt++)
                             {
+                                //Main.Log("checking hero: " + Main.settings.getSelectedHero());
                                 num = GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.IndexOf(Main.settings.getSelectedHero());
                                 if (num != -1)
                                     break;

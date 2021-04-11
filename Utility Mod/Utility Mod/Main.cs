@@ -1,6 +1,8 @@
 ﻿/**
  * TODO
  * 
+ * Make helicopter skip go in order
+ * 
  * Set living, dead, and locked bros with cheat mod
  * 
  * Set lives with cheat mod ( for normal campaign)
