@@ -14,11 +14,6 @@
 * FIXED
 * 
 * 
-* 
-* 
-* 
-* 
-* 
 * Make the order you swap in the same as the order shown on the mod options screen for normal and ironbro
 * 
 * Enable switching to unfinished characters if they exist
