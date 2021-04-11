@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29230.47
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IronBro Multiplayer Mod", "IronBro Multiplayer Mod\IronBro Multiplayer Mod.csproj", "{09D698D6-BB15-47AA-9964-302A3B0B53D2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{09D698D6-BB15-47AA-9964-302A3B0B53D2}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{09D698D6-BB15-47AA-9964-302A3B0B53D2}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{09D698D6-BB15-47AA-9964-302A3B0B53D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09D698D6-BB15-47AA-9964-302A3B0B53D2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {818F0283-9D83-466F-A6FE-ED1EA6A2197F}
+	EndGlobalSection
+EndGlobal
