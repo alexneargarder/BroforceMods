@@ -73,4 +73,7 @@
     <Content Include="LeftoverCode.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - swap bros\*.cache"</PostBuildEvent>
+  </PropertyGroup>
 </Project>

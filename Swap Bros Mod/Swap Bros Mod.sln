@@ -17,8 +17,8 @@ Global
 		Swap Bros Mod|Any CPU = Swap Bros Mod|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7B145B4B-2661-4412-BF74-4E2482C98898}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7B145B4B-2661-4412-BF74-4E2482C98898}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B145B4B-2661-4412-BF74-4E2482C98898}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{7B145B4B-2661-4412-BF74-4E2482C98898}.Debug|Any CPU.Build.0 = Release|Any CPU
 		{7B145B4B-2661-4412-BF74-4E2482C98898}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7B145B4B-2661-4412-BF74-4E2482C98898}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7B145B4B-2661-4412-BF74-4E2482C98898}.Swap Bros Mod|Any CPU.ActiveCfg = Release|Any CPU
