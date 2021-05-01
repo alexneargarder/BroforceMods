@@ -1,0 +1,8 @@
+{
+	"Id": "Example Mod",
+	"DisplayName": "Example",
+	"Author": "YourName",
+	"Version": "1.0.0",
+	"AssemblyName": "ExampleMod.dll",
+	"EntryMethod": "EXAMPLE_MOD.Main.Load"
+}
