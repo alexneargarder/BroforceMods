@@ -1,19 +1,4 @@
-﻿/**
- * TODO
- * 
- * 
-**/
-/**
- * IDEAS
- * 
- * 
-**/
-/**
- * DONE
- * 
- * 
-**/
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,7 +7,7 @@ using UnityEngine;
 using UnityModManagerNet;
 using System.Reflection;
 
-namespace NAME_SPACE_HERE
+namespace EXAMPLE_MOD
 {
     static class Main
     {
@@ -46,7 +31,13 @@ namespace NAME_SPACE_HERE
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
+            if (GUILayout.Button("Button 1", GUILayout.Width(100)))
+            {
+                Main.Log("Button 1 Pressed");
+                settings.count++;
+            }
 
+            GUILayout.Label("Button 1 Pressed: " + settings.count + " times");
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -60,17 +51,37 @@ namespace NAME_SPACE_HERE
             return true;
         }
 
+        public static void Log(String str)
+        {
+            mod.Logger.Log(str);
+        }
+
     }
 
-}
-
-public class Settings : UnityModManager.ModSettings
-{
-    
-
-    public override void Save(UnityModManager.ModEntry modEntry)
+    public class Settings : UnityModManager.ModSettings
     {
-        Save(this, modEntry);
+        public int count = 0;
+
+        public override void Save(UnityModManager.ModEntry modEntry)
+        {
+            Save(this, modEntry);
+        }
+
     }
 
+    [HarmonyPatch(typeof(Player), "GetInput")]
+    static class Player_GetInput_Patch
+    {
+        public static void Prefix(Player __instance, ref bool buttonGesture)
+        {
+            if (!Main.enabled)
+            {
+                return;
+            }
+            if (buttonGesture)
+            {
+                Main.Log("Player taunted");
+            }
+        }
+    }
 }
