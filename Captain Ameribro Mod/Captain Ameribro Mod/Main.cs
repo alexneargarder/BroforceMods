@@ -84,6 +84,7 @@ namespace Captain_Ameribro_Mod
         public static bool isCaptainAmeribro = false;
 
         // DEBUG
+        public static int globalCounter = 0;
         public static bool requestDisplay = false;
         public static int requestedFrame = 0;
         public static string XIText;
@@ -167,10 +168,15 @@ namespace Captain_Ameribro_Mod
                 changeXI = true;
             }
 
+            if (GUILayout.Button("Reset Counter", GUILayout.Width(100)))
+            {
+                globalCounter = 0;
+            }
+
             GUILayout.EndHorizontal();
         }
 
-        static void checkAttached(GameObject gameObject )
+        public static void checkAttached(GameObject gameObject )
         {
             Main.Log("\n\n");
             Component[] allComponents;
@@ -183,7 +189,7 @@ namespace Captain_Ameribro_Mod
             Main.Log("\n\n");
         }
 
-        static void swapToCustom()
+        public static void swapToCustom()
         {
             Dictionary<HeroType, HeroController.HeroDefinition> heroDefinition = Traverse.Create(HeroController.Instance).Field("_heroData").GetValue() as Dictionary<HeroType, HeroController.HeroDefinition>;
             Traverse oldVanDamm = Traverse.Create(HeroController.players[0].character);
@@ -237,31 +243,52 @@ namespace Captain_Ameribro_Mod
                 bro.materialNormal = sprite.meshRender.sharedMaterial;
             }
 
+            
+            // LOADING GUN SPRITE WITHOUT SHIELD
+            {
+                //bro.gunSpriteNoShield = HeroController.players[0].character.gunSprite;
 
-            // LOADING GUN SPRITE
-            bro.gunSprite = HeroController.players[0].character.gunSprite;
+                string filePathGun = "D:\\Steam\\steamapps\\common\\Broforce\\Mods\\Development - captainameribro\\captainAmeribroGunNoShield.png";
+                var texGun = new Texture2D(2, 2, TextureFormat.ARGB32, false);
+                texGun.LoadImage(File.ReadAllBytes(filePathGun));
+                texGun.wrapMode = TextureWrapMode.Clamp;
 
-            string filePathGun = "D:\\Steam\\steamapps\\common\\Broforce\\Mods\\Development - captainameribro\\captainAmeribroGun.png";
-            var texGun = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            texGun.LoadImage(File.ReadAllBytes(filePathGun));
-            texGun.wrapMode = TextureWrapMode.Clamp;
+                Texture origGun = neobro.gunSprite.GetComponent<Renderer>().sharedMaterial.GetTexture("_MainTex");
 
-            //Texture origGun = bro.gunSprite.GetComponent<Renderer>().sharedMaterial.GetTexture("_MainTex");
-            Texture origGun = neobro.gunSprite.GetComponent<Renderer>().sharedMaterial.GetTexture("_MainTex");
-            //bro.gunSprite.meshRender.sharedMaterial.CopyPropertiesFromMaterial(neobro.gunSprite.GetComponent<Renderer>().sharedMaterial);
-            bro.gunSprite.Copy(neobro.gunSprite);
-            Vector3 offset = bro.gunSprite.offset;
-            //offset.x += 0;
-            bro.gunSprite.SetOffset(offset);
-            //bro.gunSprite.transform.position = neobro.gunSprite.transform.position;
+                SpriteSM gunSpriteCopy = SpriteSM.Instantiate(neobro.gunSprite);
 
-            texGun.anisoLevel = origGun.anisoLevel;
-            texGun.filterMode = origGun.filterMode;
-            texGun.mipMapBias = origGun.mipMapBias;
-            texGun.wrapMode = origGun.wrapMode;
+                //bro.gunSpriteNoShield.Copy(gunSpriteCopy);
 
-            bro.gunSprite.GetComponent<Renderer>().sharedMaterial.SetTexture("_MainTex", texGun);
-            //sprite.meshRender.sharedMaterial = Resources.Load("Material/Broniversal Soldier Anim.png", typeof(Material)) as Material;
+                texGun.anisoLevel = origGun.anisoLevel;
+                texGun.filterMode = origGun.filterMode;
+                texGun.mipMapBias = origGun.mipMapBias;
+                texGun.wrapMode = origGun.wrapMode;
+
+                bro.gunTextureNoShield = texGun;
+            }
+            // LOADING GUN SPRITE WITH SHIELD
+            {
+                bro.gunSprite = HeroController.players[0].character.gunSprite;
+
+                string filePathGun = "D:\\Steam\\steamapps\\common\\Broforce\\Mods\\Development - captainameribro\\captainAmeribroGunWithShield.png";
+                var texGun = new Texture2D(2, 2, TextureFormat.ARGB32, false);
+                texGun.LoadImage(File.ReadAllBytes(filePathGun));
+                texGun.wrapMode = TextureWrapMode.Clamp;
+
+                Texture origGun = neobro.gunSprite.GetComponent<Renderer>().sharedMaterial.GetTexture("_MainTex");
+
+                SpriteSM gunSpriteCopy = SpriteSM.Instantiate(neobro.gunSprite);
+
+                bro.gunSprite.Copy(gunSpriteCopy);
+
+                texGun.anisoLevel = origGun.anisoLevel;
+                texGun.filterMode = origGun.filterMode;
+                texGun.mipMapBias = origGun.mipMapBias;
+                texGun.wrapMode = origGun.wrapMode;
+
+                bro.gunTextureWithShield = texGun;
+                bro.gunSprite.GetComponent<Renderer>().material.mainTexture = texGun;
+            }
 
 
             // PASSING REFERENCES TO NEW PROJECTILE
@@ -362,7 +389,22 @@ namespace Captain_Ameribro_Mod
         }
 
     }
-
+    [HarmonyPatch(typeof(Player), "GetInput")]
+    static class Player_GetInput_Patch
+    {
+        public static void Postfix(Player __instance, ref bool buttonGesture)
+        {
+            if (!Main.enabled)
+            {
+                return;
+            }
+            if (buttonGesture && Main.globalCounter == 0)
+            {
+                Main.swapToCustom();
+                Main.globalCounter++;
+            }
+        }
+    }
 
     /*[HarmonyPatch(typeof(TestVanDammeAnim), "StartDashing")]
     static class TestVanDammeAnim_StartDashing_Patch
