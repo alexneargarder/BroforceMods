@@ -13,6 +13,7 @@ public class CaptainAmeribro : BroBase
         {
             this.PlayThrowLightSound(0.4f);
             this.SpecialAmmo--;
+            gunSprite.GetComponent<Renderer>().material.mainTexture = gunTextureNoShield;
             if (base.IsMine)
             {
                 //Main.Log("spawning");
@@ -54,6 +55,7 @@ public class CaptainAmeribro : BroBase
             this.grabbingBoomerang = true;
             this.ChangeFrame();
         }
+        gunSprite.GetComponent<Renderer>().material.mainTexture = gunTextureWithShield;
     }
 
     // Token: 0x0600261D RID: 9757 RVA: 0x001315DA File Offset: 0x0012F9DA
@@ -183,6 +185,12 @@ public class CaptainAmeribro : BroBase
         if (this.gunSprite == null)
         {
             Main.Log("gun sprite null");
+        }
+
+        if (this.ducking && this.SpecialAmmo > 0)
+        {
+            Map.DeflectProjectiles(this, base.playerNum, 2f, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 6f, Mathf.Sign(base.transform.localScale.x) * 200f, true);
+
         }
 
         /*if (this.sprint || this.wasSprint)
@@ -408,6 +416,9 @@ public class CaptainAmeribro : BroBase
     public SoundHolder boomerangSoundHolder;
     public float rotationSpeed;
     public Transform shieldTransform;
+
+    public Texture2D gunTextureWithShield;
+    public Texture2D gunTextureNoShield;
 
     protected bool hasPlayedAttackHitSound;
 
