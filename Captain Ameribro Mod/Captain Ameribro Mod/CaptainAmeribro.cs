@@ -104,8 +104,43 @@ public class CaptainAmeribro : BroBase
         this.originalSpecialAmmo = 1;
         this.fireRate = attachFireRate;
         this.health = 1;
+        this.canChimneyFlip = true;
+        this.doRollOnLand = true;
+        this.useNewFrames = true;
     }
 
+
+    // DEBUG
+
+    /*protected override void Land()
+    {
+        Main.Log("do roll on land: " + this.doRollOnLand);
+        Main.Log("use new frames: " + this.useNewFrames);
+        base.Land();
+    }*/
+
+    /*protected override bool ConstrainToCeiling(ref float yIT)
+    {
+        //Main.Log("captain ameribro constrain to ceiling called");
+        Main.Log("can chimney flip: " + this.canChimneyFlip);
+        Main.Log("yI: " + this.yI + " walldrag: " + this.WallDrag);
+        bool result = base.ConstrainToCeiling(ref yIT);
+        //Main.Log("after constrain ameribro");
+        return result;
+    }
+
+    protected override void AnimateChimneyFlip()
+    {
+        Main.Log("CHIMNEY FLIP CALLED IN AMERIBRO");
+        base.AnimateChimneyFlip();
+    }
+
+    protected override void RunMovement()
+    {
+        //Main.Log("running movement in ameribro");
+        base.RunMovement();
+        //Main.Log("after movement ameribro");
+    }*/
     public void Display()
     {
         /*Main.Log("canDash: " + this.canDash);
