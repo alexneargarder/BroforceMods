@@ -389,6 +389,7 @@ namespace Captain_Ameribro_Mod
         }
 
     }
+
     [HarmonyPatch(typeof(Player), "GetInput")]
     static class Player_GetInput_Patch
     {
@@ -405,6 +406,26 @@ namespace Captain_Ameribro_Mod
             }
         }
     }
+
+    /*[HarmonyPatch(typeof(TestVanDammeAnim), "AnimateChimneyFlip")]
+    static class TestVanDammeAnim_AnimateChimneyFlip_Patch
+    {
+        static void Prefix(TestVanDammeAnim __instance)
+        {
+            //Main.Log("animated chimney flip in testvandamme");
+
+        }
+    }
+
+    [HarmonyPatch(typeof(TestVanDammeAnim), "ConstrainToCeiling")]
+    static class TestVanDammeAnim_ConstrainToCeiling_Patch
+    {
+        static void Prefix(TestVanDammeAnim __instance)
+        {
+            //Main.Log("called constrain to ceiling in testvandamme");
+            
+        }
+    }*/
 
     /*[HarmonyPatch(typeof(TestVanDammeAnim), "StartDashing")]
     static class TestVanDammeAnim_StartDashing_Patch
