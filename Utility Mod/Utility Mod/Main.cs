@@ -762,11 +762,29 @@ namespace Utility_Mod
         {
             if (Main.CurrentBuild != "Expendabros" && Main.CurrentBuild != "Online")
             {
-                if(Main.CurrentBuild == "AlienDemo") PlaytomicController.hasChosenAlienDemo = true;
-                else if(Main.CurrentBuild == "BossRush") PlaytomicController.hasChosenBossRushDemo = true;
+                if (Main.CurrentBuild == "AlienDemo")
+                {
+                    PlaytomicController.hasChosenBossRushDemo = false;
+                    PlaytomicController.hasChosenAlienDemo = true;
+                }
+                else if (Main.CurrentBuild == "BossRush")
+                {
+                    PlaytomicController.hasChosenAlienDemo = false;
+                    PlaytomicController.hasChosenBossRushDemo = true;
+                }
+                else
+                {
+                    PlaytomicController.hasChosenAlienDemo = false;
+                    PlaytomicController.hasChosenBossRushDemo = false;
+                }
                 __result = true;
             }
-            else __result = false;
+            else
+            {
+                PlaytomicController.hasChosenBossRushDemo = false;
+                    PlaytomicController.hasChosenAlienDemo = false;
+                __result = false;
+            }
             return false;
         }
     }
@@ -776,7 +794,12 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
-            if (Main.CurrentBuild == "Online") __result = true;
+            if (Main.CurrentBuild == "Online")
+            {
+                PlaytomicController.hasChosenBossRushDemo = false;
+                PlaytomicController.hasChosenAlienDemo = false;
+                __result = true;
+            }
             else __result = false;
             return false;
         }
@@ -787,7 +810,12 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
-            if (Main.CurrentBuild == "Expendabros") __result = true;
+            if (Main.CurrentBuild == "Expendabros")
+            {
+                PlaytomicController.hasChosenBossRushDemo = false;
+                PlaytomicController.hasChosenAlienDemo = false;
+                __result = true;
+            }
             else __result = false;
             return false;
         }
@@ -800,6 +828,7 @@ namespace Utility_Mod
         {
             if (Main.CurrentBuild == "AlienDemo")
             {
+                PlaytomicController.hasChosenBossRushDemo = false;
                 PlaytomicController.hasChosenAlienDemo = true;
                 __result = true;
             }
@@ -819,6 +848,7 @@ namespace Utility_Mod
         {
             if (Main.CurrentBuild == "BossRush")
             {
+                PlaytomicController.hasChosenAlienDemo = false;
                 PlaytomicController.hasChosenBossRushDemo = true;
                 __result = true;
             }
