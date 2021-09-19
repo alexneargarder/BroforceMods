@@ -36,6 +36,8 @@
 /**
  * DONE
  * 
+ * Play different type of campaign
+ * 
  * Set level to repeat with cheat mod
  * 
  * Figure out better way to get instance of map controller (doesn't work sometimes if exiting to menu through options)
@@ -119,11 +121,16 @@ namespace Utility_Mod
             "Time Bro Challenge"
         };
 
+        public static Dropdown TypeOfBuildNum;
+        public static string[] TypeOfBuild = new string[] { "Online", "Expendabros", "TWITCHCON", "AlienDemo", "BossRush" };
+        public static string CurrentBuild;
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
+            modEntry.OnUpdate = OnUpdate;
             settings = Settings.Load<Settings>(modEntry);
             
             var harmony = new Harmony(modEntry.Info.Id);
@@ -138,11 +145,19 @@ namespace Utility_Mod
 
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
-            
+
+            TypeOfBuildNum = new Dropdown(100, 150, 150, 150, new string[] { "Normal Campaign", "Expendabros Campaign", "TwitchCon build", "Alien Demo", "Boss Rush Campaign" }, settings.BuildCampaignNum);
+
+            CurrentBuild = TypeOfBuild[settings.BuildCampaignNum];
 
             return true;
         }
 
+        static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
+        {
+            CurrentBuild = TypeOfBuild[TypeOfBuildNum.indexNumber];
+            settings.BuildCampaignNum = TypeOfBuildNum.indexNumber;
+        }
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
@@ -195,20 +210,32 @@ namespace Utility_Mod
             GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight(350), GUILayout.ExpandWidth(false) });
 
             GUILayout.BeginVertical();
-
+            GUILayout.BeginHorizontal();
+            var warnStyle = new GUIStyle();
+            warnStyle.normal.textColor = Color.yellow;
+            warnStyle.fontStyle = FontStyle.Bold;
+            //GUILayout.Label("IF YOU CHANGE THE VALUE OF THE FIRST LIST YOU NEED TO RELOAD THE GAME", warnStyle);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
 
-            campaignNum.OnGUI(modEntry);
+            TypeOfBuildNum.OnGUI(modEntry);
+            settings.BuildCampaignNum = TypeOfBuildNum.indexNumber;
 
-            determineLevelsInCampaign();
-
-            levelNum.OnGUI(modEntry);
-
-            Main.settings.levelNum = levelNum.indexNumber;
-
-            if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
+            if(CurrentBuild == "Online")
             {
-                GoToLevel();
+                campaignNum.OnGUI(modEntry);
+
+                determineLevelsInCampaign();
+
+                levelNum.OnGUI(modEntry);
+
+                Main.settings.levelNum = levelNum.indexNumber;
+
+                if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
+                {
+                    GoToLevel();
+                }
             }
 
             if (GUI.tooltip != previousToolTip)
@@ -229,7 +256,7 @@ namespace Utility_Mod
 
             GUILayout.Space(1);
 
-            if (!campaignNum.show && !levelNum.show)
+            if (!campaignNum.show && !levelNum.show && !TypeOfBuildNum.show && CurrentBuild == "Online")
             {
 
                 if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
@@ -645,6 +672,8 @@ namespace Utility_Mod
         public bool cameraShake;
         public bool enableSkip;
 
+        public int BuildCampaignNum;
+
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
@@ -722,22 +751,84 @@ namespace Utility_Mod
                 //GUI.Label(new Rect((dropDownRect.x - 95), dropDownRect.y, 300, 25), list[indexNumber]);
                 GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), list[indexNumber]);
             }
-
-
-
         }
     }
 
 
+    [HarmonyPatch(typeof(PlaytomicController), "isExhibitionBuild", MethodType.Getter)]
+    static class isExhibitionBuild_Patch
+    {
+        static bool Prefix(ref bool __result)
+        {
+            if (Main.CurrentBuild != "Expendabros" && Main.CurrentBuild != "Online")
+            {
+                if(Main.CurrentBuild == "AlienDemo") PlaytomicController.hasChosenAlienDemo = true;
+                else if(Main.CurrentBuild == "BossRush") PlaytomicController.hasChosenBossRushDemo = true;
+                __result = true;
+            }
+            else __result = false;
+            return false;
+        }
+    }
 
+    [HarmonyPatch(typeof(PlaytomicController), "isOnlineBuild", MethodType.Getter)]
+    static class isOnlineBuild_Patch
+    {
+        static bool Prefix(ref bool __result)
+        {
+            if (Main.CurrentBuild == "Online") __result = true;
+            else __result = false;
+            return false;
+        }
+    }
 
-       
+    [HarmonyPatch(typeof(PlaytomicController), "isExpendabrosBuild", MethodType.Getter)]
+    static class IsExpendabrosBuild_Patch
+    {
+        static bool Prefix(ref bool __result)
+        {
+            if (Main.CurrentBuild == "Expendabros") __result = true;
+            else __result = false;
+            return false;
+        }
+    }
 
-    
+    [HarmonyPatch(typeof(PlaytomicController), "isAlienDemoBuild", MethodType.Getter)]
+    static class isAlienDemoBuild_Patch
+    {
+        static bool Prefix(ref bool __result)
+        {
+            if (Main.CurrentBuild == "AlienDemo")
+            {
+                PlaytomicController.hasChosenAlienDemo = true;
+                __result = true;
+            }
+            else
+            {
+                PlaytomicController.hasChosenAlienDemo = false;
+                __result = false;
+            }
+            return false;
+        }
+    }
 
- 
-
-
-
+    [HarmonyPatch(typeof(PlaytomicController), "isBossRushBuild", MethodType.Getter)]
+    static class isBossRushBuild_Patch
+    {
+        static bool Prefix(ref bool __result)
+        {
+            if (Main.CurrentBuild == "BossRush")
+            {
+                PlaytomicController.hasChosenBossRushDemo = true;
+                __result = true;
+            }
+            else
+            {
+                PlaytomicController.hasChosenBossRushDemo = false;
+                __result = false;
+            }
+            return false;
+        }
+    }
 
 }
