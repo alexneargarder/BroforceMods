@@ -700,7 +700,7 @@ namespace Utility_Mod
             scrollViewVector = Vector2.zero;
             show = setShow;
         }
-
+        
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
 
@@ -760,6 +760,7 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
+            if (!Main.enabled) return true;
             if (Main.CurrentBuild != "Expendabros" && Main.CurrentBuild != "Online")
             {
                 if (Main.CurrentBuild == "AlienDemo")
@@ -794,6 +795,7 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
+            if (!Main.enabled) return true;
             if (Main.CurrentBuild == "Online")
             {
                 PlaytomicController.hasChosenBossRushDemo = false;
@@ -810,6 +812,7 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
+            if (!Main.enabled) return true;
             if (Main.CurrentBuild == "Expendabros")
             {
                 PlaytomicController.hasChosenBossRushDemo = false;
@@ -826,6 +829,7 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
+            if (!Main.enabled) return true;
             if (Main.CurrentBuild == "AlienDemo")
             {
                 PlaytomicController.hasChosenBossRushDemo = false;
@@ -846,6 +850,7 @@ namespace Utility_Mod
     {
         static bool Prefix(ref bool __result)
         {
+            if (!Main.enabled) return true;
             if (Main.CurrentBuild == "BossRush")
             {
                 PlaytomicController.hasChosenAlienDemo = false;
@@ -857,6 +862,17 @@ namespace Utility_Mod
                 PlaytomicController.hasChosenBossRushDemo = false;
                 __result = false;
             }
+            return false;
+        }
+    }
+    
+    [HarmonyPatch(typeof(LevelSelectionController), "MainMenuScene", MethodType.Getter)]
+    static class FixReturnToMenuWithExpendabrosBuild_Patch
+    {
+        static bool Prefix(ref string __result)
+        {
+            if (!Main.enabled) return true;
+            __result = "MainMenu";
             return false;
         }
     }
