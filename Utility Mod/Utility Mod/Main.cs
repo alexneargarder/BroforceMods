@@ -36,7 +36,7 @@
 /**
  * DONE
  * 
- * Play different type of campaign
+ * Play different type of campaign in arcade
  * 
  * Set level to repeat with cheat mod
  * 
@@ -157,6 +157,10 @@ namespace Utility_Mod
         {
             CurrentBuild = TypeOfBuild[TypeOfBuildNum.indexNumber];
             settings.BuildCampaignNum = TypeOfBuildNum.indexNumber;
+
+            // Patch for avoiding the cursor of being block in Level Editor
+            if (!LevelEditorGUI.IsActive) ShowMouseController.ShowMouse = false;
+            Cursor.lockState = CursorLockMode.None;
         }
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
@@ -214,7 +218,6 @@ namespace Utility_Mod
             var warnStyle = new GUIStyle();
             warnStyle.normal.textColor = Color.yellow;
             warnStyle.fontStyle = FontStyle.Bold;
-            //GUILayout.Label("IF YOU CHANGE THE VALUE OF THE FIRST LIST YOU NEED TO RELOAD THE GAME", warnStyle);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
@@ -796,13 +799,7 @@ namespace Utility_Mod
         static bool Prefix(ref bool __result)
         {
             if (!Main.enabled) return true;
-            if (Main.CurrentBuild == "Online")
-            {
-                PlaytomicController.hasChosenBossRushDemo = false;
-                PlaytomicController.hasChosenAlienDemo = false;
-                __result = true;
-            }
-            else __result = false;
+            __result = true;
             return false;
         }
     }
@@ -877,4 +874,124 @@ namespace Utility_Mod
         }
     }
 
+    // Add the missing menu items, if not the basic campaign
+    [HarmonyPatch(typeof(MainMenu), "SetupItems")]
+    static class AddMissingMenu_Patch
+    {
+        static bool Prefix(MainMenu __instance)
+        {
+            if (!Main.enabled) return true;
+            List<MenuBarItem> list = new List<MenuBarItem>(Traverse.Create(__instance).Field("masterItems").GetValue<MenuBarItem[]>());
+
+            list.Insert(2, new MenuBarItem
+            {
+                color = list[0].color,
+                size = list[0].size,
+                name = "Versus",
+                localisedKey = "MENU_MAIN_VERSUS",
+                invokeMethod = "StartDeathMatch"
+            });
+            list.Insert(2, new MenuBarItem
+            {
+                color = list[0].color,
+                size = list[0].size,
+                name = "CUSTOM CAMPAIGN ^",
+                localisedKey = "MENU_MAIN_CUSTOM_CAMPAIGN",
+                invokeMethod = "CustomCampaign"
+            });
+            list.Insert(2, new MenuBarItem
+            {
+                color = list[0].color,
+                size = list[0].size,
+                name = "LEVEL EDITOR",
+                localisedKey = "MENU_MAIN_LEVEL_EDITOR",
+                invokeMethod = "LevelEditor"
+            });
+            list.Insert(2, new MenuBarItem
+            {
+                color = list[0].color,
+                size = list[0].size,
+                name = "JOIN ONLINE ^",
+                localisedKey = "MENU_MAIN_JOIN_ONLINE",
+                invokeMethod = "FindAGameToJoin"
+            });
+
+            if (PlayerProgress.Instance.lastFinishedLevelOffline <= 0 || PlaytomicController.isExhibitionBuild)
+            {
+                list.RemoveAll((MenuBarItem i) => i.name.ToUpper().Equals("CONTINUE ARCADE CAMPAIGN ^"));
+            }
+            else
+            {
+                list.RemoveAll((MenuBarItem i) => i.name.ToUpper().Equals("START ARCADE CAMPAIGN ^"));
+            }
+
+            Traverse.Create(__instance).Field("masterItems").SetValue(list.ToArray());
+
+            return false;
+        }
+    }
+
+    // Patch Arcade for ask you if you want to play it online
+    [HarmonyPatch(typeof(MainMenu), "StartArcade")]
+    static class CanOnlineArcadeInAnyBuild_Patch
+    {
+        static bool Prefix(MainMenu __instance)
+        {
+            if (!Main.enabled) return true;
+
+            HeroUnlockController.ClearHeroUnlockIntervals();
+            LevelSelectionController.ResetLevelAndGameModeToDefault();
+            PlayerProgress.Instance.truckBloodSplatter = 0;
+            PlayerProgress.Instance.lastMissionThatBloodiedTheTruck = string.Empty;
+            HeroUnlockController.Initialize();
+            GameState.Instance.ResetToDefault();
+            PlayerProgress.Instance.arcadeIsInHardMode = false;
+            GameState.Instance.arcadeHardMode = false;
+            GameState.Instance.campaignName = LevelSelectionController.DefaultCampaign;
+            GameState.Instance.sceneToLoad = LevelSelectionController.JoinScene;
+            GameState.Instance.gameMode = GameMode.Campaign;
+            GameState.Instance.loadMode = MapLoadMode.Campaign;
+            GameState.Instance.Apply();
+            MainMenu.TransitionToOnlineOrOffline(true); // Change
+            __instance.MenuActive = false;
+
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(MainMenu), "TransitionToOnlineOrOffline")]
+    static class CanOnlineArcadeInAnyBuild2_Patch
+    {
+        static bool Prefix(MainMenu __instance, bool onlineAvalable)
+        {
+            if (!Main.enabled) return true;
+
+            MainMenu.instance.MenuActive = false;
+            if (OnlineOrOfflineMenu.gotToCustomCampaignMenu)
+            {
+                MainMenu.instance.TransitionToCustomCampaign();
+            }
+            else
+            {
+                OnlineOrOfflineMenu.instance.onlineAvalable = onlineAvalable;
+                OnlineOrOfflineMenu.Open();
+            }
+
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(MainMenu), "GoToCampaignMenu")]
+    static class ShowNormalCampaignSelectorMenu_Patch
+    {
+        static bool Prefix(MainMenu __instance)
+        {
+            if (!Main.enabled) return true;
+
+            OnlineOrOfflineMenu.gotToCustomCampaignMenu = false;
+            __instance.MenuActive = false;
+            __instance.worldMapOrArcadeMenu.MenuActive = true;
+            __instance.worldMapOrArcadeMenu.TransitionIn();
+
+            return false;
+        }
+    }
 }
