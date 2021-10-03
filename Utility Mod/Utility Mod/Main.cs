@@ -1,48 +1,48 @@
 ﻿/**
  * TODO
- * 
+ *
  * Make helicopter skip go in order
- * 
+ *
  * Set living, dead, and locked bros with cheat mod
- * 
+ *
  * Set lives with cheat mod ( for normal campaign)
- * 
+ *
  * Make campaign progress correctly when jumping to a level via cheat mod
- * 
+ *
  * Investigate if cut scenes destroy mod manager window
- * 
+ *
  * Add unlock all territories button
- * 
+ *
 **/
 /**
  * IDEAS
- * 
+ *
  * change sprint speed
- * 
+ *
  * give lives (for practicing iron bro with fren)
- * 
+ *
  * give infinite specials maybe
- * 
+ *
  * summon mech anywhere
- * 
+ *
  * infinite fuel mech
- * 
+ *
  * bind teleport to some controller key
- * 
+ *
  * buff slowdown time (pause time?)
- * 
- * 
+ *
+ *
 **/
 /**
  * DONE
- * 
+ *
  * Play different type of campaign in arcade
- * 
+ *
  * Set level to repeat with cheat mod
- * 
+ *
  * Figure out better way to get instance of map controller (doesn't work sometimes if exiting to menu through options)
- * 
- * 
+ *
+ *
 **/
 
 using System;
@@ -121,9 +121,9 @@ namespace Utility_Mod
             "Time Bro Challenge"
         };
 
-        public static Dropdown TypeOfBuildNum;
-        public static string[] TypeOfBuild = new string[] { "Online", "Expendabros", "TWITCHCON", "AlienDemo", "BossRush" };
-        public static string CurrentBuild;
+        public static Dropdown TypeOfArcadeNum;
+        public static string[] TypeOfArcade = new string[] { "Normal", "Expendabros", "TWITCHCON", "Alien Demo", "Boss Rush", "Hell Arcade" };
+        public static string CurrentArcade;
 
         static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -132,7 +132,7 @@ namespace Utility_Mod
             modEntry.OnToggle = OnToggle;
             modEntry.OnUpdate = OnUpdate;
             settings = Settings.Load<Settings>(modEntry);
-            
+
             var harmony = new Harmony(modEntry.Info.Id);
             var assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
@@ -146,17 +146,17 @@ namespace Utility_Mod
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
 
-            TypeOfBuildNum = new Dropdown(100, 150, 150, 150, new string[] { "Normal Campaign", "Expendabros Campaign", "TwitchCon build", "Alien Demo", "Boss Rush Campaign" }, settings.BuildCampaignNum);
+            TypeOfArcadeNum = new Dropdown(100, 150, 150, 150, TypeOfArcade, settings.ArcadeCampaignNum);
 
-            CurrentBuild = TypeOfBuild[settings.BuildCampaignNum];
+            CurrentArcade = TypeOfArcade[settings.ArcadeCampaignNum];
 
             return true;
         }
 
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
-            CurrentBuild = TypeOfBuild[TypeOfBuildNum.indexNumber];
-            settings.BuildCampaignNum = TypeOfBuildNum.indexNumber;
+            CurrentArcade = TypeOfArcade[TypeOfArcadeNum.indexNumber];
+            settings.ArcadeCampaignNum = TypeOfArcadeNum.indexNumber;
 
             // Patch for avoiding the cursor of being block in Level Editor
             if (!LevelEditorGUI.IsActive) ShowMouseController.ShowMouse = false;
@@ -203,7 +203,7 @@ namespace Utility_Mod
                     GUI.Label(lastRect, GUI.tooltip);
                     previousToolTip = GUI.tooltip;
                 }
-                
+
             }
             GUILayout.EndHorizontal();
 
@@ -222,10 +222,10 @@ namespace Utility_Mod
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
 
-            TypeOfBuildNum.OnGUI(modEntry);
-            settings.BuildCampaignNum = TypeOfBuildNum.indexNumber;
+            TypeOfArcadeNum.OnGUI(modEntry);
+            settings.ArcadeCampaignNum = TypeOfArcadeNum.indexNumber;
 
-            if(CurrentBuild == "Online")
+            if(CurrentArcade == "Online")
             {
                 campaignNum.OnGUI(modEntry);
 
@@ -259,7 +259,7 @@ namespace Utility_Mod
 
             GUILayout.Space(1);
 
-            if (!campaignNum.show && !levelNum.show && !TypeOfBuildNum.show && CurrentBuild == "Online")
+            if (!campaignNum.show && !levelNum.show && !TypeOfArcadeNum.show && CurrentArcade == "Online")
             {
 
                 if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
@@ -487,7 +487,7 @@ namespace Utility_Mod
                 //Main.Log("instance null");
                 return;
             }
-           
+
             WorldTerritory3D territoryObject = null; // = WorldMapController.GetTerritory(campaignName);
 
             WorldTerritory3D[] territories = Traverse.Create(typeof(WorldMapController)).Field("territories3D").GetValue() as WorldTerritory3D[];
@@ -521,7 +521,7 @@ namespace Utility_Mod
             {
                 item.actionType = WorldMapController.QueuedActions.Terrorist;
             }
-			
+
 			item.territory = territoryObject;
 			(Traverse.Create(instance).Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>).Add(item);
 
@@ -540,7 +540,7 @@ namespace Utility_Mod
                     territoryProgress.startLevel = levelNum;
                 }
             }
-            
+
 
             WorldMapController.RestTransport(territoryObject);
             WorldMapController.EnterMission(territoryObject.GetCampaignName(), territoryObject.properties.loadingText, territoryObject.properties);
@@ -556,7 +556,7 @@ namespace Utility_Mod
 
             instance = __instance;
             return;
-            
+
         }*/
 
     }
@@ -675,7 +675,7 @@ namespace Utility_Mod
         public bool cameraShake;
         public bool enableSkip;
 
-        public int BuildCampaignNum;
+        public int ArcadeCampaignNum;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)
@@ -703,7 +703,7 @@ namespace Utility_Mod
             scrollViewVector = Vector2.zero;
             show = setShow;
         }
-        
+
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
 
@@ -750,7 +750,7 @@ namespace Utility_Mod
             }
             else
             {
-                
+
                 //GUI.Label(new Rect((dropDownRect.x - 95), dropDownRect.y, 300, 25), list[indexNumber]);
                 GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), list[indexNumber]);
             }
@@ -758,240 +758,27 @@ namespace Utility_Mod
     }
 
 
-    [HarmonyPatch(typeof(PlaytomicController), "isExhibitionBuild", MethodType.Getter)]
-    static class isExhibitionBuild_Patch
+    // Playing multiple Arcade Campaign
+    [HarmonyPatch(typeof(LevelSelectionController), "ResetLevelAndGameModeToDefault")]
+    static class ArcadeCampaign_Patch
     {
-        static bool Prefix(ref bool __result)
+        static void Postfix()
         {
-            if (!Main.enabled) return true;
-            if (Main.CurrentBuild != "Expendabros" && Main.CurrentBuild != "Online")
-            {
-                if (Main.CurrentBuild == "AlienDemo")
-                {
-                    PlaytomicController.hasChosenBossRushDemo = false;
-                    PlaytomicController.hasChosenAlienDemo = true;
-                }
-                else if (Main.CurrentBuild == "BossRush")
-                {
-                    PlaytomicController.hasChosenAlienDemo = false;
-                    PlaytomicController.hasChosenBossRushDemo = true;
-                }
-                else
-                {
-                    PlaytomicController.hasChosenAlienDemo = false;
-                    PlaytomicController.hasChosenBossRushDemo = false;
-                }
-                __result = true;
-            }
+            if (!Main.enabled) return;
+            string c = Main.CurrentArcade;
+            if (c == "Hell Arcade")
+                LevelSelectionController.DefaultCampaign = LevelSelectionController.HellArcade;
+            else if (c == "Expendabros")
+                LevelSelectionController.DefaultCampaign = LevelSelectionController.ExpendabrosCampaign;
+            else if (c == "TWITCHCON")
+                LevelSelectionController.DefaultCampaign = "VIETNAM_EXHIBITION_TWITCHCON";
+            else if (c == "Alien Demo")
+                LevelSelectionController.DefaultCampaign = "AlienExhibition";
+            else if (c == "Boss Rush")
+                LevelSelectionController.DefaultCampaign = "BossRushCampaign";
             else
-            {
-                PlaytomicController.hasChosenBossRushDemo = false;
-                    PlaytomicController.hasChosenAlienDemo = false;
-                __result = false;
-            }
-            return false;
-        }
-    }
+                LevelSelectionController.DefaultCampaign = LevelSelectionController.OfflineCampaign;
 
-    [HarmonyPatch(typeof(PlaytomicController), "isOnlineBuild", MethodType.Getter)]
-    static class isOnlineBuild_Patch
-    {
-        static bool Prefix(ref bool __result)
-        {
-            if (!Main.enabled) return true;
-            __result = true;
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(PlaytomicController), "isExpendabrosBuild", MethodType.Getter)]
-    static class IsExpendabrosBuild_Patch
-    {
-        static bool Prefix(ref bool __result)
-        {
-            if (!Main.enabled) return true;
-            if (Main.CurrentBuild == "Expendabros")
-            {
-                PlaytomicController.hasChosenBossRushDemo = false;
-                PlaytomicController.hasChosenAlienDemo = false;
-                __result = true;
-            }
-            else __result = false;
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(PlaytomicController), "isAlienDemoBuild", MethodType.Getter)]
-    static class isAlienDemoBuild_Patch
-    {
-        static bool Prefix(ref bool __result)
-        {
-            if (!Main.enabled) return true;
-            if (Main.CurrentBuild == "AlienDemo")
-            {
-                PlaytomicController.hasChosenBossRushDemo = false;
-                PlaytomicController.hasChosenAlienDemo = true;
-                __result = true;
-            }
-            else
-            {
-                PlaytomicController.hasChosenAlienDemo = false;
-                __result = false;
-            }
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(PlaytomicController), "isBossRushBuild", MethodType.Getter)]
-    static class isBossRushBuild_Patch
-    {
-        static bool Prefix(ref bool __result)
-        {
-            if (!Main.enabled) return true;
-            if (Main.CurrentBuild == "BossRush")
-            {
-                PlaytomicController.hasChosenAlienDemo = false;
-                PlaytomicController.hasChosenBossRushDemo = true;
-                __result = true;
-            }
-            else
-            {
-                PlaytomicController.hasChosenBossRushDemo = false;
-                __result = false;
-            }
-            return false;
-        }
-    }
-    
-    [HarmonyPatch(typeof(LevelSelectionController), "MainMenuScene", MethodType.Getter)]
-    static class FixReturnToMenuWithExpendabrosBuild_Patch
-    {
-        static bool Prefix(ref string __result)
-        {
-            if (!Main.enabled) return true;
-            __result = "MainMenu";
-            return false;
-        }
-    }
-
-    // Add the missing menu items, if not the basic campaign
-    [HarmonyPatch(typeof(MainMenu), "SetupItems")]
-    static class AddMissingMenu_Patch
-    {
-        static bool Prefix(MainMenu __instance)
-        {
-            if (!Main.enabled) return true;
-            List<MenuBarItem> list = new List<MenuBarItem>(Traverse.Create(__instance).Field("masterItems").GetValue<MenuBarItem[]>());
-
-            list.Insert(2, new MenuBarItem
-            {
-                color = list[0].color,
-                size = list[0].size,
-                name = "Versus",
-                localisedKey = "MENU_MAIN_VERSUS",
-                invokeMethod = "StartDeathMatch"
-            });
-            list.Insert(2, new MenuBarItem
-            {
-                color = list[0].color,
-                size = list[0].size,
-                name = "CUSTOM CAMPAIGN ^",
-                localisedKey = "MENU_MAIN_CUSTOM_CAMPAIGN",
-                invokeMethod = "CustomCampaign"
-            });
-            list.Insert(2, new MenuBarItem
-            {
-                color = list[0].color,
-                size = list[0].size,
-                name = "LEVEL EDITOR",
-                localisedKey = "MENU_MAIN_LEVEL_EDITOR",
-                invokeMethod = "LevelEditor"
-            });
-            list.Insert(2, new MenuBarItem
-            {
-                color = list[0].color,
-                size = list[0].size,
-                name = "JOIN ONLINE ^",
-                localisedKey = "MENU_MAIN_JOIN_ONLINE",
-                invokeMethod = "FindAGameToJoin"
-            });
-
-            if (PlayerProgress.Instance.lastFinishedLevelOffline <= 0 || PlaytomicController.isExhibitionBuild)
-            {
-                list.RemoveAll((MenuBarItem i) => i.name.ToUpper().Equals("CONTINUE ARCADE CAMPAIGN ^"));
-            }
-            else
-            {
-                list.RemoveAll((MenuBarItem i) => i.name.ToUpper().Equals("START ARCADE CAMPAIGN ^"));
-            }
-
-            Traverse.Create(__instance).Field("masterItems").SetValue(list.ToArray());
-
-            return false;
-        }
-    }
-
-    // Patch Arcade for ask you if you want to play it online
-    [HarmonyPatch(typeof(MainMenu), "StartArcade")]
-    static class CanOnlineArcadeInAnyBuild_Patch
-    {
-        static bool Prefix(MainMenu __instance)
-        {
-            if (!Main.enabled) return true;
-
-            HeroUnlockController.ClearHeroUnlockIntervals();
-            LevelSelectionController.ResetLevelAndGameModeToDefault();
-            PlayerProgress.Instance.truckBloodSplatter = 0;
-            PlayerProgress.Instance.lastMissionThatBloodiedTheTruck = string.Empty;
-            HeroUnlockController.Initialize();
-            GameState.Instance.ResetToDefault();
-            PlayerProgress.Instance.arcadeIsInHardMode = false;
-            GameState.Instance.arcadeHardMode = false;
-            GameState.Instance.campaignName = LevelSelectionController.DefaultCampaign;
-            GameState.Instance.sceneToLoad = LevelSelectionController.JoinScene;
-            GameState.Instance.gameMode = GameMode.Campaign;
-            GameState.Instance.loadMode = MapLoadMode.Campaign;
-            GameState.Instance.Apply();
-            MainMenu.TransitionToOnlineOrOffline(true); // Change
-            __instance.MenuActive = false;
-
-            return false;
-        }
-    }
-    [HarmonyPatch(typeof(MainMenu), "TransitionToOnlineOrOffline")]
-    static class CanOnlineArcadeInAnyBuild2_Patch
-    {
-        static bool Prefix(MainMenu __instance, bool onlineAvalable)
-        {
-            if (!Main.enabled) return true;
-
-            MainMenu.instance.MenuActive = false;
-            if (OnlineOrOfflineMenu.gotToCustomCampaignMenu)
-            {
-                MainMenu.instance.TransitionToCustomCampaign();
-            }
-            else
-            {
-                OnlineOrOfflineMenu.instance.onlineAvalable = onlineAvalable;
-                OnlineOrOfflineMenu.Open();
-            }
-
-            return false;
-        }
-    }
-    [HarmonyPatch(typeof(MainMenu), "GoToCampaignMenu")]
-    static class ShowNormalCampaignSelectorMenu_Patch
-    {
-        static bool Prefix(MainMenu __instance)
-        {
-            if (!Main.enabled) return true;
-
-            OnlineOrOfflineMenu.gotToCustomCampaignMenu = false;
-            __instance.MenuActive = false;
-            __instance.worldMapOrArcadeMenu.MenuActive = true;
-            __instance.worldMapOrArcadeMenu.TransitionIn();
-
-            return false;
         }
     }
 }
