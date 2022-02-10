@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Captain_Ameribro_Mod;
 
-// Token: 0x0200039B RID: 923
 public class CaptainAmeribro : BroBase
 {
-    // Token: 0x0600261B RID: 9755 RVA: 0x001314E4 File Offset: 0x0012F8E4
     protected override void UseSpecial()
     {
         if (this.SpecialAmmo > 0)
@@ -30,7 +28,7 @@ public class CaptainAmeribro : BroBase
                 Transform tempShieldTransform = newProj.transform;
                 SoundHolder tempSoundHolder = SoundHolder.Instantiate(boomerangSoundHolder);
 
-                newProj.Setup(tempAttachBoxCollider, tempShieldTransform, tempSoundHolder, rotationSpeed);
+                newProj.Setup(tempAttachBoxCollider, tempShieldTransform, tempSoundHolder, rotationSpeed, true);
                 newProj.activeProjectile = true;
                 //Main.Log("spawned");
             }
@@ -43,7 +41,6 @@ public class CaptainAmeribro : BroBase
         this.pressSpecialFacingDirection = 0;
     }
 
-    // Token: 0x0600261C RID: 9756 RVA: 0x001315A4 File Offset: 0x0012F9A4
     public void ReturnShield(Shield shield)
     {
         //Main.Log("return boomerang");
@@ -58,7 +55,6 @@ public class CaptainAmeribro : BroBase
         gunSprite.GetComponent<Renderer>().material.mainTexture = gunTextureWithShield;
     }
 
-    // Token: 0x0600261D RID: 9757 RVA: 0x001315DA File Offset: 0x0012F9DA
     protected override void PressSpecial()
     {
         if (this.SpecialAmmo > 0)
@@ -68,7 +64,6 @@ public class CaptainAmeribro : BroBase
         base.PressSpecial();
     }
 
-    // Token: 0x0600261E RID: 9758 RVA: 0x001315F8 File Offset: 0x0012F9F8
     protected override void AnimateSpecial()
     {
         if (this.grabbingBoomerang)
@@ -239,7 +234,7 @@ public class CaptainAmeribro : BroBase
         base.Update();
     }
 
-    protected override void StartDashing()
+    /*protected override void StartDashing()
     {
 
         //Main.Log("before");
@@ -248,7 +243,7 @@ public class CaptainAmeribro : BroBase
 
         //Main.Log("AFTER dashing: " + base.dashing);
         //Main.Log("AFTER delayed dashing: " + base.delayedDashing);
-    }
+    }*/
 
     protected override void SetGunSprite(int spriteFrame, int spriteRow)
     {
@@ -461,28 +456,21 @@ public class CaptainAmeribro : BroBase
 
     protected int punchingIndex;
 
-    // Token: 0x040021E9 RID: 8681
     protected bool hasHitWithSlice;
 
-    // Token: 0x040021EA RID: 8682
     protected bool hasHitWithWall;
 
-    // Token: 0x0400247B RID: 9339
     //public Projectile[] flameProjectiles;
 
     public Material materialArmless;
 
     public Material materialNormal;
 
-    // Token: 0x04002370 RID: 9072
     public Shield shield;
 
-    // Token: 0x04002371 RID: 9073
     public float boomerangSpeed = 300f;
 
-    // Token: 0x04002372 RID: 9074
     protected bool grabbingBoomerang;
 
-    // Token: 0x04002373 RID: 9075
     protected int grabbingFrame;
 }
