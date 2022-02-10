@@ -8,13 +8,13 @@ using Captain_Ameribro_Mod;
 // Token: 0x02000504 RID: 1284
 public class Shield : Projectile
 {
-    public void Setup(BoxCollider attachBoomerangCollider, Transform attachTransform, SoundHolder attachSoundHolder, float attachRotationSpeed)
+    public void Setup(BoxCollider attachBoomerangCollider, Transform attachTransform, SoundHolder attachSoundHolder, float attachRotationSpeed, bool startRunning)
     {
         this.boomerangCollider = attachBoomerangCollider;
         base.transform.parent = attachTransform;
         this.soundHolder = attachSoundHolder;
         //this.rotationSpeed = attachRotationSpeed;
-        returnTime = 2f;
+        this.returnTime = 2f;
         this.rotationSpeed = 0f;
         this.damage = 3;
         this.texture = this.gameObject.GetComponent<AnimatedTexture>();
@@ -23,7 +23,12 @@ public class Shield : Projectile
         
         base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
 
-        
+        this.enabled = startRunning;
+
+        //texture.paused = true;
+        //Main.Log("request frame: " + Main.requestedFrame);
+        this.texture.frames = 1;
+        //this.texture.SetFrame(Main.requestedFrame);
 
         if (this.gameObject == null)
         {
@@ -41,7 +46,7 @@ public class Shield : Projectile
         Main.Log("\n\n");
         Main.Log("damage: " + base.damage);
         Main.Log("x: " + this.X + "  y: " + this.Y + "  xI: " + this.xI + "  yI: " + this.yI);
-        Main.Log("hold at apex time: " + holdAtApexTime + "    hold at apex duration: " + holdAtApexDuration);
+        //Main.Log("hold at apex time: " + holdAtApexTime + "    hold at apex duration: " + holdAtApexDuration);
         Main.Log("return time: " + returnTime);
         Main.Log(base.transform.localScale.ToString());
         Main.Log(base.transform.eulerAngles.ToString());
@@ -102,7 +107,6 @@ public class Shield : Projectile
         //Main.Log("exited fire");
     }
 
-    // Token: 0x0600351C RID: 13596 RVA: 0x00198B48 File Offset: 0x00196F48
     protected override void CheckSpawnPoint()
     {
         Collider[] array = Physics.OverlapSphere(new Vector3(base.X, base.Y, 0f), 5f, this.groundLayer);
@@ -129,7 +133,6 @@ public class Shield : Projectile
         this.CheckSpawnPointFragile();
     }
 
-    // Token: 0x0600351D RID: 13597 RVA: 0x00198E20 File Offset: 0x00197220
     protected override void RunProjectile(float t)
     {
         //Main.Log("rotation speed:    " + this.rotationSpeed);
@@ -137,12 +140,15 @@ public class Shield : Projectile
         base.RunProjectile(t);
         this.returnTime -= t;
         this.collectDelayTime -= t;
+        this.ricochetCooldown -= t;
+
         if (this.holdAtApexTime > 0f)
         {
             this.holdAtApexTime -= t;
             this.CheckReturnShield();
             if (this.holdAtApexTime <= 0f)
             {
+                //Main.Log("first applying reverse force");
                 this.ApplyReverseForce(t);
             }
         }
@@ -150,19 +156,29 @@ public class Shield : Projectile
         {
             if (!this.dropping)
             {
-                if (Mathf.Sign(this.boomerangSpeed) == Mathf.Sign(this.xI))
+                if (forward)
                 {
-                    this.ApplyReverseForce(t);
-                    if (!this.hasReachedApex && Mathf.Sign(this.boomerangSpeed) != Mathf.Sign(this.xI))
-                    {
-                        this.hasReachedApex = true;
-                        this.holdAtApexTime = this.holdAtApexDuration;
-                        this.xI = 0f;
-                    }
+                    this.ApplyForwardForce(t);
                 }
                 else
                 {
                     this.ApplyReverseForce(t);
+                    /*if (Mathf.Sign(this.boomerangSpeed) == Mathf.Sign(this.xI))
+                    {
+                        //Main.Log("second applying reverse force");
+                        this.ApplyReverseForce(t);
+                        if (!this.hasReachedApex && Mathf.Sign(this.boomerangSpeed) != Mathf.Sign(this.xI))
+                        {
+                            this.hasReachedApex = true;
+                            this.holdAtApexTime = this.holdAtApexDuration;
+                            this.xI = 0f;
+                        }
+                    }
+                    else
+                    {
+                        //Main.Log("third applying reverse force");
+                        this.ApplyReverseForce(t);
+                    }*/
                 }
             }
             this.CheckReturnShield();
@@ -205,13 +221,20 @@ public class Shield : Projectile
             this.alreadyHit.Clear();
         }
         this.lastXI = this.xI;
-        //Main.Log("exited run");
+        //Main.Log("AFTER run");
     }
 
-    // Token: 0x0600351E RID: 13598 RVA: 0x00199118 File Offset: 0x00197518
     private void ApplyReverseForce(float t)
     {
+        //Main.Log("applying return force to shield");
         this.xI -= this.boomerangSpeed * t * this.returnLerpSpeed;
+        this.xI = Mathf.Clamp(this.xI, -Mathf.Abs(this.boomerangSpeed), Mathf.Abs(this.boomerangSpeed));
+    }
+
+    private void ApplyForwardForce(float t)
+    {
+        //Main.Log("applying return force to shield");
+        this.xI += this.boomerangSpeed * t * this.returnLerpSpeed;
         this.xI = Mathf.Clamp(this.xI, -Mathf.Abs(this.boomerangSpeed), Mathf.Abs(this.boomerangSpeed));
     }
 
@@ -250,9 +273,7 @@ public class Shield : Projectile
                 Main.requestDisplay = false;
             }
 
-
-
-            if (!Main.settings.animateShield)
+            /*if (!Main.settings.animateShield)
             {
                 texture.paused = true;
                 this.texture.SetFrame(Main.requestedFrame);
@@ -260,7 +281,7 @@ public class Shield : Projectile
             else
             {
                 texture.paused = false;
-            }
+            }*/
             /*if (!Main.settings.moveShield)
             {
                 return;
@@ -281,6 +302,7 @@ public class Shield : Projectile
     // Token: 0x06003522 RID: 13602 RVA: 0x00199260 File Offset: 0x00197660
     protected override bool HitWalls()
     {
+        //Main.Log("hit walls");
         if (this.xI < 0f)
         {
             if (Physics.Raycast(new Vector3(base.X + 4f, base.Y + 4f, 0f), Vector3.left, out this.raycastHit, 6f + this.heightOffGround, this.groundLayer) || Physics.Raycast(new Vector3(base.X + 4f, base.Y - 4f, 0f), Vector3.left, out this.raycastHit, 6f + this.heightOffGround, this.groundLayer))
@@ -296,7 +318,14 @@ public class Shield : Projectile
                     this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
                     if (this.returnTime > 0f)
                     {
+                        Main.Log("return time set to 0");
                         this.returnTime = 0f;
+                    }
+                    if (this.ricochetCooldown < 0)
+                    {
+                        Main.Log("ricochet first");
+                        this.forward = !this.forward;
+                        this.ricochetCooldown = 0.2f;
                     }
                     /*else if (!this.dropping && this.boomerangSpeed > 0f)
                     {
@@ -304,12 +333,12 @@ public class Shield : Projectile
                         this.yI += 80f;
                     }*/
                 }
-                else if (!this.hasReachedApex)
+                /*else if (!this.hasReachedApex)
                 {
                     this.xI = 0f;
                     this.hasReachedApex = true;
                     this.holdAtApexTime = this.holdAtApexDuration;
-                }
+                }*/
                 this.PlayBounceSound();
             }
         }
@@ -326,7 +355,14 @@ public class Shield : Projectile
                 this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
                 if (this.returnTime > 0f)
                 {
+                    Main.Log("return time set to 0");
                     this.returnTime = 0f;
+                }
+                if (this.ricochetCooldown < 0)
+                {
+                    Main.Log("ricochet second");
+                    this.forward = !this.forward;
+                    this.ricochetCooldown = 0.2f;
                 }
                 /*else if (!this.dropping && this.boomerangSpeed < 0f)
                 {
@@ -334,12 +370,12 @@ public class Shield : Projectile
                     this.yI += 80f;
                 }*/
             }
-            else if (!this.hasReachedApex)
+            /*else if (!this.hasReachedApex)
             {
                 this.xI = 0f;
                 this.hasReachedApex = true;
                 this.holdAtApexTime = this.holdAtApexDuration;
-            }
+            }*/
             this.PlayBounceSound();
         }
         if (this.dropping)
@@ -377,6 +413,7 @@ public class Shield : Projectile
                 this.rotationSpeed = -25f * this.xI;
             }
         }
+        //Main.Log("after hit walls");
         return true;
     }
 
@@ -410,6 +447,7 @@ public class Shield : Projectile
     // Token: 0x06003526 RID: 13606 RVA: 0x00199AD5 File Offset: 0x00197ED5
     protected override void Bounce(RaycastHit raycastHit)
     {
+        Main.Log("bouncing");
         if (this.returnTime > 0f)
         {
             this.xI = 0f;
@@ -430,12 +468,12 @@ public class Shield : Projectile
         }
         else if (!this.dropping)
         {
-            if (this.hasReachedApex && this.holdAtApexTime > 0f && MapController.DamageGround(this, 1, DamageType.Normal, 6f, base.X, base.Y, null, false))
+            /*if (this.hasReachedApex && this.holdAtApexTime > 0f && MapController.DamageGround(this, 1, DamageType.Normal, 6f, base.X, base.Y, null, false))
             {
                 Main.Log("reached apex slowing down?");
                 EffectsController.CreateSparkParticles(base.X, base.Y, 1f, 3, 2f, 10f, 0f, 0f, UnityEngine.Random.value, 1f);
                 this.holdAtApexTime = Mathf.Clamp(this.holdAtApexTime -= this.t * 3f, this.t, this.holdAtApexTime);
-            }
+            }*/
             if (this.reversing)
             {
                 if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, this.xI, this.yI, true, false, true, false))
@@ -450,10 +488,10 @@ public class Shield : Projectile
                     {
                         this.xI *= 0.66f;
                     }*/
-                    if (this.holdAtApexTime > 0f)
+                    /*if (this.holdAtApexTime > 0f)
                     {
                         this.holdAtApexTime -= 0.2f;
-                    }
+                    }*/
                     this.hitUnitsCount++;
                 }
             }
@@ -470,10 +508,10 @@ public class Shield : Projectile
                 {
                     this.xI *= 0.66f;
                 }*/
-                if (this.holdAtApexTime > 0f)
+                /*if (this.holdAtApexTime > 0f)
                 {
                     this.holdAtApexTime -= 0.2f;
-                }
+                }*/
                 this.hitUnitsCount++;
             }
         }
@@ -496,7 +534,7 @@ public class Shield : Projectile
             {
                 //Main.Log("trying return");
                 Shield.TryReturnRPC(this);
-                if (base.IsMine)
+                /*if (base.IsMine)
                 {
                     PID targetOthers = PID.TargetOthers;
                     bool immediate = false;
@@ -507,7 +545,7 @@ public class Shield : Projectile
                         Shield.rpcSig = new RpcSignature<Shield>(Shield.TryReturnRPC);
                     }
                     Networking.Networking.RPC<Shield>(targetOthers, immediate, ignoreSessionID, addExecutionDelay, Shield.rpcSig, this);
-                }
+                }*/
             }
         }
     }
@@ -551,20 +589,20 @@ public class Shield : Projectile
     {
     }
 
+    public bool forward = true;
+
+    public float ricochetCooldown = 0f;
+
     public bool activeProjectile = false;
 
     public AnimatedTexture texture;
 
-    // Token: 0x040031CA RID: 12746
     public float returnTime = 2f;
 
-    // Token: 0x040031CB RID: 12747
     public float holdAtApexDuration = 4f;
 
-    // Token: 0x040031CC RID: 12748
     protected bool hasReachedApex;
 
-    // Token: 0x040031CD RID: 12749
     protected float holdAtApexTime;
 
     // Token: 0x040031CE RID: 12750

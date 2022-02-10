@@ -316,7 +316,7 @@ namespace Captain_Ameribro_Mod
 
             Shield shield = clone.gameObject.AddComponent<Shield>();
 
-            shield.Setup(bro.attachBoxCollider, bro.shieldTransform, bro.boomerangSoundHolder, bro.rotationSpeed);
+            shield.Setup(bro.attachBoxCollider, bro.shieldTransform, bro.boomerangSoundHolder, bro.rotationSpeed, false);
 
             //return;
             // LOADING PROJECTILE SPRITE
@@ -390,7 +390,27 @@ namespace Captain_Ameribro_Mod
 
     }
 
-    [HarmonyPatch(typeof(Player), "GetInput")]
+    /*[HarmonyPatch(typeof(TestVanDammeAnim), "PlayAttackSound", new Type[] { })]
+    static class TestVanDammeAnim_PlayAttackSound2_Patch
+    {
+        public static void Prefix(TestVanDammeAnim __instance)
+        {
+            Main.Log("playing attack sound2");
+        }
+
+    }
+
+    [HarmonyPatch(typeof(TestVanDammeAnim), "PlayAttackSound", new Type[] { typeof(float) })]
+    static class TestVanDammeAnim_PlayAttackSound_Patch
+    {
+        public static void Prefix(TestVanDammeAnim __instance, ref float v)
+        {
+            Main.Log("playing attack sound: " + v);
+        }
+
+    }*/
+
+            [HarmonyPatch(typeof(Player), "GetInput")]
     static class Player_GetInput_Patch
     {
         public static void Postfix(Player __instance, ref bool buttonGesture)
