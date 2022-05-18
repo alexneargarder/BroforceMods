@@ -21,8 +21,6 @@
  * 
  * give lives (for practicing iron bro)
  * 
- * summon mech anywhere
- * 
  * infinite fuel mech
  * 
  * bind teleport to some controller key
@@ -33,6 +31,12 @@
 **/
 /**
  * DONE
+ * 
+ * add invincibility toggle
+ * 
+ * add teleporting system with waypoints you can set
+ * 
+ * summon mech anywhere
  * 
  * give infinite specials
  * 
