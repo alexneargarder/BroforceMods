@@ -225,7 +225,7 @@ namespace Utility_Mod
             TypeOfArcadeNum.OnGUI(modEntry);
             settings.ArcadeCampaignNum = TypeOfArcadeNum.indexNumber;
 
-            if(CurrentArcade == "Online")
+            if(CurrentArcade == "Normal")
             {
                 campaignNum.OnGUI(modEntry);
 
@@ -259,7 +259,7 @@ namespace Utility_Mod
 
             GUILayout.Space(1);
 
-            if (!campaignNum.show && !levelNum.show && !TypeOfArcadeNum.show && CurrentArcade == "Online")
+            if (!campaignNum.show && !levelNum.show && !TypeOfArcadeNum.show && CurrentArcade == "Normal")
             {
 
                 if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
