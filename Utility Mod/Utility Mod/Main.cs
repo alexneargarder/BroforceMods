@@ -124,6 +124,7 @@ namespace Utility_Mod
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
+            modEntry.OnUpdate = OnUpdate;
             settings = Settings.Load<Settings>(modEntry);
             
             var harmony = new Harmony(modEntry.Info.Id);
@@ -147,6 +148,9 @@ namespace Utility_Mod
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
             string previousToolTip;
+
+            
+            
             GUILayout.BeginHorizontal();
             {
                 settings.cameraShake = GUILayout.Toggle(settings.cameraShake, new GUIContent("Camera Shake",
@@ -157,16 +161,26 @@ namespace Utility_Mod
                 lastRect.width += 500;
 
                 settings.enableSkip = GUILayout.Toggle(settings.enableSkip, new GUIContent("Helicopter Skip",
-                    "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(200f));
+                    "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(150f));
 
                 GUI.Label(lastRect, GUI.tooltip);
                 previousToolTip = GUI.tooltip;
+
+                settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
+                    "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
             }
             GUILayout.EndHorizontal();
 
 
             GUILayout.Space(25);
 
+            GUIStyle headerStyle = new GUIStyle();
+            headerStyle.fontStyle = FontStyle.Bold;
+            // 163, 232, 255
+            headerStyle.normal.textColor = new Color(0.639216f, 0.909804f, 1f);
+
+
+            GUILayout.Label("Level Controls", headerStyle);
 
             GUILayout.BeginHorizontal();
             {
@@ -176,8 +190,7 @@ namespace Utility_Mod
                 lastRect.y += 20;
                 lastRect.width += 300;
 
-                settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
-                    "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
+                
 
                 if (GUI.tooltip != previousToolTip)
                 {
@@ -192,76 +205,83 @@ namespace Utility_Mod
             GUILayout.Space(25);
 
 
-            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight(350), GUILayout.ExpandWidth(false) });
-
-            GUILayout.BeginVertical();
-
-            GUILayout.BeginHorizontal();
-
-            campaignNum.OnGUI(modEntry);
-
-            determineLevelsInCampaign();
-
-            levelNum.OnGUI(modEntry);
-
-            Main.settings.levelNum = levelNum.indexNumber;
-
-            if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight(100), GUILayout.ExpandWidth(false) });
             {
-                GoToLevel();
+                GUILayout.BeginVertical();
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        campaignNum.OnGUI(modEntry);
+
+                        determineLevelsInCampaign();
+
+                        levelNum.OnGUI(modEntry);
+
+                        Main.settings.levelNum = levelNum.indexNumber;
+
+                        if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
+                        {
+                            GoToLevel();
+                        }
+
+                        if (GUI.tooltip != previousToolTip)
+                        {
+                            Rect lastRect = campaignNum.dropDownRect;
+                            lastRect.y += 20;
+                            lastRect.width += 300;
+
+                            GUI.Label(lastRect, GUI.tooltip);
+                            previousToolTip = GUI.tooltip;
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(25);
+
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Space(1);
+
+                        if (!campaignNum.show && !levelNum.show)
+                        {
+
+                            if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            {
+                                ChangeLevel(-1);
+                            }
+
+                            Rect lastRect = GUILayoutUtility.GetLastRect();
+                            lastRect.y += 20;
+                            lastRect.width += 300;
+
+                            if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            {
+                                ChangeLevel(1);
+                            }
+
+                            if (GUI.tooltip != previousToolTip)
+                            {
+                                GUI.Label(lastRect, GUI.tooltip);
+                                previousToolTip = GUI.tooltip;
+                            }
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.EndVertical();
             }
-
-            if (GUI.tooltip != previousToolTip)
-            {
-                Rect lastRect = campaignNum.dropDownRect;
-                lastRect.y += 20;
-                lastRect.width += 300;
-
-                GUI.Label(lastRect, GUI.tooltip);
-                previousToolTip = GUI.tooltip;
-            }
-
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(25);
-
+            GUILayout.Label("Cheat Options", headerStyle);
             GUILayout.BeginHorizontal();
-
-            GUILayout.Space(1);
-
-            if (!campaignNum.show && !levelNum.show)
             {
+                settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility", GUILayout.Width(100));
 
-                if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
-                {
-                    ChangeLevel(-1);
-                }
-
-                Rect lastRect = GUILayoutUtility.GetLastRect();
-                lastRect.y += 20;
-                lastRect.width += 300;
-
-                if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
-                {
-                    ChangeLevel(1);
-                }
-
-                if (GUI.tooltip != previousToolTip)
-                {
-                    GUI.Label(lastRect, GUI.tooltip);
-                    previousToolTip = GUI.tooltip;
-                }
+                settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials", GUILayout.Width(100));
             }
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.EndVertical();
-
-
             GUILayout.EndHorizontal();
 
         }
-
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
         {
@@ -272,6 +292,30 @@ namespace Utility_Mod
         {
             enabled = value;
             return true;
+        }
+
+        static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
+        {
+            if (!enabled) return;
+
+            if ( HeroController.Instance != null)
+            {
+                for ( int i = 0; i < 4; ++i )
+                {
+                    if ( HeroController.PlayerIsAlive(i))
+                    {
+                        if (settings.invulnerable)
+                        {
+                            HeroController.players[i].character.SetInvulnerable(1, false);
+                        }
+
+                        if (settings.infiniteSpecials)
+                        {
+                            HeroController.players[i].character.SetSpecialAmmoRPC(HeroController.players[i].character.originalSpecialAmmo);
+                        }    
+                    }
+                }
+            }
         }
 
         static void determineLevelsInCampaign()
@@ -638,12 +682,16 @@ namespace Utility_Mod
 
     public class Settings : UnityModManager.ModSettings
     {
-        public bool loopCurrent;
-        public bool disableConfirm;
-        public int campaignNum;
-        public int levelNum;
         public bool cameraShake;
         public bool enableSkip;
+        public bool disableConfirm;
+
+        public bool loopCurrent;
+        public int campaignNum;
+        public int levelNum;
+
+        public bool invulnerable;
+        public bool infiniteSpecials;
 
 
         public override void Save(UnityModManager.ModEntry modEntry)
