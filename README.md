@@ -1,7 +1,7 @@
 # BroforceMods
 This repository contains the source code for a few mods I've made for the game Broforce
 
-If you have questions about making mods or encounter any bugs in my mods feel free to contact me:
+If you have questions about making mods for Broforce or encounter any bugs in my mods feel free to contact me:
 
 Email: alexneargarder@yahoo.com
 
@@ -17,6 +17,9 @@ There is also a file called MainNoComments.cs that has the same code as the Exam
 The Compiled Mod folder can be placed into your Mods folder here to see what this example mod does:
 C:\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\Compiled Mod
 There is also an Info.json file in the Compliled Mod Folder that shows you how you need to have that set up.
+
+* [How to install Unity Mod Manager and my mods](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
+* [Unity Mod Manager Wiki](https://wiki.nexusmods.com/index.php/Category:Unity_Mod_Manager)
 
 ## Swap Bros Mod
 Information about this mod and a download link can be found here: https://www.nexusmods.com/broforce/mods/1
