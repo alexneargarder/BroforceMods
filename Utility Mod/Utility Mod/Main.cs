@@ -1,48 +1,46 @@
 ﻿/**
  * TODO
- *
+ * 
  * Make helicopter skip go in order
- *
+ * 
  * Set living, dead, and locked bros with cheat mod
- *
+ * 
  * Set lives with cheat mod ( for normal campaign)
- *
+ * 
  * Make campaign progress correctly when jumping to a level via cheat mod
- *
+ * 
  * Investigate if cut scenes destroy mod manager window
- *
+ * 
  * Add unlock all territories button
- *
+ * 
 **/
 /**
  * IDEAS
- *
+ * 
  * change sprint speed
- *
+ * 
  * give lives (for practicing iron bro with fren)
- *
+ * 
  * give infinite specials maybe
- *
+ * 
  * summon mech anywhere
- *
+ * 
  * infinite fuel mech
- *
+ * 
  * bind teleport to some controller key
- *
+ * 
  * buff slowdown time (pause time?)
- *
- *
+ * 
+ * 
 **/
 /**
  * DONE
- *
- * Play different type of campaign in arcade
- *
+ * 
  * Set level to repeat with cheat mod
- *
+ * 
  * Figure out better way to get instance of map controller (doesn't work sometimes if exiting to menu through options)
- *
- *
+ * 
+ * 
 **/
 
 using System;
@@ -121,18 +119,13 @@ namespace Utility_Mod
             "Time Bro Challenge"
         };
 
-        public static Dropdown TypeOfArcadeNum;
-        public static string[] TypeOfArcade = new string[] { "Normal", "Expendabros", "TWITCHCON", "Alien Demo", "Boss Rush", "Hell Arcade" };
-        public static string CurrentArcade;
-
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
-            modEntry.OnUpdate = OnUpdate;
             settings = Settings.Load<Settings>(modEntry);
-
+            
             var harmony = new Harmony(modEntry.Info.Id);
             var assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
@@ -145,23 +138,11 @@ namespace Utility_Mod
 
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
-
-            TypeOfArcadeNum = new Dropdown(100, 150, 150, 150, TypeOfArcade, settings.ArcadeCampaignNum);
-
-            CurrentArcade = TypeOfArcade[settings.ArcadeCampaignNum];
+            
 
             return true;
         }
 
-        static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
-        {
-            CurrentArcade = TypeOfArcade[TypeOfArcadeNum.indexNumber];
-            settings.ArcadeCampaignNum = TypeOfArcadeNum.indexNumber;
-
-            // Patch for avoiding the cursor of being block in Level Editor
-            if (!LevelEditorGUI.IsActive) ShowMouseController.ShowMouse = false;
-            Cursor.lockState = CursorLockMode.None;
-        }
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
@@ -203,7 +184,7 @@ namespace Utility_Mod
                     GUI.Label(lastRect, GUI.tooltip);
                     previousToolTip = GUI.tooltip;
                 }
-
+                
             }
             GUILayout.EndHorizontal();
 
@@ -214,31 +195,20 @@ namespace Utility_Mod
             GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight(350), GUILayout.ExpandWidth(false) });
 
             GUILayout.BeginVertical();
-            GUILayout.BeginHorizontal();
-            var warnStyle = new GUIStyle();
-            warnStyle.normal.textColor = Color.yellow;
-            warnStyle.fontStyle = FontStyle.Bold;
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+
             GUILayout.BeginHorizontal();
 
-            TypeOfArcadeNum.OnGUI(modEntry);
-            settings.ArcadeCampaignNum = TypeOfArcadeNum.indexNumber;
+            campaignNum.OnGUI(modEntry);
 
-            if(CurrentArcade == "Online")
+            determineLevelsInCampaign();
+
+            levelNum.OnGUI(modEntry);
+
+            Main.settings.levelNum = levelNum.indexNumber;
+
+            if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
             {
-                campaignNum.OnGUI(modEntry);
-
-                determineLevelsInCampaign();
-
-                levelNum.OnGUI(modEntry);
-
-                Main.settings.levelNum = levelNum.indexNumber;
-
-                if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
-                {
-                    GoToLevel();
-                }
+                GoToLevel();
             }
 
             if (GUI.tooltip != previousToolTip)
@@ -259,7 +229,7 @@ namespace Utility_Mod
 
             GUILayout.Space(1);
 
-            if (!campaignNum.show && !levelNum.show && !TypeOfArcadeNum.show && CurrentArcade == "Online")
+            if (!campaignNum.show && !levelNum.show)
             {
 
                 if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
@@ -487,7 +457,7 @@ namespace Utility_Mod
                 //Main.Log("instance null");
                 return;
             }
-
+           
             WorldTerritory3D territoryObject = null; // = WorldMapController.GetTerritory(campaignName);
 
             WorldTerritory3D[] territories = Traverse.Create(typeof(WorldMapController)).Field("territories3D").GetValue() as WorldTerritory3D[];
@@ -521,7 +491,7 @@ namespace Utility_Mod
             {
                 item.actionType = WorldMapController.QueuedActions.Terrorist;
             }
-
+			
 			item.territory = territoryObject;
 			(Traverse.Create(instance).Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>).Add(item);
 
@@ -540,7 +510,7 @@ namespace Utility_Mod
                     territoryProgress.startLevel = levelNum;
                 }
             }
-
+            
 
             WorldMapController.RestTransport(territoryObject);
             WorldMapController.EnterMission(territoryObject.GetCampaignName(), territoryObject.properties.loadingText, territoryObject.properties);
@@ -556,7 +526,7 @@ namespace Utility_Mod
 
             instance = __instance;
             return;
-
+            
         }*/
 
     }
@@ -675,8 +645,6 @@ namespace Utility_Mod
         public bool cameraShake;
         public bool enableSkip;
 
-        public int ArcadeCampaignNum;
-
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
@@ -750,35 +718,26 @@ namespace Utility_Mod
             }
             else
             {
-
+                
                 //GUI.Label(new Rect((dropDownRect.x - 95), dropDownRect.y, 300, 25), list[indexNumber]);
                 GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), list[indexNumber]);
             }
-        }
-    }
 
 
-    // Playing multiple Arcade Campaign
-    [HarmonyPatch(typeof(LevelSelectionController), "ResetLevelAndGameModeToDefault")]
-    static class ArcadeCampaign_Patch
-    {
-        static void Postfix()
-        {
-            if (!Main.enabled) return;
-            string c = Main.CurrentArcade;
-            if (c == "Hell Arcade")
-                LevelSelectionController.DefaultCampaign = LevelSelectionController.HellArcade;
-            else if (c == "Expendabros")
-                LevelSelectionController.DefaultCampaign = LevelSelectionController.ExpendabrosCampaign;
-            else if (c == "TWITCHCON")
-                LevelSelectionController.DefaultCampaign = "VIETNAM_EXHIBITION_TWITCHCON";
-            else if (c == "Alien Demo")
-                LevelSelectionController.DefaultCampaign = "AlienExhibition";
-            else if (c == "Boss Rush")
-                LevelSelectionController.DefaultCampaign = "BossRushCampaign";
-            else
-                LevelSelectionController.DefaultCampaign = LevelSelectionController.OfflineCampaign;
 
         }
     }
+
+
+
+
+       
+
+    
+
+ 
+
+
+
+
 }
