@@ -19,9 +19,7 @@
  * 
  * change sprint speed
  * 
- * give lives (for practicing iron bro with fren)
- * 
- * give infinite specials maybe
+ * give lives (for practicing iron bro)
  * 
  * summon mech anywhere
  * 
@@ -35,6 +33,8 @@
 **/
 /**
  * DONE
+ * 
+ * give infinite specials
  * 
  * Set level to repeat with cheat mod
  * 
@@ -119,6 +119,9 @@ namespace Utility_Mod
             "Time Bro Challenge"
         };
 
+        public static string teleportX = "0";
+        public static string teleportY = "0";
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
@@ -161,13 +164,20 @@ namespace Utility_Mod
                 lastRect.width += 500;
 
                 settings.enableSkip = GUILayout.Toggle(settings.enableSkip, new GUIContent("Helicopter Skip",
-                    "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(150f));
+                    "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(120f));
 
                 GUI.Label(lastRect, GUI.tooltip);
-                previousToolTip = GUI.tooltip;
+
+                settings.endingSkip = GUILayout.Toggle(settings.endingSkip, new GUIContent("Ending Skip",
+                    "Speeds up the ending"), GUILayout.Width(100f));
+
+                GUI.Label(lastRect, GUI.tooltip);
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
+
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
             }
             GUILayout.EndHorizontal();
 
@@ -273,14 +283,100 @@ namespace Utility_Mod
             GUILayout.EndHorizontal();
 
             GUILayout.Label("Cheat Options", headerStyle);
+
+            TestVanDammeAnim currentCharacter = null;
+
+            if ( HeroController.Instance != null )
+            {
+                currentCharacter = HeroController.players[0].character;
+            }    
+
             GUILayout.BeginHorizontal();
             {
                 settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility", GUILayout.Width(100));
 
                 settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials", GUILayout.Width(100));
+
+                GUILayout.Space(10);
+
+                if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
+                    }                    
+                }
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.Space(25);
+
+            GUILayout.BeginHorizontal();
+            {
+                if ( currentCharacter != null )
+                {
+                    GUILayout.Label("Position: " + currentCharacter.X.ToString("0.00") + ", " + currentCharacter.Y.ToString("0.00"));
+                }
+                else
+                {
+                    GUILayout.Label("Position: ");
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("X", GUILayout.Width(10));
+                teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
+                GUILayout.Space(20);
+                GUILayout.Label("Y", GUILayout.Width(10));
+                GUILayout.Space(10);
+                teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
+
+                if ( GUILayout.Button("Teleport", GUILayout.Width(100) ) )
+                {
+                    float x, y;
+                    if ( float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y) )
+                    {
+                        if ( currentCharacter != null )
+                        {
+                            currentCharacter.X = x;
+                            currentCharacter.Y = y;
+                        }
+                    }
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            for ( int i = 0; i < settings.waypointsX.Length; ++i )
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250) ) )
+                    {
+                        if ( currentCharacter != null )
+                        {
+                            settings.waypointsX[i] = currentCharacter.X;
+                            settings.waypointsY[i] = currentCharacter.Y;
+                        }
+                    }
+
+                    if ( GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200) ) )
+                    {
+                        if (currentCharacter != null)
+                        {
+                            currentCharacter.X = settings.waypointsX[i];
+                            currentCharacter.Y = settings.waypointsY[i];
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+               
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -316,6 +412,7 @@ namespace Utility_Mod
                     }
                 }
             }
+
         }
 
         static void determineLevelsInCampaign()
@@ -592,12 +689,13 @@ namespace Utility_Mod
     {
         static void Prefix(GameModeController __instance, LevelResult result)
         {
+            if (!Main.enabled)
+            {
+                return;
+            }
+
             if (Main.settings.loopCurrent && result == LevelResult.Success)
             {
-                if (!Main.enabled || !Main.settings.loopCurrent)
-                {
-                    return;
-                }
                 //Main.mod.Logger.Log("current level num after finish called: " + LevelSelectionController.CurrentLevelNum);
                 //LevelSelectionController.CurrentLevelNum -= 1;
                 //GameModeController.RestartLevel();
@@ -606,12 +704,23 @@ namespace Utility_Mod
                 PauseMenu_RestartLevel_Patch.Prefix(null);
                 Main.settings.disableConfirm = temp;
             }
+
+            
+        }
+
+        static void Postfix(GameModeController __instance, LevelResult result)
+        {
+            if (!Main.enabled)
+            {
+                return;
+            }
+
+            if (Main.settings.endingSkip && (result == LevelResult.Success))
+            {
+                GameModeController.MakeFinishInstant();
+            }
         }
     }
-
-
-
-
 
     [HarmonyPatch(typeof(PauseMenu), "ReturnToMenu")]
     static class PauseMenu_ReturnToMenu_Patch
@@ -650,8 +759,6 @@ namespace Utility_Mod
 
     }
 
-
-
     [HarmonyPatch(typeof(PauseMenu), "RestartLevel")]
     static class PauseMenu_RestartLevel_Patch
     {
@@ -678,12 +785,11 @@ namespace Utility_Mod
         }
     }
 
-
-
     public class Settings : UnityModManager.ModSettings
     {
         public bool cameraShake;
         public bool enableSkip;
+        public bool endingSkip;
         public bool disableConfirm;
 
         public bool loopCurrent;
@@ -693,6 +799,8 @@ namespace Utility_Mod
         public bool invulnerable;
         public bool infiniteSpecials;
 
+        public float[] waypointsX = new float[5];
+        public float[] waypointsY = new float[5];
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
