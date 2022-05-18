@@ -1,8 +1,6 @@
 ﻿/**
  * TODO
  * 
- * Make helicopter skip go in order
- * 
  * Set living, dead, and locked bros with cheat mod
  * 
  * Set lives with cheat mod ( for normal campaign)
@@ -31,6 +29,8 @@
 **/
 /**
  * DONE
+ * 
+ * Make helicopter skip go in order
  * 
  * add invincibility toggle
  * 
@@ -398,7 +398,7 @@ namespace Utility_Mod
         {
             if (!enabled) return;
 
-            if ( HeroController.Instance != null)
+            if ( (settings.invulnerable || settings.infiniteSpecials ) && HeroController.Instance != null  )
             {
                 for ( int i = 0; i < 4; ++i )
                 {
@@ -492,6 +492,8 @@ namespace Utility_Mod
     [HarmonyPatch(typeof(WorldMapController), "ProcessNextAction")]
     static class WorldMapController_ProcessNextAction_Patch
     {
+        public static int nextCampaign = 0;
+
         static bool Prefix(WorldMapController __instance)
         {
             if (!Main.enabled)
@@ -507,14 +509,22 @@ namespace Utility_Mod
 
             Traverse actionQueueTraverse = Traverse.Create(__instance);
             List<WorldMapController.QueuedAction> actionQueue = actionQueueTraverse.Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>;
-            /*for (int i = 0; i < actionQueue.Count; i++)
+
+            // DEBUG
+            WorldTerritory3D[] territories = Traverse.Create(__instance).Field("territories3D").GetValue() as WorldTerritory3D[];
+            //Main.Log("BEGIN");
+            for ( int i = 0; i < 15; ++i )
             {
-                Main.mod.Logger.Log(actionQueue[i].ToString());
+                foreach (WorldTerritory3D ter in territories)
+                {
+                    //Main.Log(ter.properties.territoryName + " == " + campaignName + " = " + (ter.properties.territoryName == campaignName));
+                    if (ter.properties.territoryName == Main.campaignList[i])
+                    {
+                        //Main.Log(ter.GetCampaignName());
+                        break;
+                    }
+                }
             }
-            if (actionQueue.Count == 0 || actionQueue == null)
-            {
-                Main.mod.Logger.Log("NO ACTIONS");
-            }*/
 
             if (actionQueue.Count > 0)
             {
@@ -526,36 +536,21 @@ namespace Utility_Mod
                         WorldCamera.instance.MoveToHelicopter(0f);
                         break;
                     case WorldMapController.QueuedActions.Terrorist:
-                        string lastSafe = WorldMapProgressController.currentProgress.lastSafeTerritory;
-
-
-
                         queuedAction.territory.BecomeEnemyBase();
-                        WorldMapController.RestTransport(queuedAction.territory);
-                        WorldMapController.EnterMission(queuedAction.territory.GetCampaignName(), queuedAction.territory.properties.loadingText, queuedAction.territory.properties);
                         break;
                     case WorldMapController.QueuedActions.Alien:
                         queuedAction.territory.SetState(TerritoryState.Infested);
-                        WorldMapController.RestTransport(queuedAction.territory);
-                        WorldMapController.EnterMission(queuedAction.territory.GetCampaignName(), queuedAction.territory.properties.loadingText, queuedAction.territory.properties);
                         break;
                     case WorldMapController.QueuedActions.Burning:
                         queuedAction.territory.SetState(TerritoryState.TerroristBurning);
-                        WorldMapController.RestTransport(queuedAction.territory);
-                        WorldMapController.EnterMission(queuedAction.territory.GetCampaignName(), queuedAction.territory.properties.loadingText, queuedAction.territory.properties);
                         break;
                     case WorldMapController.QueuedActions.Liberated:
                         queuedAction.territory.SetState(TerritoryState.Liberated);
                         break;
                     case WorldMapController.QueuedActions.Hell:
                         queuedAction.territory.SetState(TerritoryState.Hell);
-                        WorldMapController.RestTransport(queuedAction.territory);
-                        WorldMapController.EnterMission(queuedAction.territory.GetCampaignName(), queuedAction.territory.properties.loadingText, queuedAction.territory.properties);
                         break;
                     case WorldMapController.QueuedActions.Secret:
-                        queuedAction.territory.SetState(TerritoryState.TerroristBase);
-                        WorldMapController.RestTransport(queuedAction.territory);
-                        WorldMapController.EnterMission(queuedAction.territory.GetCampaignName(), queuedAction.territory.properties.loadingText, queuedAction.territory.properties);
                         break;
                 }
                 actionQueue.RemoveAt(0);
@@ -586,6 +581,41 @@ namespace Utility_Mod
                 WorldCamera.instance.MoveToHelicopter(0f);
             }
             actionQueueTraverse.Field("actionQueue").SetValue(actionQueue);
+
+            nextCampaign = -1;
+            foreach (WorldTerritory3D ter in territories)
+            {
+                if (ter.properties.state == TerritoryState.Liberated)
+                {
+                    for (int i = 0; i < Main.campaignList.Length; ++i)
+                    {
+                        if (ter.properties.territoryName == Main.campaignList[i])
+                        {
+                            if (i > nextCampaign)
+                            {
+                                nextCampaign = i;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            ++nextCampaign;
+
+            foreach (WorldTerritory3D ter in territories)
+            {
+                if (ter.properties.state == TerritoryState.TerroristBase || ter.properties.state == TerritoryState.Hell
+                    || ter.properties.state == TerritoryState.Infested || ter.properties.state == TerritoryState.TerroristBurning
+                    || ter.properties.state == TerritoryState.TerroristAirBase)
+                {
+                    if ( ter.properties.territoryName == Main.campaignList[nextCampaign] && GameState.Instance.campaignName != ter.GetCampaignName() )
+                    {
+                        WorldMapController.RestTransport(ter);
+                        WorldMapController.EnterMission(ter.GetCampaignName(), ter.properties.loadingText, ter.properties);
+                    }
+                }
+            }
+
             return false;
         }
     }
@@ -655,7 +685,6 @@ namespace Utility_Mod
                     territoryProgress.startLevel = levelNum;
                 }
             }
-            
 
             WorldMapController.RestTransport(territoryObject);
             WorldMapController.EnterMission(territoryObject.GetCampaignName(), territoryObject.properties.loadingText, territoryObject.properties);
