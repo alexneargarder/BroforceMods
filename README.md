@@ -27,3 +27,6 @@ Information about this mod and a download link can be found here: https://www.ne
 ## Utility Mod
 Information about this mod and a download link can be found here: 
 https://www.nexusmods.com/broforce/mods/2
+
+## IronBro Multiplayer Mod
+Information about this mod and a download link can be found here: https://www.nexusmods.com/broforce/mods/19
