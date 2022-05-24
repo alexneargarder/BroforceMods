@@ -1,21 +1,32 @@
 ﻿/**
  * TODO
  * 
- * Investigate if warlocks only spawn exploding guys or if they are being randomized
+ * Add option to have dolflundgren not instantly win you the level when he dies
  * 
- * Look into enemies not running correctly after being spawned
+ * Add option to have satan spawn his death field once he dies
  * 
- * Have enemies that should spawn with parachutes actually spawn with them
+ * Fix stage 6 boss level and satan boss level being unbeatable (because they get replaced)
  * 
  * Add an option to randomize the level order
- * 
- * Try to get Lost Souls and Armoured guys working, need to adjust their spawn location probably
  * 
  * Make sure tooltips are readable
  * 
  * Maybe look into only loading prefabs once to improve performance
  * 
+ **/
+
+/**
+ * DONE
+ * 
  * Maybe fix satan going into an unskippable cutscene when he is killed the second time
+ * 
+ * Try to get Lost Souls and Armoured guys working, need to adjust their spawn location probably
+ * 
+ * Investigate if warlocks only spawn exploding guys or if they are being randomized ( think this is fixed )
+ * 
+ * Have enemies that should spawn with parachutes actually spawn with them
+ * 
+ * Look into enemies not running correctly after being spawned
  * 
  **/
 
@@ -37,15 +48,19 @@ namespace Randomizer_Mod
         public static bool enabled;
         public static Settings settings;
 
-        public static bool DEBUG = false;
 
-        
         public static string[] mookTypes = new string[] { "ZHellBigGuy", "ZHellDog", "ZMook Grenadier", "ZMook", "ZMookBazooka", "ZMookBigGuy", 
             "ZMookDog", "ZMookGeneral", "ZMookHellBoomer", "ZMookHellSoulCatcher", "ZMookJetpack", "ZMookNinja", "ZMookRiotShield",
-        "ZMookScout", "ZMookSkinless", "ZMookSuicide", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZSatan" };
+        "ZMookScout", "ZMookSkinless", "ZMookSuicide", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZSatan", "ZHellLostSoul", "ZMookArmouredGuy"};
+
+        /*public static string[] mookTypes = new string[] { "ZHellBigGuy", "ZHellDog", "ZMook Grenadier", "ZMookBazooka",
+           "ZMookGeneral", "ZMookHellBoomer", "ZMookHellSoulCatcher", "ZMookJetpack", "ZMookNinja", "ZMookRiotShield",
+        "ZMookScout", "ZMookSkinless", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZHellLostSoul", "ZMookArmouredGuy"};*/
 
         public static string[] alienTypes = new string[] { "ZAlienBrute", "ZAlienFaceHugger",
         "ZAlienMelter", "ZAlienMosquito", "ZAlienXenomorph", "ZAlienXenomorphBrainBox" };
+
+        public static string[] mookBossTypes = new string[] { "DolfLundgrenSoldier", "SatanMinibossStage1" };
 
         // Don't spawn at all
         public static string[] mookTypesNotWorking = new string[] { "Pig Rotten", "Pig", "Seagull", "WarlockPortal Suicide", "WarlockPortal", "WarlockPortalLarge", 
@@ -65,12 +80,10 @@ namespace Randomizer_Mod
         // "ZMookMortar" unfinished mortar enemy
         // "ZSatan Mook" screams and disappears
         // "ZSatanCutscene" uninteractable
-        public static string[] mookTypesGlitchy = new string[] { "ZHellLostSoul", "ZMook Backup", "ZMookArmouredGuy", "ZMookCaptain", "ZMookCaptainCutscene",
+        public static string[] mookTypesGlitchy = new string[] { "ZMook Backup", "ZMookCaptain", "ZMookCaptainCutscene",
         "ZMookCaptainExpendabro", "ZMookHellArmouredBigGuy", "ZMookMortar", "ZSatan Mook", "ZSatanCutscene" };
 
-        public static string[] mookBossTypes = new string[] { "DolfLundgrenSoldier", "SatanMinibossStage1" };
 
-        public static int debugMookType = 0;
         public static string debugMookString = "0";
 
         static bool Load(UnityModManager.ModEntry modEntry)
@@ -83,6 +96,9 @@ namespace Randomizer_Mod
             var assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
             mod = modEntry;
+
+            debugMookString = settings.debugMookType.ToString();
+            settings.DEBUG = false;
 
             return true;
         }
@@ -101,32 +117,32 @@ namespace Randomizer_Mod
             
 
             // DEBUG
-            if (DEBUG)
+            if (settings.DEBUG)
             {
                 debugMookString = GUILayout.TextField(debugMookString);
 
                 int temp;
                 if (int.TryParse(debugMookString, out temp))
-                    debugMookType = temp;
+                    settings.debugMookType = temp;
 
-                if (debugMookType > (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1 )
-                    debugMookType = (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1;
+                if (settings.debugMookType > (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1 )
+                    settings.debugMookType = (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1;
 
-                if (debugMookType < 0)
-                    debugMookType = 0;
+                if (settings.debugMookType < 0)
+                    settings.debugMookType = 0;
 
 
-                if (debugMookType < Main.mookTypes.Length)
+                if (settings.debugMookType < Main.mookTypes.Length)
                 {
-                    GUILayout.Label("Current Mook Type: " + mookTypes[debugMookType]);
+                    GUILayout.Label("Current Mook Type: " + mookTypes[settings.debugMookType]);
                 }
-                else if ( debugMookType < (mookTypes.Length + alienTypes.Length) )
+                else if ( settings.debugMookType < (mookTypes.Length + alienTypes.Length) )
                 {
-                    GUILayout.Label("Current Alien Type: " + alienTypes[debugMookType - Main.mookTypes.Length]);
+                    GUILayout.Label("Current Alien Type: " + alienTypes[settings.debugMookType - Main.mookTypes.Length]);
                 }
                 else
                 {
-                    GUILayout.Label("Current Boss Type: " + mookBossTypes[debugMookType - mookTypes.Length - alienTypes.Length]);
+                    GUILayout.Label("Current Boss Type: " + mookBossTypes[settings.debugMookType - mookTypes.Length - alienTypes.Length]);
                 }
                 
             }
@@ -156,6 +172,9 @@ namespace Randomizer_Mod
         public bool enableEnemyRandomization;
         public bool allowEnemiesToBeBosses;
         public float enemyPercent;
+
+        public bool DEBUG;
+        public int debugMookType;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
@@ -236,19 +255,23 @@ namespace Randomizer_Mod
                 return;
             }
 
+            //Main.Log("in start: " + __instance.mookType);
+
             // Avoid replacing enemies that have already been replaced
             if (__instance.playerNum == -1000)
             {
                 //Main.Log("returning due to playernum: " + __instance.mookType);
-                __instance.playerNum = -1;
+                //__instance.playerNum = -1;
                 return;
             }
 
             GameObject gameObject = null;
 
-            if ( (Main.settings.enemyPercent > rnd.Next(0, 100)) || Main.DEBUG )
+            if ( (Main.settings.enemyPercent > rnd.Next(0, 100)) )
             {
                 int chosen = 0;
+                float offset = 0f;
+
                 if (!Main.settings.allowEnemiesToBeBosses)
                 {
                     chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length);
@@ -258,16 +281,20 @@ namespace Randomizer_Mod
                     chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length + Main.mookBossTypes.Length);
                 }
 
-                if (Main.DEBUG)
+                if (Main.settings.DEBUG)
                 {
-                    chosen = Main.debugMookType;
+                    chosen = Main.settings.debugMookType;
                 }
 
                 if (chosen < Main.mookTypes.Length)
                 {
-                    if (chosen == 3)
-                        chosen += 1;
+                    if (chosen == 21)
+                    {
+                        offset = 10f;
+                    }
+
                     gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookTypes[chosen]);
+
                 }
                 else if ( chosen < Main.mookTypes.Length + Main.alienTypes.Length )
                 {
@@ -284,55 +311,35 @@ namespace Randomizer_Mod
 
                 Mook prefab = gameObject.GetComponent<Mook>();
 
-                prefab.playerNum = -1000;
 
-                MapController.SpawnMook_Networked(prefab, __instance.X, __instance.Y + 2f, 0, 0, __instance.canTumble, false, false, false, false);
+                Mook result = MapController.SpawnMook_Networked(prefab, __instance.X, __instance.Y + 2f + offset, 0, 0, false, __instance.parachute, __instance.IsParachuteActive, false, false);
+
+                result.playerNum = -1000;
 
                 __instance.DestroyCharacter();
             }
             else
             {
-                //Main.Log("randomly not chosen");
+                __instance.playerNum = -1000;
+                Main.Log("randomly not chosen");
             }
 
         }
     }
 
-    /*[HarmonyPatch(typeof(NetworkSpawnableManifest), "GetPrefabFromLegacyResourceName")]
-    static class NetworkSpawnableManifest_GetPrefabFromLegacyResourceName
+    [HarmonyPatch(typeof(SatanMiniboss), "ForceCameraToFollow")]
+    static class SatanMiniboss_ForceCameraToFollow
     {
-        public static void Prefix(NetworkSpawnableManifest __instance)
-        {
-            return;
-            if (!Main.enabled)
-            {
-                return;
-            }
-
-            Dictionary<string, SpawnablePrefab> dict = Traverse.Create(__instance).Field("resourceNameLookupDictionary").GetValue() as Dictionary<string, SpawnablePrefab>;
-
-            for (int i = 0; i < dict.Keys.Count; ++i)
-            {
-                Main.Log(dict.Keys.ElementAt(i));
-            }
-
-
-            return;
-        }
-    }*/
-
-    /*[HarmonyPatch(typeof(InstantiationController), "GetPrefabFromLegacyResourceName")]
-    static class InstantiationController_GetPrefabFromLegacyResourceName
-    {
-        public static void Prefix(string resourceName)
+        public static bool Prefix(SatanMiniboss __instance)
         {
             if (!Main.enabled)
             {
-                return;
+                return true;
             }
 
-            Main.Log("getting prefab: " + resourceName);
-
+            return false;
         }
-    }*/
+    }
+
+
 }
