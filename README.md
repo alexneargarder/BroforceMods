@@ -18,8 +18,11 @@ The Compiled Mod folder can be placed into your Mods folder here to see what thi
 C:\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\Compiled Mod
 There is also an Info.json file in the Compliled Mod Folder that shows you how you need to have that set up.
 
+## Useful Links
+
 * [How to install Unity Mod Manager and my mods](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
 * [Unity Mod Manager Wiki](https://wiki.nexusmods.com/index.php/Category:Unity_Mod_Manager)
+* [Harmony Documentation](https://harmony.pardeike.net/articles/intro.html)
 
 ## Swap Bros Mod
 Information about this mod and a download link can be found here: https://www.nexusmods.com/broforce/mods/1
