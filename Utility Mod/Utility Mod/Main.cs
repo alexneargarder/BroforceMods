@@ -219,7 +219,7 @@ namespace Utility_Mod
             GUILayout.Space(25);
 
 
-            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight(100), GUILayout.ExpandWidth(false) });
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight( ( campaignNum.show || levelNum.show ) ? 350 : 100 ), GUILayout.ExpandWidth(false) });
             {
                 GUILayout.BeginVertical();
                 {
