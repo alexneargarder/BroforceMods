@@ -110,11 +110,15 @@ namespace Randomizer_Mod
             "Hell BoneWorm - class AlienGiantSandWorm",
             "Hell MiniBoss BoneWorm - class HellBoneWormMiniboss",
             "Hell MiniBoss BoneWorm Behind - class HellBoneWormMiniboss",
+            "Alien Worm",
+            "Alien Facehugger Worm",
+            "Alien Facehugger Worm Behind",
             "Satan Miniboss",
             "mookDolfLundgren",
             "mookMammothTank",
             "mookKopterMiniBoss",
-            "goliathMech"
+            "goliathMech",
+            "Large Alien Worm"
         };
 
         static bool Load(UnityModManager.ModEntry modEntry)
@@ -129,25 +133,200 @@ namespace Randomizer_Mod
             mod = modEntry;
 
             debugMookString = settings.debugMookType.ToString();
-            settings.DEBUG = true;
+            settings.DEBUG = false;
 
             return true;
         }
 
+        public static string[] wormList = new string[]
+        {
+            "SandWorm", "Boneworm", "Boneworm Behind", "Alien Worm", "Alien Facehugger Worm", "Alien Facehugger Worm Behind"
+        };
+
+        public static string[] bossList = new string[]
+        {
+            "Satan", "CR666"
+        };
+
+        public static string[] largeBossList = new string[]
+        {
+            "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm", 
+        };
+
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
             settings.enableEnemyRandomization = GUILayout.Toggle(settings.enableEnemyRandomization, new GUIContent("Enable Enemy Randomization", "Randomly replaces enemies of one type with another"));
+
+            GUILayout.Space(15);
+
             settings.enableWorms = GUILayout.Toggle(settings.enableWorms, new GUIContent("Allow Enemies to become Worms", "Chance for enemies to become Sandworms or Boneworms"));
+
+            GUILayout.Space(10);
+
+            if ( GUILayout.Button("Worms" ) )
+            {
+                settings.showWorms = !settings.showWorms;
+            }
+
+            if (settings.showWorms)
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    for ( int i = 0; i < wormList.Length; ++i )
+                    {
+                        bool containsBefore = settings.enabledWorms.Contains(i);
+
+                        if ( containsBefore != GUILayout.Toggle(containsBefore, wormList[i] ) )
+                        {
+                            if ( containsBefore )
+                            {
+                                settings.enabledWorms.Remove(i);
+                            }
+                            else
+                            {
+                                settings.enabledWorms.Add(i);
+                            }
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(25);
+
             settings.enableBosses = GUILayout.Toggle(settings.enableBosses, new GUIContent("Allow Enemies to become Bosses", "Chance for enemies to become certain minibosses"));
+
+            GUILayout.Space(10);
+
+            if (GUILayout.Button("Bosses"))
+            {
+                settings.showBosses = !settings.showBosses;
+            }
+
+            if (settings.showBosses)
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    for (int i = 0; i < bossList.Length; ++i)
+                    {
+                        bool containsBefore = settings.enabledBosses.Contains(i);
+
+                        if (containsBefore != GUILayout.Toggle(containsBefore, bossList[i]))
+                        {
+                            if (containsBefore)
+                            {
+                                settings.enabledBosses.Remove(i);
+                            }
+                            else
+                            {
+                                settings.enabledBosses.Add(i);
+                            }
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(25);
+
             settings.enableLargeBosses = GUILayout.Toggle(settings.enableLargeBosses, new GUIContent("Allow Enemies to become Large Bosses", "Chance for enemies to become certain large minibosses"));
+
+            GUILayout.Space(10);
+
+            if (GUILayout.Button("Large Bosses"))
+            {
+                settings.showLargeBosses = !settings.showLargeBosses;
+            }
+
+            if (settings.showLargeBosses)
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    for (int i = 0; i < largeBossList.Length; ++i)
+                    {
+                        bool containsBefore = settings.enabledLargeBosses.Contains(i);
+
+                        if (containsBefore != GUILayout.Toggle(containsBefore, largeBossList[i]))
+                        {
+                            if (containsBefore)
+                            {
+                                settings.enabledLargeBosses.Remove(i);
+                            }
+                            else
+                            {
+                                settings.enabledLargeBosses.Add(i);
+                            }
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(25);
+
+            settings.enableInstantWin = GUILayout.Toggle(settings.enableInstantWin, new GUIContent("Killing Bosses triggers level finish", "By default killing a boss triggers a level end even if it's not normally a boss level"));
+            settings.enableDeathField = GUILayout.Toggle(settings.enableDeathField, new GUIContent("Enable Satan Death Field", "This causes randomly spawned satan bosses to spawn their death fields after they are fully killed"));
+            settings.enableSpawnedEnemiesRandomization = GUILayout.Toggle(settings.enableSpawnedEnemiesRandomization, 
+                new GUIContent("Enable Summoned Enemy Randomization", "This causes enemies summoned by parachute, doors, bosses, or other enemies to be randomized as well"));
+
+            GUILayout.Space(20);
 
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Randomized Enemy Percent: " + settings.enemyPercent);
+                GUILayout.Label("Randomized Enemy Percent: ", GUILayout.Width(200));
+
+                GUILayout.Label(settings.enemyPercent.ToString("0.00"), GUILayout.Width(100));
+           
+
                 settings.enemyPercent = GUILayout.HorizontalSlider(settings.enemyPercent, 0, 100);
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Normal Enemy Chance: ", GUILayout.Width(200));
+
+                GUILayout.Label(settings.normalEnemyPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.normalEnemyPercent = GUILayout.HorizontalSlider(settings.normalEnemyPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Worm Chance: ", GUILayout.Width(200));
+
+                GUILayout.Label(settings.wormPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.wormPercent = GUILayout.HorizontalSlider(settings.wormPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Boss Chance: ", GUILayout.Width(200));
+
+                GUILayout.Label(settings.bossPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.bossPercent = GUILayout.HorizontalSlider(settings.bossPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("Large Boss Chance: ", GUILayout.Width(200));
+
+                GUILayout.Label(settings.largeBossPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.largeBossPercent = GUILayout.HorizontalSlider(settings.largeBossPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(30);
 
             // DEBUG
             if (settings.DEBUG)
@@ -165,7 +344,7 @@ namespace Randomizer_Mod
                     settings.debugMookType = 0;
 
 
-                GUILayout.Label("Current Enemey Type: " + debugMookTypeList[settings.debugMookType]);
+                GUILayout.Label("Current Enemy Type: " + debugMookTypeList[settings.debugMookType]);
 
             }
 
@@ -192,12 +371,29 @@ namespace Randomizer_Mod
     public class Settings : UnityModManager.ModSettings
     {
         public bool enableEnemyRandomization;
+
+        public bool enableWorms;
         public bool enableBosses;
         public bool enableLargeBosses;
-        public bool enableWorms;
+
+        public bool showWorms;
+        public bool showBosses;
+        public bool showLargeBosses;
+
+        public List<int> enabledWorms;
+        public List<int> enabledBosses;
+        public List<int> enabledLargeBosses;
+
         public bool enableInstantWin;
         public bool enableDeathField;
+        public bool enableSpawnedEnemiesRandomization;
+
         public float enemyPercent;
+
+        public float normalEnemyPercent;
+        public float wormPercent;
+        public float bossPercent;
+        public float largeBossPercent;
 
         public bool DEBUG;
         public int debugMookType;
@@ -209,32 +405,83 @@ namespace Randomizer_Mod
 
     }
 
-    [HarmonyPatch(typeof(MapController), "SpawnMook_Local")]
-    static class MapController_SpawnMook_Local
+    [HarmonyPatch(typeof(MapController), "SpawnMook_Networked")]
+    static class MapController_SpawnMook_Networked
     {
-        public static void Prefix(Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert)
+        public static System.Random rnd = new System.Random();
+        public static Mook getRandomMookPrefab()
         {
-            if (!Main.enabled)
+            int chosen = 0;
+            float offset = 0f;
+
+            GameObject gameObject = null;
+
+            int enemyType = rnd.Next(0, (int)(Main.settings.normalEnemyPercent + (Main.settings.enableBosses ? Main.settings.bossPercent : 0)));
+
+            if (enemyType < Main.settings.normalEnemyPercent)
+            {
+                chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length);
+
+                if (chosen < Main.mookTypes.Length)
+                {
+                    if (chosen == 21)
+                    {
+                        offset = 10f;
+                    }
+
+                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookTypes[chosen]);
+
+                }
+                else if (chosen < Main.mookTypes.Length + Main.alienTypes.Length)
+                {
+                    chosen = chosen - Main.mookTypes.Length;
+
+                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Aliens/" + Main.alienTypes[chosen]);
+                }
+            }
+            else
+            {
+                chosen = rnd.Next(0, Main.mookBossTypes.Length);
+
+                gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookBossTypes[chosen]);
+            }
+
+            Mook mookPrefab = gameObject.GetComponent<Mook>();
+
+            return mookPrefab;
+        }
+
+        public static void Prefix(ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert)
+        {
+            if (!Main.enabled || !Main.settings.enableSpawnedEnemiesRandomization )
             {
                 return;
             }
 
-            Main.Log("spawn mook local called");
+            if ((Main.settings.enemyPercent > rnd.Next(0, 100)))
+            {
+                mookPrefab = getRandomMookPrefab();
+            }
 
         }
     }
 
-    [HarmonyPatch(typeof(MapController), "SpawnMook_Networked")]
-    static class MapController_SpawnMook_NetworkedPatch
+    [HarmonyPatch(typeof(MapController), "SpawnMook_Local")]
+    static class MapController_SpawnMook_Local
     {
-        public static void Prefix(Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert)
+        public static void Prefix(ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert)
         {
-            if (!Main.enabled)
+            if (!Main.enabled || !Main.settings.enableSpawnedEnemiesRandomization)
             {
                 return;
             }
 
-            Main.Log("spawn mook networked called");
+            if ((Main.settings.enemyPercent > MapController_SpawnMook_Networked.rnd.Next(0, 100)))
+            {
+                mookPrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
+            }
+
+            Main.Log("spawn mook local called");
 
         }
     }
@@ -298,73 +545,14 @@ namespace Randomizer_Mod
 
             return;
 
-            //Main.Log("in start: " + __instance.mookType);
 
             // Avoid replacing enemies that have already been replaced
             if (__instance.playerNum == -1000)
             {
-                //Main.Log("returning due to playernum: " + __instance.mookType);
-                //__instance.playerNum = -1;
                 return;
             }
 
-            GameObject gameObject = null;
-
-            if ((Main.settings.enemyPercent > rnd.Next(0, 100)))
-            {
-                int chosen = 0;
-                float offset = 0f;
-
-                if (!Main.settings.enableBosses)
-                {
-                    chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length);
-                }
-                else
-                {
-                    chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length + Main.mookBossTypes.Length);
-                }
-
-                if (Main.settings.DEBUG)
-                {
-                    chosen = Main.settings.debugMookType;
-                }
-
-                if (chosen < Main.mookTypes.Length)
-                {
-                    if (chosen == 21)
-                    {
-                        offset = 10f;
-                    }
-
-                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookTypes[chosen]);
-
-                }
-                else if (chosen < Main.mookTypes.Length + Main.alienTypes.Length)
-                {
-                    chosen = chosen - Main.mookTypes.Length;
-
-                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Aliens/" + Main.alienTypes[chosen]);
-                }
-                else
-                {
-                    chosen = chosen - Main.mookTypes.Length - Main.alienTypes.Length;
-
-                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookBossTypes[chosen]);
-                }
-
-                Mook prefab = gameObject.GetComponent<Mook>();
-
-
-                Mook result = MapController.SpawnMook_Networked(prefab, __instance.X, __instance.Y + 2f + offset, 0, 0, false, __instance.parachute, __instance.IsParachuteActive, false, false);
-
-                result.playerNum = -1000;
-
-                __instance.DestroyCharacter();
-            }
-            else
-            {
-                __instance.playerNum = -1000;
-            }
+            
 
         }
     }
@@ -372,9 +560,14 @@ namespace Randomizer_Mod
     [HarmonyPatch(typeof(Map), "PlaceDoodad")]
     static class Map_PlaceDoodad
     {
+        static System.Random rnd = new System.Random();
+        const int NUMWORMS = 5;
+        const int NUMBOSSES = 2;
+        const int NUMLARGEBOSSES = 4;
+
         public static bool Prefix(Map __instance, ref DoodadInfo doodad, ref GameObject __result)
         {
-            if (!Main.enabled)
+            if (!Main.enabled || !Main.settings.enableEnemyRandomization)
             {
                 return true;
             }
@@ -383,6 +576,13 @@ namespace Randomizer_Mod
 
             if (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy)
             {
+                int enemyConvertChance = rnd.Next(0, 100);
+
+                if ( enemyConvertChance > Main.settings.enemyPercent )
+                {
+                    return true;
+                }
+
                 GridPos position = doodad.position;
                 position.c -= Map.lastXLoadOffset;
                 position.r -= Map.lastYLoadOffset;
@@ -391,201 +591,223 @@ namespace Randomizer_Mod
 
                 TestVanDammeAnim original = null;
 
-                int num = 6;
+                int enemyType = rnd.Next(0, (int)( Main.settings.normalEnemyPercent + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) + 
+                    ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) + ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) ) );
 
-                if (Main.settings.DEBUG)
+                if ( enemyType < Main.settings.normalEnemyPercent )
                 {
-                    num = Main.settings.debugMookType;
+                    int num = rnd.Next(0, 29);
+
+                    if (num < 20)
+                    {
+                        switch (num)
+                        {
+                            // Mooks
+                            case 0:
+                                original = __instance.activeTheme.mook;
+                                break;
+                            case 1:
+                                original = __instance.activeTheme.mookSuicide;
+                                break;
+                            case 2:
+                                original = __instance.activeTheme.mookRiotShield;
+                                break;
+                            case 3:
+                                original = __instance.activeTheme.mookBigGuy;
+                                break;
+                            case 4:
+                                original = __instance.activeTheme.mookScout;
+                                break;
+                            case 5:
+                                original = __instance.activeTheme.mookDog;
+                                break;
+                            case 6:
+                                original = __instance.activeTheme.mookArmoured;
+                                break;
+                            case 7:
+                                original = __instance.activeTheme.mookGrenadier;
+                                break;
+                            case 8:
+                                original = __instance.activeTheme.mookBazooka;
+                                break;
+                            case 9:
+                                original = __instance.activeTheme.mookNinja;
+                                break;
+                            case 10:
+                                original = __instance.sharedObjectsReference.Asset.mookJetpack;
+                                break;
+                            case 11:
+                                original = __instance.activeTheme.mookXenomorphBrainbox;
+                                break;
+                            case 12:
+                                original = __instance.activeTheme.skinnedMook;
+                                break;
+                            case 13:
+                                original = __instance.activeTheme.mookGeneral;
+                                break;
+                            // Satan
+                            case 14:
+                                original = __instance.activeTheme.satan;
+                                break;
+                            // Aliens
+                            case 15:
+                                original = __instance.activeTheme.alienFaceHugger;
+                                break;
+                            case 16:
+                                original = __instance.activeTheme.alienXenomorph;
+                                break;
+                            case 17:
+                                original = __instance.activeTheme.alienBrute;
+                                break;
+                            case 18:
+                                original = __instance.activeTheme.alienBaneling;
+                                break;
+                            case 19:
+                                original = __instance.activeTheme.alienMosquito;
+                                break;
+                            default:
+                                original = original = __instance.activeTheme.mook;
+                                break;
+                        }
+
+                        __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
+                    }
+                    // Hell Enemies
+                    else if (num < 29)
+                    {
+                        num = num - 20;
+
+                        switch (num)
+                        {
+                            // HellDog
+                            case 0:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndead
+                            case 1:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndeadStartDead
+                            case 2:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
+                                break;
+                            // ZMookWarlock
+                            case 3:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
+                                break;
+                            // ZMookHellBoomer
+                            case 4:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndeadSuicide
+                            case 5:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
+                                break;
+                            // ZHellBigGuy
+                            case 6:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
+                                break;
+                            // Lost Soul
+                            case 7:
+                                vector.y += 5;
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
+                                break;
+                            // ZMookHellSoulCatcher
+                            case 8:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
+                                break;
+                            default:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                                break;
+                        }
+
+                    }
+
                 }
-
-
-                if (num < 20)
+                // Worms
+                else if ( Main.settings.enableWorms && ( enemyType - Main.settings.normalEnemyPercent ) < Main.settings.wormPercent && Main.settings.enabledWorms.Count > 0 )
                 {
+                    int num = rnd.Next(0, Main.settings.enabledWorms.Count );
+                    num = Main.settings.enabledWorms[num];
+       
                     switch (num)
                     {
-                        // Mooks
+                        // Sandworm
                         case 0:
-                            original = __instance.activeTheme.mook;
+                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[7], vector, Quaternion.identity);
                             break;
+                        // Boneworm
                         case 1:
-                            original = __instance.activeTheme.mookSuicide;
+                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[12], vector, Quaternion.identity);
                             break;
+                        // Boneworm Behind
                         case 2:
-                            original = __instance.activeTheme.mookRiotShield;
+                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[13], vector, Quaternion.identity);
                             break;
+                        // Alien Worm
                         case 3:
-                            original = __instance.activeTheme.mookBigGuy;
+                            __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienMinibossSandWorm, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
                             break;
+                        // Alien Facehugger Worm
                         case 4:
-                            original = __instance.activeTheme.mookScout;
+                            __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienSandWormFacehuggerSpitter, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
                             break;
+                        // Alien Facehugger Worm Behind
                         case 5:
-                            original = __instance.activeTheme.mookDog;
+                            __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienSandWormFacehuggerSpitterBehind, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
                             break;
-                        case 6:
-                            original = __instance.activeTheme.mookArmoured;
-                            break;
-                        case 7:
-                            original = __instance.activeTheme.mookGrenadier;
-                            break;
-                        case 8:
-                            original = __instance.activeTheme.mookBazooka;
-                            break;
-                        case 9:
-                            original = __instance.activeTheme.mookNinja;
-                            break;
-                        case 10:
-                            original = __instance.sharedObjectsReference.Asset.mookJetpack;
-                            break;
-                        case 11:
-                            original = __instance.activeTheme.mookXenomorphBrainbox;
-                            break;
-                        case 12:
-                            original = __instance.activeTheme.skinnedMook;
-                            break;
-                        case 13:
-                            original = __instance.activeTheme.mookGeneral;
-                            break;
-                        // Satan
-                        case 14:
-                            original = __instance.activeTheme.satan;
-                            break;
-                        // Aliens
-                        case 15:
-                            original = __instance.activeTheme.alienFaceHugger;
-                            break;
-                        case 16:
-                            original = __instance.activeTheme.alienXenomorph;
-                            break;
-                        case 17:
-                            original = __instance.activeTheme.alienBrute;
-                            break;
-                        case 18:
-                            original = __instance.activeTheme.alienBaneling;
-                            break;
-                        case 19:
-                            original = __instance.activeTheme.alienMosquito;
-                            break;
-                        default:
-                            original = original = __instance.activeTheme.mook;
-                            break;
+
+
                     }
-
-                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
                 }
-                // Hell Enemies
-                else if (num < 29)
+                // Bosses
+                else if ( Main.settings.enableBosses && ( enemyType - Main.settings.normalEnemyPercent - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
                 {
-                    num = num - 20;
+                    int num = rnd.Next(0, Main.settings.enabledBosses.Count);
+                    num = Main.settings.enabledBosses[num];
 
-                    switch ( num )
+
+                    switch (num)
                     {
                         case 0:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                            SatanMiniboss satanMiniboss = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.satanMiniboss, vector, Quaternion.identity) as SatanMiniboss;
+                            if (satanMiniboss != null)
+                            {
+                                __result = satanMiniboss.gameObject;
+                            }
                             break;
                         case 1:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
+                            __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(__instance.activeTheme.mookDolfLundgren, vector, Quaternion.identity).gameObject;
+                            break;
+
+                    }
+                }
+                // Large Bosses
+                else if ( Main.settings.enableLargeBosses && (enemyType - Main.settings.normalEnemyPercent - (Main.settings.enableWorms ? Main.settings.wormPercent : 0) - 
+                    ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) ) < Main.settings.largeBossPercent && Main.settings.enabledLargeBosses.Count > 0 )
+                {
+                    int num = rnd.Next(0, Main.settings.enabledLargeBosses.Count);
+                    num = Main.settings.enabledLargeBosses[num];
+
+                    switch (num)
+                    {
+                        case 0:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookMammothTank, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 1:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookKopterMiniBoss, vector, Quaternion.identity).gameObject;
                             break;
                         case 2:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.goliathMech, vector, Quaternion.identity).gameObject;
                             break;
+                        // Large Alien Worm
                         case 3:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
+                            __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienGiantSandWormBoss, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
                             break;
-                        case 4:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
-                            break;
-                        case 5:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
-                            break;
-                        case 6:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
-                            break;
-                        // Lost Soul
-                        case 7:
-                            vector.y += 5;
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
-                            break;
-                        case 8:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
-                            break;
-                        default:
-                            __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
-                            break;
-                    }
-                    
-                }
-                else
-                {
-                    num = num - 29;
-
-                    // Worms
-                    if ( Main.settings.enableWorms )
-                    {
-                        if ( num < 3 )
-                        {
-                            switch (num)
-                            {
-                                // Sandworm
-                                case 0:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[7], vector, Quaternion.identity);
-                                    break;
-                                // Boneworm
-                                case 1:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[12], vector, Quaternion.identity);
-                                    break;
-                                // Boneworm Behind
-                                case 2:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[13], vector, Quaternion.identity);
-                                    break;
-
-                            }
-                        }
-                    }
-                    // Normal Size Bosses
-                    if ( Main.settings.enableBosses )
-                    {
-                        num = num - (3 * (Main.settings.enableWorms ? 1 : 0));
-                        if (num < 3)
-                        {
-                            switch (num)
-                            {
-                                case 0:
-                                    SatanMiniboss satanMiniboss = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.satanMiniboss, vector, Quaternion.identity) as SatanMiniboss;
-                                    if (satanMiniboss != null)
-                                    {
-                                        __result = satanMiniboss.gameObject;
-                                    }
-                                    break;
-                                case 1:
-                                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(__instance.activeTheme.mookDolfLundgren, vector, Quaternion.identity).gameObject;
-                                    break;
-                                
-                            }
-                        }
-                    }
-                    // Large Bosses
-                    if ( Main.settings.enableLargeBosses )
-                    {
-                        num = num - (2 * (Main.settings.enableBosses ? 1 : 0));
-                        if ( num < 3 )
-                        {
-                            switch ( num )
-                            {
-                                case 0:
-                                    __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookMammothTank, vector, Quaternion.identity).gameObject;
-                                    break;
-                                case 1:
-                                    __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookKopterMiniBoss, vector, Quaternion.identity).gameObject;
-                                    break;
-                                case 2:
-                                    __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.goliathMech, vector, Quaternion.identity).gameObject;
-                                    break;
-                            }
-                        }
                     }
                 }
 
+                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
 
                 if (__result != null)
                 {
