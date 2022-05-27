@@ -1,8 +1,6 @@
 ﻿/**
  * TODO
  * 
- * Add option to have dolflundgren not instantly win you the level when he dies
- * 
  * Make sure tooltips are readable
  * 
  * Add an option to randomize the level order
@@ -11,6 +9,8 @@
 
 /**
  * DONE
+ * 
+ * Add option to have dolflundgren not instantly win you the level when he dies
  * 
  * Add option to have satan spawn his death field once he dies
  * 
@@ -121,6 +121,8 @@ namespace Randomizer_Mod
             "goliathMech",
             "Large Alien Worm"
         };
+
+        public static bool ignoreNextWin = false;
 
         static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -332,6 +334,11 @@ namespace Randomizer_Mod
 
             settings.DEBUG = GUILayout.Toggle(settings.DEBUG, "DEBUG");
 
+            /*if ( GUILayout.Button("print"))
+            {
+                Main.Log(LevelSelectionController.currentCampaign.name + " " + LevelSelectionController.CurrentLevelNum);
+            }*/
+
             // DEBUG
             if (settings.DEBUG)
             {
@@ -528,51 +535,6 @@ namespace Randomizer_Mod
                 mookPrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
             }
 
-        }
-    }
-
-    [HarmonyPatch(typeof(Mook), "Awake")]
-    static class Mook_Awake
-    {
-        public static void Prefix(Mook __instance)
-        {
-            if (!Main.enabled)
-            {
-                return;
-            }
-
-            //Main.Log("awake mook called");
-
-            //GameObject gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/ZMookBazooka");
-
-            //Main.Log("tempObject null?: " + (gameObject == null ? "true" : "false"));
-
-            /*Main.Log("\n\n");
-            Component[] allComponents;
-            allComponents = gameObject.GetComponents(typeof(Component));
-            foreach (Component comp in allComponents)
-            {
-                Main.Log("attached: " + comp.name + " also " + comp.GetType());
-            }
-            Main.Log("\n\n");*/
-
-            //MookBazooka prefab = gameObject.GetComponent<MookBazooka>();
-
-            //Main.Log("prefab null? " + (prefab == null ? "true" : "false"));
-
-            //MapController.SpawnMook_Local(prefab, __instance.X + 5, __instance.Y + 5, __instance.xI, __instance.yI, __instance.canTumble, false, __instance.parachute, false, false );
-            //Main.Log("position: " + __instance.X + " " + __instance.Y + " " + __instance.xI + " " + __instance.yI);
-            //Main.Log("position transform: " + __instance.transform.position.x + " " + __instance.transform.position.y );
-
-
-            //prefab.transform.SetX(__instance.transform.position.x);
-            //prefab.transform.SetY(__instance.transform.position.y);
-
-
-            //MapController.SpawnMook_Networked(prefab, __instance.transform.position.x, __instance.transform.position.y, 0, 0, __instance.canTumble, false, __instance.parachute, false, false );
-
-            //Main.Log("exiting awake\n\n");
-            return;
         }
     }
 
@@ -1003,7 +965,16 @@ namespace Randomizer_Mod
                         __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
                     }
                 }
-                
+
+
+                /*Main.Log("\n\n");
+                Component[] allComponents;
+                allComponents = __result.GetComponents(typeof(Component));
+                foreach (Component comp in allComponents)
+                {
+                    Main.Log("attached: " + comp.name + " also " + comp.GetType());
+                }
+                Main.Log("\n\n");*/
 
 
                 if (__result != null)
@@ -1046,7 +1017,7 @@ namespace Randomizer_Mod
         }
     }
 
-
+    // Makes satan death field spawn when he dies
     [HarmonyPatch(typeof(SatanMiniboss), "AnimateDeath")]
     static class SatanMiniboss_AnimateDeath
     {
@@ -1060,6 +1031,111 @@ namespace Randomizer_Mod
             __instance.primedToSelfDestruct = true;
         }
     }
+
+
+    // Allows disabling Dolph Lundgren's instant win
+    [HarmonyPatch(typeof(DolphLundrenSoldier), "Gib")]
+    static class DolphLundrenSoldier_Gib
+    {
+        public static void Prefix()
+        {
+            if (!Main.enabled || Main.settings.enableInstantWin || ( LevelSelectionController.currentCampaign.name == "WM_Village1(mouse)" && LevelSelectionController.CurrentLevelNum == 3 ) )
+            {
+                return;
+            }
+
+            Main.ignoreNextWin = true;
+        }
+    }
+
+    // Allows disabling Terrorkopter and MammothTank instant wins
+    [HarmonyPatch(typeof(MinibossEndCheck), "Update")]
+    static class MinibossEndCheck_Update
+    {
+        public static void Prefix(MinibossEndCheck __instance)
+        {
+            if (!Main.enabled || Main.settings.enableInstantWin)
+            {
+                return;
+            }
+
+            if (LevelSelectionController.currentCampaign.name == "WM_Mission1(mouse)" && LevelSelectionController.CurrentLevelNum == 3)
+                return;
+
+            if (LevelSelectionController.currentCampaign.name == "WM_Bombardment(mouse)" && LevelSelectionController.CurrentLevelNum == 2)
+                return;
+           
+
+            Traverse trav = Traverse.Create(__instance);
+
+            Unit miniBossUnit = trav.Field("miniBossUnit").GetValue<Unit>();
+
+            if ( miniBossUnit.health <= 0 )
+            {
+                float explosionDeathCount = trav.Field("explosionDeathCount").GetValue<float>();
+
+                if ( explosionDeathCount > 0 )
+                {
+                    float explosionDeathCounter = trav.Field("finishedCounter").GetValue<float>();
+
+                    if (explosionDeathCounter + Time.deltaTime > 0.33f)
+                    {
+
+                        if ((explosionDeathCount - 1) <= 0)
+                        {
+                            Main.ignoreNextWin = true;
+                        }
+                    }
+                }
+                
+            }
+
+        }
+    }
+
+    // Allows disabling GoliathMech instant win
+    [HarmonyPatch(typeof(GoliathMech), "Death")]
+    static class GoliathMech_Death
+    {
+        public static void Prefix()
+        {
+            if (!Main.enabled || Main.settings.enableInstantWin || (LevelSelectionController.currentCampaign.name == "WM_KazakhstanRainy(mouse)" && LevelSelectionController.CurrentLevelNum == 3))
+            {
+                return;
+            }
+
+            Main.ignoreNextWin = true;
+        }
+
+        public static void Postfix(GoliathMech __instance)
+        {
+            if (!Main.enabled || Main.settings.enableInstantWin || (LevelSelectionController.currentCampaign.name == "WM_KazakhstanRainy(mouse)" && LevelSelectionController.CurrentLevelNum == 3))
+            {
+                return;
+            }
+
+            __instance.actionState = ActionState.Idle;
+        }
+    }
+
+    // Checks if we need to skip this win because it was from a miniboss death
+    [HarmonyPatch(typeof(GameModeController), "LevelFinish")]
+    static class GameModeController_LevelFinish
+    {
+        public static bool Prefix()
+        {
+            if (!Main.enabled || !Main.ignoreNextWin )
+            {
+                return true;
+            }
+
+            Main.ignoreNextWin = false;
+
+            return false;
+        }
+    }
+
+
 
 
 }
