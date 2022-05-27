@@ -1,6 +1,9 @@
 ﻿/**
  * TODO
  * 
+ * Fix infinite specials locking brolander out of having special, 
+ * maybe also fix double bro seven only having option to drink ( probably only refresh specials when they reach 0 )
+ * 
  * Set living, dead, and locked bros with cheat mod
  * 
  * Set lives with cheat mod ( for normal campaign)
