@@ -1,14 +1,14 @@
 ﻿/**
  * TODO
  * 
- * Make sure tooltips are readable
- * 
  * Add an option to randomize the level order
  * 
  **/
 
 /**
  * DONE
+ * 
+ * Make sure tooltips are readable
  * 
  * Add option to have dolflundgren not instantly win you the level when he dies
  * 
@@ -137,7 +137,6 @@ namespace Randomizer_Mod
 
             debugMookString = settings.debugMookType.ToString();
             debugMookStringSummoned = settings.debugMookTypeSummoned.ToString();
-            settings.DEBUG = true;
 
             return true;
         }
@@ -161,11 +160,32 @@ namespace Randomizer_Mod
         {
             settings.enableEnemyRandomization = GUILayout.Toggle(settings.enableEnemyRandomization, new GUIContent("Enable Enemy Randomization", "Randomly replaces enemies of one type with another"));
 
-            GUILayout.Space(15);
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 500;
+
+            GUI.Label(lastRect, GUI.tooltip);
+            string previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
 
             settings.enableWorms = GUILayout.Toggle(settings.enableWorms, new GUIContent("Allow Enemies to become Worms", "Chance for enemies to become Sandworms or Boneworms"));
 
-            GUILayout.Space(10);
+            
+
+            if ( previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+
+            previousToolTip = GUI.tooltip;
+
+
+            GUILayout.Space(20);
 
             if ( GUILayout.Button("Worms" ) )
             {
@@ -200,7 +220,18 @@ namespace Randomizer_Mod
 
             settings.enableBosses = GUILayout.Toggle(settings.enableBosses, new GUIContent("Allow Enemies to become Bosses", "Chance for enemies to become certain minibosses"));
 
-            GUILayout.Space(10);
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
 
             if (GUILayout.Button("Bosses"))
             {
@@ -235,7 +266,17 @@ namespace Randomizer_Mod
 
             settings.enableLargeBosses = GUILayout.Toggle(settings.enableLargeBosses, new GUIContent("Allow Enemies to become Large Bosses", "Chance for enemies to become certain large minibosses"));
 
-            GUILayout.Space(10);
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
 
             if (GUILayout.Button("Large Bosses"))
             {
@@ -268,16 +309,52 @@ namespace Randomizer_Mod
 
             GUILayout.Space(25);
 
-            settings.enableInstantWin = GUILayout.Toggle(settings.enableInstantWin, new GUIContent("Killing Bosses triggers level finish", "By default killing a boss triggers a level end even if it's not normally a boss level"));
+            settings.enableInstantWin = GUILayout.Toggle(settings.enableInstantWin, new GUIContent("Killing Bosses triggers level finish", "If this is enabled, killing a boss will trigger a level end even if you're not on a boss level"));
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
+            
             settings.enableDeathField = GUILayout.Toggle(settings.enableDeathField, new GUIContent("Enable Satan Death Field", "This causes randomly spawned satan bosses to spawn their death fields after they are fully killed"));
-            settings.enableSpawnedEnemiesRandomization = GUILayout.Toggle(settings.enableSpawnedEnemiesRandomization, 
-                new GUIContent("Enable Summoned Enemy Randomization", "This causes enemies summoned by parachute, doors, bosses, or other enemies to be randomized as well"));
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
 
             GUILayout.Space(20);
 
+            settings.enableSpawnedEnemiesRandomization = GUILayout.Toggle(settings.enableSpawnedEnemiesRandomization, 
+                new GUIContent("Enable Summoned Enemy Randomization", "This causes enemies summoned by parachute, doors, bosses, or other enemies to be randomized as well"));
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(25);
+
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Randomized Enemy Percent: ", GUILayout.Width(200));
+                GUILayout.Label(new GUIContent("Randomized Enemy Percent: ", 
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
 
                 GUILayout.Label(settings.enemyPercent.ToString("0.00"), GUILayout.Width(100));
            
@@ -288,7 +365,8 @@ namespace Randomizer_Mod
 
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Normal Enemy Chance: ", GUILayout.Width(200));
+                GUILayout.Label(new GUIContent("Normal Enemy Chance: ", 
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
 
                 GUILayout.Label(settings.normalEnemyPercent.ToString("0.00"), GUILayout.Width(100));
 
@@ -299,7 +377,8 @@ namespace Randomizer_Mod
 
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Worm Chance: ", GUILayout.Width(200));
+                GUILayout.Label(new GUIContent("Worm Chance: ", 
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
 
                 GUILayout.Label(settings.wormPercent.ToString("0.00"), GUILayout.Width(100));
 
@@ -310,7 +389,8 @@ namespace Randomizer_Mod
 
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Boss Chance: ", GUILayout.Width(200));
+                GUILayout.Label(new GUIContent("Boss Chance: ",
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
 
                 GUILayout.Label(settings.bossPercent.ToString("0.00"), GUILayout.Width(100));
 
@@ -321,7 +401,8 @@ namespace Randomizer_Mod
 
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Large Boss Chance: ", GUILayout.Width(200));
+                GUILayout.Label(new GUIContent("Large Boss Chance: ",
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
 
                 GUILayout.Label(settings.largeBossPercent.ToString("0.00"), GUILayout.Width(100));
 
@@ -330,14 +411,23 @@ namespace Randomizer_Mod
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(30);
+            GUILayout.Space(10);
 
-            settings.DEBUG = GUILayout.Toggle(settings.DEBUG, "DEBUG");
-
-            /*if ( GUILayout.Button("print"))
+            if (previousToolTip != GUI.tooltip)
             {
-                Main.Log(LevelSelectionController.currentCampaign.name + " " + LevelSelectionController.CurrentLevelNum);
-            }*/
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 900;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(50);
+
+
+
+            //settings.DEBUG = GUILayout.Toggle(settings.DEBUG, "DEBUG");
 
             // DEBUG
             if (settings.DEBUG)
