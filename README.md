@@ -25,13 +25,13 @@ There is also an Info.json file in the Compliled Mod Folder that shows you how y
 * [Harmony Documentation](https://harmony.pardeike.net/articles/intro.html)
 
 ## Swap Bros Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/1)
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/1).
 
 ## Utility Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/2)
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/2).
 
 ## IronBro Multiplayer Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/19)
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/19).
 
 ## Randomizer Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/22)
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/22).
