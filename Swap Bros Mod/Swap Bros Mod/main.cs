@@ -47,6 +47,7 @@ namespace Swap_Bros_Mod
             settings = Settings.Load<Settings>(modEntry);
             var harmony = new Harmony(modEntry.Info.Id);
             var assembly = Assembly.GetExecutingAssembly();
+            mod = modEntry;
             try
             {
                 harmony.PatchAll(assembly);
@@ -55,7 +56,6 @@ namespace Swap_Bros_Mod
             {
                 mod.Logger.Error(e.ToString());
             }
-            mod = modEntry;
 
             return true;
         }
@@ -128,14 +128,14 @@ namespace Swap_Bros_Mod
             string[] texts = { "Rambro", "Brommando", "B. A. Broracus", "Brodell Walker", "Bro Hard", "MacBrover", "Brade", "Bro Dredd", "Bro In Black", "Snake Broskin", "Brominator",
                 "Brobocop", "Indiana Brones", "Ash Brolliams", "Mr. Anderbro", "The Boondock Bros", "Brochete", "Bronan the Brobarian", "Ellen Ripbro", "Time Bro", "Broniversal Soldier",
                 "Colonel James Broddock", "Cherry Broling", "Bro Max", "The Brode", "Double Bro Seven", "The Brodator", "The Brocketeer", "Broheart", "The Brofessional", "Broden",
-                "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee"};
+                "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee", "Seth Brondle", "Xebro", "Desperabro", "Broffy the Vampire Slayer", "Burt Brommer", "Demolition Bro" };
             if (settings.includeUnfinishedCharacters)
             {
                 texts = new string[] { "Rambro", "Brommando", "B. A. Broracus", "Brodell Walker", "Bro Hard", "MacBrover", "Brade", "Bro Dredd", "Bro In Black", "Snake Broskin", "Brominator",
                 "Brobocop", "Indiana Brones", "Ash Brolliams", "Mr. Anderbro", "The Boondock Bros", "Brochete", "Bronan the Brobarian", "Ellen Ripbro", "Time Bro", "Broniversal Soldier",
                 "Colonel James Broddock", "Cherry Broling", "Bro Max", "The Brode", "Double Bro Seven", "The Brodator", "The Brocketeer", "Broheart", "The Brofessional", "Broden",
-                "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee", "Broney Ross", "Lee Broxmas", "Bronnar Jensen", "Bro Caesar", "Trent Broser", "Broctor Death",
-                "Toll Broad", "BrondleFly", "Final", "SuicideBro", "Random", "TankBroTank"};
+                "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee", "Seth Brondle", "Xebro", "Desperabro", "Broffy the Vampire Slayer", "Burt Brommer","Demolition Bro", "Broney Ross", "Lee Broxmas", "Bronnar Jensen", "Bro Caesar", "Trent Broser", "Broctor Death",
+                "Toll Broad", "Final", "SuicideBro", "Random", "TankBroTank"};
             }
 
 
@@ -145,7 +145,7 @@ namespace Swap_Bros_Mod
 
             if (settings.clickingEnabled)
             {
-                if (settings.selGridInt != (settings.selGridInt = GUILayout.SelectionGrid(settings.selGridInt, texts, 5, GUILayout.Height(230))))
+                if (settings.selGridInt != (settings.selGridInt = GUILayout.SelectionGrid(settings.selGridInt, texts, 5, GUILayout.Height(270))))
                 {
                     switched = true;
                 }
@@ -231,22 +231,26 @@ namespace Swap_Bros_Mod
                 case 32: return HeroType.DirtyHarry;
                 case 33: return HeroType.TankBro;
                 case 34: return HeroType.BroLee;
-
+                case 35: return HeroType.BrondleFly;
+                case 36: return HeroType.Xebro;
+                case 37: return HeroType.Desperabro;
+                case 38: return HeroType.Broffy;
+                case 39: return HeroType.BroGummer;
+                case 40: return HeroType.DemolitionBro;
                 // extra characters
 
-                case 35: return HeroType.BroneyRoss;
-                case 36: return HeroType.LeeBroxmas;
-                case 37: return HeroType.BronnarJensen;
-                case 38: return HeroType.HaleTheBro;
-                case 39: return HeroType.TrentBroser;
-                case 40: return HeroType.Broc;
-                case 41: return HeroType.TollBroad;
-                case 42: return HeroType.BrondleFly;
+                case 41: return HeroType.BroneyRoss;
+                case 42: return HeroType.LeeBroxmas;
+                case 43: return HeroType.BronnarJensen;
+                case 44: return HeroType.HaleTheBro;
+                case 45: return HeroType.TrentBroser;
+                case 46: return HeroType.Broc;
+                case 47: return HeroType.TollBroad;
 
-                case 43: return HeroType.Final;
-                case 44: return HeroType.SuicideBro; 
-                case 45: return HeroType.Random; 
-                case 46: return HeroType.TankBroTank;
+                case 48: return HeroType.Final;
+                case 49: return HeroType.SuicideBro;
+                case 50: return HeroType.Random;
+                case 51: return HeroType.TankBroTank;
             }
             return HeroType.None;
         }
@@ -290,22 +294,26 @@ namespace Swap_Bros_Mod
                 case HeroType.DirtyHarry: selGridInt = 32;break;
                 case HeroType.TankBro: selGridInt = 33;break;
                 case HeroType.BroLee: selGridInt = 34;break;
+                case HeroType.BrondleFly: selGridInt = 35; break;
+                case HeroType.Xebro: selGridInt = 36; break;
+                case HeroType.Desperabro: selGridInt = 37; break;
+                case HeroType.Broffy: selGridInt = 38; break;
+                case HeroType.BroGummer: selGridInt = 39; break;
+                case HeroType.DemolitionBro: selGridInt = 40; break;
 
                 // extra characters
+                case HeroType.BroneyRoss: selGridInt = 41; break;
+                case HeroType.LeeBroxmas: selGridInt = 42; break;
+                case HeroType.BronnarJensen: selGridInt = 43; break;
+                case HeroType.HaleTheBro: selGridInt = 44; break;
+                case HeroType.TrentBroser: selGridInt = 45; break;
+                case HeroType.Broc: selGridInt = 46; break;
+                case HeroType.TollBroad: selGridInt = 47; break;
 
-                case HeroType.BroneyRoss: selGridInt = 35; break;
-                case HeroType.LeeBroxmas: selGridInt = 36; break;
-                case HeroType.BronnarJensen: selGridInt = 37; break;
-                case HeroType.HaleTheBro: selGridInt = 38; break;
-                case HeroType.TrentBroser: selGridInt = 39; break;
-                case HeroType.Broc: selGridInt = 40; break;
-                case HeroType.TollBroad: selGridInt = 41; break;
-                case HeroType.BrondleFly: selGridInt = 42; break;
-
-                case HeroType.Final: selGridInt = 43; break; 
-                case HeroType.SuicideBro: selGridInt = 44; break; 
-                case HeroType.Random: selGridInt = 45; break; 
-                case HeroType.TankBroTank: selGridInt = 46; break; 
+                case HeroType.Final: selGridInt = 48; break;
+                case HeroType.SuicideBro: selGridInt = 49; break;
+                case HeroType.Random: selGridInt = 50; break;
+                case HeroType.TankBroTank: selGridInt = 51; break;
             }
         }
 
@@ -338,10 +346,10 @@ namespace Swap_Bros_Mod
                     }
                     else
                     {
-                        int max = 35;
+                        int max = 40;
                         if (Main.settings.includeUnfinishedCharacters)
                         {
-                            max = 47;
+                            max = 51;
                         }
                         int num = -1;
                         
@@ -418,10 +426,10 @@ namespace Swap_Bros_Mod
                     
                     if (Main.settings.swapChangesChosen)
                     {
-                        int max = 35;
+                        int max = 40;
                         if (Main.settings.includeUnfinishedCharacters)
                         {
-                            max = 46;
+                            max = 51;
                         }
                         int num = -1;
                         for (Main.settings.selGridInt++; Main.settings.selGridInt < max; Main.settings.selGridInt++)
@@ -463,10 +471,10 @@ namespace Swap_Bros_Mod
                     __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
 
                     int num2 = Main.settings.selGridInt;
-                    int max = 34;
+                    int max = 40;
                     if (Main.settings.includeUnfinishedCharacters)
                     {
-                        max = 46;
+                        max = 51;
                     }
 
                     if (num2 == max)
