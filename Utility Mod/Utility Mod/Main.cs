@@ -1,6 +1,8 @@
 ﻿/**
  * TODO
  * 
+ * Add new levels
+ * 
  * Fix infinite specials locking brolander out of having special, 
  * maybe also fix double bro seven only having option to drink ( probably only refresh specials when they reach 0 )
  * 
