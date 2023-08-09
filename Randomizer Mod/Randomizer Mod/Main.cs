@@ -1,7 +1,11 @@
 ﻿/**
  * TODO
  * 
+ * Add new enemy types
+ * 
  * Add an option to randomize the level order
+ * 
+
  * 
  **/
 
@@ -680,7 +684,7 @@ namespace Randomizer_Mod
                     return true;
                 }
 
-                GridPos position = doodad.position;
+                GridPoint position = doodad.position;
                 position.c -= Map.lastXLoadOffset;
                 position.r -= Map.lastYLoadOffset;
 
