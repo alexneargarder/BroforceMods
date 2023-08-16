@@ -7,26 +7,29 @@ using UnityEngine;
 using BroMakerLib;
 using BroMakerLib.Loggers;
 using HarmonyLib;
+using System.IO;
 
 namespace Captain_Ameribro_Mod
 {
 
     class Shield : Projectile
     {
-        AnimatedTexture texture;
-		public float returnTime = 2f;
-		public float holdAtApexDuration = 4f;
+        public AnimatedTexture texture;
+		public float returnTime = 0.25f;
+		public float holdAtApexDuration = -1f;
 		protected bool hasReachedApex;
 		protected float holdAtApexTime;
 		public float returnLerpSpeed = 3f;
 		protected float shieldSpeed;
-		public float rotationSpeed = 2f;
+		//public float rotationSpeed = 2f;
+		public float rotationSpeed = 4.0f;
 		protected float hitUnitsDelay;
 		protected int hitUnitsCount;
 		protected bool dropping;
-		public BoxCollider shieldCollider;
+		//public BoxCollider shieldCollider;
+		public SphereCollider shieldCollider;
 		public float shieldLoopPitchM = 1f;
-		protected float collectDelayTime = 1f;
+		protected float collectDelayTime = 0.1f;
 		protected float windCounter;
 		protected int windCount;
 		public float windRotationSpeedM = 1f;
@@ -37,9 +40,28 @@ namespace Captain_Ameribro_Mod
 		public float bounceYM = 0.33f;
 		public float frictionM = 0.4f;
 		public float bounceVolumeM = 0.25f;
-		public float heightOffGround = 4f;
+		public float heightOffGround = 8f;
 		protected List<Unit> alreadyHit = new List<Unit>();
-		protected int hitCount;
+		//protected int hitCount;
+
+		// Charging Variables
+		public float shieldCharge = 0f;
+		protected const float ChargeReturnScaler = 0.5f;
+		public const float ChargeSpeedScaler = 100f;
+
+		// Homing Variables
+		protected float targetAngle;
+		protected float targetX;
+		protected float targetY;
+		public float seekRange = 80f;
+		protected bool foundMook = false;
+		protected float originalSpeed;
+		protected float seekSpeedCurrent;
+		protected float speed;
+		public float seekTurningSpeedLerpM = 4f;
+		public float seekTurningSpeedM = 1f;
+		protected float angle;
+		protected float seekCounter;
 
 		public static Material storedMat;
 
@@ -52,20 +74,26 @@ namespace Captain_Ameribro_Mod
 			if ( storedMat == null )
             {
 				storedMat = new Material(boom.GetComponent<MeshRenderer>().material);
-				storedMat.mainTexture = ResourcesController.CreateTexture("C:\\Users\\Alex\\Desktop\\Coding Things\\Github\\BroforceModsDev\\Bromaker - Captain Ameribro Mod\\Bromaker - Captain Ameribro Mod\\Sprites", "captainAmeribroShieldPlaceholder.png");
-
+				storedMat.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroShield.png");
+				//storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShieldPlaceholder.png"));
+				//BMLogger.Log("current dir: " + Directory.GetCurrentDirectory());
 			}
 
 			renderer.material = storedMat;
 
 			SpriteSM sprite = this.gameObject.GetComponent<SpriteSM>();
 			sprite.lowerLeftPixel = new Vector2(0, 16);
-			sprite.pixelDimensions = new Vector2(16, 16);
+			sprite.pixelDimensions = new Vector2(13, 13);
 
 			sprite.plane = SpriteBase.SPRITE_PLANE.XY;
 			sprite.width = 16;
 			sprite.height = 16;
-			sprite.offset = new Vector3(-2, 2, 0);
+			//sprite.width = 1;
+			//sprite.height = 1;
+			sprite.offset = new Vector3(0, 0, 0);
+			//sprite.CalcEdges();
+			//sprite.CalcSize();
+			//sprite.offset = new Vector3(0, 0, 0);
 
 			//texture.paused = false;
 
@@ -80,7 +108,6 @@ namespace Captain_Ameribro_Mod
 
 
 			base.Awake();
-            BMLogger.Log("after awake");
         }
 
         public override void Fire(float x, float y, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
@@ -91,17 +118,32 @@ namespace Captain_Ameribro_Mod
             {
                 this.rotationSpeed *= -1f;
             }
-            this.shieldCollider.transform.parent = base.transform.parent;
-            //Calling projectile base fire
-            //base.Fire( x, y, X, yI, _zOffset, playerNum, FiredBy);
-            this.t = Time.deltaTime;
+			this.shieldCollider.transform.parent = base.transform.parent;
+
+			//Calling projectile base fire
+			//base.Fire( x, y, X, yI, _zOffset, playerNum, FiredBy);
+			this.t = Time.deltaTime;
             this.damageInternal = this.damage;
             this.fullLife = this.life;
             this.fullDamage = this.damage;
             this.SetXY(x, y);
             this.xI = xI;
             this.yI = yI;
-            this.playerNum = playerNum;
+
+			// Init targetting variables
+			this.speed = this.xI;
+			this.originalSpeed = this.speed;
+			if (xI > 0f)
+			{
+				this.angle = 1.57079637f;
+			}
+			else
+			{
+				this.angle = -1.57079637f;
+			}
+			this.targetAngle = this.angle;
+
+			this.playerNum = playerNum;
             this.SetPosition();
             this.SetRotation();
             this.firedBy = FiredBy;
@@ -150,19 +192,23 @@ namespace Captain_Ameribro_Mod
             //base.transform.parent = other.transform;
             //this.soundHolder = SoundHolder.Instantiate(other.soundHolder);
 
-            this.returnTime = 2f;
-            this.rotationSpeed = 1f;
-            this.damage = 3;
             this.texture = this.gameObject.GetComponent<AnimatedTexture>();
 
-            base.transform.localScale = new Vector3(1f, 1f, 1f);
+			//base.transform.localScale = new Vector3(-1f, 3f, 3f);
+
+			//shieldCollider.transform.localScale = new Vector3(5, 5, 5);
 
             base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
 
             this.enabled = true;
+
+			this.texture.frames = 1;
+
+			this.texture.frame = 0;
+
+			this.returnTime += ChargeReturnScaler * this.shieldCharge;
         }
 
-		// Token: 0x06003D1E RID: 15646 RVA: 0x001C2194 File Offset: 0x001C0394
 		protected override void CheckSpawnPoint()
 		{
 			Collider[] array = Physics.OverlapSphere(new Vector3(base.X, base.Y, 0f), 5f, this.groundLayer);
@@ -189,7 +235,6 @@ namespace Captain_Ameribro_Mod
 			this.CheckSpawnPointFragile();
 		}
 
-		// Token: 0x06003D1F RID: 15647 RVA: 0x001C246C File Offset: 0x001C066C
 		protected override void RunProjectile(float t)
 		{
 			base.RunProjectile(t);
@@ -265,14 +310,12 @@ namespace Captain_Ameribro_Mod
 			this.lastXI = this.xI;
 		}
 
-		// Token: 0x06003D20 RID: 15648 RVA: 0x001C2764 File Offset: 0x001C0964
 		private void ApplyReverseForce(float t)
 		{
 			this.xI -= this.shieldSpeed * t * this.returnLerpSpeed;
 			this.xI = Mathf.Clamp(this.xI, -Mathf.Abs(this.shieldSpeed), Mathf.Abs(this.shieldSpeed));
 		}
 
-		// Token: 0x06003D21 RID: 15649 RVA: 0x001C27B8 File Offset: 0x001C09B8
 		protected override void HitProjectiles()
 		{
 			if (Map.HitProjectiles(this.playerNum, this.damageInternal, this.damageType, this.projectileSize, base.X, base.Y, this.xI, this.yI, 0.1f))
@@ -281,7 +324,6 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		// Token: 0x06003D22 RID: 15650 RVA: 0x00028DE5 File Offset: 0x00026FE5
 		protected override void OnDestroy()
 		{
 			base.OnDestroy();
@@ -291,11 +333,41 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		// Token: 0x06003D23 RID: 15651 RVA: 0x00028E24 File Offset: 0x00027024
 		protected override void MoveProjectile()
 		{
 			if (!this.stuck)
 			{
+				/*this.RunSeeking();
+				if (this.targetAngle > this.angle + 3.14159274f)
+				{
+					this.angle += 6.28318548f;
+				}
+				else if (this.targetAngle < this.angle - 3.14159274f)
+				{
+					this.angle -= 6.28318548f;
+				}
+				if (this.reversing)
+				{
+					if (this.IsHeldByZone())
+					{
+						this.speed *= 1f - this.t * 8f;
+					}
+					else
+					{
+						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 8f);
+					}
+				}
+				else
+				{
+					this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
+				}
+				this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
+				this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
+				Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
+				this.xI = vector.x;
+				this.yI = vector.y;
+				this.SetRotation();*/
+
 				base.MoveProjectile();
 				this.shieldCollider.transform.position = base.transform.position;
 				if (this.dropping)
@@ -305,7 +377,41 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		// Token: 0x06003D24 RID: 15652 RVA: 0x001C2830 File Offset: 0x001C0A30
+		protected void RunSeeking()
+		{
+			if (!this.IsHeldByZone())
+			{
+				this.seekCounter += this.t;
+				if (this.seekCounter > 0.1f)
+				{
+					this.seekCounter -= 0.03f;
+					this.CalculateSeek();
+				}
+			}
+		}
+
+		protected void CalculateSeek()
+		{
+			if (!this.foundMook)
+			{
+				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
+				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy)
+				{
+					this.foundMook = true;
+					this.targetX = nearestVisibleUnitDamagebleBy.X;
+					this.targetY = nearestVisibleUnitDamagebleBy.Y + nearestVisibleUnitDamagebleBy.height / 2f;
+				}
+				else
+				{
+					this.targetX = base.X + this.xI;
+					this.targetY = base.Y + this.yI;
+				}
+			}
+			float y = this.targetX - base.X;
+			float x = this.targetY - base.Y;
+			this.targetAngle = global::Math.GetAngle(x, y);
+		}
+
 		protected override bool HitWalls()
 		{
 			if (this.xI < 0f)
@@ -407,7 +513,6 @@ namespace Captain_Ameribro_Mod
 			return true;
 		}
 
-		// Token: 0x06003D25 RID: 15653 RVA: 0x00028E63 File Offset: 0x00027063
 		protected void StartDropping()
 		{
 			this.dropping = true;
@@ -417,7 +522,6 @@ namespace Captain_Ameribro_Mod
 			this.shieldCollider.enabled = false;
 		}
 
-		// Token: 0x06003D26 RID: 15654 RVA: 0x001C2FE0 File Offset: 0x001C11E0
 		protected void PlayBounceSound()
 		{
 			float num = Mathf.Abs(this.xI) + Mathf.Abs(this.yI);
@@ -429,12 +533,10 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		// Token: 0x06003D27 RID: 15655 RVA: 0x00002CB9 File Offset: 0x00000EB9
 		protected override void RunLife()
 		{
 		}
 
-		// Token: 0x06003D28 RID: 15656 RVA: 0x00028EA0 File Offset: 0x000270A0
 		protected override void Bounce(RaycastHit raycastHit)
 		{
 			if (this.returnTime > 0f)
@@ -448,7 +550,6 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		// Token: 0x06003D29 RID: 15657 RVA: 0x001C3068 File Offset: 0x001C1268
 		protected override void HitUnits()
 		{
 			if (this.hitUnitsDelay > 0f)
@@ -549,13 +650,11 @@ namespace Captain_Ameribro_Mod
 			UnityEngine.Object.Destroy(base.gameObject);
 		}
 
-		// Token: 0x06003D2E RID: 15662 RVA: 0x0001F7F8 File Offset: 0x0001D9F8
 		protected virtual void ApplyGravity()
 		{
 			this.yI -= 600f * this.t;
 		}
 
-		// Token: 0x06003D2F RID: 15663 RVA: 0x00002CB9 File Offset: 0x00000EB9
 		public override void Death()
 		{
 		}
