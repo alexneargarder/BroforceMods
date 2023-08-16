@@ -116,6 +116,10 @@ namespace Captain_Ameribro_Mod
             {
                 checkAttached(HeroController.players[0].character.gameObject);
             }
+            if (GUILayout.Button("Check attached projectile bromax", GUILayout.Width(200)))
+            {
+                checkAttached( (HeroController.players[0].character as BroMax).boomerang.gameObject );
+            }
             if (GUILayout.Button("Check attached projectile", GUILayout.Width(200)))
             {
                 checkAttached(bro.shield.gameObject);

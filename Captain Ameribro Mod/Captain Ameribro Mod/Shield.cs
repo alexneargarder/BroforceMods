@@ -672,6 +672,6 @@ public class Shield : Projectile
     protected int hitCount;
 
     // Token: 0x040031E4 RID: 12772
-    [CompilerGenerated]
-    private static RpcSignature<Shield> rpcSig;
+/*    [CompilerGenerated]
+    private static RpcSignature<Shield> rpcSig;*/
 }
