@@ -1,0 +1,148 @@
+﻿Aliens/Alien SandWorm Facehugger Launcher Behind
+Aliens/Alien SandWorm Facehugger Launcher
+Aliens/AlienGiantBoss SandWorm
+Aliens/AlienGiantSandWorm
+Aliens/AlienMiniBoss SandWorm
+Aliens/SandwormHeadGibHolder
+Aliens/ZAlienBrute
+Aliens/ZAlienFaceHugger
+Aliens/ZAlienMelter
+Aliens/ZAlienMosquito
+Aliens/ZAlienXenomorph
+Aliens/ZAlienXenomorphBrainBox
+
+Boss/Boss_Tank
+Boss/FlameSandworm
+
+Hell Creatures/Hell BoneWorm
+Hell Creatures/Hell MiniBoss BoneWorm Behind
+Hell Creatures/Hell MiniBoss BoneWorm
+
+Mooks/DolfLundgrenSoldier
+Mooks/Pig Rotten
+Mooks/Pig
+Mooks/SatanMinibossStage1
+Mooks/Seagull
+Mooks/TankBrosTank
+Mooks/WarlockPortal Suicide
+Mooks/WarlockPortal
+Mooks/WarlockPortalLarge
+Mooks/WarlockPortalProjectile
+Mooks/WarlockPortalProjectileGuided
+Mooks/WarlockPortalSoulDestroyer
+Mooks/ZConradBroneBanks
+Mooks/ZHellBigGuy
+Mooks/ZHellDog
+Mooks/ZHellDogEgg
+Mooks/ZHellLostSoul
+Mooks/ZMook Alarmist
+Mooks/ZMook Backup
+Mooks/ZMook Grenadier
+Mooks/ZMook Strong
+Mooks/ZMook
+Mooks/ZMookArmouredGuy
+Mooks/ZMookBazooka
+Mooks/ZMookBigElite
+Mooks/ZMookBigGuy
+Mooks/ZMookCaptain
+Mooks/ZMookCaptainCutscene
+Mooks/ZMookCaptainExpendabro
+Mooks/ZMookDog
+Mooks/ZMookGeneral
+Mooks/ZMookHellArmouredBigGuy
+Mooks/ZMookHellBoomer
+Mooks/ZMookHellSoulCatcher
+Mooks/ZMookJetpack
+Mooks/ZMookJetpackBazooka
+Mooks/ZMookMegaDog
+Mooks/ZMookMortar
+Mooks/ZMookNinja
+Mooks/ZMookRiotShield
+Mooks/ZMookScientist
+Mooks/ZMookScout
+Mooks/ZMookSkinless
+Mooks/ZMookSuicide
+Mooks/ZMookUndead
+Mooks/ZMookUndeadStartDead
+Mooks/ZMookUndeadSuicide
+Mooks/ZMookWarlock
+Mooks/ZSatan Mook
+Mooks/ZSatan
+Mooks/ZSatanCutscene
+Mooks/ZSnake
+
+
+
+
+
+
+
+Alien SandWorm Facehugger Launcher Behind
+Alien SandWorm Facehugger Launcher
+AlienGiantBoss SandWorm
+AlienGiantSandWorm
+AlienMiniBoss SandWorm
+SandwormHeadGibHolder
+ZAlienBrute
+ZAlienFaceHugger
+ZAlienMelter
+ZAlienMosquito
+ZAlienXenomorph
+ZAlienXenomorphBrainBox
+Boss_Tank
+FlameSandworm
+Hell BoneWorm
+Hell MiniBoss BoneWorm Behind
+Hell MiniBoss BoneWorm
+DolfLundgrenSoldier
+Pig Rotten
+Pig
+SatanMinibossStage1
+Seagull
+TankBrosTank
+WarlockPortal Suicide
+WarlockPortal
+WarlockPortalLarge
+WarlockPortalProjectile
+WarlockPortalProjectileGuided
+WarlockPortalSoulDestroyer
+ZConradBroneBanks
+ZHellBigGuy
+ZHellDog
+ZHellDogEgg
+ZHellLostSoul
+ZMook Alarmist
+ZMook Backup
+ZMook Grenadier
+ZMook Strong
+ZMook
+ZMookArmouredGuy
+ZMookBazooka
+ZMookBigElite
+ZMookBigGuy
+ZMookCaptain
+ZMookCaptainCutscene
+ZMookCaptainExpendabro
+ZMookDog
+ZMookGeneral
+ZMookHellArmouredBigGuy
+ZMookHellBoomer
+ZMookHellSoulCatcher
+ZMookJetpack
+ZMookJetpackBazooka
+ZMookMegaDog
+ZMookMortar
+ZMookNinja
+ZMookRiotShield
+ZMookScientist
+ZMookScout
+ZMookSkinless
+ZMookSuicide
+ZMookUndead
+ZMookUndeadStartDead
+ZMookUndeadSuicide
+ZMookWarlock
+ZSatan Mook
+ZSatan
+ZSatanCutscene
+ZSnake

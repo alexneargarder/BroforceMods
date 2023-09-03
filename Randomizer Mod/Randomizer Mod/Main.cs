@@ -51,14 +51,14 @@ namespace Randomizer_Mod
         public static Settings settings;
 
 
-        public static string[] mookTypes = new string[] { "ZHellBigGuy", "ZHellDog", "ZMook Grenadier", "ZMook", "ZMookBazooka", "ZMookBigGuy",
+/*        public static string[] mookTypes = new string[] { "ZMook", "ZMookSuicide", "ZMookBigGuy",  "ZHellBigGuy", "ZHellDog", "ZMook Grenadier", "ZMookBazooka",
             "ZMookDog", "ZMookGeneral", "ZMookHellBoomer", "ZMookHellSoulCatcher", "ZMookJetpack", "ZMookNinja", "ZMookRiotShield",
-        "ZMookScout", "ZMookSkinless", "ZMookSuicide", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZSatan", "ZHellLostSoul", "ZMookArmouredGuy"};
+        "ZMookScout", "ZMookSkinless", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZSatan", "ZHellLostSoul", "ZMookArmouredGuy"};
 
         public static string[] alienTypes = new string[] { "ZAlienBrute", "ZAlienFaceHugger",
         "ZAlienMelter", "ZAlienMosquito", "ZAlienXenomorph", "ZAlienXenomorphBrainBox" };
 
-        public static string[] mookBossTypes = new string[] { "DolfLundgrenSoldier", "SatanMinibossStage1" };
+        public static string[] mookBossTypes = new string[] { "DolfLundgrenSoldier", "SatanMinibossStage1" };*/
 
 
         // Don't spawn at all
@@ -83,7 +83,8 @@ namespace Randomizer_Mod
         public static string debugMookString = "0";
         public static string debugMookStringSummoned = "0";
 
-        public static string[] debugMookTypeList = new string[] { "mook",
+        public static string[] debugMookTypeList = new string[] {
+            "mook",
             "mookSuicide",
             "mookRiotShield",
             "mookBigGuy",
@@ -123,7 +124,34 @@ namespace Randomizer_Mod
             "mookMammothTank",
             "mookKopterMiniBoss",
             "goliathMech",
-            "Large Alien Worm"
+            "Large Alien Worm",
+            "evilAgent",
+            "mookMortar",
+            "mookJetpackBazooka",
+            "mookAlarmist",
+            "mookStrong",
+            "mookBigGuyElite",
+            "mookScientist",
+            "mookSuicideBigGuy",
+            "snake",
+            "mookTankMookLauncher",
+            "mookTankCannon",
+            "mookTankRockets",
+            "mookArtilleryTruck",
+            "mookBlimp",
+            "mookDrillCarrier",
+            "mookTruck"
+        };
+
+        public static string[] debugMookSummonedList = new string[]
+        {
+            // Normal
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook", "Attack Dog", "Skinned Mook", "Mook General",
+            "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            // Aliens
+            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
+            // Hell
+            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher", "Satan Boss", "CR666"
         };
 
         public static bool ignoreNextWin = false;
@@ -134,6 +162,37 @@ namespace Randomizer_Mod
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
             settings = Settings.Load<Settings>(modEntry);
+
+            if ( settings.defaultSettings )
+            {
+                settings.enabledNormal = new List<int>();
+                settings.enabledWorms = new List<int>();
+                settings.enabledBosses = new List<int>();
+                settings.enabledLargeBosses = new List<int>();
+                settings.enabledVehicles = new List<int>();
+                for (int i = 0; i < Main.normalList.Length; ++i)
+                {
+                    settings.enabledNormal.Add(i);
+                }
+                for (int i = 0; i < Main.wormList.Length; ++i)
+                {
+                    settings.enabledWorms.Add(i);
+                }
+                for (int i = 0; i < Main.bossList.Length; ++i)
+                {
+                    settings.enabledBosses.Add(i);
+                }
+                for (int i = 0; i < Main.largeBossList.Length; ++i)
+                {
+                    settings.enabledLargeBosses.Add(i);
+                }
+                for (int i = 0; i < Main.vehicleList.Length; ++i)
+                {
+                    settings.enabledVehicles.Add(i);
+                }
+                settings.defaultSettings = false;
+            }
+
             var harmony = new Harmony(modEntry.Info.Id);
             var assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
@@ -144,6 +203,17 @@ namespace Randomizer_Mod
 
             return true;
         }
+
+        public static string[] normalList = new string[]
+        {
+            // Normal
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook", "Attack Dog", "Skinned Mook", "Mook General", 
+            "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            // Aliens
+            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
+            // Hell
+            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher"
+        };
 
         public static string[] wormList = new string[]
         {
@@ -160,6 +230,11 @@ namespace Randomizer_Mod
             "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm", 
         };
 
+        public static string[] vehicleList = new string[]
+        {
+            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck"
+        };
+
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
             settings.enableEnemyRandomization = GUILayout.Toggle(settings.enableEnemyRandomization, new GUIContent("Enable Enemy Randomization", "Randomly replaces enemies of one type with another"));
@@ -173,9 +248,89 @@ namespace Randomizer_Mod
 
             GUILayout.Space(20);
 
-            settings.enableWorms = GUILayout.Toggle(settings.enableWorms, new GUIContent("Allow Enemies to become Worms", "Chance for enemies to become Sandworms or Boneworms"));
+            GUILayout.BeginHorizontal();
 
-            
+            settings.enableNormal = GUILayout.Toggle(settings.enableNormal, new GUIContent("Allow Enemies to become other Normal Enemies", "Chance for enemies to become other normal enemies, aliens, or hell enemies"));
+
+            settings.enableNormalSummoned = GUILayout.Toggle(settings.enableNormalSummoned, new GUIContent("Allow Summoned Enemies to become other Normal Enemies", "Chance for enemies summoned by parachute, doors, bosses, or other enemies to become other normal enemies, aliens, or hell enemies"));
+
+            GUILayout.EndHorizontal();
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+
+            previousToolTip = GUI.tooltip;
+
+
+            GUILayout.Space(20);
+
+            if (GUILayout.Button("Normal Enemies"))
+            {
+                settings.showNormal = !settings.showNormal;
+            }
+
+            if (settings.showNormal)
+            {
+                GUILayout.BeginVertical();
+                {
+                    for (int i = 0; i < normalList.Length; ++i)
+                    {
+                        if (i != 0 && i % 5 == 0)
+                        {
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(5);
+                        }
+                        if (i % 5 == 0)
+                        {
+                            GUILayout.BeginHorizontal();
+                        }
+                        bool containsBefore = settings.enabledNormal.Contains(i);
+
+                        if (containsBefore != GUILayout.Toggle(containsBefore, normalList[i], GUILayout.Width(175)))
+                        {
+                            if (containsBefore)
+                            {
+                                settings.enabledNormal.Remove(i);
+                            }
+                            else
+                            {
+                                settings.enabledNormal.Add(i);
+                            }
+                        }
+                        if (i + 1 == normalList.Length)
+                        {
+                            GUILayout.EndHorizontal();
+                        }
+                    }
+                }
+                GUILayout.EndVertical();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if ( GUILayout.Button("Select All", GUILayout.Width(100) ) )
+                {
+                    settings.enabledNormal.Clear();
+                    for ( int i = 0; i < normalList.Length; ++i )
+                    {
+                        settings.enabledNormal.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if ( GUILayout.Button("Deselect All", GUILayout.Width(100) ) )
+                {
+                    settings.enabledNormal.Clear();
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(40);
+
+            settings.enableWorms = GUILayout.Toggle(settings.enableWorms, new GUIContent("Allow Enemies to become Worms", "Chance for enemies to become Sandworms or Boneworms"));
 
             if ( previousToolTip != GUI.tooltip)
             {
@@ -218,11 +373,33 @@ namespace Randomizer_Mod
                     }
                 }
                 GUILayout.EndHorizontal();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select All", GUILayout.Width(100)))
+                {
+                    settings.enabledWorms.Clear();
+                    for (int i = 0; i < wormList.Length; ++i)
+                    {
+                        settings.enabledWorms.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Deselect All", GUILayout.Width(100)))
+                {
+                    settings.enabledWorms.Clear();
+                }
+                GUILayout.EndHorizontal();
             }
 
-            GUILayout.Space(25);
+            GUILayout.Space(40);
+
+            GUILayout.BeginHorizontal();
 
             settings.enableBosses = GUILayout.Toggle(settings.enableBosses, new GUIContent("Allow Enemies to become Bosses", "Chance for enemies to become certain minibosses"));
+
+            settings.enableBossSummoned = GUILayout.Toggle(settings.enableBossSummoned, new GUIContent("Allow Summoned Enemies to become Bosses", "Chance for enemies summoned by parachute, doors, bosses, or other enemies to become certain minibosses"));
+
+            GUILayout.EndHorizontal();
 
             if (previousToolTip != GUI.tooltip)
             {
@@ -264,11 +441,27 @@ namespace Randomizer_Mod
                     }
                 }
                 GUILayout.EndHorizontal();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select All", GUILayout.Width(100)))
+                {
+                    settings.enabledBosses.Clear();
+                    for (int i = 0; i < bossList.Length; ++i)
+                    {
+                        settings.enabledBosses.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Deselect All", GUILayout.Width(100)))
+                {
+                    settings.enabledBosses.Clear();
+                }
+                GUILayout.EndHorizontal();
             }
 
-            GUILayout.Space(25);
+            GUILayout.Space(40);
 
-            settings.enableLargeBosses = GUILayout.Toggle(settings.enableLargeBosses, new GUIContent("Allow Enemies to become Large Bosses", "Chance for enemies to become certain large minibosses"));
+            settings.enableLargeBosses = GUILayout.Toggle(settings.enableLargeBosses, new GUIContent("Allow Enemies to become Large Bosses", "Chance for enemies to become certain large bosses"));
 
             if (previousToolTip != GUI.tooltip)
             {
@@ -290,28 +483,102 @@ namespace Randomizer_Mod
             if (settings.showLargeBosses)
             {
                 GUILayout.BeginHorizontal();
+                for (int i = 0; i < largeBossList.Length; ++i)
                 {
+                    bool containsBefore = settings.enabledLargeBosses.Contains(i);
+                    if (containsBefore != GUILayout.Toggle(containsBefore, largeBossList[i]))
+                    {
+                        if (containsBefore)
+                        {
+                            settings.enabledLargeBosses.Remove(i);
+                        }
+                        else
+                        {
+                            settings.enabledLargeBosses.Add(i);
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select All", GUILayout.Width(100)))
+                {
+                    settings.enabledLargeBosses.Clear();
                     for (int i = 0; i < largeBossList.Length; ++i)
                     {
-                        bool containsBefore = settings.enabledLargeBosses.Contains(i);
+                        settings.enabledLargeBosses.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Deselect All", GUILayout.Width(100)))
+                {
+                    settings.enabledLargeBosses.Clear();
+                }
+                GUILayout.EndHorizontal();
+            }
 
-                        if (containsBefore != GUILayout.Toggle(containsBefore, largeBossList[i]))
+            GUILayout.Space(40);
+
+            settings.enableVehicles = GUILayout.Toggle(settings.enableVehicles, new GUIContent("Allow Enemies to become Vehicles", "Chance for enemies to become certain vehicles"));
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
+
+            if (GUILayout.Button("Vehicles"))
+            {
+                settings.showVehicles = !settings.showVehicles;
+            }
+
+            if (settings.showVehicles)
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    for (int i = 0; i < vehicleList.Length; ++i)
+                    {
+                        bool containsBefore = settings.enabledVehicles.Contains(i);
+
+                        if (containsBefore != GUILayout.Toggle(containsBefore, vehicleList[i]))
                         {
                             if (containsBefore)
                             {
-                                settings.enabledLargeBosses.Remove(i);
+                                settings.enabledVehicles.Remove(i);
                             }
                             else
                             {
-                                settings.enabledLargeBosses.Add(i);
+                                settings.enabledVehicles.Add(i);
                             }
                         }
                     }
                 }
                 GUILayout.EndHorizontal();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select All", GUILayout.Width(100)))
+                {
+                    settings.enabledVehicles.Clear();
+                    for (int i = 0; i < vehicleList.Length; ++i)
+                    {
+                        settings.enabledVehicles.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Deselect All", GUILayout.Width(100)))
+                {
+                    settings.enabledVehicles.Clear();
+                }
+                GUILayout.EndHorizontal();
             }
 
-            GUILayout.Space(25);
+            GUILayout.Space(40);
 
             settings.enableInstantWin = GUILayout.Toggle(settings.enableInstantWin, new GUIContent("Killing Bosses triggers level finish", "If this is enabled, killing a boss will trigger a level end even if you're not on a boss level"));
 
@@ -367,6 +634,8 @@ namespace Randomizer_Mod
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.Space(15);
+
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label(new GUIContent("Normal Enemy Chance: ", 
@@ -415,6 +684,18 @@ namespace Randomizer_Mod
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label(new GUIContent("Vehicle Chance: ",
+                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type."), GUILayout.Width(200));
+
+                GUILayout.Label(settings.vehiclePercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.vehiclePercent = GUILayout.HorizontalSlider(settings.vehiclePercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
             GUILayout.Space(10);
 
             if (previousToolTip != GUI.tooltip)
@@ -458,36 +739,15 @@ namespace Randomizer_Mod
                 if (int.TryParse(debugMookStringSummoned, out temp))
                     settings.debugMookTypeSummoned = temp;
 
-                if (settings.debugMookTypeSummoned > (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1)
-                    settings.debugMookTypeSummoned = (mookTypes.Length + alienTypes.Length + mookBossTypes.Length) - 1;
+                if (settings.debugMookTypeSummoned > debugMookSummonedList.Length)
+                    settings.debugMookTypeSummoned = debugMookSummonedList.Length - 1;
 
                 if (settings.debugMookTypeSummoned < 0)
                     settings.debugMookTypeSummoned = 0;
 
                 int parsednum = settings.debugMookTypeSummoned;
-                string parsedstring;
-
-                if (parsednum >= mookTypes.Length)
-                {
-                    parsednum -= mookTypes.Length;
-
-                    if (parsednum >= alienTypes.Length)
-                    {
-                        parsednum -= alienTypes.Length;
-
-                        parsedstring = mookBossTypes[parsednum];
-                    }
-                    else
-                    {
-                        parsedstring = alienTypes[parsednum];
-                    }    
-                }
-                else
-                {
-                    parsedstring = mookTypes[parsednum];
-                }
                 
-                GUILayout.Label("Current Summoned Enemy Type: " + parsedstring);
+                GUILayout.Label("Current Summoned Enemy Type: " + debugMookSummonedList[parsednum]);
 
             }
 
@@ -513,34 +773,46 @@ namespace Randomizer_Mod
 
     public class Settings : UnityModManager.ModSettings
     {
-        public bool enableEnemyRandomization;
+        public bool enableEnemyRandomization = true;
 
-        public bool enableWorms;
-        public bool enableBosses;
-        public bool enableLargeBosses;
+        public bool enableNormal = true;
+        public bool enableWorms = true;
+        public bool enableBosses = true;
+        public bool enableLargeBosses = true;
+        public bool enableVehicles = false;
 
-        public bool showWorms;
-        public bool showBosses;
-        public bool showLargeBosses;
+        public bool enableNormalSummoned = true;
+        public bool enableBossSummoned = true;
 
+        public bool showNormal = false;
+        public bool showWorms = false;
+        public bool showBosses = false;
+        public bool showLargeBosses = false;
+        public bool showVehicles = false;
+
+        public List<int> enabledNormal;
         public List<int> enabledWorms;
         public List<int> enabledBosses;
         public List<int> enabledLargeBosses;
+        public List<int> enabledVehicles;
 
-        public bool enableInstantWin;
-        public bool enableDeathField;
-        public bool enableSpawnedEnemiesRandomization;
+        public bool enableInstantWin = true;
+        public bool enableDeathField = true;
+        public bool enableSpawnedEnemiesRandomization = true;
 
-        public float enemyPercent;
+        public float enemyPercent = 100.0f;
 
-        public float normalEnemyPercent;
-        public float wormPercent;
-        public float bossPercent;
-        public float largeBossPercent;
+        public float normalEnemyPercent = 100.0f;
+        public float wormPercent = 2.0f;
+        public float bossPercent = 5.0f;
+        public float largeBossPercent = 3.0f;
+        public float vehiclePercent = 0.0f;
 
-        public bool DEBUG;
-        public int debugMookType;
-        public int debugMookTypeSummoned;
+        public bool defaultSettings = true;
+
+        public bool DEBUG = false;
+        public int debugMookType = 0;
+        public int debugMookTypeSummoned = 0;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
@@ -555,46 +827,167 @@ namespace Randomizer_Mod
         public static System.Random rnd = new System.Random();
         public static Mook getRandomMookPrefab()
         {
-            int chosen;
+            Mook mookPrefab = null;
 
-            GameObject gameObject = null;
+            int enemyConvertChance = rnd.Next(0, 100);
 
-            int enemyType = rnd.Next(0, (int)(Main.settings.normalEnemyPercent + (Main.settings.enableBosses ? Main.settings.bossPercent : 0)));
+            if (enemyConvertChance > Main.settings.enemyPercent || Map_PlaceDoodad.mapInstance == null )
+            {
+                return mookPrefab;
+            }
+
+            int enemyType = rnd.Next(0, (int)( (Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0) + (Main.settings.enableBossSummoned ? Main.settings.bossPercent : 0)));
 
             if (Main.settings.DEBUG)
-                enemyType = (Main.settings.debugMookTypeSummoned < Main.mookTypes.Length + Main.alienTypes.Length) ? 0 : (int)(Main.settings.normalEnemyPercent + 1);
+                enemyType = (Main.settings.debugMookTypeSummoned < 35) ? 0 : (int)(Main.settings.normalEnemyPercent + 1);
 
-            if (enemyType < Main.settings.normalEnemyPercent )
+            if ( Main.settings.enableNormalSummoned && enemyType < Main.settings.normalEnemyPercent && Main.settings.enabledNormal.Count > 0 )
             {
-                chosen = rnd.Next(0, Main.mookTypes.Length + Main.alienTypes.Length);
+                int num = rnd.Next(0, Main.settings.enabledNormal.Count);
+                num = Main.settings.enabledNormal[num];
 
                 if (Main.settings.DEBUG)
-                    chosen = Main.settings.debugMookTypeSummoned;
+                    num = Main.settings.debugMookTypeSummoned;
 
-                if (chosen < Main.mookTypes.Length)
+                switch (num)
                 {
-
-                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookTypes[chosen]);
-
-                }
-                else if (chosen < Main.mookTypes.Length + Main.alienTypes.Length)
-                {
-                    chosen = chosen - Main.mookTypes.Length;
-
-                    gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Aliens/" + Main.alienTypes[chosen]);
+                    // Mooks
+                    case 0:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mook as Mook;
+                        break;
+                    case 1:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookSuicide as Mook;
+                        break;
+                    case 2:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBigGuy as Mook;
+                        break;
+                    case 3:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookSuicideBigGuy as Mook;
+                        break;
+                    case 4:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBigGuyElite as Mook;
+                        break;
+                    case 5:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScout as Mook;
+                        break;
+                    case 6:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookRiotShield as Mook;
+                        break;
+                    case 7:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookArmoured as Mook;
+                        break;
+                    case 8:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.mookJetpack;
+                        break;
+                    case 9:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGrenadier as Mook;
+                        break;
+                    case 10:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBazooka as Mook;
+                        break;
+                    case 11:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookJetpackBazooka as Mook;
+                        break;
+                    case 12:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookNinja as Mook;
+                        break;
+                    case 13:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookDog as Mook;
+                        break;
+                    case 14:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.skinnedMook as Mook;
+                        break;
+                    case 15:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGeneral as Mook;
+                        break;
+                    case 16:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookStrong as Mook;
+                        break;
+                    case 17:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScientist as Mook;
+                        break;
+                    case 18:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.snake as Mook;
+                        break;
+                    // Satan
+                    case 19:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.satan as Mook;
+                        break;
+                    // Aliens
+                    case 20:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienFaceHugger as Mook;
+                        break;
+                    case 21:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienXenomorph as Mook;
+                        break;
+                    case 22:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienBrute as Mook;
+                        break;
+                    case 23:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienBaneling as Mook;
+                        break;
+                    case 24:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienMosquito as Mook;
+                        break;
+                    case 25:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookXenomorphBrainbox as Mook;
+                        break;
+                    // HellDog
+                    case 26:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[0].GetComponent<Mook>();
+                        break;
+                    // ZMookUndead
+                    case 27:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[1].GetComponent<Mook>();
+                        break;
+                    // ZMookUndeadStartDead
+                    case 28:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[2].GetComponent<Mook>();
+                        break;
+                    // ZMookWarlock
+                    case 29:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[3].GetComponent<Mook>();
+                        break;
+                    // ZMookHellBoomer
+                    case 30:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[4].GetComponent<Mook>();
+                        break;
+                    // ZMookUndeadSuicide
+                    case 31:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[5].GetComponent<Mook>();
+                        break;
+                    // ZHellBigGuy
+                    case 32:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[6].GetComponent<Mook>();
+                        break;
+                    // Lost Soul
+                    case 33:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[8].GetComponent<Mook>();
+                        break;
+                    // ZMookHellSoulCatcher
+                    case 34:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[10].GetComponent<Mook>();
+                        break;
                 }
             }
-            else
+            else if ( Main.settings.enableBossSummoned && enemyType - (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
             {
-                chosen = rnd.Next(0, Main.mookBossTypes.Length);
+                int num = rnd.Next(0, Main.settings.enabledBosses.Count);
+                num = Main.settings.enabledBosses[num];
 
                 if (Main.settings.DEBUG)
-                    chosen = Main.settings.debugMookTypeSummoned - Main.mookTypes.Length - Main.alienTypes.Length;
+                    num = Main.settings.debugMookTypeSummoned - 35;
 
-                gameObject = InstantiationController.GetPrefabFromLegacyResourceName("Mooks/" + Main.mookBossTypes[chosen]);
+                switch (num)
+                {
+                    case 0:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.satanMiniboss.GetComponent<Mook>();
+                        break;
+                    case 1:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookDolfLundgren as Mook;
+                        break;
+                }
             }
-
-            Mook mookPrefab = gameObject.GetComponent<Mook>();
 
             return mookPrefab;
         }
@@ -608,9 +1001,12 @@ namespace Randomizer_Mod
 
             if ((Main.settings.enemyPercent > rnd.Next(0, 100)))
             {
-                mookPrefab = getRandomMookPrefab();
+                Mook replacePrefab = getRandomMookPrefab();
+                if ( replacePrefab != null )
+                {
+                    mookPrefab = replacePrefab;
+                }
             }
-
         }
     }
 
@@ -626,9 +1022,12 @@ namespace Randomizer_Mod
 
             if ((Main.settings.enemyPercent > MapController_SpawnMook_Networked.rnd.Next(0, 100)))
             {
-                mookPrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
+                Mook replacePrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
+                if (replacePrefab != null)
+                {
+                    mookPrefab = replacePrefab;
+                }  
             }
-
         }
     }
 
@@ -652,9 +1051,6 @@ namespace Randomizer_Mod
             {
                 return;
             }
-
-            
-
         }
     }
 
@@ -666,6 +1062,8 @@ namespace Randomizer_Mod
         const int NUMBOSSES = 2;
         const int NUMLARGEBOSSES = 4;
 
+        public static Map mapInstance;
+
         public static bool Prefix(Map __instance, ref DoodadInfo doodad, ref GameObject __result)
         {
             if (!Main.enabled || !Main.settings.enableEnemyRandomization)
@@ -673,9 +1071,10 @@ namespace Randomizer_Mod
                 return true;
             }
 
-            //Main.Log("place doodad called: " + doodad.type);
+            mapInstance = __instance;
 
-            if (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy)
+            if ( (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy) && 
+                (Main.settings.enableNormal || Main.settings.enableWorms || Main.settings.enableBosses || Main.settings.enableLargeBosses || Main.settings.enableVehicles ))
             {
                 int enemyConvertChance = rnd.Next(0, 100);
 
@@ -692,137 +1091,145 @@ namespace Randomizer_Mod
 
                 TestVanDammeAnim original = null;
 
-                int enemyType = rnd.Next(0, (int)( Main.settings.normalEnemyPercent + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) + 
-                    ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) + ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) ) );
+                int enemyType = rnd.Next(0, (int)( (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) + 
+                    ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) + ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) + (Main.settings.enableVehicles ? Main.settings.vehiclePercent : 0) ) );
 
                 if ( !Main.settings.DEBUG )
                 {
-                    if (enemyType < Main.settings.normalEnemyPercent)
+                    if ( Main.settings.enableNormal && enemyType < Main.settings.normalEnemyPercent && Main.settings.enabledNormal.Count > 0 )
                     {
-                        int num = rnd.Next(0, 29);
+                        int num = rnd.Next(0, Main.settings.enabledNormal.Count);
+                        num = Main.settings.enabledNormal[num];
 
-                        if (num < 20)
+                        switch (num)
                         {
-                            switch (num)
-                            {
-                                // Mooks
-                                case 0:
-                                    original = __instance.activeTheme.mook;
-                                    break;
-                                case 1:
-                                    original = __instance.activeTheme.mookSuicide;
-                                    break;
-                                case 2:
-                                    original = __instance.activeTheme.mookRiotShield;
-                                    break;
-                                case 3:
-                                    original = __instance.activeTheme.mookBigGuy;
-                                    break;
-                                case 4:
-                                    original = __instance.activeTheme.mookScout;
-                                    break;
-                                case 5:
-                                    original = __instance.activeTheme.mookDog;
-                                    break;
-                                case 6:
-                                    original = __instance.activeTheme.mookArmoured;
-                                    break;
-                                case 7:
-                                    original = __instance.activeTheme.mookGrenadier;
-                                    break;
-                                case 8:
-                                    original = __instance.activeTheme.mookBazooka;
-                                    break;
-                                case 9:
-                                    original = __instance.activeTheme.mookNinja;
-                                    break;
-                                case 10:
-                                    original = __instance.sharedObjectsReference.Asset.mookJetpack;
-                                    break;
-                                case 11:
-                                    original = __instance.activeTheme.mookXenomorphBrainbox;
-                                    break;
-                                case 12:
-                                    original = __instance.activeTheme.skinnedMook;
-                                    break;
-                                case 13:
-                                    original = __instance.activeTheme.mookGeneral;
-                                    break;
-                                // Satan
-                                case 14:
-                                    original = __instance.activeTheme.satan;
-                                    break;
-                                // Aliens
-                                case 15:
-                                    original = __instance.activeTheme.alienFaceHugger;
-                                    break;
-                                case 16:
-                                    original = __instance.activeTheme.alienXenomorph;
-                                    break;
-                                case 17:
-                                    original = __instance.activeTheme.alienBrute;
-                                    break;
-                                case 18:
-                                    original = __instance.activeTheme.alienBaneling;
-                                    break;
-                                case 19:
-                                    original = __instance.activeTheme.alienMosquito;
-                                    break;
-                            }
+                            // Mooks
+                            case 0:
+                                original = __instance.activeTheme.mook;
+                                break;
+                            case 1:
+                                original = __instance.activeTheme.mookSuicide;
+                                break;
+                            case 2:
+                                original = __instance.activeTheme.mookBigGuy;
+                                break;
+                            case 3:
+                                original = __instance.activeTheme.mookSuicideBigGuy;
+                                break;
+                            case 4:
+                                original = __instance.activeTheme.mookBigGuyElite;
+                                break;
+                            case 5:
+                                original = __instance.activeTheme.mookScout;
+                                break;
+                            case 6:
+                                original = __instance.activeTheme.mookRiotShield;
+                                break;
+                            case 7:
+                                original = __instance.activeTheme.mookArmoured;
+                                break;
+                            case 8:
+                                original = __instance.sharedObjectsReference.Asset.mookJetpack;
+                                break;
+                            case 9:
+                                original = __instance.activeTheme.mookGrenadier;
+                                break;
+                            case 10:
+                                original = __instance.activeTheme.mookBazooka;
+                                break;
+                            case 11:
+                                original = __instance.activeTheme.mookJetpackBazooka;
+                                break;
+                            case 12:
+                                original = __instance.activeTheme.mookNinja;
+                                break;
+                            case 13:
+                                original = __instance.activeTheme.mookDog;
+                                break;
+                            case 14:
+                                original = __instance.activeTheme.skinnedMook;
+                                break;
+                            case 15:
+                                original = __instance.activeTheme.mookGeneral;
+                                break;
+                            case 16:
+                                original = __instance.activeTheme.mookStrong;
+                                break;
+                            case 17:
+                                original = __instance.activeTheme.mookScientist;
+                                break;
+                            case 18:
+                                original = __instance.activeTheme.snake;
+                                break;
+                            // Satan
+                            case 19:
+                                original = __instance.activeTheme.satan;
+                                break;
+                            // Aliens
+                            case 20:
+                                original = __instance.activeTheme.alienFaceHugger;
+                                break;
+                            case 21:
+                                original = __instance.activeTheme.alienXenomorph;
+                                break;
+                            case 22:
+                                original = __instance.activeTheme.alienBrute;
+                                break;
+                            case 23:
+                                original = __instance.activeTheme.alienBaneling;
+                                break;
+                            case 24:
+                                original = __instance.activeTheme.alienMosquito;
+                                break;
+                            case 25:
+                                original = __instance.activeTheme.mookXenomorphBrainbox;
+                                break;
+                            // HellDog
+                            case 26:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndead
+                            case 27:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndeadStartDead
+                            case 28:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
+                                break;
+                            // ZMookWarlock
+                            case 29:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
+                                break;
+                            // ZMookHellBoomer
+                            case 30:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
+                                break;
+                            // ZMookUndeadSuicide
+                            case 31:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
+                                break;
+                            // ZHellBigGuy
+                            case 32:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
+                                break;
+                            // Lost Soul
+                            case 33:
+                                vector.y += 5;
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
+                                break;
+                            // ZMookHellSoulCatcher
+                            case 34:
+                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
+                                break;
+                        }
 
+                        if ( original != null )
+                        {
                             __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
                         }
-                        // Hell Enemies
-                        else if (num < 29)
-                        {
-                            num = num - 20;
-
-                            switch (num)
-                            {
-                                // HellDog
-                                case 0:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
-                                    break;
-                                // ZMookUndead
-                                case 1:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
-                                    break;
-                                // ZMookUndeadStartDead
-                                case 2:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
-                                    break;
-                                // ZMookWarlock
-                                case 3:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
-                                    break;
-                                // ZMookHellBoomer
-                                case 4:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
-                                    break;
-                                // ZMookUndeadSuicide
-                                case 5:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
-                                    break;
-                                // ZHellBigGuy
-                                case 6:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
-                                    break;
-                                // Lost Soul
-                                case 7:
-                                    vector.y += 5;
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
-                                    break;
-                                // ZMookHellSoulCatcher
-                                case 8:
-                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
-                                    break;
-                            }
-
-                        }
-
                     }
                     // Worms
-                    else if (Main.settings.enableWorms && (enemyType - Main.settings.normalEnemyPercent) < Main.settings.wormPercent && Main.settings.enabledWorms.Count > 0)
+                    else if ( Main.settings.enableWorms && (enemyType - (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) ) < Main.settings.wormPercent && Main.settings.enabledWorms.Count > 0 )
                     {
                         int num = rnd.Next(0, Main.settings.enabledWorms.Count);
                         num = Main.settings.enabledWorms[num];
@@ -878,7 +1285,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Large Bosses
-                    else if (Main.settings.enableLargeBosses && (enemyType - Main.settings.normalEnemyPercent - (Main.settings.enableWorms ? Main.settings.wormPercent : 0) -
+                    else if (Main.settings.enableLargeBosses && (enemyType - (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) - (Main.settings.enableWorms ? Main.settings.wormPercent : 0) -
                         (Main.settings.enableBosses ? Main.settings.bossPercent : 0)) < Main.settings.largeBossPercent && Main.settings.enabledLargeBosses.Count > 0)
                     {
                         int num = rnd.Next(0, Main.settings.enabledLargeBosses.Count);
@@ -898,6 +1305,38 @@ namespace Randomizer_Mod
                             // Large Alien Worm
                             case 3:
                                 __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienGiantSandWormBoss, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
+                                break;
+                        }
+                    }
+                    // Vehicles
+                    else if (Main.settings.enableVehicles && (enemyType - (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) - (Main.settings.enableWorms ? Main.settings.wormPercent : 0) -
+                        (Main.settings.enableBosses ? Main.settings.bossPercent : 0) - (Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0) ) < Main.settings.vehiclePercent && Main.settings.enabledVehicles.Count > 0)
+                    {
+                        int num = rnd.Next(0, Main.settings.enabledVehicles.Count);
+                        num = Main.settings.enabledVehicles[num];
+
+                        switch ( num )
+                        {
+                            case 0:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankMookLauncher, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 1:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankCannon, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 2:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankRockets, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 3:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookArtilleryTruck, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 4:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookBlimp, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 5:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookDrillCarrier, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 6:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTruck, vector, Quaternion.identity).gameObject;
                                 break;
                         }
                     }
@@ -1052,6 +1491,54 @@ namespace Randomizer_Mod
                         case 40:
                             __result = (UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.alienGiantSandWormBoss, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
                             break;
+                        case 41:
+                            original = __instance.activeTheme.evilAgent; // Glitchy textures
+                            break;
+                        case 42:
+                            original = __instance.activeTheme.mookMortar; // Fake enemy used for summoning mortar strikes it appears
+                            break;
+                        case 43:
+                            original = __instance.activeTheme.mookJetpackBazooka; 
+                            break;
+                        case 44:
+                            original = __instance.activeTheme.mookAlarmist; // Doesn't do anything
+                            break;
+                        case 45:
+                            original = __instance.activeTheme.mookStrong;
+                            break;
+                        case 46:
+                            original = __instance.activeTheme.mookBigGuyElite;
+                            break;
+                        case 47:
+                            original = __instance.activeTheme.mookScientist;
+                            break;
+                        case 48:
+                            original = __instance.activeTheme.mookSuicideBigGuy;
+                            break;
+                        case 49:
+                            original = __instance.activeTheme.snake; 
+                            break;
+                        case 50:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankMookLauncher, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 51:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankCannon, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 52:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTankRockets, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 53:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookArtilleryTruck, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 54:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookBlimp, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 55:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookDrillCarrier, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 56:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTruck, vector, Quaternion.identity).gameObject;
+                            break;
                     }
 
                     if (original != null)
@@ -1059,17 +1546,6 @@ namespace Randomizer_Mod
                         __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
                     }
                 }
-
-
-                /*Main.Log("\n\n");
-                Component[] allComponents;
-                allComponents = __result.GetComponents(typeof(Component));
-                foreach (Component comp in allComponents)
-                {
-                    Main.Log("attached: " + comp.name + " also " + comp.GetType());
-                }
-                Main.Log("\n\n");*/
-
 
                 if (__result != null)
                 {
@@ -1085,9 +1561,9 @@ namespace Randomizer_Mod
                     {
                         component.FirstFrame();
                     }
-                }
 
-                return false;
+                    return false;
+                }
             }
 
             return true;
@@ -1230,6 +1706,23 @@ namespace Randomizer_Mod
     }
 
 
+/*    // Find resource names
+    [HarmonyPatch(typeof(NetworkSpawnableManifest), "GetPrefabFromLegacyResourceName")]
+    static class NetworkSpawnableManifest_OnAfterDeserialize
+    {
+        public static void Postfix(NetworkSpawnableManifest __instance)
+        {
+            if (!Main.enabled )
+            {
+                return;
+            }
 
+            Dictionary<string, SpawnablePrefab> resourceNameLookupDictionary = Traverse.Create(__instance).Field("resourceNameLookupDictionary").GetValue() as Dictionary<string, SpawnablePrefab>;
+            foreach ( string s in resourceNameLookupDictionary.Keys )
+            {
+                Main.Log("key: " + s);
+            }
+        }
+    }*/
 
 }
