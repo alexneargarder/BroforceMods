@@ -140,7 +140,14 @@ namespace Randomizer_Mod
             "mookArtilleryTruck",
             "mookBlimp",
             "mookDrillCarrier",
-            "mookTruck"
+            "mookTruck",
+            "mechBrown",
+            "treasureMook",
+            "mookBigGuyStrong",
+            "sandbag",
+            "mookMotorBike",
+            "mookMotorBikeNuclear",
+            "mookDumpTruck"
         };
 
         public static string[] debugMookSummonedList = new string[]
@@ -207,8 +214,8 @@ namespace Randomizer_Mod
         public static string[] normalList = new string[]
         {
             // Normal
-            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook", "Attack Dog", "Skinned Mook", "Mook General", 
-            "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook", 
+            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
             // Aliens
             "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
             // Hell
@@ -232,7 +239,7 @@ namespace Randomizer_Mod
 
         public static string[] vehicleList = new string[]
         {
-            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck"
+            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck"
         };
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
@@ -540,26 +547,37 @@ namespace Randomizer_Mod
 
             if (settings.showVehicles)
             {
-                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical();
+                for (int i = 0; i < vehicleList.Length; ++i)
                 {
-                    for (int i = 0; i < vehicleList.Length; ++i)
+                    if (i != 0 && i % 5 == 0)
                     {
-                        bool containsBefore = settings.enabledVehicles.Contains(i);
+                        GUILayout.EndHorizontal();
+                        GUILayout.Space(5);
+                    }
+                    if (i % 5 == 0)
+                    {
+                        GUILayout.BeginHorizontal();
+                    }
+                    bool containsBefore = settings.enabledVehicles.Contains(i);
 
-                        if (containsBefore != GUILayout.Toggle(containsBefore, vehicleList[i]))
+                    if (containsBefore != GUILayout.Toggle(containsBefore, vehicleList[i], GUILayout.Width(175)))
+                    {
+                        if (containsBefore)
                         {
-                            if (containsBefore)
-                            {
-                                settings.enabledVehicles.Remove(i);
-                            }
-                            else
-                            {
-                                settings.enabledVehicles.Add(i);
-                            }
+                            settings.enabledVehicles.Remove(i);
+                        }
+                        else
+                        {
+                            settings.enabledVehicles.Add(i);
                         }
                     }
+                    if (i + 1 == vehicleList.Length)
+                    {
+                        GUILayout.EndHorizontal();
+                    }
                 }
-                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
                 GUILayout.Space(20);
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Select All", GUILayout.Width(100)))
@@ -839,7 +857,7 @@ namespace Randomizer_Mod
             int enemyType = rnd.Next(0, (int)( (Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0) + (Main.settings.enableBossSummoned ? Main.settings.bossPercent : 0)));
 
             if (Main.settings.DEBUG)
-                enemyType = (Main.settings.debugMookTypeSummoned < 35) ? 0 : (int)(Main.settings.normalEnemyPercent + 1);
+                enemyType = (Main.settings.debugMookTypeSummoned < Main.normalList.Length) ? 0 : (int)(Main.settings.normalEnemyPercent + 1);
 
             if ( Main.settings.enableNormalSummoned && enemyType < Main.settings.normalEnemyPercent && Main.settings.enabledNormal.Count > 0 )
             {
@@ -865,107 +883,119 @@ namespace Randomizer_Mod
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookSuicideBigGuy as Mook;
                         break;
                     case 4:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBigGuyElite as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.mookBigGuyStrong.GetComponent<Mook>();
                         break;
                     case 5:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScout as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBigGuyElite as Mook;
                         break;
                     case 6:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookRiotShield as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScout as Mook;
                         break;
                     case 7:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookArmoured as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookRiotShield as Mook;
                         break;
                     case 8:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.mookJetpack;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookArmoured as Mook;
                         break;
                     case 9:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGrenadier as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.mechBrown.GetComponent<Mook>();
                         break;
                     case 10:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBazooka as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.mookJetpack;
                         break;
                     case 11:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookJetpackBazooka as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGrenadier as Mook;
                         break;
                     case 12:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookNinja as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookBazooka as Mook;
                         break;
                     case 13:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookDog as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookJetpackBazooka as Mook;
                         break;
                     case 14:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.skinnedMook as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookNinja as Mook;
                         break;
                     case 15:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGeneral as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.treasureMook.GetComponent<Mook>();
                         break;
                     case 16:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookStrong as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookDog as Mook;
                         break;
                     case 17:
-                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScientist as Mook;
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.skinnedMook as Mook;
                         break;
                     case 18:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookGeneral as Mook;
+                        break;
+                    case 19:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookAlarmist as Mook;
+                        break;
+                    case 20:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookStrong as Mook;
+                        break;
+                    case 21:
+                        mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookScientist as Mook;
+                        break;
+                    case 22:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.snake as Mook;
                         break;
                     // Satan
-                    case 19:
+                    case 23:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.satan as Mook;
                         break;
                     // Aliens
-                    case 20:
+                    case 24:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienFaceHugger as Mook;
                         break;
-                    case 21:
+                    case 25:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienXenomorph as Mook;
                         break;
-                    case 22:
+                    case 26:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienBrute as Mook;
                         break;
-                    case 23:
+                    case 27:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienBaneling as Mook;
                         break;
-                    case 24:
+                    case 28:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.alienMosquito as Mook;
                         break;
-                    case 25:
+                    case 29:
                         mookPrefab = Map_PlaceDoodad.mapInstance.activeTheme.mookXenomorphBrainbox as Mook;
                         break;
                     // HellDog
-                    case 26:
+                    case 30:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[0].GetComponent<Mook>();
                         break;
                     // ZMookUndead
-                    case 27:
+                    case 31:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[1].GetComponent<Mook>();
                         break;
                     // ZMookUndeadStartDead
-                    case 28:
+                    case 32:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[2].GetComponent<Mook>();
                         break;
                     // ZMookWarlock
-                    case 29:
+                    case 33:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[3].GetComponent<Mook>();
                         break;
                     // ZMookHellBoomer
-                    case 30:
+                    case 34:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[4].GetComponent<Mook>();
                         break;
                     // ZMookUndeadSuicide
-                    case 31:
+                    case 35:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[5].GetComponent<Mook>();
                         break;
                     // ZHellBigGuy
-                    case 32:
+                    case 36:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[6].GetComponent<Mook>();
                         break;
                     // Lost Soul
-                    case 33:
+                    case 37:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[8].GetComponent<Mook>();
                         break;
                     // ZMookHellSoulCatcher
-                    case 34:
+                    case 38:
                         mookPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.hellEnemies[10].GetComponent<Mook>();
                         break;
                 }
@@ -976,7 +1006,7 @@ namespace Randomizer_Mod
                 num = Main.settings.enabledBosses[num];
 
                 if (Main.settings.DEBUG)
-                    num = Main.settings.debugMookTypeSummoned - 35;
+                    num = Main.settings.debugMookTypeSummoned - Main.normalList.Length;
 
                 switch (num)
                 {
@@ -1117,108 +1147,120 @@ namespace Randomizer_Mod
                                 original = __instance.activeTheme.mookSuicideBigGuy;
                                 break;
                             case 4:
-                                original = __instance.activeTheme.mookBigGuyElite;
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookBigGuyStrong, vector, Quaternion.identity).gameObject;
                                 break;
                             case 5:
-                                original = __instance.activeTheme.mookScout;
+                                original = __instance.activeTheme.mookBigGuyElite;
                                 break;
                             case 6:
-                                original = __instance.activeTheme.mookRiotShield;
+                                original = __instance.activeTheme.mookScout;
                                 break;
                             case 7:
-                                original = __instance.activeTheme.mookArmoured;
+                                original = __instance.activeTheme.mookRiotShield;
                                 break;
                             case 8:
-                                original = __instance.sharedObjectsReference.Asset.mookJetpack;
+                                original = __instance.activeTheme.mookArmoured;
                                 break;
                             case 9:
-                                original = __instance.activeTheme.mookGrenadier;
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mechBrown, vector, Quaternion.identity).gameObject;
                                 break;
                             case 10:
-                                original = __instance.activeTheme.mookBazooka;
+                                original = __instance.sharedObjectsReference.Asset.mookJetpack;
                                 break;
                             case 11:
-                                original = __instance.activeTheme.mookJetpackBazooka;
+                                original = __instance.activeTheme.mookGrenadier;
                                 break;
                             case 12:
-                                original = __instance.activeTheme.mookNinja;
+                                original = __instance.activeTheme.mookBazooka;
                                 break;
                             case 13:
-                                original = __instance.activeTheme.mookDog;
+                                original = __instance.activeTheme.mookJetpackBazooka;
                                 break;
                             case 14:
-                                original = __instance.activeTheme.skinnedMook;
+                                original = __instance.activeTheme.mookNinja;
                                 break;
                             case 15:
-                                original = __instance.activeTheme.mookGeneral;
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.treasureMook, vector, Quaternion.identity).gameObject;
                                 break;
                             case 16:
-                                original = __instance.activeTheme.mookStrong;
+                                original = __instance.activeTheme.mookDog;
                                 break;
                             case 17:
-                                original = __instance.activeTheme.mookScientist;
+                                original = __instance.activeTheme.skinnedMook;
                                 break;
                             case 18:
+                                original = __instance.activeTheme.mookGeneral;
+                                break;
+                            case 19:
+                                original = __instance.activeTheme.mookAlarmist;
+                                break;
+                            case 20:
+                                original = __instance.activeTheme.mookStrong;
+                                break;
+                            case 21:
+                                original = __instance.activeTheme.mookScientist;
+                                break;
+                            case 22:
                                 original = __instance.activeTheme.snake;
                                 break;
                             // Satan
-                            case 19:
+                            case 23:
                                 original = __instance.activeTheme.satan;
                                 break;
                             // Aliens
-                            case 20:
+                            case 24:
                                 original = __instance.activeTheme.alienFaceHugger;
                                 break;
-                            case 21:
+                            case 25:
                                 original = __instance.activeTheme.alienXenomorph;
                                 break;
-                            case 22:
+                            case 26:
                                 original = __instance.activeTheme.alienBrute;
                                 break;
-                            case 23:
+                            case 27:
                                 original = __instance.activeTheme.alienBaneling;
                                 break;
-                            case 24:
+                            case 28:
                                 original = __instance.activeTheme.alienMosquito;
                                 break;
-                            case 25:
+                            case 29:
                                 original = __instance.activeTheme.mookXenomorphBrainbox;
                                 break;
                             // HellDog
-                            case 26:
+                            case 30:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
                                 break;
                             // ZMookUndead
-                            case 27:
+                            case 31:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
                                 break;
                             // ZMookUndeadStartDead
-                            case 28:
+                            case 32:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
                                 break;
                             // ZMookWarlock
-                            case 29:
+                            case 33:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
                                 break;
                             // ZMookHellBoomer
-                            case 30:
+                            case 34:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
                                 break;
                             // ZMookUndeadSuicide
-                            case 31:
+                            case 35:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
                                 break;
                             // ZHellBigGuy
-                            case 32:
+                            case 36:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
                                 break;
                             // Lost Soul
-                            case 33:
+                            case 37:
                                 vector.y += 5;
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
                                 break;
                             // ZMookHellSoulCatcher
-                            case 34:
+                            case 38:
                                 __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
                                 break;
                         }
@@ -1337,6 +1379,18 @@ namespace Randomizer_Mod
                                 break;
                             case 6:
                                 __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTruck, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 7:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.sandbag, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 8:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookMotorBike, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 9:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookMotorBikeNuclear, vector, Quaternion.identity).gameObject;
+                                break;
+                            case 10:
+                                __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookDumpTruck, vector, Quaternion.identity).gameObject;
                                 break;
                         }
                     }
@@ -1501,7 +1555,7 @@ namespace Randomizer_Mod
                             original = __instance.activeTheme.mookJetpackBazooka; 
                             break;
                         case 44:
-                            original = __instance.activeTheme.mookAlarmist; // Doesn't do anything
+                            original = __instance.activeTheme.mookAlarmist; // Ends the level if you kill him next to checkpoint
                             break;
                         case 45:
                             original = __instance.activeTheme.mookStrong;
@@ -1538,6 +1592,27 @@ namespace Randomizer_Mod
                             break;
                         case 56:
                             __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.mookTruck, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 57:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mechBrown, vector, Quaternion.identity).gameObject; 
+                            break;
+                        case 58:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.treasureMook, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 59:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookBigGuyStrong, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 60:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.activeTheme.sandbag, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 61:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookMotorBike, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 62:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookMotorBikeNuclear, vector, Quaternion.identity).gameObject;
+                            break;
+                        case 63:
+                            __result = UnityEngine.Object.Instantiate<Unit>(__instance.sharedObjectsReference.Asset.mookDumpTruck, vector, Quaternion.identity).gameObject;
                             break;
                     }
 
