@@ -16,9 +16,9 @@ namespace Captain_Ameribro_Mod
     {
         public AnimatedTexture texture;
 		public float returnTime = 0.25f;
-		public float holdAtApexDuration = -1f;
+		//public float holdAtApexDuration = -1f;
 		protected bool hasReachedApex;
-		protected float holdAtApexTime;
+		//protected float holdAtApexTime;
 		public float returnLerpSpeed = 3f;
 		protected float shieldSpeed;
 		//public float rotationSpeed = 2f;
@@ -46,8 +46,9 @@ namespace Captain_Ameribro_Mod
 
 		// Charging Variables
 		public float shieldCharge = 0f;
-		protected const float ChargeReturnScaler = 0.5f;
-		public const float ChargeSpeedScaler = 100f;
+		protected const float ChargeReturnScalar = 0.5f;
+		protected const float ChargeDroppingScalar = 0.5f;
+		public const float ChargeSpeedScalar = 100f;
 
 		// Homing Variables
 		protected float targetAngle;
@@ -62,8 +63,17 @@ namespace Captain_Ameribro_Mod
 		public float seekTurningSpeedM = 1f;
 		protected float angle;
 		protected float seekCounter;
+		protected float droppingDuration = 2f;
+		protected float droppingTime;
+		protected bool stopSeeking = false;
+		protected int bounceCount = 5;
+		protected bool startedSnap = false;
 
 		public static Material storedMat;
+		public SpriteSM storedSprite;
+		public CaptainAmeribro throwingPlayer;
+
+		public int frameCount = 0;
 
 		protected override void Awake()
         {
@@ -94,6 +104,8 @@ namespace Captain_Ameribro_Mod
 			//sprite.CalcEdges();
 			//sprite.CalcSize();
 			//sprite.offset = new Vector3(0, 0, 0);
+
+			this.storedSprite = sprite;
 
 			//texture.paused = false;
 
@@ -131,7 +143,9 @@ namespace Captain_Ameribro_Mod
             this.yI = yI;
 
 			// Init targetting variables
-			this.speed = this.xI;
+			this.speed = Mathf.Abs(this.xI);
+			this.bounceCount = 5;
+		
 			this.originalSpeed = this.speed;
 			if (xI > 0f)
 			{
@@ -185,14 +199,18 @@ namespace Captain_Ameribro_Mod
             this.soundVolume = other.soundVolume;
             this.soundHolder = other.soundHolder;
         }
-        public void setup( Shield other )
+        public void setup( Shield other, CaptainAmeribro player )
         {
-            //this.shieldCollider = BoxCollider.Instantiate(other.shieldCollider);
-            //this.shieldCollider.transform = other.transform;
-            //base.transform.parent = other.transform;
-            //this.soundHolder = SoundHolder.Instantiate(other.soundHolder);
+			this.throwingPlayer = player;
 
-            this.texture = this.gameObject.GetComponent<AnimatedTexture>();
+			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
+
+			//this.shieldCollider = BoxCollider.Instantiate(other.shieldCollider);
+			//this.shieldCollider.transform = other.transform;
+			//base.transform.parent = other.transform;
+			//this.soundHolder = SoundHolder.Instantiate(other.soundHolder);
+
+			this.texture = this.gameObject.GetComponent<AnimatedTexture>();
 
 			//base.transform.localScale = new Vector3(-1f, 3f, 3f);
 
@@ -206,7 +224,9 @@ namespace Captain_Ameribro_Mod
 
 			this.texture.frame = 0;
 
-			this.returnTime += ChargeReturnScaler * this.shieldCharge;
+			this.returnTime += ChargeReturnScalar * this.shieldCharge;
+
+			this.droppingDuration += ChargeReturnScalar * this.shieldCharge;
         }
 
 		protected override void CheckSpawnPoint()
@@ -237,41 +257,79 @@ namespace Captain_Ameribro_Mod
 
 		protected override void RunProjectile(float t)
 		{
-			base.RunProjectile(t);
+			base.RunProjectile(t); // Calls move projectile
 			this.returnTime -= t;
 			this.collectDelayTime -= t;
-/*			if (this.holdAtApexTime > 0f)
-			{
-				this.holdAtApexTime -= t;
-				this.CheckReturnShield();
-				if (this.holdAtApexTime <= 0f)
-				{
-					this.ApplyReverseForce(t);
-				}
-			}*/
+			/*			if (this.holdAtApexTime > 0f)
+						{
+							this.holdAtApexTime -= t;
+							this.CheckReturnShield();
+							if (this.holdAtApexTime <= 0f)
+							{
+								this.ApplyReverseForce(t);
+							}
+						}*/
+			if (this.frameCount == 120)
+            {
+				this.frameCount = 0;
+            }
+			++this.frameCount;
+
+			//this.storedSprite.transform.Rotate(0f, 0f, this.rotationSpeed * t, Space.Self);
+			//this.storedSprite.transform.Rotate(0f, 0f, 10 * t, Space.Self);
+			
+
 			if (this.returnTime <= 0f)
 			{
 				if (!this.dropping)
 				{
-					if (Mathf.Sign(this.shieldSpeed) == Mathf.Sign(this.xI))
-					{
-						this.ApplyReverseForce(t);
-						if (!this.hasReachedApex && Mathf.Sign(this.shieldSpeed) != Mathf.Sign(this.xI))
-						{
-							this.hasReachedApex = true;
-							this.holdAtApexTime = this.holdAtApexDuration;
-							this.xI = 0f;
-						}
+					//if ( !this.hasReachedApex)
+					if ( !this.hasReachedApex && this.speed < (0.5 * this.originalSpeed) ) // Shield has slowed down enough to be considered at Apex
+                    {
+						BMLogger.Log("--------------REACHED APEX, STARTING REVERSE----------------");	
+
+						this.hasReachedApex = true;
+						//this.holdAtApexTime = this.holdAtApexDuration;
+						this.droppingTime = this.droppingDuration;
+
+						this.seekTurningSpeedLerpM = 30f;
+						this.seekTurningSpeedM = 10f;
+
+						CalculateSeek(this.throwingPlayer.X, this.throwingPlayer.Y);
+
+						DetermineReturnAngle();
 					}
-					else
+					else if ( this.hasReachedApex )
 					{
-						this.ApplyReverseForce(t);
+						CalculateSeek(this.throwingPlayer.X, this.throwingPlayer.Y);
 					}
+
+					if ( this.frameCount == 30 )
+                    {
+						BMLogger.Log("speed: " + this.speed);
+						BMLogger.Log("seeking towards: " + this.throwingPlayer.X + " " + this.throwingPlayer.Y);
+                    }
 				}
 				this.CheckReturnShield();
-				if (!this.dropping)
+				if (!this.dropping && this.hasReachedApex) // Check if shield should start droppping
 				{
-					float f = this.xStart - base.X;
+					this.droppingTime -= t;
+					if ( frameCount == 30 || frameCount == 90 )
+                    {
+						BMLogger.Log("distance to player: " + Vector3.Distance(this.transform.position, this.throwingPlayer.transform.position));
+                    }
+					if ( !startedSnap &&  Vector3.Distance( this.transform.position, this.throwingPlayer.transform.position ) < 100 )
+                    {
+						startedSnap = true;
+						this.seekTurningSpeedLerpM = 60f;
+						this.seekTurningSpeedM = 20f;
+					}
+					if ( this.droppingTime < 0 )
+                    {
+						BMLogger.Log("----------STARTED DROPPING------------");
+						this.StartDropping();
+                    }
+/*					float f = this.xStart - base.X;
 					if (Mathf.Sign(this.shieldSpeed) == Mathf.Sign(f))
 					{
 						this.dropping = true;
@@ -279,18 +337,19 @@ namespace Captain_Ameribro_Mod
 						base.GetComponent<AudioSource>().Stop();
 						this.xI *= 0.66f;
 						this.shieldCollider.enabled = false;
-					}
+					}*/
 				}
 			}
 			if (!this.dropping)
 			{
 				float num = 140f + Mathf.Abs(this.xI) * 0.5f;
-				if (this.shieldSpeed != 0f && Time.timeScale > 0f)
+				if (this.speed != 0f && Time.timeScale > 0f)
 				{
-					float pitch = Mathf.Clamp(num / Mathf.Abs(this.shieldSpeed) * 1.2f * this.shieldLoopPitchM, 0.5f * this.shieldLoopPitchM, 1f * this.shieldLoopPitchM) * Time.timeScale;
+					float pitch = Mathf.Clamp(num / Mathf.Abs(this.speed) * 1.2f * this.shieldLoopPitchM, 0.5f * this.shieldLoopPitchM, 1f * this.shieldLoopPitchM) * Time.timeScale;
 					base.GetComponent<AudioSource>().pitch = pitch;
 				}
 				base.transform.Rotate(0f, 0f, num * this.rotationSpeed * t, Space.Self);
+				
 				this.windCounter += t;
 				if (this.windCounter > 0.0667f)
 				{
@@ -303,11 +362,182 @@ namespace Captain_Ameribro_Mod
 			{
 				base.transform.Rotate(0f, 0f, this.rotationSpeed * t, Space.Self);
 			}
-			if (Mathf.Sign(this.lastXI) != Mathf.Sign(this.xI) || this.holdAtApexTime > 0f)
+			if (Mathf.Sign(this.lastXI) != Mathf.Sign(this.xI) )
 			{
 				this.alreadyHit.Clear();
 			}
 			this.lastXI = this.xI;
+		}
+
+		// Check whether there are blocks above / below to determine whether shield needs to return in a straight line or if it can circle around
+		protected void DetermineReturnAngle()
+		{
+			bool above = false, below = false;
+			float distanceBelow, distanceAbove;
+			// Check below shield
+			if ( Physics.Raycast(new Vector3(base.X, base.Y, 0f), Vector3.down, out this.raycastHit, 100f, this.groundLayer) )
+			{
+				distanceBelow = Vector3.Distance(this.transform.position, this.raycastHit.point);
+				below = distanceBelow < 100;
+				BMLogger.Log("distance to ground: " + distanceBelow);
+			}
+			// Check above shield
+			if ( Physics.Raycast(new Vector3(base.X, base.Y, 0f), Vector3.up, out this.raycastHit, 100f, this.groundLayer) )
+            {
+				distanceAbove = Vector3.Distance(this.transform.position, this.raycastHit.point);
+				above = distanceAbove < 100;
+				BMLogger.Log("distance to ceiling: " + distanceAbove);
+			}
+
+			// We check the terrain around the player in case the shield entered an area with no ground above or below
+			if (Physics.Raycast(new Vector3(this.throwingPlayer.X, this.throwingPlayer.Y, 0f), Vector3.down, out this.raycastHit, 100f, this.groundLayer))
+			{
+
+				distanceBelow = Vector3.Distance(this.throwingPlayer.transform.position, this.raycastHit.point);
+				below = below || distanceBelow < 50;
+			}
+			if (Physics.Raycast(new Vector3(this.throwingPlayer.X, this.throwingPlayer.Y, 0f), Vector3.up, out this.raycastHit, 100f, this.groundLayer))
+			{
+				
+				distanceAbove = Vector3.Distance(this.throwingPlayer.transform.position, this.raycastHit.point);
+				if ( distanceAbove < 100 )
+                {
+					above = below = true;
+                }
+			}
+
+			if ( below && above ) // Blocks above and below so return shield straight
+            {
+				this.angle = this.targetAngle;
+            }
+			else if ( below ) // Blocks below return shield up
+            {
+				if ( this.xI > 0 ) // Right
+                {
+					this.angle -= (Mathf.PI / 4);
+                }
+				else if ( this.xI < 0 ) // Left
+                {
+					this.angle += (Mathf.PI / 4);
+                }
+            }
+			else if ( above ) // Blocks above return shield down
+            {
+				if (this.xI > 0) // Right
+				{
+					this.angle += (Mathf.PI / 4);
+				}
+				else if (this.xI < 0) // Left
+				{
+					this.angle -= (Mathf.PI / 4);
+				}
+			}
+		}
+
+		// Called by RunProjectile Base method
+		protected override void MoveProjectile()
+		{
+			if (!this.stuck)
+			{
+				if ( !this.stopSeeking )
+                {
+					this.RunSeeking();
+					if (this.targetAngle > this.angle + 3.14159274f)
+					{
+						this.angle += 6.28318548f;
+					}
+					else if (this.targetAngle < this.angle - 3.14159274f)
+					{
+						this.angle -= 6.28318548f;
+					}
+					if (this.reversing)
+					{
+						if (this.IsHeldByZone())
+						{
+							this.speed *= 1f - this.t * 8f;
+						}
+						else
+						{
+							this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 8f);
+						}
+					}
+					else if ((this.returnTime >= 0f || this.hasReachedApex) && !this.dropping) // If moving forward or towards player and hasn't reached return time
+					{
+						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
+						if (this.frameCount == 30)
+						{
+							BMLogger.Log("Moving towards target");
+						}
+					}
+					else
+					{
+						this.speed = Mathf.Lerp(this.speed, 0, this.t * 10f);
+						if (this.frameCount == 30)
+						{
+							BMLogger.Log("Slowing Down");
+						}
+					}
+					this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
+					this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
+					Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
+					this.xI = vector.x;
+					this.yI = vector.y;
+					//this.SetRotation();
+				}
+
+				base.MoveProjectile();
+				this.shieldCollider.transform.position = base.transform.position;
+				if (this.dropping)
+				{
+					this.ApplyGravity();
+				}
+			}
+		}
+
+		protected void RunSeeking()
+		{
+			if (!this.IsHeldByZone())
+			{
+				this.seekCounter += this.t;
+				if (this.seekCounter > 0.1f)
+				{
+					this.seekCounter -= 0.03f;
+					this.CalculateSeek();
+				}
+			}
+		}
+
+		protected void CalculateSeek(float manualTargetX, float manualTargetY)
+		{
+			this.foundMook = true;
+			this.targetX = manualTargetX;
+			this.targetY = manualTargetY + throwingPlayer.height + 5;
+
+			float y = this.targetX - base.X;
+			float x = this.targetY - base.Y;
+			this.targetAngle = global::Math.GetAngle(x, y);
+		}
+
+		protected void CalculateSeek()
+		{
+			if (!this.foundMook)
+			{
+				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
+				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy)
+				{
+					this.foundMook = true;
+					this.targetX = nearestVisibleUnitDamagebleBy.X;
+					this.targetY = nearestVisibleUnitDamagebleBy.Y + nearestVisibleUnitDamagebleBy.height / 2f;
+				}
+				else
+				{
+					this.targetX = base.X + this.xI;
+					this.targetY = base.Y + this.yI;
+				}
+			}
+			float y = this.targetX - base.X;
+			float x = this.targetY - base.Y;
+			this.targetAngle = global::Math.GetAngle(x, y);
 		}
 
 		private void ApplyReverseForce(float t)
@@ -333,85 +563,6 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		protected override void MoveProjectile()
-		{
-			if (!this.stuck)
-			{
-				/*this.RunSeeking();
-				if (this.targetAngle > this.angle + 3.14159274f)
-				{
-					this.angle += 6.28318548f;
-				}
-				else if (this.targetAngle < this.angle - 3.14159274f)
-				{
-					this.angle -= 6.28318548f;
-				}
-				if (this.reversing)
-				{
-					if (this.IsHeldByZone())
-					{
-						this.speed *= 1f - this.t * 8f;
-					}
-					else
-					{
-						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 8f);
-					}
-				}
-				else
-				{
-					this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
-				}
-				this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
-				this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
-				Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
-				this.xI = vector.x;
-				this.yI = vector.y;
-				this.SetRotation();*/
-
-				base.MoveProjectile();
-				this.shieldCollider.transform.position = base.transform.position;
-				if (this.dropping)
-				{
-					this.ApplyGravity();
-				}
-			}
-		}
-
-		protected void RunSeeking()
-		{
-			if (!this.IsHeldByZone())
-			{
-				this.seekCounter += this.t;
-				if (this.seekCounter > 0.1f)
-				{
-					this.seekCounter -= 0.03f;
-					this.CalculateSeek();
-				}
-			}
-		}
-
-		protected void CalculateSeek()
-		{
-			if (!this.foundMook)
-			{
-				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
-				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy)
-				{
-					this.foundMook = true;
-					this.targetX = nearestVisibleUnitDamagebleBy.X;
-					this.targetY = nearestVisibleUnitDamagebleBy.Y + nearestVisibleUnitDamagebleBy.height / 2f;
-				}
-				else
-				{
-					this.targetX = base.X + this.xI;
-					this.targetY = base.Y + this.yI;
-				}
-			}
-			float y = this.targetX - base.X;
-			float x = this.targetY - base.Y;
-			this.targetAngle = global::Math.GetAngle(x, y);
-		}
-
 		protected override bool HitWalls()
 		{
 			if (this.xI < 0f)
@@ -424,24 +575,17 @@ namespace Captain_Ameribro_Mod
 						EffectsController.CreateSuddenSparkShower(this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f, this.sparkCount / 2, 2f, 40f + UnityEngine.Random.value * 80f, this.raycastHit.normal.x * (100f + UnityEngine.Random.value * 210f), this.raycastHit.normal.y * 120f + (-60f + UnityEngine.Random.value * 350f), 0.2f);
 					}
 					this.xI *= -this.bounceXM;
-					if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null)
+					if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null) // Hit a block / wall
 					{
 						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
-						if (this.returnTime > 0f)
-						{
-							this.returnTime = 0f;
-						}
-						else if (!this.dropping && this.shieldSpeed > 0f)
-						{
-							this.StartDropping();
-							this.yI += 80f;
-						}
+
+						HitBlock(raycastHit);
 					}
-					else if (!this.hasReachedApex)
+					else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
 					{
-						this.xI = 0f;
+						/*this.xI = 0f;
 						this.hasReachedApex = true;
-						this.holdAtApexTime = this.holdAtApexDuration;
+						this.holdAtApexTime = this.holdAtApexDuration;*/
 					}
 					this.PlayBounceSound();
 				}
@@ -454,63 +598,85 @@ namespace Captain_Ameribro_Mod
 					EffectsController.CreateSuddenSparkShower(this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f, this.sparkCount / 2, 2f, 40f + UnityEngine.Random.value * 80f, this.raycastHit.normal.x * (100f + UnityEngine.Random.value * 210f), this.raycastHit.normal.y * 120f + (-60f + UnityEngine.Random.value * 350f), 0.2f);
 				}
 				this.xI *= -this.bounceXM;
-				if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null)
+				if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null) // Hit a block / wall
 				{
 					this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
-					if (this.returnTime > 0f)
-					{
-						this.returnTime = 0f;
-					}
-					else if (!this.dropping && this.shieldSpeed < 0f)
-					{
-						this.StartDropping();
-						this.yI += 80f;
-					}
+
+					HitBlock(raycastHit);
 				}
-				else if (!this.hasReachedApex)
+				else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
 				{
-					this.xI = 0f;
+					BMLogger.Log("hit thing");
+					/*this.xI = 0f;
 					this.hasReachedApex = true;
-					this.holdAtApexTime = this.holdAtApexDuration;
+					this.holdAtApexTime = this.holdAtApexDuration;*/
 				}
 				this.PlayBounceSound();
 			}
-			if (this.dropping)
+            if (this.dropping)
+            {
+                if (this.yI < 0f)
+                {
+                    if (Physics.Raycast(new Vector3(base.X, base.Y + 6f, 0f), Vector3.down, out this.raycastHit, 6f + this.heightOffGround - this.yI * this.t, this.groundLayer))
+                    {
+						this.stopSeeking = true;
+
+                        if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null && this.yI < -30f)
+                        {
+                            this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+                        }
+                        this.xI *= this.frictionM;
+                        if (this.yI < -40f)
+                        {
+                            this.yI *= -this.bounceYM;
+                        }
+                        else
+                        {
+                            this.yI = 0f;
+                            base.Y = this.raycastHit.point.y + this.heightOffGround;
+                        }
+                        this.rotationSpeed = -25f * this.xI;
+                        this.PlayBounceSound();
+                    }
+                }
+                else if (this.yI > 0f && Physics.Raycast(new Vector3(base.X, base.Y - 6f, 0f), Vector3.up, out this.raycastHit, 6f + this.heightOffGround + this.yI * this.t, this.groundLayer))
+                {
+					this.stopSeeking = true;
+                    if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null)
+                    {
+                        this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+                    }
+                    this.yI *= -(this.bounceYM + 0.1f);
+                    this.PlayBounceSound();
+                    this.rotationSpeed = -25f * this.xI;
+                }
+            }
+            return true;
+		}
+
+		protected void HitBlock( RaycastHit raycastHit )
+        {
+			// Calculate new angle
+			Bounce(raycastHit);
+
+			if (this.bounceCount == 0)
 			{
-				if (this.yI < 0f)
-				{
-					if (Physics.Raycast(new Vector3(base.X, base.Y + 6f, 0f), Vector3.down, out this.raycastHit, 6f + this.heightOffGround - this.yI * this.t, this.groundLayer))
-					{
-						if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null && this.yI < -30f)
-						{
-							this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
-						}
-						this.xI *= this.frictionM;
-						if (this.yI < -40f)
-						{
-							this.yI *= -this.bounceYM;
-						}
-						else
-						{
-							this.yI = 0f;
-							base.Y = this.raycastHit.point.y + this.heightOffGround;
-						}
-						this.rotationSpeed = -25f * this.xI;
-						this.PlayBounceSound();
-					}
-				}
-				else if (this.yI > 0f && Physics.Raycast(new Vector3(base.X, base.Y - 6f, 0f), Vector3.up, out this.raycastHit, 6f + this.heightOffGround + this.yI * this.t, this.groundLayer))
-				{
-					if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null)
-					{
-						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
-					}
-					this.yI *= -(this.bounceYM + 0.1f);
-					this.PlayBounceSound();
-					this.rotationSpeed = -25f * this.xI;
-				}
+				this.StartDropping();
+				BMLogger.Log("Out of bounces, dropping");
 			}
-			return true;
+			else if (this.returnTime > 0f) // Hasn't started returning
+			{
+				this.returnTime = 0f;
+				BMLogger.Log("starting return");
+			}
+			else if (!this.dropping && this.droppingTime > 0 && this.droppingTime < (0.9) * this.droppingDuration)
+			{
+				this.StartDropping();
+				BMLogger.Log("Returning for long enough to start dropping");
+				BMLogger.Log("Return time: " + this.returnTime);
+			}
+
+			--this.bounceCount;
 		}
 
 		protected void StartDropping()
@@ -520,6 +686,7 @@ namespace Captain_Ameribro_Mod
 			this.rotationSpeed = -25f * this.xI;
 			base.GetComponent<AudioSource>().Stop();
 			this.shieldCollider.enabled = false;
+			this.stopSeeking = true;
 		}
 
 		protected void PlayBounceSound()
@@ -544,10 +711,10 @@ namespace Captain_Ameribro_Mod
 				this.xI = 0f;
 				this.returnTime = 0f;
 			}
-			else if (!this.dropping)
-			{
-				this.StartDropping();
-			}
+
+			Vector3 curAngle = new Vector3(Math.Cos(this.angle), Math.Sin(this.angle), 0);
+			Vector3 bounceAngle = (curAngle - 2 * Vector3.Dot(curAngle, raycastHit.normal) * raycastHit.normal);
+			this.angle = Mathf.Atan(bounceAngle.y / bounceAngle.x);
 		}
 
 		protected override void HitUnits()
@@ -558,29 +725,22 @@ namespace Captain_Ameribro_Mod
 			}
 			else if (!this.dropping)
 			{
-				if (this.hasReachedApex && this.holdAtApexTime > 0f && MapController.DamageGround(this, 1, DamageType.Normal, 6f, base.X, base.Y, null, false))
+				/*if (this.hasReachedApex && this.holdAtApexTime > 0f && MapController.DamageGround(this, 1, DamageType.Normal, 6f, base.X, base.Y, null, false))
 				{
 					EffectsController.CreateSparkParticles(base.X, base.Y, 1f, 3, 2f, 10f, 0f, 0f, UnityEngine.Random.value, 1f);
 					this.holdAtApexTime = Mathf.Clamp(this.holdAtApexTime -= this.t * 3f, this.t, this.holdAtApexTime);
-				}
+				}*/
 				if (this.reversing)
 				{
 					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, this.xI, this.yI, true, false, true, false))
 					{
 						this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 						this.hitUnitsDelay = 0.0667f;
-						if (this.returnTime > 0f)
+						/*if (this.returnTime > 0f)
 						{
 							this.returnTime = 0f;
-						}
-						if (Mathf.Sign(this.xI) == Mathf.Sign(this.shieldSpeed))
-						{
-							this.xI *= 0.66f;
-						}
-						if (this.holdAtApexTime > 0f)
-						{
-							this.holdAtApexTime -= 0.2f;
-						}
+						}*/
+						
 						this.hitUnitsCount++;
 					}
 				}
@@ -588,18 +748,10 @@ namespace Captain_Ameribro_Mod
 				{
 					this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 					this.hitUnitsDelay = 0.0667f;
-					if (this.returnTime > 0f)
+					/*if (this.returnTime > 0f)
 					{
 						this.returnTime = 0f;
-					}
-					if (Mathf.Sign(this.xI) == Mathf.Sign(this.shieldSpeed))
-					{
-						this.xI *= 0.66f;
-					}
-					if (this.holdAtApexTime > 0f)
-					{
-						this.holdAtApexTime -= 0.2f;
-					}
+					}*/
 					this.hitUnitsCount++;
 				}
 			}

@@ -9,11 +9,11 @@ using BroMakerLib.Loggers;
 using UnityEngine.Audio;
 
 /**
- * Implement homing for special on enemies and return to player
  * 
- * Implement charge attack for special
  * 
- * Implement hitting through multiple enemies
+ * Sprite gets messed up when moving between levels
+ * 
+ * Fix charge animation staying when climbing walls and doing other actions
  * 
  * Figure out appropriate damage for special
  * 
@@ -23,15 +23,22 @@ using UnityEngine.Audio;
  * 
  * Implement default attack correct speed / damage
  * 
- * Hitting Load bro while already a cutsom bro seems to mess up the character sprites
+ * 
  * 
  * BroMaker Issues
+ * 
+ * 
+ * Hitting Load bro while already a cutsom bro seems to mess up the character sprites
  * 
  * Fix player respawning right where they died.
  * 
  * Fix automatic spawning so it works for all cases
  * 
  * Add a randomization option that makes custom heros equally as likely as all other characters
+ * 
+ * Add Iron Bro support
+ * 
+ * Possibly look into sprite for specials
  *
  **/
 
@@ -57,7 +64,7 @@ namespace Captain_Ameribro_Mod
 
 		protected bool isHoldingSpecial = false;
 		protected float maxSpecialCharge = 1f;
-		protected float currentSpecialCharge = 0f;
+		public float currentSpecialCharge = 0f;
 
 		protected override void Awake()
         {
@@ -109,14 +116,14 @@ namespace Captain_Ameribro_Mod
                 }
 
 				//ProjectileController.SpawnProjectileOverNetwork(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * this.shieldSpeed, 0f, false, base.playerNum, false, false, 0f);
-				float chargedShieldSpeed = this.shieldSpeed + Shield.ChargeSpeedScaler * this.currentSpecialCharge;
+				float chargedShieldSpeed = this.shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
 				BMLogger.Log("shield charge: " + this.currentSpecialCharge);
 
 				Shield newShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
 
-				newShield.shieldCharge = this.currentSpecialCharge;
-				newShield.setup(this.shield);
+				//newShield.shieldCharge = this.currentSpecialCharge;
+				newShield.setup(this.shield, this);
 
 				this.currentSpecialCharge = 0;
 

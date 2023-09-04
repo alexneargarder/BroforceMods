@@ -84,10 +84,8 @@
     <Compile Include="Shield.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Sprites\captainAmeribroShieldPlaceholder.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Sprites\neobro_armless_anim.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroArmless.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroShield.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
