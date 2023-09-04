@@ -60,6 +60,7 @@ using HarmonyLib;
 using UnityEngine;
 using UnityModManagerNet;
 using System.Reflection;
+using UnityEngine.SceneManagement;
 
 namespace Utility_Mod
 {
@@ -131,6 +132,9 @@ namespace Utility_Mod
         public static string teleportX = "0";
         public static string teleportY = "0";
 
+        public static bool loadedScene = false;
+        public static float waitForLoad = 4.0f;
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
@@ -193,199 +197,312 @@ namespace Utility_Mod
 
             GUILayout.Space(25);
 
-            GUIStyle headerStyle = new GUIStyle();
+            GUIStyle headerStyle = new GUIStyle( GUI.skin.button );
+
+
             headerStyle.fontStyle = FontStyle.Bold;
             // 163, 232, 255
             headerStyle.normal.textColor = new Color(0.639216f, 0.909804f, 1f);
 
 
-            GUILayout.Label("Level Controls", headerStyle);
+            
+           // GUILayout.Label("Level Controls", headerStyle);
 
-            GUILayout.BeginHorizontal();
+            if ( GUILayout.Button("Level Controls", headerStyle) )
             {
-                settings.loopCurrent = GUILayout.Toggle(settings.loopCurrent, new GUIContent("Loop Current Level", "After beating a level you replay the current one instead of moving on"), GUILayout.ExpandWidth(false));
-
-                Rect lastRect = GUILayoutUtility.GetLastRect();
-                lastRect.y += 20;
-                lastRect.width += 300;
-
-                
-
-                if (GUI.tooltip != previousToolTip)
-                {
-                    GUI.Label(lastRect, GUI.tooltip);
-                    previousToolTip = GUI.tooltip;
-                }
-                
+                settings.showLevelOptions = !settings.showLevelOptions;
             }
-            GUILayout.EndHorizontal();
 
-
-            GUILayout.Space(25);
-
-
-            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight( ( campaignNum.show || levelNum.show ) ? 350 : 100 ), GUILayout.ExpandWidth(false) });
+            if ( settings.showLevelOptions )
             {
-                GUILayout.BeginVertical();
+                GUILayout.BeginHorizontal();
                 {
-                    GUILayout.BeginHorizontal();
+                    settings.loopCurrent = GUILayout.Toggle(settings.loopCurrent, new GUIContent("Loop Current Level", "After beating a level you replay the current one instead of moving on"), GUILayout.ExpandWidth(false));
+
+                    Rect lastRect = GUILayoutUtility.GetLastRect();
+                    lastRect.y += 20;
+                    lastRect.width += 300;
+
+
+
+                    if (GUI.tooltip != previousToolTip)
                     {
-                        campaignNum.OnGUI(modEntry);
-
-                        determineLevelsInCampaign();
-
-                        levelNum.OnGUI(modEntry);
-
-                        Main.settings.levelNum = levelNum.indexNumber;
-
-                        if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
-                        {
-                            GoToLevel();
-                        }
-
-                        if (GUI.tooltip != previousToolTip)
-                        {
-                            Rect lastRect = campaignNum.dropDownRect;
-                            lastRect.y += 20;
-                            lastRect.width += 300;
-
-                            GUI.Label(lastRect, GUI.tooltip);
-                            previousToolTip = GUI.tooltip;
-                        }
+                        GUI.Label(lastRect, GUI.tooltip);
+                        previousToolTip = GUI.tooltip;
                     }
-                    GUILayout.EndHorizontal();
 
-                    GUILayout.Space(25);
+                }
+                GUILayout.EndHorizontal();
 
-                    GUILayout.BeginHorizontal();
+
+                GUILayout.Space(25);
+
+
+                GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((campaignNum.show || levelNum.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
+                {
+                    GUILayout.BeginVertical();
                     {
-                        GUILayout.Space(1);
-
-                        if (!campaignNum.show && !levelNum.show)
+                        GUILayout.BeginHorizontal();
                         {
+                            campaignNum.OnGUI(modEntry);
 
-                            if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            determineLevelsInCampaign();
+
+                            levelNum.OnGUI(modEntry);
+
+                            Main.settings.levelNum = levelNum.indexNumber;
+
+                            if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
                             {
-                                ChangeLevel(-1);
-                            }
-
-                            Rect lastRect = GUILayoutUtility.GetLastRect();
-                            lastRect.y += 20;
-                            lastRect.width += 300;
-
-                            if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
-                            {
-                                ChangeLevel(1);
+                                GoToLevel();
                             }
 
                             if (GUI.tooltip != previousToolTip)
                             {
+                                Rect lastRect = campaignNum.dropDownRect;
+                                lastRect.y += 20;
+                                lastRect.width += 300;
+
                                 GUI.Label(lastRect, GUI.tooltip);
                                 previousToolTip = GUI.tooltip;
+                            }
+                        }
+                        GUILayout.EndHorizontal();
+
+                        GUILayout.Space(25);
+
+                        GUILayout.BeginHorizontal();
+                        {
+                            GUILayout.Space(1);
+
+                            if (!campaignNum.show && !levelNum.show)
+                            {
+
+                                if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                                {
+                                    ChangeLevel(-1);
+                                }
+
+                                Rect lastRect = GUILayoutUtility.GetLastRect();
+                                lastRect.y += 20;
+                                lastRect.width += 300;
+
+                                if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                                {
+                                    ChangeLevel(1);
+                                }
+
+                                if (GUI.tooltip != previousToolTip)
+                                {
+                                    GUI.Label(lastRect, GUI.tooltip);
+                                    previousToolTip = GUI.tooltip;
+                                }
+                            }
+                        }
+                        GUILayout.EndHorizontal();
+                    }
+                    GUILayout.EndVertical();
+                }
+                GUILayout.EndHorizontal();
+            } // End Level Controls
+
+            TestVanDammeAnim currentCharacter = null;
+
+
+            
+            if (settings.quickLoadScene)
+            {
+                if ( loadedScene && HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
+                {
+                    currentCharacter = HeroController.players[0].character;
+                }
+            }
+            else if (HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
+            {
+                currentCharacter = HeroController.players[0].character;
+            }
+
+
+            if (GUILayout.Button("Cheat Options", headerStyle))
+            {
+                settings.showCheatOptions = !settings.showCheatOptions;
+            }
+
+            if ( settings.showCheatOptions )
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility");
+
+                    GUILayout.Space(20);
+
+                    settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials");
+
+                    GUILayout.Space(20);
+
+                    settings.disableEnemySpawn = GUILayout.Toggle(settings.disableEnemySpawn, "Disable Enemy Spawns");
+
+                    GUILayout.Space(20);
+
+                    settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, "Speed up Main Menu Loading");
+
+                    GUILayout.Space(20);
+
+                    if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
+                        }
+                    }
+
+                    GUILayout.Space(20);
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(25);
+
+                GUILayout.BeginHorizontal(GUILayout.Width(500));
+
+                GUILayout.Label("Scene to Load: ");
+
+                settings.sceneToLoad = GUILayout.TextField(settings.sceneToLoad, GUILayout.Width(200));
+
+                GUILayout.EndHorizontal();
+
+                settings.quickLoadScene = GUILayout.Toggle(settings.quickLoadScene, "Immediately load chosen scene", GUILayout.Width(200));
+
+                GUILayout.Space(10);
+
+                GUILayout.BeginHorizontal();
+
+                if (GUILayout.Button("Load Current Scene", GUILayout.Width(200)))
+                {
+                    if (!Main.settings.cameraShake)
+                    {
+                        PlayerOptions.Instance.cameraShakeAmount = 0f;
+                    }
+
+                    Utility.SceneLoader.LoadScene(settings.sceneToLoad);
+                }
+
+                if (GUILayout.Button("Get Current Scene", GUILayout.Width(200)))
+                {
+                    Scene[] scenes = SceneManager.GetAllScenes();
+                    for (int i = 0; i < scenes.Length; ++i)
+                    {
+                        Main.Log("Scene Name: " + scenes[i].name);
+                    }
+                }
+
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(25);
+            } // End Cheat Options
+
+
+            if (GUILayout.Button("Teleport Options", headerStyle))
+            {
+                settings.showTeleportOptions = !settings.showTeleportOptions;
+            }
+
+            if ( settings.showTeleportOptions )
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    if (currentCharacter != null)
+                    {
+                        GUILayout.Label("Position: " + currentCharacter.X.ToString("0.00") + ", " + currentCharacter.Y.ToString("0.00"));
+                    }
+                    else
+                    {
+                        GUILayout.Label("Position: ");
+                    }
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(15);
+
+                GUILayout.BeginHorizontal();
+                {
+                    GUILayout.Label("X", GUILayout.Width(10));
+                    teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
+                    GUILayout.Space(20);
+                    GUILayout.Label("Y", GUILayout.Width(10));
+                    GUILayout.Space(10);
+                    teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
+
+                    if (GUILayout.Button("Teleport", GUILayout.Width(100)))
+                    {
+                        float x, y;
+                        if (float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y))
+                        {
+                            if (currentCharacter != null)
+                            {
+                                currentCharacter.X = x;
+                                currentCharacter.Y = y;
+                            }
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(15);
+
+                settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Override Default Spawn Position");
+
+                GUILayout.Space(10);
+
+                GUILayout.BeginHorizontal();
+                {
+                    if (GUILayout.Button("Save Position for Custom Spawn", GUILayout.Width(250)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            settings.SpawnPositionX = currentCharacter.X;
+                            settings.SpawnPositionY = currentCharacter.Y;
+                        }
+                    }
+
+                    if (GUILayout.Button("Teleport to Custom Spawn Position", GUILayout.Width(300)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            currentCharacter.X = settings.SpawnPositionX;
+                            currentCharacter.Y = settings.SpawnPositionY;
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(15);
+
+                for (int i = 0; i < settings.waypointsX.Length; ++i)
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250)))
+                        {
+                            if (currentCharacter != null)
+                            {
+                                settings.waypointsX[i] = currentCharacter.X;
+                                settings.waypointsY[i] = currentCharacter.Y;
+                            }
+                        }
+
+                        if (GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200)))
+                        {
+                            if (currentCharacter != null)
+                            {
+                                currentCharacter.X = settings.waypointsX[i];
+                                currentCharacter.Y = settings.waypointsY[i];
                             }
                         }
                     }
                     GUILayout.EndHorizontal();
                 }
-                GUILayout.EndVertical();
-            }
-            GUILayout.EndHorizontal();
+            } // End Teleport Options
 
-            GUILayout.Label("Cheat Options", headerStyle);
-
-            TestVanDammeAnim currentCharacter = null;
-
-            if ( HeroController.Instance != null )
-            {
-                currentCharacter = HeroController.players[0].character;
-            }    
-
-            GUILayout.BeginHorizontal();
-            {
-                settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility", GUILayout.Width(100));
-
-                settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials", GUILayout.Width(100));
-
-                GUILayout.Space(10);
-
-                if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
-                {
-                    if (currentCharacter != null)
-                    {
-                        ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
-                    }                    
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(25);
-
-            GUILayout.BeginHorizontal();
-            {
-                if ( currentCharacter != null )
-                {
-                    GUILayout.Label("Position: " + currentCharacter.X.ToString("0.00") + ", " + currentCharacter.Y.ToString("0.00"));
-                }
-                else
-                {
-                    GUILayout.Label("Position: ");
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(15);
-
-            GUILayout.BeginHorizontal();
-            {
-                GUILayout.Label("X", GUILayout.Width(10));
-                teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
-                GUILayout.Space(20);
-                GUILayout.Label("Y", GUILayout.Width(10));
-                GUILayout.Space(10);
-                teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
-
-                if ( GUILayout.Button("Teleport", GUILayout.Width(100) ) )
-                {
-                    float x, y;
-                    if ( float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y) )
-                    {
-                        if ( currentCharacter != null )
-                        {
-                            currentCharacter.X = x;
-                            currentCharacter.Y = y;
-                        }
-                    }
-                }
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(15);
-
-            for ( int i = 0; i < settings.waypointsX.Length; ++i )
-            {
-                GUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250) ) )
-                    {
-                        if ( currentCharacter != null )
-                        {
-                            settings.waypointsX[i] = currentCharacter.X;
-                            settings.waypointsY[i] = currentCharacter.Y;
-                        }
-                    }
-
-                    if ( GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200) ) )
-                    {
-                        if (currentCharacter != null)
-                        {
-                            currentCharacter.X = settings.waypointsX[i];
-                            currentCharacter.Y = settings.waypointsY[i];
-                        }
-                    }
-                }
-                GUILayout.EndHorizontal();
-            }
-               
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -402,6 +519,29 @@ namespace Utility_Mod
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
             if (!enabled) return;
+
+            if (!loadedScene && settings.quickLoadScene)
+            {
+                waitForLoad -= dt;
+                if ( waitForLoad < 0 )
+                {
+                    try
+                    {
+                        if (!Main.settings.cameraShake)
+                        {
+                            PlayerOptions.Instance.cameraShakeAmount = 0f;
+                        }
+
+                        Utility.SceneLoader.LoadScene("WorldMap3D");
+                        Utility.SceneLoader.LoadScene(settings.sceneToLoad);
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                    loadedScene = true;
+                }
+            }
 
             if ( (settings.invulnerable || settings.infiniteSpecials ) && HeroController.Instance != null  )
             {
@@ -823,22 +963,133 @@ namespace Utility_Mod
         }
     }
 
+    [HarmonyPatch(typeof(MapController), "SpawnMook_Networked")]
+    static class MapController_SpawnMook_Networked
+    {
+        public static bool Prefix()
+        {
+            if (!Main.enabled || !Main.settings.disableEnemySpawn)
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(MapController), "SpawnMook_Local")]
+    static class MapController_SpawnMook_Local
+    {
+        public static bool Prefix()
+        {
+            if (!Main.enabled || !Main.settings.disableEnemySpawn)
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Map), "PlaceDoodad")]
+    static class Map_PlaceDoodad
+    {
+        public static bool Prefix(Map __instance, ref DoodadInfo doodad, ref GameObject __result)
+        {
+            if (!Main.enabled || !Main.settings.disableEnemySpawn)
+            {
+                return true;
+            }
+
+            if ( doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss )
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
+    static class Player_WorkOutSpawnScenario_Patch
+    {
+        public static void Postfix(ref Player.SpawnType __result)
+        {
+            if (!Main.enabled || !Main.settings.changeSpawn)
+            {
+                return;
+            }
+
+            if ( __result != Player.SpawnType.RespawnAtRescueBro )
+            {
+                __result = Player.SpawnType.Unknown;
+            }  
+        }
+    }
+
+    [HarmonyPatch(typeof(Player), "SetSpawnPositon")]
+    static class Player_SetSpawnPositon_Patch
+    {
+        public static void Prefix(Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos)
+        {
+            if (!Main.enabled || !Main.settings.changeSpawn)
+            {
+                return;
+            }
+
+            if ( spawnType != Player.SpawnType.RespawnAtRescueBro )
+            {
+                spawnType = Player.SpawnType.CustomSpawnPoint;
+                spawnViaAirDrop = false;
+                pos.x = Main.settings.SpawnPositionX;
+                pos.y = Main.settings.SpawnPositionY;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(MainMenu), "Start")]
+    static class MainMenu_Start_Patch
+    {
+        public static void Prefix(MainMenu __instance)
+        {
+            if (!Main.enabled || !Main.settings.quickMainMenu )
+            {
+                return;
+            }
+
+            Traverse.Create(__instance).Method("InitializeMenu").GetValue();
+        }
+    }
+
     public class Settings : UnityModManager.ModSettings
     {
-        public bool cameraShake;
-        public bool enableSkip;
-        public bool endingSkip;
-        public bool disableConfirm;
+        public bool cameraShake = false;
+        public bool enableSkip = true;
+        public bool endingSkip = true;
+        public bool disableConfirm = true;
 
-        public bool loopCurrent;
-        public int campaignNum;
-        public int levelNum;
+        public bool loopCurrent = false;
+        public int campaignNum = 0;
+        public int levelNum = 0;
 
-        public bool invulnerable;
-        public bool infiniteSpecials;
+        public bool invulnerable = false;
+        public bool infiniteSpecials = false;
+        public bool disableEnemySpawn = false;
+        public bool changeSpawn = false;
+        public bool quickLoadScene = false;
+        public bool quickMainMenu = false;
 
         public float[] waypointsX = new float[5];
         public float[] waypointsY = new float[5];
+
+        public float SpawnPositionX = 0;
+        public float SpawnPositionY = 0;
+
+        public string sceneToLoad;
+
+        public bool showLevelOptions = false;
+        public bool showCheatOptions = false;
+        public bool showTeleportOptions = false;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
