@@ -40,7 +40,8 @@
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>D:\Steam\steamapps\common\Broforce\Broforce_beta_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib">
+    <Reference Include="BroMakerLib, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\Bro-Maker\BroMaker\src\BroMakerLib\bin\Debug\BroMakerLib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
