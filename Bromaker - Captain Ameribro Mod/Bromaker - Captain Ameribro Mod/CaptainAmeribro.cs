@@ -10,10 +10,13 @@ using UnityEngine.Audio;
 
 /**
  * 
+ * Shield pathfinding doesn't conisder ladder to be ground
  * 
  * Sprite gets messed up when moving between levels
  * 
  * Fix charge animation staying when climbing walls and doing other actions
+ * 
+ * Make shield not decapite enemies, possibly knock them back
  * 
  * Figure out appropriate damage for special
  * 
@@ -23,10 +26,24 @@ using UnityEngine.Audio;
  * 
  * Implement default attack correct speed / damage
  * 
+ * Possibly implement crouching bullet block
  * 
+ * Possibly implement bullet blocking / reflection while shield is being thrown
+ * 
+ * Possibly implement ability to recall shield by holding special after shield has dropped
+ * 
+ * Possibly implmeent shield checking if the path back to the player is blocked by a wall and then going back
+ * to position it was thrown from instead in that case
  * 
  * BroMaker Issues
  * 
+ * Can't get hit by spikes
+ * 
+ * Can't go in alien worm tunnels
+ * 
+ * Can't pilot mechs
+ * 
+ * Can't get pickups
  * 
  * Hitting Load bro while already a cutsom bro seems to mess up the character sprites
  * 

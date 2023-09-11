@@ -1,6 +1,8 @@
 ﻿/**
  * TODO
  * 
+ * Add inifnite damage option for one hitting bosses
+ * 
  * Add new levels
  * 
  * Fix infinite specials locking brolander out of having special, 
