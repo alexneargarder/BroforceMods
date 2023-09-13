@@ -133,9 +133,10 @@ namespace Swap_Bros_Mod
             GUILayout.BeginVertical();
 
             settings.includeUnfinishedCharacters = GUILayout.Toggle(settings.includeUnfinishedCharacters, new GUIContent("Include unfinished bros",
-                "Include bros from Expendabros, BrondleFly, and some weird other ones"), GUILayout.ExpandWidth(false));
+                "Include bros from Expendabros and some weird other ones"), GUILayout.ExpandWidth(false));
 
             GUI.Label(lastRect, GUI.tooltip);
+            string previousToolTip = GUI.tooltip;
 
             GUILayout.EndVertical();
 
@@ -157,24 +158,43 @@ namespace Swap_Bros_Mod
             GUILayout.BeginVertical();
             for ( int i = 0; i < 4; ++i )
             {
-                GUILayout.Label("Player " + (i + 1));
-                if ( GUILayout.Button(settings.showSettings[i] ? "Hide" : "Show") )
+                if ( GUILayout.Button("Player " + (i + 1) + " Options - " + (settings.showSettings[i] ? "Hide" : "Show")) )
                 {
                     settings.showSettings[i] = !settings.showSettings[i];
                 }
                 if ( settings.showSettings[i] )
                 {
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("Swap Bro Left: " + (settings.swapLeftKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapLeftKeys[i].DPADKey == DPAD.NONE ? settings.swapLeftKeys[i].kc.ToString() : "DPAD " + settings.swapLeftKeys[i].DPADString))) && !InputReader.IsBlocked)
+                    if (GUILayout.Button(
+                        new GUIContent( "Swap Bro Left: " + (settings.swapLeftKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapLeftKeys[i].DPADKey == DPAD.NONE ? settings.swapLeftKeys[i].kc.ToString() : "DPAD " + settings.swapLeftKeys[i].DPADString)),
+                        "Set a key for swapping bros, or press Esc to unbind" )
+                        ) && !InputReader.IsBlocked)
                     {
                         settings.swapLeftKeys[i].waitingForInput = true;
                         UnityModManager.UI.Instance.StartCoroutine(BindKey(settings.swapLeftKeys[i], i));
                     }
-                    if (GUILayout.Button("Swap Bro Right: " + (settings.swapRightKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapRightKeys[i].DPADKey == DPAD.NONE ? settings.swapRightKeys[i].kc.ToString() : "DPAD " + settings.swapRightKeys[i].DPADString))) && !InputReader.IsBlocked)
+                    lastRect = GUILayoutUtility.GetLastRect();
+                    lastRect.y += 20;
+                    lastRect.width += 300;
+                    if ( !GUI.tooltip.Equals(previousToolTip) )
+                    {
+                        GUI.Label(lastRect, GUI.tooltip);
+                    }
+                    previousToolTip = GUI.tooltip;
+                    
+                    if (GUILayout.Button(
+                        new GUIContent( "Swap Bro Right: " + (settings.swapRightKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapRightKeys[i].DPADKey == DPAD.NONE ? settings.swapRightKeys[i].kc.ToString() : "DPAD " + settings.swapRightKeys[i].DPADString)),
+                        "Set a key for swapping bros, or press Esc to unbind" )
+                        ) && !InputReader.IsBlocked)
                     {
                         settings.swapRightKeys[i].waitingForInput = true;
                         UnityModManager.UI.Instance.StartCoroutine(BindKey(settings.swapRightKeys[i], i));
                     }
+                    if ( !GUI.tooltip.Equals(previousToolTip) )
+                    {
+                        GUI.Label(lastRect, GUI.tooltip);
+                    }
+                    previousToolTip = GUI.tooltip;
                     GUILayout.EndHorizontal();
                     GUILayout.Space(25);
                     GUILayout.BeginHorizontal();
@@ -197,6 +217,7 @@ namespace Swap_Bros_Mod
                     }
 
                     GUILayout.EndHorizontal();
+                    GUILayout.Space(10);
                 }
             }
             GUILayout.EndVertical();
