@@ -1,0 +1,9 @@
+{
+	"Id": "Swap Bros Mod",
+	"DisplayName": "Swap Bros",
+	"Author": "AlexN",
+	"Version": "2.0.4",
+	"AssemblyName": "Swap Bros Mod.dll",
+	"EntryMethod": "Swap_Bros_Mod.Main.Load",
+	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+}

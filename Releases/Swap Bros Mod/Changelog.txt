@@ -1,0 +1,14 @@
+v2.0.4
+Minor UI changes
+
+v2.0.3
+Added support for keybinds.
+Added support for 4 local players.
+Added option for adjusting swap cooldown time.
+Fixed swapping characters removing momentum.
+
+v2.0.2
+Added new bros from the update.
+
+v2.0.1
+Fixed a small bug with being unable to swap to BroLee in IronBro.
