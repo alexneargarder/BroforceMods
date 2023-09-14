@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <cameraShake>false</cameraShake>
+  <enableSkip>true</enableSkip>
+  <endingSkip>true</endingSkip>
+  <disableConfirm>true</disableConfirm>
+  <loopCurrent>false</loopCurrent>
+  <campaignNum>0</campaignNum>
+  <levelNum>0</levelNum>
+  <invulnerable>false</invulnerable>
+  <infiniteSpecials>false</infiniteSpecials>
+  <disableEnemySpawn>false</disableEnemySpawn>
+  <changeSpawn>false</changeSpawn>
+  <quickLoadScene>false</quickLoadScene>
+  <quickMainMenu>false</quickMainMenu>
+  <oneHitEnemies>false</oneHitEnemies>
+  <waypointsX>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+  </waypointsX>
+  <waypointsY>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+    <float>0</float>
+  </waypointsY>
+  <SpawnPositionX>0</SpawnPositionX>
+  <SpawnPositionY>0</SpawnPositionY>
+  <showLevelOptions>false</showLevelOptions>
+  <showCheatOptions>false</showCheatOptions>
+  <showTeleportOptions>false</showTeleportOptions>
+</Settings>

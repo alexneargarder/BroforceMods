@@ -1,16 +1,11 @@
 ﻿/**
  * TODO
- * 
- * Add inifnite damage option for one hitting bosses
- * 
- * Add new levels
- * 
- * Fix infinite specials locking brolander out of having special, 
+ *  
  * maybe also fix double bro seven only having option to drink ( probably only refresh specials when they reach 0 )
  * 
- * Set living, dead, and locked bros with cheat mod
+ * Set living, dead, and locked bros
  * 
- * Set lives with cheat mod ( for normal campaign)
+ * Set lives ( for normal campaign)
  * 
  * Make campaign progress correctly when jumping to a level via cheat mod
  * 
@@ -31,25 +26,6 @@
  * bind teleport to some controller key
  * 
  * buff slowdown time (pause time?)
- * 
- * 
-**/
-/**
- * DONE
- * 
- * Make helicopter skip go in order
- * 
- * add invincibility toggle
- * 
- * add teleporting system with waypoints you can set
- * 
- * summon mech anywhere
- * 
- * give infinite specials
- * 
- * Set level to repeat with cheat mod
- * 
- * Figure out better way to get instance of map controller (doesn't work sometimes if exiting to menu through options)
  * 
  * 
 **/
@@ -137,6 +113,8 @@ namespace Utility_Mod
         public static bool loadedScene = false;
         public static float waitForLoad = 4.0f;
 
+        public static bool skipNextMenu = false;
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
@@ -144,11 +122,18 @@ namespace Utility_Mod
             modEntry.OnToggle = OnToggle;
             modEntry.OnUpdate = OnUpdate;
             settings = Settings.Load<Settings>(modEntry);
-            
-            var harmony = new Harmony(modEntry.Info.Id);
-            var assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll(assembly);
             mod = modEntry;
+
+            try
+            {
+                var harmony = new Harmony(modEntry.Info.Id);
+                var assembly = Assembly.GetExecutingAssembly();
+                harmony.PatchAll(assembly);
+            }
+            catch(Exception ex)
+            {
+                Main.Log(ex.ToString());
+            }
 
             lastCampaignNum = -1;
             campaignNum = new Dropdown(125, 150, 200, 300, new string[] { "Campaign 1", "Campaign 2", "Campaign 3", "Campaign 4", "Campaign 5",
@@ -157,11 +142,9 @@ namespace Utility_Mod
 
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
-            
 
             return true;
         }
-
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
@@ -187,6 +170,8 @@ namespace Utility_Mod
                     "Speeds up the ending"), GUILayout.Width(100f));
 
                 GUI.Label(lastRect, GUI.tooltip);
+
+                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, "Speed up Main Menu Loading", GUILayout.Width(200f));
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
@@ -334,7 +319,13 @@ namespace Utility_Mod
             {
                 GUILayout.BeginHorizontal();
                 {
-                    settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility");
+                    if ( settings.invulnerable != (settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility")))
+                    {
+                        if ( settings.invulnerable && currentCharacter != null)
+                        {
+                            currentCharacter.SetInvulnerable(float.MaxValue, false);
+                        }
+                    }    
 
                     GUILayout.Space(20);
 
@@ -346,7 +337,7 @@ namespace Utility_Mod
 
                     GUILayout.Space(20);
 
-                    settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, "Speed up Main Menu Loading");
+                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, "Instant kill all enemies");
 
                     GUILayout.Space(20);
 
@@ -474,6 +465,8 @@ namespace Utility_Mod
                             currentCharacter.Y = settings.SpawnPositionY;
                         }
                     }
+
+                    GUILayout.Label("Saved position: " + settings.SpawnPositionX + ", " + settings.SpawnPositionY);
                 }
                 GUILayout.EndHorizontal();
 
@@ -500,6 +493,8 @@ namespace Utility_Mod
                                 currentCharacter.Y = settings.waypointsY[i];
                             }
                         }
+
+                        GUILayout.Label("Saved position: " + settings.waypointsX[i] + ", " + settings.waypointsY[i]);
                     }
                     GUILayout.EndHorizontal();
                 }
@@ -544,26 +539,6 @@ namespace Utility_Mod
                     loadedScene = true;
                 }
             }
-
-            if ( (settings.invulnerable || settings.infiniteSpecials ) && HeroController.Instance != null  )
-            {
-                for ( int i = 0; i < 4; ++i )
-                {
-                    if ( HeroController.PlayerIsAlive(i))
-                    {
-                        if (settings.invulnerable)
-                        {
-                            HeroController.players[i].character.SetInvulnerable(1, false);
-                        }
-
-                        if (settings.infiniteSpecials)
-                        {
-                            HeroController.players[i].character.SetSpecialAmmoRPC(HeroController.players[i].character.originalSpecialAmmo);
-                        }    
-                    }
-                }
-            }
-
         }
 
         static void determineLevelsInCampaign()
@@ -573,31 +548,27 @@ namespace Utility_Mod
             if (lastCampaignNum != campaignNum.indexNumber)
             {
                 int actualCampaignNum = campaignNum.indexNumber + 1;
-                int numberOfLevels = 4;
-                if ((actualCampaignNum >= 4 && actualCampaignNum <= 5) || (actualCampaignNum == 7))
+                int numberOfLevels = 1;
+                switch (actualCampaignNum )
                 {
-                    numberOfLevels = 3;
+                    case 1: numberOfLevels = 4; break;
+                    case 2: numberOfLevels = 4; break;
+                    case 3: numberOfLevels = 4; break;
+                    case 4: numberOfLevels = 4; break;
+                    case 5: numberOfLevels = 3; break;
+                    case 6: numberOfLevels = 4; break;
+                    case 7: numberOfLevels = 5; break;
+                    case 8: numberOfLevels = 4; break;
+                    case 9: numberOfLevels = 4; break;
+                    case 10: numberOfLevels = 4; break;
+                    case 11: numberOfLevels = 6; break;
+                    case 12: numberOfLevels = 5; break;
+                    case 13: numberOfLevels = 5; break;
+                    case 14: numberOfLevels = 5; break;
+                    case 15: numberOfLevels = 14; break;
+                    default: numberOfLevels = 1; break;
                 }
-                else if ((actualCampaignNum >= 1 && actualCampaignNum <= 3) || (actualCampaignNum == 6) || (actualCampaignNum >= 8 && actualCampaignNum <= 10))
-                {
-                    numberOfLevels = 4;
-                }
-                else if (actualCampaignNum >= 12 && actualCampaignNum <= 14)
-                {
-                    numberOfLevels = 5;
-                }
-                else if (actualCampaignNum == 11)
-                {
-                    numberOfLevels = 6;
-                }
-                else if (actualCampaignNum == 15)
-                {
-                    numberOfLevels = 14;
-                }
-                else
-                {
-                    numberOfLevels = 1;
-                }
+                
 
                 if (levelNum.indexNumber + 1 > numberOfLevels)
                 {
@@ -1059,7 +1030,74 @@ namespace Utility_Mod
                 return;
             }
 
+            Main.skipNextMenu = false;
+
             Traverse.Create(__instance).Method("InitializeMenu").GetValue();
+
+            Main.skipNextMenu = true;
+        }
+    }
+
+    [HarmonyPatch(typeof(MainMenu), "InitializeMenu")]
+    static class MainMenu_InitializeMenu_Patch
+    {
+        public static bool Prefix(MainMenu __instance)
+        {
+            if (!Main.enabled || !Main.settings.quickMainMenu)
+            {
+                return true;
+            }
+
+            if (Main.skipNextMenu)
+            {
+                Main.skipNextMenu = false;
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+   [HarmonyPatch(typeof(TestVanDammeAnim), "SetSpecialAmmoRPC")]
+    static class TestVanDammeAnim_SetSpecialAmmoRPC_Patch
+    {
+        public static void Prefix(TestVanDammeAnim __instance, ref int ammo)
+        {
+            if (!Main.enabled || !Main.settings.infiniteSpecials)
+            {
+                return;
+            }
+
+            ammo = int.MaxValue;
+        }
+    }
+
+    [HarmonyPatch(typeof(TestVanDammeAnim), "SetInvulnerable")]
+    static class TestVanDammeAnim_SetInvulnerable_Patch
+    {
+        public static void Prefix(ref float time)
+        {
+            if (!Main.enabled || !Main.settings.invulnerable)
+            {
+                return;
+            }
+
+            time = float.MaxValue;
+        }
+    }
+
+    [HarmonyPatch(typeof(NetworkedUnit), "Awake")]
+    static class NetworkedUnit_Awake_Patch
+    {
+        public static void Postfix(NetworkedUnit __instance)
+        {
+            if (!Main.enabled || !Main.settings.oneHitEnemies)
+            {
+                return;
+            }
+
+            __instance.health = 1;
+            __instance.maxHealth = 1;
         }
     }
 
@@ -1080,9 +1118,10 @@ namespace Utility_Mod
         public bool changeSpawn = false;
         public bool quickLoadScene = false;
         public bool quickMainMenu = false;
+        public bool oneHitEnemies = false;
 
-        public float[] waypointsX = new float[5];
-        public float[] waypointsY = new float[5];
+        public float[] waypointsX = new float[] { 0f, 0f, 0f, 0f, 0f };
+        public float[] waypointsY = new float[] { 0f, 0f, 0f, 0f, 0f };
 
         public float SpawnPositionX = 0;
         public float SpawnPositionY = 0;
