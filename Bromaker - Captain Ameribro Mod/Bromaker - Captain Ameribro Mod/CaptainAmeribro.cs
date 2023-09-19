@@ -85,11 +85,6 @@ namespace Captain_Ameribro_Mod
 
 		protected override void Awake()
         {
-			materialNormal = this.material;
-			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
-			//materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.neobro_armless_anim.png"));
-			materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
-
 			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) } ).GetComponent<Shield>();
 			shield.enabled = false;
 			shield.shieldCollider = shield.gameObject.GetComponent<SphereCollider>();
@@ -112,6 +107,16 @@ namespace Captain_Ameribro_Mod
 			BMLogger.Log("created shield");
 			base.Awake();
         }
+
+        protected override void Start()
+        {
+            base.Start();
+			
+			materialNormal = this.material;
+			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
+			//materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.neobro_armless_anim.png"));
+			materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
+		}
 
         protected override void Update()
         {
