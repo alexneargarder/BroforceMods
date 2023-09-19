@@ -8,57 +8,6 @@ using BroMakerLib;
 using BroMakerLib.Loggers;
 using UnityEngine.Audio;
 
-/**
- * 
- * Shield pathfinding doesn't conisder ladder to be ground
- * 
- * Sprite gets messed up when moving between levels
- * 
- * Fix charge animation staying when climbing walls and doing other actions
- * 
- * Make shield not decapite enemies, possibly knock them back
- * 
- * Figure out appropriate damage for special
- * 
- * Implement melee attack and damage and knockback
- * 
- * Implement dash damage / knockback (needs to not send them as high, maybe further away as well?)
- * 
- * Implement default attack correct speed / damage
- * 
- * Possibly implement crouching bullet block
- * 
- * Possibly implement bullet blocking / reflection while shield is being thrown
- * 
- * Possibly implement ability to recall shield by holding special after shield has dropped
- * 
- * Possibly implmeent shield checking if the path back to the player is blocked by a wall and then going back
- * to position it was thrown from instead in that case
- * 
- * BroMaker Issues
- * 
- * Can't get hit by spikes
- * 
- * Can't go in alien worm tunnels
- * 
- * Can't pilot mechs
- * 
- * Can't get pickups
- * 
- * Hitting Load bro while already a cutsom bro seems to mess up the character sprites
- * 
- * Fix player respawning right where they died.
- * 
- * Fix automatic spawning so it works for all cases
- * 
- * Add a randomization option that makes custom heros equally as likely as all other characters
- * 
- * Add Iron Bro support
- * 
- * Possibly look into sprite for specials
- *
- **/
-
 namespace Captain_Ameribro_Mod
 {
     [HeroPreset("Captain Ameribro", HeroType.Nebro)]
@@ -83,6 +32,8 @@ namespace Captain_Ameribro_Mod
 		protected float maxSpecialCharge = 1f;
 		public float currentSpecialCharge = 0f;
 
+		public int frameCount = 0;
+
 		protected override void Awake()
         {
 			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) } ).GetComponent<Shield>();
@@ -98,7 +49,7 @@ namespace Captain_Ameribro_Mod
 			//boom = UnityEngine.Object.Instantiate(boom, Vector3.zero, Quaternion.identity);
 			//boom = Boomerang.Instantiate(boom);
 			//shield = boom.gameObject.AddComponent<Shield>();
-			shield.assignNullValues(boom);
+			shield.AssignNullValues(boom);
 			//UnityEngine.Object.DestroyImmediate(boom.gameObject.GetComponent<Boomerang>());
 			//BMLogger.Log("collider null? " + (shield.shieldCollider == null));
 			//shield.transform.position = this.transform.position;
@@ -125,11 +76,29 @@ namespace Captain_Ameribro_Mod
             {
 				currentSpecialCharge += this.t;
             }
-        }
+
+			if (this.frameCount == 120)
+			{
+				this.frameCount = 0;
+			}
+			++this.frameCount;
+
+/*			if ( frameCount == 30 )
+            {
+				BMLogger.Log("screenmin: " + screenMinY + " " + screenMaxY);
+            }*/
+			//this.yI = 0;
+			//this.xI = 0;
+		}
+
+/*        protected override void ApplyFallingGravity()
+        {
+            //base.ApplyFallingGravity();
+        }*/
 
         protected override void UseSpecial()
         {
-			BMLogger.Log("trying use special");
+			BMLogger.Log("--------------THROWING SHIELD----------------");
 			if ( this.SpecialAmmo > 0 && !isHoldingSpecial )
             {
 				if ( this.currentSpecialCharge > this.maxSpecialCharge )
@@ -145,7 +114,7 @@ namespace Captain_Ameribro_Mod
 				Shield newShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
 
 				//newShield.shieldCharge = this.currentSpecialCharge;
-				newShield.setup(this.shield, this);
+				newShield.Setup(this.shield, this);
 
 				this.currentSpecialCharge = 0;
 

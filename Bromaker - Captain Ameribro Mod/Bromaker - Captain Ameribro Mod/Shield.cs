@@ -22,7 +22,7 @@ namespace Captain_Ameribro_Mod
 		public float returnLerpSpeed = 3f;
 		protected float shieldSpeed;
 		//public float rotationSpeed = 2f;
-		public float rotationSpeed = 4.0f;
+		public float rotationSpeed = 2.0f;
 		protected float hitUnitsDelay;
 		protected int hitUnitsCount;
 		protected bool dropping;
@@ -38,29 +38,31 @@ namespace Captain_Ameribro_Mod
 		protected float lastXI;
 		public float bounceXM = 0.5f;
 		public float bounceYM = 0.33f;
-		public float frictionM = 0.4f;
+		public float frictionM = 0.5f;
 		public float bounceVolumeM = 0.25f;
 		public float heightOffGround = 8f;
 		protected List<Unit> alreadyHit = new List<Unit>();
-		//protected int hitCount;
+		protected const float groundRotationSpeed = -10.0f;
 
 		// Charging Variables
 		public float shieldCharge = 0f;
 		protected const float ChargeReturnScalar = 0.5f;
 		protected const float ChargeDroppingScalar = 0.5f;
 		public const float ChargeSpeedScalar = 100f;
+		protected const int BaseDamage = 8;
 
 		// Homing Variables
 		protected float targetAngle;
 		protected float targetX;
 		protected float targetY;
-		public float seekRange = 80f;
+		protected float originalAngle;
+		public float seekRange = 200f;
 		protected bool foundMook = false;
 		protected float originalSpeed;
 		protected float seekSpeedCurrent;
 		protected float speed;
-		public float seekTurningSpeedLerpM = 4f;
-		public float seekTurningSpeedM = 1f;
+		public float seekTurningSpeedLerpM = 50f;
+		public float seekTurningSpeedM = 30f;
 		protected float angle;
 		protected float seekCounter;
 		protected float droppingDuration = 2f;
@@ -68,6 +70,11 @@ namespace Captain_Ameribro_Mod
 		protected bool stopSeeking = false;
 		protected int bounceCount = 5;
 		protected bool startedSnap = false;
+		protected float startingThrowX;
+		protected float startingThrowY;
+		protected Vector3 startingThrowVector;
+		protected bool pathBlocked = false;
+		protected LayerMask ladderLayer;
 
 		public static Material storedMat;
 		public SpriteSM storedSprite;
@@ -107,17 +114,30 @@ namespace Captain_Ameribro_Mod
 
 			this.storedSprite = sprite;
 
+			try
+            {
+				this.texture = this.gameObject.GetComponent<AnimatedTexture>();
+
+				this.texture.frames = 1;
+
+				this.texture.frame = 0;
+			}
+			catch ( Exception ex )
+            {
+				BMLogger.Log("exception getting animated texture: " + ex);
+            }
+
 			//texture.paused = false;
 
-/*			SpriteSM boomSprite = boom.GetComponent<SpriteSM>();
-			BMLogger.Log("lowerleft: " + boomSprite.lowerLeftPixel);
-			BMLogger.Log("pixelDimensions: " + boomSprite.pixelDimensions);
-			BMLogger.Log("plane: " + boomSprite.plane);
-			BMLogger.Log("width: " + boomSprite.width);
-			BMLogger.Log("height: " + boomSprite.height);
-			BMLogger.Log("offset: " + boomSprite.offset);*/
+			/*			SpriteSM boomSprite = boom.GetComponent<SpriteSM>();
+						BMLogger.Log("lowerleft: " + boomSprite.lowerLeftPixel);
+						BMLogger.Log("pixelDimensions: " + boomSprite.pixelDimensions);
+						BMLogger.Log("plane: " + boomSprite.plane);
+						BMLogger.Log("width: " + boomSprite.width);
+						BMLogger.Log("height: " + boomSprite.height);
+						BMLogger.Log("offset: " + boomSprite.offset);*/
 
-
+			this.ladderLayer = 1 << LayerMask.NameToLayer("Ladders");
 
 			base.Awake();
         }
@@ -156,6 +176,7 @@ namespace Captain_Ameribro_Mod
 				this.angle = -1.57079637f;
 			}
 			this.targetAngle = this.angle;
+			this.originalAngle = this.angle;
 
 			this.playerNum = playerNum;
             this.SetPosition();
@@ -192,37 +213,50 @@ namespace Captain_Ameribro_Mod
             this.lastXI = xI;
         }
 
-       public void assignNullValues( Boomerang other )
+       public void AssignNullValues( Boomerang other )
         {
             Traverse boomTraverse = Traverse.Create(other);
             //this.shieldCollider = other.boomerangCollider;
             this.soundVolume = other.soundVolume;
             this.soundHolder = other.soundHolder;
         }
-        public void setup( Shield other, CaptainAmeribro player )
+        public void Setup( Shield other, CaptainAmeribro player )
         {
 			this.throwingPlayer = player;
 
 			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
 
+			this.damageType = DamageType.Knock;
+
+			this.damage = BaseDamage + (int)System.Math.Round(BaseDamage * this.throwingPlayer.currentSpecialCharge);
+
+			this.damageInternal = this.damage;
+			this.fullDamage = this.damage;
+
+			this.startingThrowX = this.throwingPlayer.X;
+			this.startingThrowY = this.throwingPlayer.Y;
+			this.startingThrowVector = this.throwingPlayer.transform.position;
+
+			BMLogger.Log("damage set to: " + this.damage);
+			
 			//this.shieldCollider = BoxCollider.Instantiate(other.shieldCollider);
 			//this.shieldCollider.transform = other.transform;
 			//base.transform.parent = other.transform;
 			//this.soundHolder = SoundHolder.Instantiate(other.soundHolder);
 
-			this.texture = this.gameObject.GetComponent<AnimatedTexture>();
+/*			this.texture = this.gameObject.GetComponent<AnimatedTexture>();
+
+			this.texture.frames = 1;
+
+			this.texture.frame = 0;*/
 
 			//base.transform.localScale = new Vector3(-1f, 3f, 3f);
 
 			//shieldCollider.transform.localScale = new Vector3(5, 5, 5);
 
-            base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
+			base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
 
             this.enabled = true;
-
-			this.texture.frames = 1;
-
-			this.texture.frame = 0;
 
 			this.returnTime += ChargeReturnScalar * this.shieldCharge;
 
@@ -275,12 +309,20 @@ namespace Captain_Ameribro_Mod
             }
 			++this.frameCount;
 
+			if ( frameCount == 30 )
+            {
+				BMLogger.Log("pos: " + this.X + " " + this.Y);
+            }
+
 			//this.storedSprite.transform.Rotate(0f, 0f, this.rotationSpeed * t, Space.Self);
 			//this.storedSprite.transform.Rotate(0f, 0f, 10 * t, Space.Self);
 			
-
 			if (this.returnTime <= 0f)
 			{
+				if ( this.Y < -50 )
+                {
+					this.ReturnShield();
+                }
 				if (!this.dropping)
 				{
 					//if ( !this.hasReachedApex)
@@ -295,20 +337,20 @@ namespace Captain_Ameribro_Mod
 						this.seekTurningSpeedLerpM = 30f;
 						this.seekTurningSpeedM = 10f;
 
-						CalculateSeek(this.throwingPlayer.X, this.throwingPlayer.Y);
-
-						DetermineReturnAngle();
+						this.BeginReturnSeek();
 					}
 					else if ( this.hasReachedApex )
 					{
-						CalculateSeek(this.throwingPlayer.X, this.throwingPlayer.Y);
+						this.ReturnSeek();
+
+						if (this.frameCount == 30)
+						{
+							BMLogger.Log("speed: " + this.speed);
+							BMLogger.Log("seeking towards: " + this.throwingPlayer.X + " " + this.throwingPlayer.Y);
+						}
 					}
 
-					if ( this.frameCount == 30 )
-                    {
-						BMLogger.Log("speed: " + this.speed);
-						BMLogger.Log("seeking towards: " + this.throwingPlayer.X + " " + this.throwingPlayer.Y);
-                    }
+					
 				}
 				this.CheckReturnShield();
 				if (!this.dropping && this.hasReachedApex) // Check if shield should start droppping
@@ -326,7 +368,6 @@ namespace Captain_Ameribro_Mod
 					}
 					if ( this.droppingTime < 0 )
                     {
-						BMLogger.Log("----------STARTED DROPPING------------");
 						this.StartDropping();
                     }
 /*					float f = this.xStart - base.X;
@@ -369,8 +410,54 @@ namespace Captain_Ameribro_Mod
 			this.lastXI = this.xI;
 		}
 
+		// Handles figuring out where the Shield should return to
+		protected void BeginReturnSeek()
+        {
+			this.foundMook = true;
+			this.targetX = this.throwingPlayer.X;
+			this.targetY = this.throwingPlayer.Y + throwingPlayer.height + 5;
+
+			float y = this.targetX - base.X;
+			float x = this.targetY - base.Y;
+			this.targetAngle = global::Math.GetAngle(x, y);
+			Vector3 currentPlayerPos = this.throwingPlayer.transform.position;
+			currentPlayerPos.y += this.throwingPlayer.height + 2;
+			Vector3 direction = currentPlayerPos - this.transform.position;
+
+			// Check if anything is in the way between shield and player
+			if ( Physics.Raycast(this.transform.position, direction, out this.raycastHit, Vector3.Distance(this.transform.position, currentPlayerPos), this.groundLayer) )
+            {
+				BMLogger.Log("ground found between");
+				pathBlocked = true;
+				CalculateSeek(this.startingThrowX, this.startingThrowY);
+				DetermineReturnAngle(this.startingThrowVector);
+			}
+			else
+            {
+				BMLogger.Log("no ground between");
+				pathBlocked = false;
+				DetermineReturnAngle(this.throwingPlayer.transform.position);
+            }
+		}
+
+		protected void ReturnSeek()
+        {
+			if ( pathBlocked )
+            {	
+				CalculateSeek(this.startingThrowX, this.startingThrowY);
+				if (Vector3.Distance(this.transform.position, this.startingThrowVector) < 40)
+				{
+					this.StartDropping();
+				}
+			}
+			else
+            {
+				CalculateSeek(this.throwingPlayer.X, this.throwingPlayer.Y);
+			}
+        }
+
 		// Check whether there are blocks above / below to determine whether shield needs to return in a straight line or if it can circle around
-		protected void DetermineReturnAngle()
+		protected void DetermineReturnAngle(Vector3 playerPos)
 		{
 			bool above = false, below = false;
 			float distanceBelow, distanceAbove;
@@ -390,39 +477,72 @@ namespace Captain_Ameribro_Mod
 			}
 
 			// We check the terrain around the player in case the shield entered an area with no ground above or below
-			if (Physics.Raycast(new Vector3(this.throwingPlayer.X, this.throwingPlayer.Y, 0f), Vector3.down, out this.raycastHit, 100f, this.groundLayer))
+			if ( Physics.Raycast(playerPos, Vector3.down, out this.raycastHit, 100f, this.groundLayer) )
 			{
 
-				distanceBelow = Vector3.Distance(this.throwingPlayer.transform.position, this.raycastHit.point);
+				distanceBelow = Vector3.Distance(playerPos, this.raycastHit.point);
+				BMLogger.Log("distance to ground for player: " + distanceBelow);
 				below = below || distanceBelow < 50;
 			}
-			if (Physics.Raycast(new Vector3(this.throwingPlayer.X, this.throwingPlayer.Y, 0f), Vector3.up, out this.raycastHit, 100f, this.groundLayer))
+			if (Physics.Raycast(playerPos, Vector3.down, out this.raycastHit, 100f, this.ladderLayer))
+            {
+				distanceBelow = Vector3.Distance(playerPos, this.raycastHit.point);
+				below = below || distanceBelow < 50;
+			}
+
+			if ( Physics.Raycast(playerPos, Vector3.up, out this.raycastHit, 100f, this.groundLayer) )
 			{
-				
-				distanceAbove = Vector3.Distance(this.throwingPlayer.transform.position, this.raycastHit.point);
+				distanceAbove = Vector3.Distance(playerPos, this.raycastHit.point);
+				BMLogger.Log("distance to ceiling for player: " + distanceAbove);
 				if ( distanceAbove < 100 )
                 {
 					above = below = true;
                 }
 			}
-
-			if ( below && above ) // Blocks above and below so return shield straight
+			if (Physics.Raycast(playerPos, Vector3.up, out this.raycastHit, 100f, this.ladderLayer))
             {
+				distanceAbove = Vector3.Distance(playerPos, this.raycastHit.point);
+				if (distanceAbove < 100)
+				{
+					above = below = true;
+				}
+			}
+
+			// Blocks above and below, or path to player is blocked, or shield is already heading towards player, so return shield straight
+			if ( below && above || pathBlocked || (Mathf.Sign(xI) == Mathf.Sign(playerPos.x - this.X) ) ) 
+            {
+				BMLogger.Log("returning direct");
 				this.angle = this.targetAngle;
             }
 			else if ( below ) // Blocks below return shield up
             {
-				if ( this.xI > 0 ) // Right
+				Vector3 currentPlayerPos = this.throwingPlayer.transform.position;
+				currentPlayerPos.y += this.throwingPlayer.height + 2;
+				Vector3 direction = currentPlayerPos - this.transform.position;
+
+				// Check if anything is in the way between area above shield and player
+				if (Physics.Raycast(this.transform.position + new Vector3(0, 30, 0), direction, out this.raycastHit, Vector3.Distance(this.transform.position, currentPlayerPos), this.groundLayer))
+				{
+					BMLogger.Log("ground found above player and shield");
+					BMLogger.Log("returning direct");
+					this.angle = this.targetAngle;
+				}
+				else
                 {
-					this.angle -= (Mathf.PI / 4);
-                }
-				else if ( this.xI < 0 ) // Left
-                {
-					this.angle += (Mathf.PI / 4);
-                }
+					BMLogger.Log("returning above");
+					if (this.xI > 0) // Right
+					{
+						this.angle -= (Mathf.PI / 4);
+					}
+					else if (this.xI < 0) // Left
+					{
+						this.angle += (Mathf.PI / 4);
+					}
+				}	
             }
 			else if ( above ) // Blocks above return shield down
             {
+				BMLogger.Log("returning down");
 				if (this.xI > 0) // Right
 				{
 					this.angle += (Mathf.PI / 4);
@@ -511,7 +631,7 @@ namespace Captain_Ameribro_Mod
 		{
 			this.foundMook = true;
 			this.targetX = manualTargetX;
-			this.targetY = manualTargetY + throwingPlayer.height + 5;
+			this.targetY = manualTargetY + throwingPlayer.height + 2;
 
 			float y = this.targetX - base.X;
 			float x = this.targetY - base.Y;
@@ -523,11 +643,16 @@ namespace Captain_Ameribro_Mod
 			if (!this.foundMook)
 			{
 				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
-				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy)
+				// Check that we found a unit, it hasn't already been hit, and it is in the direction the shield is traveling.
+				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy && !this.alreadyHit.Contains(nearestVisibleUnitDamagebleBy) && (Mathf.Sign(nearestVisibleUnitDamagebleBy.X - this.X) == Mathf.Sign(this.xI)) )
 				{
 					this.foundMook = true;
 					this.targetX = nearestVisibleUnitDamagebleBy.X;
-					this.targetY = nearestVisibleUnitDamagebleBy.Y + nearestVisibleUnitDamagebleBy.height / 2f;
+					this.targetY = nearestVisibleUnitDamagebleBy.Y + throwingPlayer.height + 4;
+					Traverse trav = Traverse.Create((nearestVisibleUnitDamagebleBy as Mook));
+					SpriteSM unitSprite = trav.Field("sprite").GetValue() as SpriteSM;
+					unitSprite.SetColor(new Color(0, 255, 0, 1f));
+					BMLogger.Log("found mook");
 				}
 				else
 				{
@@ -606,7 +731,6 @@ namespace Captain_Ameribro_Mod
 				}
 				else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
 				{
-					BMLogger.Log("hit thing");
 					/*this.xI = 0f;
 					this.hasReachedApex = true;
 					this.holdAtApexTime = this.holdAtApexDuration;*/
@@ -635,7 +759,7 @@ namespace Captain_Ameribro_Mod
                             this.yI = 0f;
                             base.Y = this.raycastHit.point.y + this.heightOffGround;
                         }
-                        this.rotationSpeed = -25f * this.xI;
+                        this.rotationSpeed = groundRotationSpeed * this.xI;
                         this.PlayBounceSound();
                     }
                 }
@@ -648,7 +772,7 @@ namespace Captain_Ameribro_Mod
                     }
                     this.yI *= -(this.bounceYM + 0.1f);
                     this.PlayBounceSound();
-                    this.rotationSpeed = -25f * this.xI;
+                    this.rotationSpeed = groundRotationSpeed * this.xI;
                 }
             }
             return true;
@@ -658,6 +782,8 @@ namespace Captain_Ameribro_Mod
         {
 			// Calculate new angle
 			Bounce(raycastHit);
+
+			BMLogger.Log("bounced");
 
 			if (this.bounceCount == 0)
 			{
@@ -681,9 +807,11 @@ namespace Captain_Ameribro_Mod
 
 		protected void StartDropping()
 		{
+			BMLogger.Log("----------STARTED DROPPING------------");
+
 			this.dropping = true;
 			this.collectDelayTime = 0f;
-			this.rotationSpeed = -25f * this.xI;
+			this.rotationSpeed = groundRotationSpeed * this.xI;
 			base.GetComponent<AudioSource>().Stop();
 			this.shieldCollider.enabled = false;
 			this.stopSeeking = true;
@@ -715,6 +843,19 @@ namespace Captain_Ameribro_Mod
 			Vector3 curAngle = new Vector3(Math.Cos(this.angle), Math.Sin(this.angle), 0);
 			Vector3 bounceAngle = (curAngle - 2 * Vector3.Dot(curAngle, raycastHit.normal) * raycastHit.normal);
 			this.angle = Mathf.Atan(bounceAngle.y / bounceAngle.x);
+			this.targetAngle = this.angle;
+			if (!this.dropping)
+			{
+				this.speed = 0.9f * this.speed;
+			}
+			else
+            {
+				this.speed = 0.7f * this.speed;
+            }
+			Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
+			this.xI = vector.x;
+			this.yI = vector.y;
+			this.foundMook = false;
 		}
 
 		protected override void HitUnits()
@@ -730,10 +871,10 @@ namespace Captain_Ameribro_Mod
 					EffectsController.CreateSparkParticles(base.X, base.Y, 1f, 3, 2f, 10f, 0f, 0f, UnityEngine.Random.value, 1f);
 					this.holdAtApexTime = Mathf.Clamp(this.holdAtApexTime -= this.t * 3f, this.t, this.holdAtApexTime);
 				}*/
-				if (this.reversing)
+				if (this.reversing || this.hasReachedApex)
 				{
 					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, this.xI, this.yI, true, false, true, false))
-					{
+					{	
 						this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 						this.hitUnitsDelay = 0.0667f;
 						/*if (this.returnTime > 0f)
@@ -753,6 +894,15 @@ namespace Captain_Ameribro_Mod
 						this.returnTime = 0f;
 					}*/
 					this.hitUnitsCount++;
+
+					if ( !this.hasReachedApex )
+                    {
+						BMLogger.Log("restting angle to original angle");
+						this.foundMook = false;
+
+						this.angle = this.originalAngle;
+						this.targetAngle = this.originalAngle;
+					}
 				}
 			}
 		}
