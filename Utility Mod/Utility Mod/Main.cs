@@ -29,6 +29,14 @@
  * 
  * 
 **/
+/**
+ * Features added since last release
+ * 
+ * Unlock all territories button
+ * 
+ * Added new muscle temples to level select
+ * 
+**/
 
 using System;
 using System.Collections.Generic;
@@ -77,7 +85,12 @@ namespace Utility_Mod
             "dashchallengeterrain",
             "mechchallengeterrain",
             "macbroverchallengeterrain",
-            "timebrochallengeterrain"
+            "timebrochallengeterrain",
+            "chinaeastterrainmuscle",
+            "australiaterrainmuscle",
+            "afghanistanterrainmuscle",
+            "chileterrainmuscle",
+            "chinawestterrain"
         };
 
         public static string[] campaignList = new string[]
@@ -104,7 +117,12 @@ namespace Utility_Mod
             "Dash Challenge",
             "Mech Challenge",
             "MacBrover Challenge",
-            "Time Bro Challenge"
+            "Time Bro Challenge",
+            "MUSCLETEMPLE1",
+            "MUSCLETEMPLE2",
+            "MUSCLETEMPLE3",
+            "MUSCLETEMPLE4",
+            "MUSCLETEMPLE5"
         };
 
         public static string teleportX = "0";
@@ -138,7 +156,8 @@ namespace Utility_Mod
             lastCampaignNum = -1;
             campaignNum = new Dropdown(125, 150, 200, 300, new string[] { "Campaign 1", "Campaign 2", "Campaign 3", "Campaign 4", "Campaign 5",
                 "Campaign 6", "Campaign 7", "Campaign 8", "Campaign 9", "Campaign 10", "Campaign 11", "Campaign 12", "Campaign 13", "Campaign 14", "Campaign 15",
-                "White House", "Alien Challenge", "Bombardment Challenge", "Ammo Challenge", "Dash Challenge", "Mech Challenge", "MacBrover Challenge", "Time Bro Challenge"}, settings.campaignNum);
+                "White House", "Alien Challenge", "Bombardment Challenge", "Ammo Challenge", "Dash Challenge", "Mech Challenge", "MacBrover Challenge", "Time Bro Challenge",
+                "Muscle Temple 1", "Muscle Temple 2", "Muscle Temple 3", "Muscle Temple 4", "Muscle Temple 5" }, settings.campaignNum);
 
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
@@ -210,12 +229,27 @@ namespace Utility_Mod
                     lastRect.y += 20;
                     lastRect.width += 300;
 
-
-
                     if (GUI.tooltip != previousToolTip)
                     {
                         GUI.Label(lastRect, GUI.tooltip);
                         previousToolTip = GUI.tooltip;
+                    }
+
+                    GUILayout.Space(20);
+
+                    if ( GUILayout.Button("Unlock All Levels", GUILayout.ExpandWidth(false) ) )
+                    {
+                        if ( WorldMapController_Update_Patch.instance != null )
+                        {
+                            WorldTerritory3D[] territories = Traverse.Create(WorldMapController_Update_Patch.instance).Field("territories3D").GetValue() as WorldTerritory3D[];
+                            foreach ( WorldTerritory3D ter in territories )
+                            {
+                                if ( ter.properties.state != TerritoryState.Liberated && ter.properties.state != TerritoryState.AlienLiberated )
+                                {
+                                    UnlockTerritory(ter);
+                                }
+                            }
+                        }
                     }
 
                 }
@@ -381,10 +415,9 @@ namespace Utility_Mod
 
                 if (GUILayout.Button("Get Current Scene", GUILayout.Width(200)))
                 {
-                    Scene[] scenes = SceneManager.GetAllScenes();
-                    for (int i = 0; i < scenes.Length; ++i)
+                    for (int i = 0; i < SceneManager.sceneCount; ++i)
                     {
-                        Main.Log("Scene Name: " + scenes[i].name);
+                        Main.Log("Scene Name: " + SceneManager.GetSceneAt(i).name);
                     }
                 }
 
@@ -588,7 +621,7 @@ namespace Utility_Mod
             territoryName = campaignList[campaignNum.indexNumber];
             terrainName = terrainList[campaignNum.indexNumber];
 
-            WorldMapController_AddAction_Patch.GoToLevel(territoryName, levelNum.indexNumber, terrainName);
+            WorldMapController_Update_Patch.GoToLevel(territoryName, levelNum.indexNumber, terrainName);
         }
 
         static void ChangeLevel(int levelNum)
@@ -601,6 +634,42 @@ namespace Utility_Mod
             GameModeController.RestartLevel();
         }
 
+        static void UnlockTerritory( WorldTerritory3D territory )
+        {
+            switch (territory.properties.territoryName)
+            {
+                case "VIETMAN": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Bombardment Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "HAWAII": territory.SetState(TerritoryState.Infested); break;
+                case "INDONESIA": territory.SetState(TerritoryState.TerroristBase); break;
+                case "DEM. REP. OF CONGO": territory.SetState(TerritoryState.Infested); break;
+                case "CAMBODIA": territory.SetState(TerritoryState.TerroristBase); break;
+                case "MUSCLETEMPLE3": territory.SetState(TerritoryState.TerroristBase); break;
+                case "MUSCLETEMPLE2": territory.SetState(TerritoryState.TerroristBase); break;
+                case "MUSCLETEMPLE4": territory.SetState(TerritoryState.TerroristBase); break;
+                case "UKRAINE": territory.SetState(TerritoryState.TerroristBase); break;
+                case "SOUTH KOREA": territory.SetState(TerritoryState.TerroristBase); break;
+                case "KAZAKHSTAN": territory.SetState(TerritoryState.TerroristBase); break;
+                case "INDIA": territory.SetState(TerritoryState.TerroristBurning); break;
+                case "MacBrover Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "PHILIPPINES": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Dash Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "THE AMAZON RAINFOREST": territory.SetState(TerritoryState.Infested); break;
+                case "PANAMA": territory.SetState(TerritoryState.TerroristBase); break;
+                case "WHITE HOUSE": territory.SetState(TerritoryState.Empty); break;
+                case "UNITED STATES OF AMERICA": territory.SetState(TerritoryState.Hell); break;
+                case "HONG KONG": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Mech Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Ammo Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Time Bro Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+                case "NEW GUINEA": territory.SetState(TerritoryState.TerroristBurning); break;
+                case "MUSCLETEMPLE1": territory.SetState(TerritoryState.TerroristBase); break;
+                case "MUSCLETEMPLE5": territory.SetState(TerritoryState.TerroristBase); break;
+                case "Alien Challenge": territory.SetState(TerritoryState.TerroristBase); break;
+            }
+
+        }
+
         public static void Log(String str)
         {
             mod.Logger.Log(str);
@@ -611,7 +680,6 @@ namespace Utility_Mod
     static class WorldMapController_ProcessNextAction_Patch
     {
         public static int nextCampaign = 0;
-
         static bool Prefix(WorldMapController __instance)
         {
             if (!Main.enabled)
@@ -628,25 +696,10 @@ namespace Utility_Mod
             Traverse actionQueueTraverse = Traverse.Create(__instance);
             List<WorldMapController.QueuedAction> actionQueue = actionQueueTraverse.Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>;
 
-            // DEBUG
             WorldTerritory3D[] territories = Traverse.Create(__instance).Field("territories3D").GetValue() as WorldTerritory3D[];
-            //Main.Log("BEGIN");
-            for ( int i = 0; i < 15; ++i )
-            {
-                foreach (WorldTerritory3D ter in territories)
-                {
-                    //Main.Log(ter.properties.territoryName + " == " + campaignName + " = " + (ter.properties.territoryName == campaignName));
-                    if (ter.properties.territoryName == Main.campaignList[i])
-                    {
-                        //Main.Log(ter.GetCampaignName());
-                        break;
-                    }
-                }
-            }
 
             if (actionQueue.Count > 0)
             {
-
                 WorldMapController.QueuedAction queuedAction = actionQueue[0];
                 switch (queuedAction.actionType)
                 {
@@ -738,9 +791,8 @@ namespace Utility_Mod
         }
     }
 
-
-    [HarmonyPatch(typeof(WorldMapController), "AddAction")]
-    static class WorldMapController_AddAction_Patch
+    [HarmonyPatch(typeof(WorldMapController), "Update")]
+    static class WorldMapController_Update_Patch
     {
         public static WorldMapController instance;
         public static void GoToLevel(string campaignName, int levelNum, string terrainName)
@@ -750,7 +802,7 @@ namespace Utility_Mod
                 //Main.Log("instance null");
                 return;
             }
-           
+
             WorldTerritory3D territoryObject = null; // = WorldMapController.GetTerritory(campaignName);
 
             WorldTerritory3D[] territories = Traverse.Create(typeof(WorldMapController)).Field("territories3D").GetValue() as WorldTerritory3D[];
@@ -784,9 +836,9 @@ namespace Utility_Mod
             {
                 item.actionType = WorldMapController.QueuedActions.Terrorist;
             }
-			
-			item.territory = territoryObject;
-			(Traverse.Create(instance).Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>).Add(item);
+
+            item.territory = territoryObject;
+            (Traverse.Create(instance).Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>).Add(item);
 
             //Main.mod.Logger.Log(territoryObject.properties.territoryName);
             //Main.mod.Logger.Log("isburning: " + territoryObject.properties.isBurning + " isCity: " + territoryObject.properties.isCity + " isSecret: " +
@@ -809,29 +861,12 @@ namespace Utility_Mod
 
 
         }
-        /*static void Prefix(WorldMapController __instance, ref WorldMapController.QueuedActions actionType, ref WorldTerritory3D territory)
-        {
-            if (!Main.enabled)
-            {
-                return;
-            }
-
-            instance = __instance;
-            return;
-            
-        }*/
-
-    }
-
-    [HarmonyPatch(typeof(WorldMapController), "Update")]
-    static class WorldMapController_Update_Patch
-    {
         static void Prefix(WorldMapController __instance)
         {
             if (!Main.enabled)
                 return;
 
-            WorldMapController_AddAction_Patch.instance = __instance;
+            instance = __instance;
         }
     }
 
