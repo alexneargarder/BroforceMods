@@ -1,0 +1,2 @@
+v2.0.2
+Fixed enemies that cause level end triggers being able to turn into Sandworms.

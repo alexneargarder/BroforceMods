@@ -1280,7 +1280,16 @@ namespace Randomizer_Mod
                         {
                             // Sandworm
                             case 0:
-                                __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[7], vector, Quaternion.identity);
+                                // Make sure we aren't replacing a boneworm or alien brute so we don't prevent a level end trigger
+                                // This is only relevant for Campaign 15 Level 11 and Alien Challenge
+                                if ( (doodad.type == DoodadType.HellEnemy && (doodad.variation == 12 || doodad.variation == 13)) || (doodad.type == DoodadType.Alien && doodad.variation == 2) )
+                                {
+                                    return true;
+                                }
+                                else
+                                {
+                                    __result = UnityEngine.Object.Instantiate<GameObject>(__instance.sharedObjectsReference.Asset.hellEnemies[7], vector, Quaternion.identity);
+                                }
                                 break;
                             // Boneworm
                             case 1:
