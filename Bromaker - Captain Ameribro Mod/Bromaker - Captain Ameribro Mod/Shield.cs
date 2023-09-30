@@ -16,17 +16,12 @@ namespace Captain_Ameribro_Mod
     {
         public AnimatedTexture texture;
 		public float returnTime = 0.25f;
-		//public float holdAtApexDuration = -1f;
 		protected bool hasReachedApex;
-		//protected float holdAtApexTime;
-		public float returnLerpSpeed = 3f;
 		protected float shieldSpeed;
-		//public float rotationSpeed = 2f;
 		public float rotationSpeed = 2.0f;
 		protected float hitUnitsDelay;
 		protected int hitUnitsCount;
 		protected bool dropping;
-		//public BoxCollider shieldCollider;
 		public SphereCollider shieldCollider;
 		public float shieldLoopPitchM = 1f;
 		protected float collectDelayTime = 0.1f;
@@ -64,7 +59,7 @@ namespace Captain_Ameribro_Mod
 		public float seekTurningSpeedLerpM = 50f;
 		public float seekTurningSpeedM = 30f;
 		protected float angle;
-		protected float seekCounter;
+		protected float seekCounter = 0.1f;
 		protected float droppingDuration = 2f;
 		protected float droppingTime;
 		protected bool stopSeeking = false;
@@ -105,12 +100,7 @@ namespace Captain_Ameribro_Mod
 			sprite.plane = SpriteBase.SPRITE_PLANE.XY;
 			sprite.width = 16;
 			sprite.height = 16;
-			//sprite.width = 1;
-			//sprite.height = 1;
 			sprite.offset = new Vector3(0, 0, 0);
-			//sprite.CalcEdges();
-			//sprite.CalcSize();
-			//sprite.offset = new Vector3(0, 0, 0);
 
 			this.storedSprite = sprite;
 
@@ -126,16 +116,6 @@ namespace Captain_Ameribro_Mod
             {
 				BMLogger.Log("exception getting animated texture: " + ex);
             }
-
-			//texture.paused = false;
-
-			/*			SpriteSM boomSprite = boom.GetComponent<SpriteSM>();
-						BMLogger.Log("lowerleft: " + boomSprite.lowerLeftPixel);
-						BMLogger.Log("pixelDimensions: " + boomSprite.pixelDimensions);
-						BMLogger.Log("plane: " + boomSprite.plane);
-						BMLogger.Log("width: " + boomSprite.width);
-						BMLogger.Log("height: " + boomSprite.height);
-						BMLogger.Log("offset: " + boomSprite.offset);*/
 
 			this.ladderLayer = 1 << LayerMask.NameToLayer("Ladders");
 
@@ -237,23 +217,6 @@ namespace Captain_Ameribro_Mod
 			this.startingThrowY = this.throwingPlayer.Y;
 			this.startingThrowVector = this.throwingPlayer.transform.position;
 
-			BMLogger.Log("damage set to: " + this.damage);
-			
-			//this.shieldCollider = BoxCollider.Instantiate(other.shieldCollider);
-			//this.shieldCollider.transform = other.transform;
-			//base.transform.parent = other.transform;
-			//this.soundHolder = SoundHolder.Instantiate(other.soundHolder);
-
-/*			this.texture = this.gameObject.GetComponent<AnimatedTexture>();
-
-			this.texture.frames = 1;
-
-			this.texture.frame = 0;*/
-
-			//base.transform.localScale = new Vector3(-1f, 3f, 3f);
-
-			//shieldCollider.transform.localScale = new Vector3(5, 5, 5);
-
 			base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
 
             this.enabled = true;
@@ -294,15 +257,7 @@ namespace Captain_Ameribro_Mod
 			base.RunProjectile(t); // Calls move projectile
 			this.returnTime -= t;
 			this.collectDelayTime -= t;
-			/*			if (this.holdAtApexTime > 0f)
-						{
-							this.holdAtApexTime -= t;
-							this.CheckReturnShield();
-							if (this.holdAtApexTime <= 0f)
-							{
-								this.ApplyReverseForce(t);
-							}
-						}*/
+
 			if (this.frameCount == 120)
             {
 				this.frameCount = 0;
@@ -313,9 +268,6 @@ namespace Captain_Ameribro_Mod
             {
 				BMLogger.Log("pos: " + this.X + " " + this.Y);
             }
-
-			//this.storedSprite.transform.Rotate(0f, 0f, this.rotationSpeed * t, Space.Self);
-			//this.storedSprite.transform.Rotate(0f, 0f, 10 * t, Space.Self);
 			
 			if (this.returnTime <= 0f)
 			{
@@ -325,13 +277,11 @@ namespace Captain_Ameribro_Mod
                 }
 				if (!this.dropping)
 				{
-					//if ( !this.hasReachedApex)
 					if ( !this.hasReachedApex && this.speed < (0.5 * this.originalSpeed) ) // Shield has slowed down enough to be considered at Apex
                     {
 						BMLogger.Log("--------------REACHED APEX, STARTING REVERSE----------------");	
 
 						this.hasReachedApex = true;
-						//this.holdAtApexTime = this.holdAtApexDuration;
 						this.droppingTime = this.droppingDuration;
 
 						this.seekTurningSpeedLerpM = 30f;
@@ -370,15 +320,6 @@ namespace Captain_Ameribro_Mod
                     {
 						this.StartDropping();
                     }
-/*					float f = this.xStart - base.X;
-					if (Mathf.Sign(this.shieldSpeed) == Mathf.Sign(f))
-					{
-						this.dropping = true;
-						this.collectDelayTime = 0f;
-						base.GetComponent<AudioSource>().Stop();
-						this.xI *= 0.66f;
-						this.shieldCollider.enabled = false;
-					}*/
 				}
 			}
 			if (!this.dropping)
@@ -479,7 +420,6 @@ namespace Captain_Ameribro_Mod
 			// We check the terrain around the player in case the shield entered an area with no ground above or below
 			if ( Physics.Raycast(playerPos, Vector3.down, out this.raycastHit, 100f, this.groundLayer) )
 			{
-
 				distanceBelow = Vector3.Distance(playerPos, this.raycastHit.point);
 				BMLogger.Log("distance to ground for player: " + distanceBelow);
 				below = below || distanceBelow < 50;
@@ -542,15 +482,30 @@ namespace Captain_Ameribro_Mod
             }
 			else if ( above ) // Blocks above return shield down
             {
-				BMLogger.Log("returning down");
-				if (this.xI > 0) // Right
+				Vector3 currentPlayerPos = this.throwingPlayer.transform.position;
+				currentPlayerPos.y += this.throwingPlayer.height + 2;
+				Vector3 direction = currentPlayerPos - this.transform.position;
+
+				// Check if anything is in the way between area below shield and player
+				if (Physics.Raycast(this.transform.position - new Vector3(0, 30, 0), direction, out this.raycastHit, Vector3.Distance(this.transform.position, currentPlayerPos), this.groundLayer))
 				{
-					this.angle += (Mathf.PI / 4);
+					BMLogger.Log("ground found above player and shield");
+					BMLogger.Log("returning direct");
+					this.angle = this.targetAngle;
 				}
-				else if (this.xI < 0) // Left
-				{
-					this.angle -= (Mathf.PI / 4);
+				else
+                {
+					BMLogger.Log("returning down");
+					if (this.xI > 0) // Right
+					{
+						this.angle += (Mathf.PI / 4);
+					}
+					else if (this.xI < 0) // Left
+					{
+						this.angle -= (Mathf.PI / 4);
+					}
 				}
+				
 			}
 		}
 
@@ -602,7 +557,6 @@ namespace Captain_Ameribro_Mod
 					Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
 					this.xI = vector.x;
 					this.yI = vector.y;
-					//this.SetRotation();
 				}
 
 				base.MoveProjectile();
@@ -642,6 +596,8 @@ namespace Captain_Ameribro_Mod
 		{
 			if (!this.foundMook)
 			{
+				this.seekRange = this.returnTime * Mathf.Abs(this.speed);
+				BMLogger.Log("calculated range: " + this.seekRange);
 				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
 				// Check that we found a unit, it hasn't already been hit, and it is in the direction the shield is traveling.
 				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy && !this.alreadyHit.Contains(nearestVisibleUnitDamagebleBy) && (Mathf.Sign(nearestVisibleUnitDamagebleBy.X - this.X) == Mathf.Sign(this.xI)) )
@@ -652,7 +608,6 @@ namespace Captain_Ameribro_Mod
 					Traverse trav = Traverse.Create((nearestVisibleUnitDamagebleBy as Mook));
 					SpriteSM unitSprite = trav.Field("sprite").GetValue() as SpriteSM;
 					unitSprite.SetColor(new Color(0, 255, 0, 1f));
-					BMLogger.Log("found mook");
 				}
 				else
 				{
@@ -663,12 +618,6 @@ namespace Captain_Ameribro_Mod
 			float y = this.targetX - base.X;
 			float x = this.targetY - base.Y;
 			this.targetAngle = global::Math.GetAngle(x, y);
-		}
-
-		private void ApplyReverseForce(float t)
-		{
-			this.xI -= this.shieldSpeed * t * this.returnLerpSpeed;
-			this.xI = Mathf.Clamp(this.xI, -Mathf.Abs(this.shieldSpeed), Mathf.Abs(this.shieldSpeed));
 		}
 
 		protected override void HitProjectiles()
@@ -708,9 +657,7 @@ namespace Captain_Ameribro_Mod
 					}
 					else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
 					{
-						/*this.xI = 0f;
-						this.hasReachedApex = true;
-						this.holdAtApexTime = this.holdAtApexDuration;*/
+						
 					}
 					this.PlayBounceSound();
 				}
@@ -731,9 +678,7 @@ namespace Captain_Ameribro_Mod
 				}
 				else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
 				{
-					/*this.xI = 0f;
-					this.hasReachedApex = true;
-					this.holdAtApexTime = this.holdAtApexDuration;*/
+					
 				}
 				this.PlayBounceSound();
 			}
@@ -866,21 +811,12 @@ namespace Captain_Ameribro_Mod
 			}
 			else if (!this.dropping)
 			{
-				/*if (this.hasReachedApex && this.holdAtApexTime > 0f && MapController.DamageGround(this, 1, DamageType.Normal, 6f, base.X, base.Y, null, false))
-				{
-					EffectsController.CreateSparkParticles(base.X, base.Y, 1f, 3, 2f, 10f, 0f, 0f, UnityEngine.Random.value, 1f);
-					this.holdAtApexTime = Mathf.Clamp(this.holdAtApexTime -= this.t * 3f, this.t, this.holdAtApexTime);
-				}*/
 				if (this.reversing || this.hasReachedApex)
 				{
 					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, this.xI, this.yI, true, false, true, false))
 					{	
 						this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 						this.hitUnitsDelay = 0.0667f;
-						/*if (this.returnTime > 0f)
-						{
-							this.returnTime = 0f;
-						}*/
 						
 						this.hitUnitsCount++;
 					}
@@ -889,15 +825,10 @@ namespace Captain_Ameribro_Mod
 				{
 					this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 					this.hitUnitsDelay = 0.0667f;
-					/*if (this.returnTime > 0f)
-					{
-						this.returnTime = 0f;
-					}*/
 					this.hitUnitsCount++;
 
 					if ( !this.hasReachedApex )
                     {
-						BMLogger.Log("restting angle to original angle");
 						this.foundMook = false;
 
 						this.angle = this.originalAngle;
@@ -920,12 +851,12 @@ namespace Captain_Ameribro_Mod
 					Shield.TryReturnRPC(this);
 					if (base.IsMine)
 					{
-						PID targetOthers = PID.TargetOthers;
+						/*PID targetOthers = PID.TargetOthers;
 						bool immediate = false;
 						bool ignoreSessionID = false;
 						bool addExecutionDelay = true;
-/*						if (Boomerang.<> f__mg$cache0 == null)
-					{
+						if (Boomerang.<> f__mg$cache0 == null)
+						{
 							Boomerang.<> f__mg$cache0 = new RpcSignature<Boomerang>(Boomerang.TryReturnRPC);
 						}
 						Networking.RPC<Boomerang>(targetOthers, immediate, ignoreSessionID, addExecutionDelay, Boomerang.<> f__mg$cache0, this);*/

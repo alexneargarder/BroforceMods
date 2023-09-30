@@ -27,6 +27,8 @@ namespace Captain_Ameribro_Mod
 		protected float specialAttackDashCounter;
 		protected float airdashFadeCounter;
 		public float airdashFadeRate = 0.1f;
+		protected const int normalAttackDamage = 5;
+		protected const int meleeAttackDamage = 7;
 
 		protected bool isHoldingSpecial = false;
 		protected float maxSpecialCharge = 1f;
@@ -40,22 +42,11 @@ namespace Captain_Ameribro_Mod
 			shield.enabled = false;
 			shield.shieldCollider = shield.gameObject.GetComponent<SphereCollider>();
 
-			//BMLogger.Log("default radius: " + shield.shieldCollider.radius);
-			//shield.shieldCollider.radius = 10;
-			//BMLogger.Log("shield collider center: " + shield.shieldCollider.center);
-			//BMLogger.Log("shield collider size: " + shield.shieldCollider.size );
-
 			Boomerang boom = (HeroController.GetHeroPrefab(HeroType.BroMax) as BroMax).boomerang as Boomerang;
-			//boom = UnityEngine.Object.Instantiate(boom, Vector3.zero, Quaternion.identity);
-			//boom = Boomerang.Instantiate(boom);
-			//shield = boom.gameObject.AddComponent<Shield>();
 			shield.AssignNullValues(boom);
-			//UnityEngine.Object.DestroyImmediate(boom.gameObject.GetComponent<Boomerang>());
-			//BMLogger.Log("collider null? " + (shield.shieldCollider == null));
-			//shield.transform.position = this.transform.position;
 
-			//boom.
-			BMLogger.Log("created shield");
+			this.currentMeleeType = BroBase.MeleeType.Disembowel;
+
 			base.Awake();
         }
 
@@ -69,13 +60,13 @@ namespace Captain_Ameribro_Mod
 			materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
 		}
 
-        protected override void Update()
-        {
+		protected override void Update()
+		{
 			base.Update();
-			if ( isHoldingSpecial )
-            {
+			if (isHoldingSpecial)
+			{
 				currentSpecialCharge += this.t;
-            }
+			}
 
 			if (this.frameCount == 120)
 			{
@@ -83,18 +74,7 @@ namespace Captain_Ameribro_Mod
 			}
 			++this.frameCount;
 
-/*			if ( frameCount == 30 )
-            {
-				BMLogger.Log("screenmin: " + screenMinY + " " + screenMaxY);
-            }*/
-			//this.yI = 0;
-			//this.xI = 0;
 		}
-
-/*        protected override void ApplyFallingGravity()
-        {
-            //base.ApplyFallingGravity();
-        }*/
 
         protected override void UseSpecial()
         {
@@ -124,6 +104,18 @@ namespace Captain_Ameribro_Mod
             {
 				base.UseSpecial();
             }
+		}
+
+		public void ReturnShield(Shield shield)
+		{
+			this.SpecialAmmo++;
+			if (!this.usingSpecial)
+			{
+				this.usingSpecial = true;
+				this.grabbingFrame = 4;
+				this.grabbingShield = true;
+				this.ChangeFrame();
+			}
 		}
 
 		protected override void PressSpecial()
@@ -234,7 +226,13 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
+        protected override void UseFire()
+        {
+            base.UseFire();
+			this.fireDelay = 0.15f;
+        }
+
+        protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
 		{
 			if (this.attachedToZipline != null)
 			{
@@ -259,9 +257,9 @@ namespace Captain_Ameribro_Mod
 			if (Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 5.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer("FLUI")) || Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 10.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer("FLUI")))
 			{
 				this.MakeEffects(this.raycastHit.point.x + base.transform.localScale.x * 4f, this.raycastHit.point.y);
-				MapController.Damage_Local(this, this.raycastHit.collider.gameObject, 9, DamageType.Bullet, this.xI + base.transform.localScale.x * 200f, 0f, x, y);
+				MapController.Damage_Local(this, this.raycastHit.collider.gameObject, normalAttackDamage + 1, DamageType.Bullet, this.xI + base.transform.localScale.x * 200f, 0f, x, y);
 				this.hasHitWithWall = true;
-				if (Map.HitUnits(this, base.playerNum, 5, DamageType.Melee, 6f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, this.alreadyHit, false, false))
+				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, 6f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, this.alreadyHit, false, false))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -274,7 +272,7 @@ namespace Captain_Ameribro_Mod
 			else
 			{
 				this.hasHitWithWall = false;
-				if (Map.HitUnits(this, this, base.playerNum, 5, DamageType.Melee, 12f, 9f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, true))
+				if (Map.HitUnits(this, this, base.playerNum, normalAttackDamage, DamageType.Melee, 12f, 9f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, true))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -436,16 +434,147 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		public void ReturnShield(Shield shield)
-		{
-			this.SpecialAmmo++;
-			if (!this.usingSpecial)
+		protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        {
+			bool flag;
+			Map.DamageDoodads(meleeAttackDamage - 2, DamageType.Knock, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+			this.KickDoors(24f);
+			if (Map.HitClosestUnit(this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 200f, 500f, true, false, base.IsMine, false, true))
 			{
-				this.usingSpecial = true;
-				this.grabbingFrame = 4;
-				this.grabbingShield = true;
-				this.ChangeFrame();
+				this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+				this.meleeHasHit = true;
+			}
+			else if (playMissSound)
+			{
+				this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+			}
+			this.meleeChosenUnit = null;
+			if (shouldTryHitTerrain && this.TryMeleeTerrain(0, meleeAttackDamage - 2))
+			{
+				this.meleeHasHit = true;
+			}
+			this.TriggerBroMeleeEvent();
+		}
+
+        protected override void StartCustomMelee()
+        {
+			if (this.CanStartNewMelee())
+			{
+				base.frame = 1;
+				base.counter = -0.05f;
+				this.AnimateMelee();
+			}
+			else if (this.CanStartMeleeFollowUp())
+			{
+				this.meleeFollowUp = true;
+			}
+			if (!this.jumpingMelee)
+			{
+				this.dashingMelee = true;
+				this.xI = (float)base.Direction * this.speed;
+			}
+			this.StartMeleeCommon();
+		}
+
+        protected override void AnimateCustomMelee()
+        {
+			this.AnimateMeleeCommon();
+			int num = 25 + Mathf.Clamp(base.frame, 0, 6);
+			int num2 = 1;
+			if (!this.standingMelee)
+			{
+				if (this.jumpingMelee)
+				{
+					num = 17 + Mathf.Clamp(base.frame, 0, 6);
+					num2 = 6;
+				}
+				else if (this.dashingMelee)
+				{
+					num = 17 + Mathf.Clamp(base.frame, 0, 6);
+					num2 = 6;
+					if (base.frame == 4)
+					{
+						base.counter -= 0.0334f;
+					}
+					else if (base.frame == 5)
+					{
+						base.counter -= 0.0334f;
+					}
+				}
+			}
+			this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+			if (base.frame == 3)
+			{
+				base.counter -= 0.066f;
+				this.MeleeAttack(true, true);
+			}
+			else if (base.frame > 3 && !this.meleeHasHit)
+			{
+				this.MeleeAttack(false, false);
+			}
+			if (base.frame >= 6)
+			{
+				base.frame = 0;
+				this.CancelMelee();
 			}
 		}
-	}
+
+        protected override void RunCustomMeleeMovement()
+        {
+			if (!this.useNewKnifingFrames)
+			{
+				if (base.Y > this.groundHeight + 1f)
+				{
+					this.ApplyFallingGravity();
+				}
+			}
+			else if (this.jumpingMelee)
+			{
+				this.ApplyFallingGravity();
+				if (this.yI < this.maxFallSpeed)
+				{
+					this.yI = this.maxFallSpeed;
+				}
+			}
+			else if (this.dashingMelee)
+			{
+				if (base.frame <= 1)
+				{
+					this.xI = 0f;
+					this.yI = 0f;
+				}
+				else if (base.frame <= 3)
+				{
+					if (this.meleeChosenUnit == null)
+					{
+						if (!this.isInQuicksand)
+						{
+							this.xI = this.speed * 1f * base.transform.localScale.x;
+						}
+						this.yI = 0f;
+					}
+					else if (!this.isInQuicksand)
+					{
+						this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
+					}
+				}
+				else if (base.frame <= 5)
+				{
+					if (!this.isInQuicksand)
+					{
+						this.xI = this.speed * 0.3f * base.transform.localScale.x;
+					}
+					this.ApplyFallingGravity();
+				}
+				else
+				{
+					this.ApplyFallingGravity();
+				}
+			}
+			else if (base.Y > this.groundHeight + 1f)
+			{
+				this.CancelMelee();
+			}
+		}
+    }
 }
