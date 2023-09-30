@@ -17,8 +17,10 @@ namespace Captain_Ameribro_Mod
 		//public float shieldSpeed = 500f;
 		public float shieldSpeed = 450f;
 
+		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
+		public Material gunMaterialNormal, gunMaterialNoShield;
+
 		public float specialAttackDashTime = 0f;
-		public Material materialNormal, materialArmless;
 		public float sliceVolume = 0.7f;
 		public float wallHitVolume = 0.6f;
 		protected int punchingIndex = 0;
@@ -55,9 +57,19 @@ namespace Captain_Ameribro_Mod
             base.Start();
 			
 			materialNormal = this.material;
+			materialNormalShield = materialNormal;
+
+			materialNormalNoShield = new Material(this.material);
+			materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroMainNoShield.png");
+
 			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
 			//materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.neobro_armless_anim.png"));
 			materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
+
+			gunMaterialNormal = this.gunMaterial;
+
+			gunMaterialNoShield = new Material(gunMaterial);
+			gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
 		}
 
 		protected override void Update()
@@ -86,6 +98,10 @@ namespace Captain_Ameribro_Mod
 					this.currentSpecialCharge = this.maxSpecialCharge;
                 }
 
+				this.materialNormal = this.materialNormalNoShield;
+				base.GetComponent<Renderer>().material = this.materialNormalNoShield;
+				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
+
 				//ProjectileController.SpawnProjectileOverNetwork(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * this.shieldSpeed, 0f, false, base.playerNum, false, false, 0f);
 				float chargedShieldSpeed = this.shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
@@ -109,6 +125,9 @@ namespace Captain_Ameribro_Mod
 		public void ReturnShield(Shield shield)
 		{
 			this.SpecialAmmo++;
+			this.materialNormal = this.materialNormalShield;
+			base.GetComponent<Renderer>().material = this.materialNormalShield;
+			this.gunSprite.meshRender.material = this.gunMaterialNormal;
 			if (!this.usingSpecial)
 			{
 				this.usingSpecial = true;
@@ -228,8 +247,11 @@ namespace Captain_Ameribro_Mod
 
         protected override void UseFire()
         {
-            base.UseFire();
-			this.fireDelay = 0.15f;
+			if ( !this.isHoldingSpecial)
+            {
+				base.UseFire();
+				this.fireDelay = 0.15f;
+			}
         }
 
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
