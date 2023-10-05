@@ -36,6 +36,8 @@
  * 
  * Added new muscle temples to level select
  * 
+ * Infinite special option fixed for double bro seven
+ * 
 **/
 
 using System;
@@ -1103,7 +1105,17 @@ namespace Utility_Mod
                 return;
             }
 
-            ammo = int.MaxValue;
+            if ( ammo == 0 )
+            {
+                if ( __instance.originalSpecialAmmo > 0 )
+                {
+                    ammo = __instance.originalSpecialAmmo;
+                }
+                else
+                {
+                    ammo = int.MaxValue;
+                }
+            }
         }
     }
 
