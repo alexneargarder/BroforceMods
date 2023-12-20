@@ -60,16 +60,37 @@ namespace Captain_Ameribro_Mod
 			materialNormalShield = materialNormal;
 
 			materialNormalNoShield = new Material(this.material);
-			materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroMainNoShield.png");
+
+			if ( !Main.DEBUGTEXTURES )
+            {
+				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroMainNoShield.png"));
+			}
+			else
+            {
+				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroMainNoShield.png");
+			}
 
 			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
-			//materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.neobro_armless_anim.png"));
-			materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
+            if (!Main.DEBUGTEXTURES)
+            {
+				materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroArmless.png"));
+			}
+			else
+            {
+				materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
+			}
 
 			gunMaterialNormal = this.gunMaterial;
 
 			gunMaterialNoShield = new Material(gunMaterial);
-			gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
+			if ( !Main.DEBUGTEXTURES )
+            {
+				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroGunNoShield.png"));
+			}
+			else
+            {
+				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
+			}
 		}
 
 		protected override void Update()

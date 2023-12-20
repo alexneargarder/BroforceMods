@@ -86,9 +86,14 @@ namespace Captain_Ameribro_Mod
 			if ( storedMat == null )
             {
 				storedMat = new Material(boom.GetComponent<MeshRenderer>().material);
-				storedMat.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroShield.png");
-				//storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShieldPlaceholder.png"));
-				//BMLogger.Log("current dir: " + Directory.GetCurrentDirectory());
+				if ( !Main.DEBUGTEXTURES )
+                {
+					storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShieldPlaceholder.png"));
+				}
+				else
+                {
+					storedMat.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroShield.png");
+				}
 			}
 
 			renderer.material = storedMat;

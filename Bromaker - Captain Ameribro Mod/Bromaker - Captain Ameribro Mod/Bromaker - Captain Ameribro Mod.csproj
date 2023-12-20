@@ -90,6 +90,15 @@
       <HintPath>..\..\libs\Core Libs\UnityModManager.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Sprites\captainAmeribroAvatar.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroCutscene.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroGun.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroGunNoShield.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroMain.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroMainNoShield.png" />
+    <EmbeddedResource Include="Sprites\captainAmeribroSpecial.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - BroMaker\Storage\Bros\Captain Ameribro\*.cache"</PostBuildEvent>
