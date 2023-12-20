@@ -213,9 +213,6 @@ namespace Utility_Mod
             headerStyle.normal.textColor = new Color(0.639216f, 0.909804f, 1f);
 
 
-            
-           // GUILayout.Label("Level Controls", headerStyle);
-
             if ( GUILayout.Button("Level Controls", headerStyle) )
             {
                 settings.showLevelOptions = !settings.showLevelOptions;
@@ -388,6 +385,31 @@ namespace Utility_Mod
                     GUILayout.Space(20);
                 }
                 GUILayout.EndHorizontal();
+
+                GUILayout.Space(25);
+
+                GUILayout.BeginHorizontal(GUILayout.Width(400));
+
+                GUILayout.Label("Time Slow Factor: " + settings.timeSlowFactor);
+
+                if (settings.timeSlowFactor != (settings.timeSlowFactor = GUILayout.HorizontalSlider(settings.timeSlowFactor, 0, 5, GUILayout.Width(200))))
+                {
+                    Main.StartTimeSlow();
+                }
+
+                GUILayout.EndHorizontal();
+
+                if (settings.slowTime != (settings.slowTime = GUILayout.Toggle(settings.slowTime, "Slow Time")))
+                {
+                    if (settings.slowTime)
+                    {
+                        StartTimeSlow();
+                    }
+                    else
+                    {
+                        StopTimeSlow();
+                    }
+                }
 
                 GUILayout.Space(25);
 
@@ -670,6 +692,19 @@ namespace Utility_Mod
                 case "Alien Challenge": territory.SetState(TerritoryState.TerroristBase); break;
             }
 
+        }
+
+        public static void StartTimeSlow()
+        {
+            HeroController.TimeBroBoost(float.MaxValue);
+            Time.timeScale = settings.timeSlowFactor;
+            HeroController.TimeBroBoostHeroes(float.MaxValue);
+        }
+
+        public static void StopTimeSlow()
+        {
+            HeroController.CancelTimeBroBoost();
+            HeroController.TimeBroBoostHeroes(0);
         }
 
         public static void Log(String str)
@@ -1148,6 +1183,20 @@ namespace Utility_Mod
         }
     }
 
+    [HarmonyPatch(typeof(Player), "SpawnHero")]
+    static class Player_InstantiateHero_Patch
+    {
+        public static void Postfix()
+        {
+            if (!Main.enabled || !Main.settings.slowTime)
+            {
+                return;
+            }
+
+            Main.StartTimeSlow();
+        }
+    }
+
     public class Settings : UnityModManager.ModSettings
     {
         public bool cameraShake = false;
@@ -1166,6 +1215,8 @@ namespace Utility_Mod
         public bool quickLoadScene = false;
         public bool quickMainMenu = false;
         public bool oneHitEnemies = false;
+        public bool slowTime = false;
+        public float timeSlowFactor = 0.35f;
 
         public float[] waypointsX = new float[] { 0f, 0f, 0f, 0f, 0f };
         public float[] waypointsY = new float[] { 0f, 0f, 0f, 0f, 0f };
@@ -1260,17 +1311,4 @@ namespace Utility_Mod
 
         }
     }
-
-
-
-
-       
-
-    
-
- 
-
-
-
-
 }
