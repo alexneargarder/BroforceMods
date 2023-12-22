@@ -61,6 +61,7 @@ namespace Captain_Ameribro_Mod
 			shield.AssignNullValues(boom);
 
 			this.currentMeleeType = BroBase.MeleeType.Disembowel;
+			this.meleeType = BroBase.MeleeType.Disembowel;
 
 			base.Awake();
         }
@@ -100,7 +101,7 @@ namespace Captain_Ameribro_Mod
 		protected override void Start()
         {
             base.Start();
-			
+
 			materialNormal = this.material;
 			materialNormalShield = materialNormal;
 
@@ -351,7 +352,7 @@ namespace Captain_Ameribro_Mod
 				this.MakeEffects(this.raycastHit.point.x + base.transform.localScale.x * 4f, this.raycastHit.point.y);
 				MapController.Damage_Local(this, this.raycastHit.collider.gameObject, normalAttackDamage + 1, DamageType.Bullet, this.xI + base.transform.localScale.x * 200f, 0f, x, y);
 				this.hasHitWithWall = true;
-				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, 6f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, this.alreadyHit, false, false))
+				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, 6f, x, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -364,7 +365,7 @@ namespace Captain_Ameribro_Mod
 			else
 			{
 				this.hasHitWithWall = false;
-				if (Map.HitUnits(this, this, base.playerNum, normalAttackDamage, DamageType.Melee, 12f, 9f, x, y, base.transform.localScale.x * 520f, 460f, false, true, false, true))
+				if (Map.HitUnits(this, this, base.playerNum, normalAttackDamage, DamageType.Melee, 12f, 9f, x, y, base.transform.localScale.x * 250f, 100f, false, true, false, true))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -493,7 +494,7 @@ namespace Captain_Ameribro_Mod
 			if (this.specialAttackDashCounter > 0f)
 			{
 				this.specialAttackDashCounter -= 0.0333f;
-				Map.HitUnits(this, this, base.playerNum, 1, DamageType.Crush, 9f, base.X, base.Y, this.xI * 0.3f, 500f + UnityEngine.Random.value * 200f, true, true);
+				Map.HitUnits(this, this, base.playerNum, 1, DamageType.Crush, 9f, base.X, base.Y, base.transform.localScale.x * (100 + UnityEngine.Random.value * 50f), 100, true, true);
 			}
 			if (this.airDashDelay <= 0f)
 			{
@@ -513,7 +514,7 @@ namespace Captain_Ameribro_Mod
 			if (this.specialAttackDashCounter > 0f)
 			{
 				this.specialAttackDashCounter -= 0.0333f;
-				Map.HitUnits(this, this, base.playerNum, 1, DamageType.Crush, 9f, base.X, base.Y, this.xI * 0.3f, 500f + UnityEngine.Random.value * 200f, true, true);
+				Map.HitUnits(this, this, base.playerNum, 1, DamageType.Crush, 9f, base.X, base.Y, base.transform.localScale.x * (100 + UnityEngine.Random.value * 50f), 100, true, true);
 			}
 			if (this.airDashDelay <= 0f)
 			{
@@ -531,7 +532,7 @@ namespace Captain_Ameribro_Mod
 			bool flag;
 			Map.DamageDoodads(meleeAttackDamage - 2, DamageType.Knock, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
 			this.KickDoors(24f);
-			if (Map.HitClosestUnit(this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 200f, 500f, true, false, base.IsMine, false, true))
+			if (Map.HitClosestUnit(this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 300f, 600f, true, false, base.IsMine, false, true))
 			{
 				this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f);
 				this.meleeHasHit = true;
@@ -568,6 +569,7 @@ namespace Captain_Ameribro_Mod
 			this.StartMeleeCommon();
 		}
 
+		// Calls MeleeAttack
         protected override void AnimateCustomMelee()
         {
 			this.AnimateMeleeCommon();
