@@ -14,8 +14,9 @@ namespace Captain_Ameribro_Mod
     class CaptainAmeribro : SwordHero
     {
 		protected Shield shield;
+		protected Shield thrownShield;
 		//public float shieldSpeed = 500f;
-		public float shieldSpeed = 450f;
+		public float shieldSpeed = 400f;
 
 		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
 		public Material gunMaterialNormal, gunMaterialNoShield;
@@ -38,6 +39,18 @@ namespace Captain_Ameribro_Mod
 
 		public int frameCount = 0;
 
+		public static string lerptest = "3";
+		public static string turntest = "20";
+		public static string seekRadius = "50";
+		public static string knockX = "0";
+		public static string knockY = "0";
+
+		public static float lerpspeed = 3;
+		public static float turnspeed = 20;
+		public static float seekRadiusFloat = 50;
+		public static float knockXVal = 0;
+		public static float knockYVal = 0;
+
 		protected override void Awake()
         {
 			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) } ).GetComponent<Shield>();
@@ -52,7 +65,39 @@ namespace Captain_Ameribro_Mod
 			base.Awake();
         }
 
-        protected override void Start()
+		public void makeTextBox(string label, ref string text, ref float val)
+        {
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(label);
+			text = GUILayout.TextField(text);
+			GUILayout.EndHorizontal();
+
+			float.TryParse(text, out val);
+        }
+
+		public override void UIOptions()
+		{
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Lerp Speed: ");
+			lerptest = GUILayout.TextField(lerptest);
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Turn Speed: ");
+			turntest = GUILayout.TextField(turntest);
+			GUILayout.EndHorizontal();
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Seek radius: ");
+			seekRadius = GUILayout.TextField(seekRadius);
+			GUILayout.EndHorizontal();
+			makeTextBox("knockX", ref knockX, ref knockXVal);
+			makeTextBox("knockY", ref knockY, ref knockYVal);
+
+			float.TryParse(lerptest, out lerpspeed);
+			float.TryParse(turntest, out turnspeed);
+			float.TryParse(seekRadius, out seekRadiusFloat);
+		}
+
+		protected override void Start()
         {
             base.Start();
 			
@@ -107,6 +152,10 @@ namespace Captain_Ameribro_Mod
 			}
 			++this.frameCount;
 
+			if ( base.actionState == ActionState.Dead && thrownShield != null && !thrownShield.dropping )
+            {
+				thrownShield.StartDropping();
+            }
 		}
 
         protected override void UseSpecial()
@@ -128,10 +177,10 @@ namespace Captain_Ameribro_Mod
 
 				BMLogger.Log("shield charge: " + this.currentSpecialCharge);
 
-				Shield newShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
+				thrownShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
 
 				//newShield.shieldCharge = this.currentSpecialCharge;
-				newShield.Setup(this.shield, this);
+				thrownShield.Setup(this.shield, this);
 
 				this.currentSpecialCharge = 0;
 

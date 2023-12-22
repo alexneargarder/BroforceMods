@@ -20,7 +20,7 @@ namespace Captain_Ameribro_Mod
 		public float rotationSpeed = 2.0f;
 		protected float hitUnitsDelay;
 		protected int hitUnitsCount;
-		//protected bool dropping;
+		public bool dropping = false;
 		public SphereCollider shieldCollider;
 		public float shieldLoopPitchM = 1f;
 		protected float collectDelayTime = 0.1f;
@@ -40,23 +40,25 @@ namespace Captain_Ameribro_Mod
 
 		// Charging Variables
 		public float shieldCharge = 0f;
-		protected const float ChargeReturnScalar = 0.5f;
+		protected const float ChargeReturnScalar = 0.25f;
 		//protected const float ChargeDroppingScalar = 0.5f;
 		public const float ChargeSpeedScalar = 100f;
-		protected const int BaseDamage = 8;
+		protected const int BaseDamage = 3;
+		protected float knockbackXI = 150;
+		protected float knockbackYI = 300;
 
 		// Homing Variables
 		protected float targetAngle;
 		protected float targetX;
 		protected float targetY;
 		protected float originalAngle;
-		public float seekRange = 200f;
+		public float seekRange = 150f;
 		protected bool foundMook = false;
 		protected float originalSpeed;
 		protected float seekSpeedCurrent;
 		protected float speed;
-		public float seekTurningSpeedLerpM = 50f;
-		public float seekTurningSpeedM = 30f;
+		public float seekTurningSpeedLerpM = 1f;
+		public float seekTurningSpeedM = 3f;
 		protected float angle;
 		protected float seekCounter = 0.1f;
 		//protected float droppingDuration = 2f;
@@ -128,7 +130,6 @@ namespace Captain_Ameribro_Mod
 
         public override void Fire(float x, float y, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
         {
-            
             this.shieldSpeed = xI;
             if (xI > 0f)
             {
@@ -208,6 +209,11 @@ namespace Captain_Ameribro_Mod
         {
 			this.throwingPlayer = player;
 
+			// TEMPORARY DEBUG
+			this.seekTurningSpeedLerpM = CaptainAmeribro.lerpspeed;
+			this.seekTurningSpeedM = CaptainAmeribro.turnspeed;
+			this.seekSpeedCurrent = this.seekTurningSpeedM / 10;
+
 			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
 
 			this.damageType = DamageType.Knock;
@@ -216,6 +222,9 @@ namespace Captain_Ameribro_Mod
 
 			this.damageInternal = this.damage;
 			this.fullDamage = this.damage;
+
+			this.knockbackXI = this.knockbackXI + (this.knockbackXI * this.throwingPlayer.currentSpecialCharge);
+			this.knockbackYI = this.knockbackYI + (this.knockbackYI * this.throwingPlayer.currentSpecialCharge);
 
 			this.startingThrowX = this.throwingPlayer.X;
 			this.startingThrowY = this.throwingPlayer.Y;
@@ -273,7 +282,7 @@ namespace Captain_Ameribro_Mod
 				BMLogger.Log("pos: " + this.X + " " + this.Y);
             }
 			
-			if (this.returnTime <= 0f)
+			if (this.returnTime <= 0f && !this.dropping)
 			{
 				if ( this.Y < -50 )
                 {
@@ -286,8 +295,12 @@ namespace Captain_Ameribro_Mod
 					this.hasReachedApex = true;
 					//this.droppingTime = this.droppingDuration;
 
-					this.seekTurningSpeedLerpM = 30f;
-					this.seekTurningSpeedM = 10f;
+					this.seekTurningSpeedLerpM = 3f;
+					this.seekTurningSpeedM = 20f;
+					//this.seekSpeedCurrent = 10f;
+					//this.seekTurningSpeedLerpM = CaptainAmeribro.lerpspeed;
+					//this.seekTurningSpeedM = CaptainAmeribro.turnspeed;
+					this.seekSpeedCurrent = this.seekTurningSpeedM / 10;
 
 					this.BeginReturnSeek();
 
@@ -318,20 +331,27 @@ namespace Captain_Ameribro_Mod
 					}
 				}
 			}
-			float num = 140f + Mathf.Abs(this.xI) * 0.5f;
-			if (this.speed != 0f && Time.timeScale > 0f)
+			if (!this.dropping)
 			{
-				float pitch = Mathf.Clamp(num / Mathf.Abs(this.speed) * 1.2f * this.shieldLoopPitchM, 0.5f * this.shieldLoopPitchM, 1f * this.shieldLoopPitchM) * Time.timeScale;
-				base.GetComponent<AudioSource>().pitch = pitch;
-			}
-			base.transform.Rotate(0f, 0f, num * this.rotationSpeed * t, Space.Self);
+				float num = 140f + Mathf.Abs(this.xI) * 0.5f;
+				if (this.speed != 0f && Time.timeScale > 0f)
+				{
+					float pitch = Mathf.Clamp(num / Mathf.Abs(this.speed) * 1.2f * this.shieldLoopPitchM, 0.5f * this.shieldLoopPitchM, 1f * this.shieldLoopPitchM) * Time.timeScale;
+					base.GetComponent<AudioSource>().pitch = pitch;
+				}
+				base.transform.Rotate(0f, 0f, num * this.rotationSpeed * t, Space.Self);
 
-			this.windCounter += t;
-			if (this.windCounter > 0.0667f)
+				this.windCounter += t;
+				if (this.windCounter > 0.0667f)
+				{
+					this.windCount++;
+					this.windCounter -= 0.0667f;
+					EffectsController.CreateBoomerangWindEffect(base.X, base.Y, 5f, 0f, 0f, base.transform, 0f, (float)(this.windCount * 27) * this.rotationSpeed);
+				}
+			}
+			else
 			{
-				this.windCount++;
-				this.windCounter -= 0.0667f;
-				EffectsController.CreateBoomerangWindEffect(base.X, base.Y, 5f, 0f, 0f, base.transform, 0f, (float)(this.windCount * 27) * this.rotationSpeed);
+				base.transform.Rotate(0f, 0f, this.rotationSpeed * t, Space.Self);
 			}
 			if (Mathf.Sign(this.lastXI) != Mathf.Sign(this.xI) )
 			{
@@ -523,6 +543,10 @@ namespace Captain_Ameribro_Mod
 
 				base.MoveProjectile();
 				this.shieldCollider.transform.position = base.transform.position;
+				if (this.dropping)
+                {
+					ApplyGravity();
+                }
 			}
 		}
 
@@ -554,8 +578,9 @@ namespace Captain_Ameribro_Mod
 		{
 			if (!this.foundMook)
 			{
-				this.seekRange = this.returnTime * Mathf.Abs(this.speed);
-				BMLogger.Log("calculated range: " + this.seekRange);
+				this.seekRange = CaptainAmeribro.seekRadiusFloat;
+				//this.seekRange = this.returnTime * Mathf.Abs(this.speed);
+				//BMLogger.Log("calculated range: " + this.seekRange);
 				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
 				// Check that we found a unit, it hasn't already been hit, and it is in the direction the shield is traveling.
 				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy && !this.alreadyHit.Contains(nearestVisibleUnitDamagebleBy) && (Mathf.Sign(nearestVisibleUnitDamagebleBy.X - this.X) == Mathf.Sign(this.xI)) )
@@ -646,7 +671,45 @@ namespace Captain_Ameribro_Mod
 					this.PlayBounceSound();
 				}
 			}
-            return true;
+			if (this.dropping)
+			{
+				if (this.yI < 0f)
+				{
+					if (Physics.Raycast(new Vector3(base.X, base.Y + 6f, 0f), Vector3.down, out this.raycastHit, 6f + this.heightOffGround - this.yI * this.t, this.groundLayer))
+					{
+						this.stopSeeking = true;
+
+						if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null && this.yI < -30f)
+						{
+							this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+						}
+						this.xI *= this.frictionM;
+						if (this.yI < -40f)
+						{
+							this.yI *= -this.bounceYM;
+						}
+						else
+						{
+							this.yI = 0f;
+							base.Y = this.raycastHit.point.y + this.heightOffGround;
+						}
+						this.rotationSpeed = groundRotationSpeed * this.xI;
+						this.PlayBounceSound();
+					}
+				}
+				else if (this.yI > 0f && Physics.Raycast(new Vector3(base.X, base.Y - 6f, 0f), Vector3.up, out this.raycastHit, 6f + this.heightOffGround + this.yI * this.t, this.groundLayer))
+				{
+					this.stopSeeking = true;
+					if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null)
+					{
+						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+					}
+					this.yI *= -(this.bounceYM + 0.1f);
+					this.PlayBounceSound();
+					this.rotationSpeed = groundRotationSpeed * this.xI;
+				}
+			}
+			return true;
 		}
 
 		protected void HitBlock( RaycastHit raycastHit )
@@ -665,7 +728,7 @@ namespace Captain_Ameribro_Mod
 			--this.bounceCount;
 		}
 
-/*		protected void StartDropping()
+		public void StartDropping()
 		{
 			BMLogger.Log("----------STARTED DROPPING------------");
 
@@ -675,7 +738,7 @@ namespace Captain_Ameribro_Mod
 			base.GetComponent<AudioSource>().Stop();
 			this.shieldCollider.enabled = false;
 			this.stopSeeking = true;
-		}*/
+		}
 
 		protected void PlayBounceSound()
 		{
@@ -721,7 +784,7 @@ namespace Captain_Ameribro_Mod
 			{
 				if (this.reversing || this.hasReachedApex)
 				{
-					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, this.xI, this.yI, true, false, true, false))
+					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, Mathf.Sign(this.xI) * this.knockbackXI, this.knockbackYI, true, true, true, false))
 					{	
 						this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 						this.hitUnitsDelay = 0.0667f;
@@ -729,7 +792,7 @@ namespace Captain_Ameribro_Mod
 						this.hitUnitsCount++;
 					}
 				}
-				else if (Map.HitUnits(this.firedBy, this.playerNum, this.damageInternal, 1, this.damageType, this.projectileSize, this.projectileSize * 1.3f, base.X, base.Y, this.xI, this.yI, true, false, true, this.alreadyHit, false, true))
+				else if (Map.HitUnits(this.firedBy, this.playerNum, this.damageInternal, 1, this.damageType, this.projectileSize, this.projectileSize * 1.3f, base.X, base.Y, Mathf.Sign(this.xI) * this.knockbackXI, this.knockbackYI, true, true, true, this.alreadyHit, false, true))
 				{
 					this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 					this.hitUnitsDelay = 0.0667f;
