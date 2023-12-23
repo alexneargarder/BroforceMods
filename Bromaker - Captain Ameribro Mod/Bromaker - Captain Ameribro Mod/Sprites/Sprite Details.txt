@@ -1,0 +1,27 @@
+0 - First frame used for standing still, others are old frames (unused except first)
+1 - Death animation
+2 - Crouch animation
+3 - Body parts used when blown up / crushed
+4 - Old knife climbing frames (unused)
+5 - Highfive, first 3 are the set up for the high five, then it pauses on the 3rd one while waiting for a partner to high five back, if no high five is received, the rest of the animation plays instead
+6 - Knife while standing on the ground
+7 - Normal walking
+8 - Walking while in one tile gap
+9 - Rolling frames
+10 - Jump with sideways momentum
+11 - Jump standing still
+12 - Knife climbing on walls
+13 - Sprinting on ground
+14 - Zipling / Hanging from the ceiling
+15 - Pushing animation (unused)
+16 - Sidewards dash and downwards dash (unused)
+17 - Special
+18 - New ladder climbing frames (unused)
+19 - Knife midair
+20 - Chimney flip, when you go up and over a corner
+21 - Flexing, called gesture in game
+22 - In the middle of air jump flex
+23 - Start of air jump flex
+24 - Start of air jump slam
+25 - End of air jump slam, when hitting ground
+26 - Usually chest burst, but on some characters it isn't

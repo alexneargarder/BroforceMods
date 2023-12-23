@@ -51,6 +51,9 @@ namespace Captain_Ameribro_Mod
 		public static float knockXVal = 0;
 		public static float knockYVal = 0;
 
+		public static bool debugFrames = false;
+		public static int currentFrame = 0;
+
 		protected override void Awake()
         {
 			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) } ).GetComponent<Shield>();
@@ -62,6 +65,8 @@ namespace Captain_Ameribro_Mod
 
 			this.currentMeleeType = BroBase.MeleeType.Disembowel;
 			this.meleeType = BroBase.MeleeType.Disembowel;
+
+			this.canCeilingHang = true;
 
 			base.Awake();
         }
@@ -93,12 +98,48 @@ namespace Captain_Ameribro_Mod
 			makeTextBox("knockX", ref knockX, ref knockXVal);
 			makeTextBox("knockY", ref knockY, ref knockYVal);
 
+			debugFrames = GUILayout.Toggle(debugFrames, "Debug Frames");
+
+			if ( debugFrames )
+            {
+				GUILayout.Label("Current Frame: " + currentFrame);
+				GUILayout.BeginHorizontal();
+
+				if (GUILayout.Button("Previous Frame"))
+				{
+					--currentFrame;
+				}
+
+				if (GUILayout.Button("Next Frame"))
+				{
+					++currentFrame;
+				}
+
+				GUILayout.EndHorizontal();
+			}
+			
+
 			float.TryParse(lerptest, out lerpspeed);
 			float.TryParse(turntest, out turnspeed);
 			float.TryParse(seekRadius, out seekRadiusFloat);
 		}
 
-		protected override void Start()
+        protected override void ChangeFrame()
+        {
+            if ( !debugFrames )
+            {
+				base.ChangeFrame();
+            }
+			else
+            {
+				this.SetSpriteOffset(0f, 0f);
+				this.DeactivateGun();
+				//this.SetGunPosition((float)((!this.useDashFrames || !this.dashing) ? 0 : 1), 0f);
+				this.sprite.SetLowerLeftPixel((float)(currentFrame * this.spritePixelWidth), (float)this.spritePixelHeight);
+			}
+        }
+
+        protected override void Start()
         {
             base.Start();
 
