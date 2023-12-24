@@ -25,18 +25,25 @@ namespace Captain_Ameribro_Mod
 		public float sliceVolume = 0.7f;
 		public float wallHitVolume = 0.6f;
 		protected int punchingIndex = 0;
+
 		protected bool grabbingShield;
 		protected int grabbingFrame;
+		protected int specialFrame = 0;
+		protected float specialFrameRate = 0.0334f;
+		protected float specialFrameCounter = 0f;
+		protected bool animateSpecial = false;
 		protected float specialAttackDashCounter;
-		protected float airdashFadeCounter;
-		public float airdashFadeRate = 0.1f;
-		protected const int normalAttackDamage = 5;
-		protected const int meleeAttackDamage = 7;
-
 		protected bool isHoldingSpecial = false;
 		protected float maxSpecialCharge = 1f;
 		public float currentSpecialCharge = 0f;
 
+		protected float airdashFadeCounter;
+		public float airdashFadeRate = 0.1f;
+		protected const int normalAttackDamage = 5;
+		protected const int meleeAttackDamage = 7;
+		protected const int defaultSpeed = 130;
+
+		// DEBUG variables
 		public int frameCount = 0;
 
 		public static string lerptest = "3";
@@ -50,9 +57,6 @@ namespace Captain_Ameribro_Mod
 		public static float seekRadiusFloat = 50;
 		public static float knockXVal = 0;
 		public static float knockYVal = 0;
-
-		public static bool debugFrames = false;
-		public static int currentFrame = 0;
 
 		protected override void Awake()
         {
@@ -98,46 +102,10 @@ namespace Captain_Ameribro_Mod
 			makeTextBox("knockX", ref knockX, ref knockXVal);
 			makeTextBox("knockY", ref knockY, ref knockYVal);
 
-			debugFrames = GUILayout.Toggle(debugFrames, "Debug Frames");
-
-			if ( debugFrames )
-            {
-				GUILayout.Label("Current Frame: " + currentFrame);
-				GUILayout.BeginHorizontal();
-
-				if (GUILayout.Button("Previous Frame"))
-				{
-					--currentFrame;
-				}
-
-				if (GUILayout.Button("Next Frame"))
-				{
-					++currentFrame;
-				}
-
-				GUILayout.EndHorizontal();
-			}
-			
-
 			float.TryParse(lerptest, out lerpspeed);
 			float.TryParse(turntest, out turnspeed);
 			float.TryParse(seekRadius, out seekRadiusFloat);
 		}
-
-        protected override void ChangeFrame()
-        {
-            if ( !debugFrames )
-            {
-				base.ChangeFrame();
-            }
-			else
-            {
-				this.SetSpriteOffset(0f, 0f);
-				this.DeactivateGun();
-				//this.SetGunPosition((float)((!this.useDashFrames || !this.dashing) ? 0 : 1), 0f);
-				this.sprite.SetLowerLeftPixel((float)(currentFrame * this.spritePixelWidth), (float)this.spritePixelHeight);
-			}
-        }
 
         protected override void Start()
         {
@@ -188,6 +156,17 @@ namespace Captain_Ameribro_Mod
 				currentSpecialCharge += this.t;
 			}
 
+			this.specialCounter += this.t;
+			if (this.specialCounter > this.specialFrameRate)
+			{
+				this.specialCounter -= this.specialFrameRate;
+				++this.specialFrame;
+				if (this.animateSpecial)
+				{
+					this.AnimateSpecial();
+				}
+			}
+
 			if (this.frameCount == 120)
 			{
 				this.frameCount = 0;
@@ -200,6 +179,27 @@ namespace Captain_Ameribro_Mod
             }
 		}
 
+        protected override void ChangeFrame()
+        {
+			// Cancel holding special if doing any animation that won't work for the armless sprite
+			if ( this.animateSpecial && (this.chimneyFlip || this.wallClimbing || this.WallDrag || (base.actionState == ActionState.Dead) || 
+				(this.inseminatorUnit != null) || this.impaledByTransform != null && this.useImpaledFrames ) )
+            {
+				this.CancelSpecial();
+            }
+            base.ChangeFrame();
+        }
+
+        protected override void AnimateWallAnticipation()
+        {
+			// Cancel holding special if we are about to grab a wall
+			if ( this.animateSpecial )
+            {
+				this.CancelSpecial();
+            }
+            base.AnimateWallAnticipation();
+        }
+
         protected override void UseSpecial()
         {
 			BMLogger.Log("--------------THROWING SHIELD----------------");
@@ -211,7 +211,7 @@ namespace Captain_Ameribro_Mod
                 }
 
 				this.materialNormal = this.materialNormalNoShield;
-				base.GetComponent<Renderer>().material = this.materialNormalNoShield;
+				//base.GetComponent<Renderer>().material = this.materialNormalNoShield;
 				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
 
 				//ProjectileController.SpawnProjectileOverNetwork(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * this.shieldSpeed, 0f, false, base.playerNum, false, false, 0f);
@@ -251,15 +251,39 @@ namespace Captain_Ameribro_Mod
 
 		protected override void PressSpecial()
         {
-			isHoldingSpecial = true;
-			base.PressSpecial();
-        }
+			// Don't start holding special unless we actually have a shield to prevent shield from charging
+			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag) )
+            {
+				this.speed = 80;
+				this.isHoldingSpecial = true;
+				this.specialFrame = 0;
+				this.specialCounter = 0;
+				if (!this.hasBeenCoverInAcid && !this.doingMelee)
+				{
+					this.animateSpecial = true;
+					base.frame = 0;
+					this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+				}
+			}
+		}
 
 		protected override void ReleaseSpecial()
         {
-			isHoldingSpecial = false;
+			this.isHoldingSpecial = false;
 			base.ReleaseSpecial();
         }
+
+		protected void CancelSpecial()
+        {
+			this.isHoldingSpecial = false;
+			this.speed = defaultSpeed;
+			this.animateSpecial = false;
+			this.currentSpecialCharge = 0f;
+			if (!this.hasBeenCoverInAcid)
+			{
+				base.GetComponent<Renderer>().material = this.materialNormal;
+			}
+		}
 
 		protected override void AnimateSpecial()
 		{
@@ -280,58 +304,72 @@ namespace Captain_Ameribro_Mod
 			}
 			else
 			{
+				if (!this.hasBeenCoverInAcid)
+				{
+					base.GetComponent<Renderer>().material = this.materialArmless;
+				}
 				if ( isHoldingSpecial && this.SpecialAmmo > 0 )
                 {
-					this.SetSpriteOffset(0f, 0f);
-					this.DeactivateGun();
-					//this.frameRate = 0.0334f;
-					int num = 16 + Mathf.Clamp(base.frame, 0, 4);
-					this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)this.spritePixelHeight);
-					if ( base.frame >= 0 )
-                    {
-						base.frame = 0;
-					}
-					
-				}
-				else if (!this.useNewThrowingFrames)
-				{
-					this.SetSpriteOffset(0f, 0f);
-					this.DeactivateGun();
-					this.frameRate = 0.0334f;
-					int num = 16 + Mathf.Clamp(base.frame, 0, 4);
-					this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)this.spritePixelHeight);
-					if (base.frame == 2)
+					this.specialFrameRate = 0.0334f;
+
+					if (this.specialFrame > 2)
 					{
-						this.UseSpecial();
+						this.specialFrame = 2;
+						this.specialCounter = 0;
 					}
-					if (base.frame >= 4)
-					{
-						base.frame = 0;
-						this.ActivateGun();
-						this.usingSpecial = (this.usingPockettedSpecial = false);
-					}
+
+					this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
 				}
 				else
 				{
-					this.SetSpriteOffset(0f, 0f);
-					this.DeactivateGun();
-					this.frameRate = 0.0334f;
-					int num2 = 17 + Mathf.Clamp(base.frame, 0, 7);
-					this.sprite.SetLowerLeftPixel((float)(num2 * this.spritePixelWidth), (float)(this.spritePixelHeight * 5));
-					if (base.frame == 4)
+					this.specialFrameRate = 0.0334f;
+					this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
+
+					if (this.specialFrame == 5)
 					{
 						this.UseSpecial();
+						this.speed = defaultSpeed;
 					}
-					if (base.frame >= 7)
+					else if (this.specialFrame >= 9)
 					{
 						base.frame = 0;
-						this.usingSpecial = (this.usingPockettedSpecial = false);
-						this.ActivateGun();
+						this.animateSpecial = (this.usingPockettedSpecial = false);
+						if (!this.hasBeenCoverInAcid)
+						{
+							base.GetComponent<Renderer>().material = this.materialNormal;
+						}
 						this.ChangeFrame();
 					}
 				}
 			}
 		}
+
+		// Copie from Neo
+		protected override void AnimateInseminationFrames()
+		{
+			int num = 24 + base.CalculateInseminationFrame();
+			this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 8));
+		}
+
+		// Copied from Neo
+		protected override void SetGunSprite(int spriteFrame, int spriteRow)
+        {
+			if ( !this.animateSpecial )
+            {
+				if (base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed)
+				{
+					this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * (11 + spriteFrame)), (float)(this.gunSpritePixelHeight * (1 + spriteRow)));
+				}
+				else if (this.attachedToZipline != null && base.actionState == ActionState.Jumping)
+				{
+					this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * 11), (float)(this.gunSpritePixelHeight * 2));
+				}
+				else
+				{
+					base.SetGunSprite(spriteFrame, spriteRow);
+				}
+			}
+        }
 
 		public void PlaySliceSound()
 		{
@@ -359,7 +397,7 @@ namespace Captain_Ameribro_Mod
 
         protected override void UseFire()
         {
-			if ( !this.isHoldingSpecial)
+			if ( !this.animateSpecial)
             {
 				base.UseFire();
 				this.fireDelay = 0.15f;
@@ -460,7 +498,7 @@ namespace Captain_Ameribro_Mod
 					this.gunSprite.SetLowerLeftPixel(0f, 128f);
 				}*/
 			}
-			if ((!this.gunSprite.gameObject.activeSelf || this.gunFrame == 0) && !this.hasBeenCoverInAcid)
+			if ( !this.animateSpecial && (!this.gunSprite.gameObject.activeSelf || this.gunFrame == 0) && !this.hasBeenCoverInAcid)
 			{
 				base.GetComponent<Renderer>().material = this.materialNormal;
 			}
@@ -500,6 +538,7 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
+		// Copied from Neo
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
             // Fixes arms being offset from body
@@ -568,6 +607,7 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
+		// Performs melee attack
 		protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
         {
 			bool flag;
@@ -590,6 +630,7 @@ namespace Captain_Ameribro_Mod
 			this.TriggerBroMeleeEvent();
 		}
 
+		// Sets up melee attack
         protected override void StartCustomMelee()
         {
 			if (this.CanStartNewMelee())
@@ -711,5 +752,5 @@ namespace Captain_Ameribro_Mod
 				this.CancelMelee();
 			}
 		}
-    }
+	}
 }
