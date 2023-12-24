@@ -163,8 +163,6 @@ namespace Captain_Ameribro_Mod
 				this.frameCount = 0;
 			}
 			++this.frameCount;
-
-			
 		}
 
         protected override void ChangeFrame()
@@ -199,17 +197,19 @@ namespace Captain_Ameribro_Mod
                 }
 
 				this.materialNormal = this.materialNormalNoShield;
-				//base.GetComponent<Renderer>().material = this.materialNormalNoShield;
 				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
 
-				//ProjectileController.SpawnProjectileOverNetwork(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * this.shieldSpeed, 0f, false, base.playerNum, false, false, 0f);
 				float chargedShieldSpeed = shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
-				BMLogger.Log("shield charge: " + this.currentSpecialCharge);
+				if ( Physics.Raycast(this.transform.position, Vector3.up, out this.raycastHit, 22, this.groundLayer) )
+                {
+					thrownShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 10f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
+				}
+				else
+                {
+					thrownShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
+				}
 
-				thrownShield = ProjectileController.SpawnProjectileLocally(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f) as Shield;
-
-				//newShield.shieldCharge = this.currentSpecialCharge;
 				thrownShield.Setup(this.shield, this);
 
 				this.currentSpecialCharge = 0;
