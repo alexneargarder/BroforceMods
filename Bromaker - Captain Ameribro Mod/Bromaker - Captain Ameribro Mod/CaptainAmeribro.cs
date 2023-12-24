@@ -15,8 +15,6 @@ namespace Captain_Ameribro_Mod
     {
 		protected Shield shield;
 		protected Shield thrownShield;
-		//public float shieldSpeed = 500f;
-		public float shieldSpeed = 400f;
 
 		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
 		public Material gunMaterialNormal, gunMaterialNoShield;
@@ -25,7 +23,9 @@ namespace Captain_Ameribro_Mod
 		public float sliceVolume = 0.7f;
 		public float wallHitVolume = 0.6f;
 		protected int punchingIndex = 0;
+		protected bool wasInvulnerable = false;
 
+		public const float shieldSpeed = 400f;
 		protected bool grabbingShield;
 		protected int grabbingFrame;
 		protected int specialFrame = 0;
@@ -39,6 +39,7 @@ namespace Captain_Ameribro_Mod
 
 		protected float airdashFadeCounter;
 		public float airdashFadeRate = 0.1f;
+
 		protected const int normalAttackDamage = 5;
 		protected const int meleeAttackDamage = 7;
 		protected const int defaultSpeed = 130;
@@ -57,23 +58,6 @@ namespace Captain_Ameribro_Mod
 		public static float seekRadiusFloat = 50;
 		public static float knockXVal = 0;
 		public static float knockYVal = 0;
-
-		protected override void Awake()
-        {
-			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) } ).GetComponent<Shield>();
-			shield.enabled = false;
-			shield.shieldCollider = shield.gameObject.GetComponent<SphereCollider>();
-
-			Boomerang boom = (HeroController.GetHeroPrefab(HeroType.BroMax) as BroMax).boomerang as Boomerang;
-			shield.AssignNullValues(boom);
-
-			this.currentMeleeType = BroBase.MeleeType.Disembowel;
-			this.meleeType = BroBase.MeleeType.Disembowel;
-
-			this.canCeilingHang = true;
-
-			base.Awake();
-        }
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -107,7 +91,24 @@ namespace Captain_Ameribro_Mod
 			float.TryParse(seekRadius, out seekRadiusFloat);
 		}
 
-        protected override void Start()
+		protected override void Awake()
+		{
+			shield = new GameObject("CaptainAmeribroShield", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(AnimatedTexture), typeof(Shield), typeof(SphereCollider) }).GetComponent<Shield>();
+			shield.enabled = false;
+			shield.shieldCollider = shield.gameObject.GetComponent<SphereCollider>();
+
+			Boomerang boom = (HeroController.GetHeroPrefab(HeroType.BroMax) as BroMax).boomerang as Boomerang;
+			shield.AssignNullValues(boom);
+
+			this.currentMeleeType = BroBase.MeleeType.Disembowel;
+			this.meleeType = BroBase.MeleeType.Disembowel;
+
+			this.canCeilingHang = true;
+
+			base.Awake();
+		}
+
+		protected override void Start()
         {
             base.Start();
 
@@ -150,7 +151,21 @@ namespace Captain_Ameribro_Mod
 
 		protected override void Update()
 		{
+			if ( this.invulnerable )
+            {
+				this.wasInvulnerable = true;
+            }
 			base.Update();
+			// Check if invulnerability ran out
+			if ( this.wasInvulnerable && !this.invulnerable )
+            {
+				materialNormalShield.SetColor("_TintColor", Color.gray);
+				materialNormalNoShield.SetColor("_TintColor", Color.gray);
+				materialArmless.SetColor("_TintColor", Color.gray);
+				gunMaterialNormal.SetColor("_TintColor", Color.gray);
+				gunMaterialNoShield.SetColor("_TintColor", Color.gray);
+			}
+
 			if (isHoldingSpecial)
 			{
 				currentSpecialCharge += this.t;
@@ -167,16 +182,19 @@ namespace Captain_Ameribro_Mod
 				}
 			}
 
+			if (base.actionState == ActionState.Dead && thrownShield != null && !thrownShield.dropping)
+			{
+				thrownShield.StartDropping();
+			}
+
+			// DEBUG
 			if (this.frameCount == 120)
 			{
 				this.frameCount = 0;
 			}
 			++this.frameCount;
 
-			if ( base.actionState == ActionState.Dead && thrownShield != null && !thrownShield.dropping )
-            {
-				thrownShield.StartDropping();
-            }
+			
 		}
 
         protected override void ChangeFrame()
@@ -215,7 +233,7 @@ namespace Captain_Ameribro_Mod
 				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
 
 				//ProjectileController.SpawnProjectileOverNetwork(this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * this.shieldSpeed, 0f, false, base.playerNum, false, false, 0f);
-				float chargedShieldSpeed = this.shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
+				float chargedShieldSpeed = shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
 				BMLogger.Log("shield charge: " + this.currentSpecialCharge);
 
