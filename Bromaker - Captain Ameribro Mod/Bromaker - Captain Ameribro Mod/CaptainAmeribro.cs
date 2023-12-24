@@ -47,18 +47,6 @@ namespace Captain_Ameribro_Mod
 		// DEBUG variables
 		public int frameCount = 0;
 
-		public static string lerptest = "3";
-		public static string turntest = "20";
-		public static string seekRadius = "50";
-		public static string knockX = "0";
-		public static string knockY = "0";
-
-		public static float lerpspeed = 3;
-		public static float turnspeed = 20;
-		public static float seekRadiusFloat = 50;
-		public static float knockXVal = 0;
-		public static float knockYVal = 0;
-
 		public void makeTextBox(string label, ref string text, ref float val)
         {
 			GUILayout.BeginHorizontal();
@@ -71,24 +59,6 @@ namespace Captain_Ameribro_Mod
 
 		public override void UIOptions()
 		{
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Lerp Speed: ");
-			lerptest = GUILayout.TextField(lerptest);
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Turn Speed: ");
-			turntest = GUILayout.TextField(turntest);
-			GUILayout.EndHorizontal();
-			GUILayout.BeginHorizontal();
-			GUILayout.Label("Seek radius: ");
-			seekRadius = GUILayout.TextField(seekRadius);
-			GUILayout.EndHorizontal();
-			makeTextBox("knockX", ref knockX, ref knockXVal);
-			makeTextBox("knockY", ref knockY, ref knockYVal);
-
-			float.TryParse(lerptest, out lerpspeed);
-			float.TryParse(turntest, out turnspeed);
-			float.TryParse(seekRadius, out seekRadiusFloat);
 		}
 
 		protected override void Awake()

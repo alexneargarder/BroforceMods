@@ -52,13 +52,13 @@ namespace Captain_Ameribro_Mod
 		protected float targetX;
 		protected float targetY;
 		protected float originalAngle;
-		public float seekRange = 150f;
+		public float seekRange = 75f;
 		protected bool foundMook = false;
 		protected float originalSpeed;
-		protected float seekSpeedCurrent;
+		protected float seekSpeedCurrent = 2f;
 		protected float speed;
-		public float seekTurningSpeedLerpM = 1f;
-		public float seekTurningSpeedM = 3f;
+		public float seekTurningSpeedLerpM = 5f;
+		public float seekTurningSpeedM = 20f;
 		protected float angle;
 		protected float seekCounter = 0.1f;
 		//protected float droppingDuration = 2f;
@@ -208,11 +208,6 @@ namespace Captain_Ameribro_Mod
         public void Setup( Shield other, CaptainAmeribro player )
         {
 			this.throwingPlayer = player;
-
-			// TEMPORARY DEBUG
-			this.seekTurningSpeedLerpM = CaptainAmeribro.lerpspeed;
-			this.seekTurningSpeedM = CaptainAmeribro.turnspeed;
-			this.seekSpeedCurrent = this.seekTurningSpeedM / 10;
 
 			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
 
@@ -578,7 +573,6 @@ namespace Captain_Ameribro_Mod
 		{
 			if (!this.foundMook)
 			{
-				this.seekRange = CaptainAmeribro.seekRadiusFloat;
 				//this.seekRange = this.returnTime * Mathf.Abs(this.speed);
 				//BMLogger.Log("calculated range: " + this.seekRange);
 				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
