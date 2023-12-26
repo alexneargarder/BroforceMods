@@ -204,14 +204,14 @@ namespace Captain_Ameribro_Mod
             //this.shieldCollider = other.boomerangCollider;
             this.soundVolume = other.soundVolume;
             this.soundHolder = other.soundHolder;
-        }
+		}
         public void Setup( Shield other, CaptainAmeribro player )
         {
 			this.throwingPlayer = player;
 
 			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
 
-			this.damageType = DamageType.Knock;
+			this.damageType = DamageType.Stun;
 
 			this.damage = BaseDamage + (int)System.Math.Round(BaseDamage * this.throwingPlayer.currentSpecialCharge);
 
@@ -271,11 +271,6 @@ namespace Captain_Ameribro_Mod
 				this.frameCount = 0;
             }
 			++this.frameCount;
-
-			if ( frameCount == 30 )
-            {
-				BMLogger.Log("pos: " + this.X + " " + this.Y);
-            }
 			
 			if (this.returnTime <= 0f && !this.dropping)
 			{
@@ -304,20 +299,10 @@ namespace Captain_Ameribro_Mod
 				else if (this.hasReachedApex)
 				{
 					this.ReturnSeek();
-
-					if (this.frameCount == 30)
-					{
-						BMLogger.Log("speed: " + this.speed);
-						BMLogger.Log("seeking towards: " + this.throwingPlayer.X + " " + this.throwingPlayer.Y);
-					}
 				}
 				this.CheckReturnShield();
 				if (this.hasReachedApex) // Check if shield should start snapping
 				{
-					if ( frameCount == 30 || frameCount == 90 )
-                    {
-						BMLogger.Log("distance to player: " + Vector3.Distance(this.transform.position, this.throwingPlayer.transform.position));
-                    }
 					if ( !startedSnap &&  Vector3.Distance( this.transform.position, this.throwingPlayer.transform.position ) < 100 )
                     {
 						startedSnap = true;
@@ -384,21 +369,18 @@ namespace Captain_Ameribro_Mod
 			{
 				distanceBelow = Vector3.Distance(this.transform.position, this.raycastHit.point);
 				below = distanceBelow < 100;
-				BMLogger.Log("distance to ground: " + distanceBelow);
 			}
 			// Check above shield
 			if ( Physics.Raycast(new Vector3(base.X, base.Y, 0f), Vector3.up, out this.raycastHit, 100f, this.groundLayer) )
             {
 				distanceAbove = Vector3.Distance(this.transform.position, this.raycastHit.point);
 				above = distanceAbove < 100;
-				BMLogger.Log("distance to ceiling: " + distanceAbove);
 			}
 
 			// We check the terrain around the player in case the shield entered an area with no ground above or below
 			if ( Physics.Raycast(playerPos, Vector3.down, out this.raycastHit, 100f, this.groundLayer) )
 			{
 				distanceBelow = Vector3.Distance(playerPos, this.raycastHit.point);
-				BMLogger.Log("distance to ground for player: " + distanceBelow);
 				below = below || distanceBelow < 50;
 			}
 			if (Physics.Raycast(playerPos, Vector3.down, out this.raycastHit, 100f, this.ladderLayer))
@@ -410,7 +392,6 @@ namespace Captain_Ameribro_Mod
 			if ( Physics.Raycast(playerPos, Vector3.up, out this.raycastHit, 100f, this.groundLayer) )
 			{
 				distanceAbove = Vector3.Distance(playerPos, this.raycastHit.point);
-				BMLogger.Log("distance to ceiling for player: " + distanceAbove);
 				if ( distanceAbove < 100 )
                 {
 					above = below = true;
@@ -428,7 +409,6 @@ namespace Captain_Ameribro_Mod
 			// Blocks above and below, or path to player is blocked, or shield is already heading towards player, so return shield straight
 			if ( below && above || (Mathf.Sign(xI) == Mathf.Sign(playerPos.x - this.X) ) ) 
             {
-				BMLogger.Log("returning direct");
 				this.angle = this.targetAngle;
             }
 			else if ( below ) // Blocks below return shield up
@@ -440,13 +420,10 @@ namespace Captain_Ameribro_Mod
 				// Check if anything is in the way between area above shield and player
 				if (Physics.Raycast(this.transform.position + new Vector3(0, 30, 0), direction, out this.raycastHit, Vector3.Distance(this.transform.position, currentPlayerPos), this.groundLayer))
 				{
-					BMLogger.Log("ground found above player and shield");
-					BMLogger.Log("returning direct");
 					this.angle = this.targetAngle;
 				}
 				else
                 {
-					BMLogger.Log("returning above");
 					if (this.xI > 0) // Right
 					{
 						this.angle -= (Mathf.PI / 4);
@@ -466,13 +443,10 @@ namespace Captain_Ameribro_Mod
 				// Check if anything is in the way between area below shield and player
 				if (Physics.Raycast(this.transform.position - new Vector3(0, 30, 0), direction, out this.raycastHit, Vector3.Distance(this.transform.position, currentPlayerPos), this.groundLayer))
 				{
-					BMLogger.Log("ground found above player and shield");
-					BMLogger.Log("returning direct");
 					this.angle = this.targetAngle;
 				}
 				else
                 {
-					BMLogger.Log("returning down");
 					if (this.xI > 0) // Right
 					{
 						this.angle += (Mathf.PI / 4);
@@ -516,18 +490,10 @@ namespace Captain_Ameribro_Mod
 					else if ((this.returnTime >= 0f || this.hasReachedApex)) // If moving forward or towards player and hasn't reached return time
 					{
 						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
-						if (this.frameCount == 30)
-						{
-							BMLogger.Log("Moving towards target");
-						}
 					}
 					else
 					{
 						this.speed = Mathf.Lerp(this.speed, 0, this.t * 10f);
-						if (this.frameCount == 30)
-						{
-							BMLogger.Log("Slowing Down");
-						}
 					}
 					this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
 					this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
@@ -638,7 +604,7 @@ namespace Captain_Ameribro_Mod
 					}
 					if ( !this.hasReachedApex )
                     {
-						this.PlayBounceSound();
+						this.PlayBounceSoundWall();
 					}
 				}
 			}
@@ -662,7 +628,7 @@ namespace Captain_Ameribro_Mod
 				}
 				if ( !this.hasReachedApex )
                 {
-					this.PlayBounceSound();
+					this.PlayBounceSoundWall();
 				}
 			}
 			if (this.dropping)
@@ -688,7 +654,7 @@ namespace Captain_Ameribro_Mod
 							base.Y = this.raycastHit.point.y + this.heightOffGround;
 						}
 						this.rotationSpeed = groundRotationSpeed * this.xI;
-						this.PlayBounceSound();
+						this.PlayBounceSoundWall();
 					}
 				}
 				else if (this.yI > 0f && Physics.Raycast(new Vector3(base.X, base.Y - 6f, 0f), Vector3.up, out this.raycastHit, 6f + this.heightOffGround + this.yI * this.t, this.groundLayer))
@@ -699,7 +665,7 @@ namespace Captain_Ameribro_Mod
 						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
 					}
 					this.yI *= -(this.bounceYM + 0.1f);
-					this.PlayBounceSound();
+					this.PlayBounceSoundWall();
 					this.rotationSpeed = groundRotationSpeed * this.xI;
 				}
 			}
@@ -711,12 +677,9 @@ namespace Captain_Ameribro_Mod
 			// Calculate new angle
 			Bounce(raycastHit);
 
-			BMLogger.Log("bounced");
-
 			if (this.returnTime > 0f) // Hasn't started returning
 			{
 				this.returnTime = 0f;
-				BMLogger.Log("starting return");
 			}
 
 			--this.bounceCount;
@@ -724,8 +687,6 @@ namespace Captain_Ameribro_Mod
 
 		public void StartDropping()
 		{
-			BMLogger.Log("----------STARTED DROPPING------------");
-
 			this.dropping = true;
 			this.collectDelayTime = 0f;
 			this.rotationSpeed = groundRotationSpeed * this.xI;
@@ -734,14 +695,31 @@ namespace Captain_Ameribro_Mod
 			this.stopSeeking = true;
 		}
 
-		protected void PlayBounceSound()
+		protected void PlayBounceSoundWall()
 		{
 			float num = Mathf.Abs(this.xI) + Mathf.Abs(this.yI);
 			if (num > 33f)
 			{
 				float num2 = num / 210f;
 				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
-				Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
+                this.bounceVolumeM = 2f;
+				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
+			}
+		}
+
+		protected void PlayBounceSoundUnit()
+		{
+			float num = Mathf.Abs(this.xI) + Mathf.Abs(this.yI);
+			if (num > 33f)
+			{
+				float num2 = num / 210f;
+				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
+				BMLogger.Log("Playing bounce sound: " + this.bounceVolumeM);
+				BMLogger.Log("hitsounds: " + this.soundHolder.hitSounds.Length);
+                this.bounceVolumeM = 2f;
+				// First one sounds best
+				//Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
+				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 			}
 		}
 
@@ -779,7 +757,8 @@ namespace Captain_Ameribro_Mod
 				if (this.reversing || this.hasReachedApex)
 				{
 					if (Map.HitLivingUnits(this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize, base.X, base.Y, Mathf.Sign(this.xI) * this.knockbackXI, this.knockbackYI, true, true, true, false))
-					{	
+					{
+						this.PlayBounceSoundUnit();
 						this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 						this.hitUnitsDelay = 0.0667f;
 						
@@ -788,6 +767,7 @@ namespace Captain_Ameribro_Mod
 				}
 				else if (Map.HitUnits(this.firedBy, this.playerNum, this.damageInternal, 1, this.damageType, this.projectileSize, this.projectileSize * 1.3f, base.X, base.Y, Mathf.Sign(this.xI) * this.knockbackXI, this.knockbackYI, true, true, true, this.alreadyHit, false, true))
 				{
+					this.PlayBounceSoundUnit();
 					this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
 					this.hitUnitsDelay = 0.0667f;
 					this.hitUnitsCount++;

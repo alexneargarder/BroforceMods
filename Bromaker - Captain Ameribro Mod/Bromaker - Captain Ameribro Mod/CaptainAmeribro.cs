@@ -16,6 +16,9 @@ namespace Captain_Ameribro_Mod
 		protected Shield shield;
 		protected Shield thrownShield;
 
+		public AudioClip[] shieldUnitBounce;
+		public AudioClip shieldWallBounce;
+
 		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
 		public Material gunMaterialNormal, gunMaterialNoShield;
 
@@ -46,6 +49,8 @@ namespace Captain_Ameribro_Mod
 
 		// DEBUG variables
 		public int frameCount = 0;
+		public static string hitSoundText = "0";
+		public static int hitSound;
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -57,8 +62,19 @@ namespace Captain_Ameribro_Mod
 			float.TryParse(text, out val);
         }
 
+		public void makeTextBox(string label, ref string text, ref int val)
+		{
+			GUILayout.BeginHorizontal();
+			GUILayout.Label(label);
+			text = GUILayout.TextField(text);
+			GUILayout.EndHorizontal();
+
+			int.TryParse(text, out val);
+		}
+
 		public override void UIOptions()
 		{
+			makeTextBox("hitsound", ref hitSoundText, ref hitSound);
 		}
 
 		protected override void Awake()
@@ -117,6 +133,14 @@ namespace Captain_Ameribro_Mod
             {
 				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
 			}
+
+			this.shieldUnitBounce = new AudioClip[3];
+
+			this.shieldUnitBounce[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud trim.wav");
+			this.shieldUnitBounce[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud2 trim.wav");
+			this.shieldUnitBounce[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud3 trim.wav");
+
+			this.shieldWallBounce = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "deep thud trim2.wav");
 		}
 
 		protected override void Update()
