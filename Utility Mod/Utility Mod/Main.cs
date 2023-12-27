@@ -7,6 +7,12 @@
 /**
  * Features added since last release
  * 
+ * Flight
+ * 
+ * Disable Gravity
+ * 
+ * Teleport to Mouse Cursor
+ * 
  * Teleport to final checkpoint.
  * 
  * Teleport to current checkpoint.
@@ -347,7 +353,7 @@ namespace Utility_Mod
                         }
                     }    
 
-                    GUILayout.Space(20);
+                    GUILayout.Space(15);
 
                     if ( settings.infiniteLives != (settings.infiniteLives = GUILayout.Toggle(settings.infiniteLives, "Infinite Lives")) )
                     {
@@ -367,31 +373,37 @@ namespace Utility_Mod
                         }
                     }
 
-                    GUILayout.Space(20);
+                    GUILayout.Space(15);
 
                     settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials");
 
-                    GUILayout.Space(20);
+                    GUILayout.Space(15);
+
+                    settings.disableGravity = GUILayout.Toggle(settings.disableGravity, "Disable Gravity");
+
+                    GUILayout.Space(15);
+
+                    settings.enableFlight = GUILayout.Toggle(settings.enableFlight, "Enable Flight");
+
+                    GUILayout.Space(15);
 
                     settings.disableEnemySpawn = GUILayout.Toggle(settings.disableEnemySpawn, "Disable Enemy Spawns");
 
-                    GUILayout.Space(20);
+                    GUILayout.Space(10);
 
-                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, "Instant kill all enemies");
-
-                    GUILayout.Space(20);
-
-                    if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
-                    {
-                        if (currentCharacter != null)
-                        {
-                            ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
-                        }
-                    }
-
-                    GUILayout.Space(20);
+                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, "Instant Kill Enemies");
                 }
                 GUILayout.EndHorizontal();
+
+                GUILayout.Space(15);
+
+                if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
+                    }
+                }
 
                 GUILayout.Space(25);
 
@@ -507,6 +519,10 @@ namespace Utility_Mod
                 GUILayout.Space(15);
 
                 GUILayout.BeginHorizontal(GUILayout.Width(400));
+
+                settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click");
+
+                GUILayout.Space(10);
 
                 settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Spawn at Custom Waypoint");
 
@@ -634,6 +650,58 @@ namespace Utility_Mod
                     }
                     loadedScene = true;
                 }
+            }
+
+            if ( settings.teleportToMouseCursor )
+            {
+                try
+                {
+                    if (Input.GetMouseButtonUp(1))
+                    {
+                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
+                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
+
+                        HeroController.players[0].character.X = newPos.x;
+                        HeroController.players[0].character.Y = newPos.y;
+                    }
+                }
+                catch (Exception ex)
+                {}
+            }
+            
+            if ( settings.enableFlight )
+            {
+                try
+                {
+                    HeroController.players[0].character.speed = 300;
+                    if (HeroController.players[0].character.up)
+                    {
+                        HeroController.players[0].character.yI = 300;
+                    }
+                    else if (HeroController.players[0].character.down)
+                    {
+                        HeroController.players[0].character.yI = -300;
+                    }
+                    else
+                    {
+                        HeroController.players[0].character.yI = 0;
+                    }
+
+                    if ( HeroController.players[0].character.right )
+                    {
+                        HeroController.players[0].character.xI = 300;
+                    }
+                    else if (HeroController.players[0].character.left )
+                    {
+                        HeroController.players[0].character.xI = -300;
+                    }
+                    else
+                    {
+                        HeroController.players[0].character.xI = 0;
+                    }
+                }
+                catch (Exception ex)
+                {}
             }
         }
 
@@ -1278,6 +1346,26 @@ namespace Utility_Mod
         }
     }
 
+    [HarmonyPatch(typeof(TestVanDammeAnim), "ApplyFallingGravity")]
+    static class TestVanDammeAnim_ApplyFallingGravity_Patch
+    {
+        public static bool Prefix(TestVanDammeAnim __instance)
+        {
+            if (!Main.enabled || !(Main.settings.disableGravity || Main.settings.enableFlight))
+            {
+                return true;
+            }
+
+            if (__instance.yI <= 0 && !__instance.down)
+            {
+                __instance.yI = 0;
+                return false;
+            }
+
+            return true;
+        }
+    }
+
     public class Settings : UnityModManager.ModSettings
     {
         public bool cameraShake = false;
@@ -1301,8 +1389,11 @@ namespace Utility_Mod
         public float timeSlowFactor = 0.35f;
         public string sceneToLoad;
         public bool infiniteLives = false;
+        public bool disableGravity = false;
+        public bool enableFlight = false;
 
         // Teleport Options
+        public bool teleportToMouseCursor = false;
         public bool changeSpawn = false;
         public bool changeSpawnFinal = false;
         public float[] waypointsX = new float[] { 0f, 0f, 0f, 0f, 0f };
