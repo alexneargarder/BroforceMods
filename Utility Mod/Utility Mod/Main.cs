@@ -1,36 +1,19 @@
 ﻿/**
  * TODO
- *  
- * maybe also fix double bro seven only having option to drink ( probably only refresh specials when they reach 0 )
  * 
- * Set living, dead, and locked bros
+ * Add tooltips for cheat options
  * 
- * Set lives ( for normal campaign)
- * 
- * Make campaign progress correctly when jumping to a level via cheat mod
- * 
- * Investigate if cut scenes destroy mod manager window
- * 
- * Add unlock all territories button
- * 
-**/
-/**
- * IDEAS
- * 
- * change sprint speed
- * 
- * give lives (for practicing iron bro)
- * 
- * infinite fuel mech
- * 
- * bind teleport to some controller key
- * 
- * buff slowdown time (pause time?)
- * 
- * 
-**/
+ **/
 /**
  * Features added since last release
+ * 
+ * Teleport to final checkpoint.
+ * 
+ * Teleport to current checkpoint.
+ * 
+ * Slow time toggle
+ * 
+ * Infinite lives toggle
  * 
  * Unlock all territories button
  * 
@@ -358,7 +341,31 @@ namespace Utility_Mod
                         {
                             currentCharacter.SetInvulnerable(float.MaxValue, false);
                         }
+                        else if ( currentCharacter != null )
+                        {
+                            currentCharacter.SetInvulnerable(0, false);
+                        }
                     }    
+
+                    GUILayout.Space(20);
+
+                    if ( settings.infiniteLives != (settings.infiniteLives = GUILayout.Toggle(settings.infiniteLives, "Infinite Lives")) )
+                    {
+                        if ( settings.infiniteLives )
+                        {
+                            for ( int i = 0; i < 4; ++i )
+                            {
+                                HeroController.SetLives(i, int.MaxValue);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                HeroController.SetLives(i, 1);
+                            }
+                        }
+                    }
 
                     GUILayout.Space(20);
 
@@ -499,7 +506,15 @@ namespace Utility_Mod
 
                 GUILayout.Space(15);
 
-                settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Override Default Spawn Position");
+                GUILayout.BeginHorizontal(GUILayout.Width(400));
+
+                settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Spawn at Custom Waypoint");
+
+                GUILayout.Space(10);
+
+                settings.changeSpawnFinal = GUILayout.Toggle(settings.changeSpawnFinal, "Spawn at Final Checkpoint");
+
+                GUILayout.EndHorizontal();
 
                 GUILayout.Space(10);
 
@@ -528,6 +543,30 @@ namespace Utility_Mod
                 GUILayout.EndHorizontal();
 
                 GUILayout.Space(15);
+
+                GUILayout.BeginHorizontal();
+                {
+                    if (GUILayout.Button("Teleport to Current Checkpoint ", GUILayout.Width(250)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            Vector3 checkPoint = HeroController.GetCheckPointPosition(0, Map.IsCheckPointAnAirdrop(HeroController.GetCurrentCheckPointID()));
+                            currentCharacter.X = checkPoint.x;
+                            currentCharacter.Y = checkPoint.y;
+                        }
+                    }
+
+                    if (GUILayout.Button("Teleport to Final Checkpoint", GUILayout.Width(200)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            Vector3 checkPoint = GetFinalCheckpointPos();
+                            currentCharacter.X = checkPoint.x;
+                            currentCharacter.Y = checkPoint.y;
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
 
                 for (int i = 0; i < settings.waypointsX.Length; ++i)
                 {
@@ -707,6 +746,17 @@ namespace Utility_Mod
             HeroController.TimeBroBoostHeroes(0);
         }
 
+        public static Vector3 GetFinalCheckpointPos()
+        {
+            for ( int i = 0; i < Map.checkPoints.Count; ++i )
+            {
+                if ((bool)Traverse.Create(Map.checkPoints[i]).Field("isFinal").GetValue())
+                {
+                    return Map.checkPoints[i].transform.position;
+                }
+            }
+            return Map.checkPoints[Map.checkPoints.Count - 1].transform.position;
+        }
         public static void Log(String str)
         {
             mod.Logger.Log(str);
@@ -1058,9 +1108,19 @@ namespace Utility_Mod
     [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
     static class Player_WorkOutSpawnScenario_Patch
     {
+        // Make the mod work with BroMaker
+        public static void Prefix(Player __instance)
+        {
+            if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal) )
+            {
+                return;
+            }
+
+            __instance.firstDeployment = false;
+        }
         public static void Postfix(ref Player.SpawnType __result)
         {
-            if (!Main.enabled || !Main.settings.changeSpawn)
+            if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal))
             {
                 return;
             }
@@ -1077,7 +1137,7 @@ namespace Utility_Mod
     {
         public static void Prefix(Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos)
         {
-            if (!Main.enabled || !Main.settings.changeSpawn)
+            if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal))
             {
                 return;
             }
@@ -1086,8 +1146,15 @@ namespace Utility_Mod
             {
                 spawnType = Player.SpawnType.CustomSpawnPoint;
                 spawnViaAirDrop = false;
-                pos.x = Main.settings.SpawnPositionX;
-                pos.y = Main.settings.SpawnPositionY;
+                if ( Main.settings.changeSpawn )
+                {
+                    pos.x = Main.settings.SpawnPositionX;
+                    pos.y = Main.settings.SpawnPositionY;
+                }
+                else
+                {
+                    pos = Main.GetFinalCheckpointPos();
+                }
             }
         }
     }
@@ -1197,34 +1264,51 @@ namespace Utility_Mod
         }
     }
 
+    [HarmonyPatch(typeof(Player), "SetLivesRPC")]
+    static class Player_SetLivesRPC_Patch
+    {
+        public static void Prefix(ref int _lives)
+        {
+            if (!Main.enabled || !Main.settings.infiniteLives)
+            {
+                return;
+            }
+
+            _lives = int.MaxValue;
+        }
+    }
+
     public class Settings : UnityModManager.ModSettings
     {
         public bool cameraShake = false;
         public bool enableSkip = true;
         public bool endingSkip = true;
         public bool disableConfirm = true;
+        public bool quickMainMenu = false;
 
+        // Level Controls
         public bool loopCurrent = false;
         public int campaignNum = 0;
         public int levelNum = 0;
 
+        // Cheat Options
         public bool invulnerable = false;
         public bool infiniteSpecials = false;
         public bool disableEnemySpawn = false;
-        public bool changeSpawn = false;
         public bool quickLoadScene = false;
-        public bool quickMainMenu = false;
         public bool oneHitEnemies = false;
         public bool slowTime = false;
         public float timeSlowFactor = 0.35f;
+        public string sceneToLoad;
+        public bool infiniteLives = false;
 
+        // Teleport Options
+        public bool changeSpawn = false;
+        public bool changeSpawnFinal = false;
         public float[] waypointsX = new float[] { 0f, 0f, 0f, 0f, 0f };
         public float[] waypointsY = new float[] { 0f, 0f, 0f, 0f, 0f };
-
         public float SpawnPositionX = 0;
         public float SpawnPositionY = 0;
-
-        public string sceneToLoad;
 
         public bool showLevelOptions = false;
         public bool showCheatOptions = false;
