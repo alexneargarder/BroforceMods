@@ -18,6 +18,7 @@ namespace Captain_Ameribro_Mod
 
 		public AudioClip[] shieldUnitBounce;
 		public AudioClip shieldWallBounce;
+		public AudioClip shieldChargeShing;
 
 		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
 		public Material gunMaterialNormal, gunMaterialNoShield;
@@ -39,6 +40,7 @@ namespace Captain_Ameribro_Mod
 		protected bool isHoldingSpecial = false;
 		protected float maxSpecialCharge = 1f;
 		public float currentSpecialCharge = 0f;
+		public bool playedShingNoise = false;
 
 		protected float airdashFadeCounter;
 		public float airdashFadeRate = 0.1f;
@@ -48,9 +50,8 @@ namespace Captain_Ameribro_Mod
 		protected const int defaultSpeed = 130;
 
 		// DEBUG variables
+		public const bool DEBUGTEXTURES = true;
 		public int frameCount = 0;
-		public static string hitSoundText = "0";
-		public static int hitSound;
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -74,7 +75,6 @@ namespace Captain_Ameribro_Mod
 
 		public override void UIOptions()
 		{
-			makeTextBox("hitsound", ref hitSoundText, ref hitSound);
 		}
 
 		protected override void Awake()
@@ -103,7 +103,7 @@ namespace Captain_Ameribro_Mod
 
 			materialNormalNoShield = new Material(this.material);
 
-			if ( !Main.DEBUGTEXTURES )
+			if ( !DEBUGTEXTURES )
             {
 				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroMainNoShield.png"));
 			}
@@ -113,7 +113,7 @@ namespace Captain_Ameribro_Mod
 			}
 
 			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
-            if (!Main.DEBUGTEXTURES)
+            if (!DEBUGTEXTURES)
             {
 				materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroArmless.png"));
 			}
@@ -125,7 +125,7 @@ namespace Captain_Ameribro_Mod
 			gunMaterialNormal = this.gunMaterial;
 
 			gunMaterialNoShield = new Material(gunMaterial);
-			if ( !Main.DEBUGTEXTURES )
+			if ( !DEBUGTEXTURES )
             {
 				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroGunNoShield.png"));
 			}
@@ -141,6 +141,8 @@ namespace Captain_Ameribro_Mod
 			this.shieldUnitBounce[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud3 trim.wav");
 
 			this.shieldWallBounce = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "deep thud trim2.wav");
+
+			this.shieldChargeShing = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ShieldShing.wav");
 		}
 
 		protected override void Update()
@@ -168,12 +170,12 @@ namespace Captain_Ameribro_Mod
 			this.specialCounter += this.t;
 			if (this.specialCounter > this.specialFrameRate)
 			{
-				this.specialCounter -= this.specialFrameRate;
-				++this.specialFrame;
 				if (this.animateSpecial)
 				{
 					this.AnimateSpecial();
 				}
+				this.specialCounter -= this.specialFrameRate;
+				++this.specialFrame;
 			}
 
 			if (base.actionState == ActionState.Dead && thrownShield != null && !thrownShield.dropping)
@@ -266,13 +268,15 @@ namespace Captain_Ameribro_Mod
 			// Don't start holding special unless we actually have a shield to prevent shield from charging
 			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag) )
             {
-				this.speed = 80;
-				this.isHoldingSpecial = true;
-				this.specialFrame = 0;
-				this.specialCounter = 0;
 				if (!this.hasBeenCoverInAcid && !this.doingMelee)
 				{
+					this.speed = 80;
+					this.isHoldingSpecial = true;
+					this.specialFrame = 0;
+					this.specialFrameRate = 0.06f;
+					this.specialCounter = this.specialFrameRate;
 					this.animateSpecial = true;
+					this.playedShingNoise = false;
 					base.frame = 0;
 					this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
 				}
@@ -322,27 +326,46 @@ namespace Captain_Ameribro_Mod
 				}
 				if ( isHoldingSpecial && this.SpecialAmmo > 0 )
                 {
-					this.specialFrameRate = 0.0334f;
-
-					if (this.specialFrame > 2)
+					if (this.specialFrame > 2 && this.currentSpecialCharge < 0.25f)
 					{
+						this.specialFrameRate = 0.05f;
 						this.specialFrame = 2;
-						this.specialCounter = 0;
 					}
+					else if ( this.specialFrame > 5 && this.currentSpecialCharge < 1f )
+                    {
+						this.specialFrame = 3;
+                    }
+					else if ( this.specialFrame == 5 && this.currentSpecialCharge > 1f )
+                    {
+						this.specialFrame = 6;
+                    }
+					else if ( this.specialFrame > 5 )
+                    {
+						this.specialFrameRate = 0.0333f;
+						this.specialFrame = 3;
+					}
+
+					if ( !this.playedShingNoise && this.currentSpecialCharge > 1f )
+                    {
+						Sound.GetInstance().PlaySoundEffectAt(this.shieldChargeShing, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+						this.playedShingNoise = true;
+                    }
 
 					this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
 				}
 				else
 				{
-					this.specialFrameRate = 0.0334f;
-					this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
-
-					if (this.specialFrame == 5)
+					if ( this.specialFrame > 2 && this.specialFrame < 7 )
+                    {
+						this.specialFrame = 7;
+					}
+					else if (this.specialFrame == 9)
 					{
 						this.UseSpecial();
 						this.speed = defaultSpeed;
 					}
-					else if (this.specialFrame >= 9)
+
+					if (this.specialFrame >= 11)
 					{
 						base.frame = 0;
 						this.animateSpecial = (this.usingPockettedSpecial = false);
@@ -351,6 +374,11 @@ namespace Captain_Ameribro_Mod
 							base.GetComponent<Renderer>().material = this.materialNormal;
 						}
 						this.ChangeFrame();
+					}
+					else
+                    {
+						this.specialFrameRate = 0.06f;
+						this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
 					}
 				}
 			}
@@ -581,7 +609,22 @@ namespace Captain_Ameribro_Mod
 
 		protected override void RunLeftAirDash()
 		{
-			base.RunLeftAirDash();
+			if (this.airDashDelay > 0f)
+			{
+				this.airDashDelay -= this.t;
+				this.yI = 0f;
+				this.xI = 50f;
+				base.transform.localScale = new Vector3(-1f, this.yScale, 1f);
+				if (this.airDashDelay <= 0f)
+				{
+					this.ChangeFrame();
+					this.PlayAidDashSound();
+				}
+			}
+			else
+			{
+				this.SetAirDashLeftSpeed();
+			}
 			this.specialAttackDashCounter += this.t;
 			if (this.specialAttackDashCounter > 0f)
 			{
@@ -601,7 +644,22 @@ namespace Captain_Ameribro_Mod
 
 		protected override void RunRightAirDash()
 		{
-			base.RunRightAirDash();
+			if (this.airDashDelay > 0f)
+			{
+				this.airDashDelay -= this.t;
+				this.yI = 0f;
+				this.xI = -50f;
+				base.transform.localScale = new Vector3(1f, this.yScale, 1f);
+				if (this.airDashDelay <= 0f)
+				{
+					this.ChangeFrame();
+					this.PlayAidDashSound();
+				}
+			}
+			else
+			{
+				this.SetAirDashRightSpeed();
+			}
 			this.specialAttackDashCounter += this.t;
 			if (this.specialAttackDashCounter > 0f)
 			{
