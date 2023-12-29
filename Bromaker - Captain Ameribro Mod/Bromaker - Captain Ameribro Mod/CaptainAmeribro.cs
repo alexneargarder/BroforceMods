@@ -273,7 +273,7 @@ namespace Captain_Ameribro_Mod
 					this.speed = 80;
 					this.isHoldingSpecial = true;
 					this.specialFrame = 0;
-					this.specialFrameRate = 0.06f;
+					this.specialFrameRate = 0.05f;
 					this.specialCounter = this.specialFrameRate;
 					this.animateSpecial = true;
 					this.playedShingNoise = false;
@@ -377,7 +377,7 @@ namespace Captain_Ameribro_Mod
 					}
 					else
                     {
-						this.specialFrameRate = 0.06f;
+						this.specialFrameRate = 0.05f;
 						this.gunSprite.SetLowerLeftPixel((float)(32 * (1 + this.specialFrame)), 128f);
 					}
 				}
