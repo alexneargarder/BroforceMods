@@ -11,7 +11,6 @@ namespace Captain_Ameribro_Mod
 {
     public class Main
     {
-        public const bool DEBUGTEXTURES = true;
         public static byte[] ExtractResource(string filename)
         {
             Assembly a = Assembly.GetExecutingAssembly();
