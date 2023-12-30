@@ -16,9 +16,13 @@ namespace Captain_Ameribro_Mod
 		protected Shield shield;
 		protected Shield thrownShield;
 
-		public AudioClip[] shieldUnitBounce;
-		public AudioClip shieldWallBounce;
-		public AudioClip shieldChargeShing;
+		public static AudioClip[] shieldUnitBounce;
+		public static AudioClip shieldChargeShing;
+
+		public static AudioClip[] shieldMeleeSwing;
+		public static AudioClip[] shieldMeleeHit;
+		public static AudioClip[] shieldMeleeTerrain;
+		public int currentMeleeSound = 0;
 
 		public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
 		public Material gunMaterialNormal, gunMaterialNoShield;
@@ -112,7 +116,7 @@ namespace Captain_Ameribro_Mod
 				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroMainNoShield.png");
 			}
 
-			materialArmless = (HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless;
+			materialArmless = new Material((HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless);
             if (!DEBUGTEXTURES)
             {
 				materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroArmless.png"));
@@ -134,15 +138,41 @@ namespace Captain_Ameribro_Mod
 				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
 			}
 
-			this.shieldUnitBounce = new AudioClip[3];
+			if ( shieldUnitBounce == null )
+            {
+				BMLogger.Log("reloading");
+				shieldUnitBounce = new AudioClip[3];
+				shieldUnitBounce[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special1.wav");
+				shieldUnitBounce[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special2.wav");
+				shieldUnitBounce[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special3.wav");
+			}
+			
+			if ( shieldChargeShing == null )
+            {
+				shieldChargeShing = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ShieldShing.wav");
+			}
 
-			this.shieldUnitBounce[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud trim.wav");
-			this.shieldUnitBounce[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud2 trim.wav");
-			this.shieldUnitBounce[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "mid thud3 trim.wav");
+			if ( shieldMeleeSwing == null )
+            {
+				shieldMeleeSwing = new AudioClip[2];
+				shieldMeleeSwing[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee1part1.wav");
+				shieldMeleeSwing[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee3part1.wav");
+			}
 
-			this.shieldWallBounce = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "deep thud trim2.wav");
-
-			this.shieldChargeShing = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ShieldShing.wav");
+			if ( shieldMeleeHit == null )
+            {
+				shieldMeleeHit = new AudioClip[2];
+				shieldMeleeHit[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee1part2.wav");
+				shieldMeleeHit[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee3part2.wav");
+			}
+		
+			if ( shieldMeleeTerrain == null )
+            {
+				shieldMeleeTerrain = new AudioClip[2];
+				shieldMeleeTerrain[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "meleeterrainhit1.wav");
+				shieldMeleeTerrain[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "meleeterrainhit2.wav");
+			}
+			
 		}
 
 		protected override void Update()
@@ -347,7 +377,7 @@ namespace Captain_Ameribro_Mod
 
 					if ( !this.playedShingNoise && this.currentSpecialCharge > 1f )
                     {
-						Sound.GetInstance().PlaySoundEffectAt(this.shieldChargeShing, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+						Sound.GetInstance().PlaySoundEffectAt(CaptainAmeribro.shieldChargeShing, 0.3f, base.transform.position, 1f, true, false, false, 0f);
 						this.playedShingNoise = true;
                     }
 
@@ -685,17 +715,18 @@ namespace Captain_Ameribro_Mod
 			this.KickDoors(24f);
 			if (Map.HitClosestUnit(this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 300f, 600f, true, false, base.IsMine, false, true))
 			{
-				this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+				this.sound.PlaySoundEffectAt(shieldMeleeHit[this.currentMeleeSound], 0.5f, base.transform.position, 1f, true, false, false, 0f);
 				this.meleeHasHit = true;
 			}
 			else if (playMissSound)
 			{
-				this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+				//this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
 			}
 			this.meleeChosenUnit = null;
 			if (shouldTryHitTerrain && this.TryMeleeTerrain(0, meleeAttackDamage - 2))
 			{
 				this.meleeHasHit = true;
+				this.sound.PlaySoundEffectAt(shieldMeleeTerrain, 0.5f, base.transform.position, 1f, true, false, false, 0f);
 			}
 			this.TriggerBroMeleeEvent();
 		}
@@ -705,6 +736,11 @@ namespace Captain_Ameribro_Mod
         {
 			if (this.CanStartNewMelee())
 			{
+				if (!(this.nearbyMook != null && this.nearbyMook.CanBeThrown()))
+                {
+					this.currentMeleeSound = UnityEngine.Random.Range(0, shieldMeleeSwing.Length);
+					this.sound.PlaySoundEffectAt(shieldMeleeSwing[this.currentMeleeSound], 0.6f, base.transform.position, 1f, true, false, false, 0f);
+				}
 				base.frame = 1;
 				base.counter = -0.05f;
 				this.AnimateMelee();
