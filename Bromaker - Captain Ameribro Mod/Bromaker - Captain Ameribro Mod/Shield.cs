@@ -702,7 +702,7 @@ namespace Captain_Ameribro_Mod
 			{
 				float num2 = num / 210f;
 				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
-				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
+				Sound.GetInstance().PlaySoundEffectAt(CaptainAmeribro.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 			}
 		}
 
@@ -717,7 +717,7 @@ namespace Captain_Ameribro_Mod
 				BMLogger.Log("hitsounds: " + this.soundHolder.hitSounds.Length);
 				// First one sounds best
 				//Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
-				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
+				Sound.GetInstance().PlaySoundEffectAt(CaptainAmeribro.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 			}
 		}
 
