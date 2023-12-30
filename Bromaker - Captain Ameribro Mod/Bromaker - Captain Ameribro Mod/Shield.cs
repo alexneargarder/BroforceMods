@@ -33,7 +33,7 @@ namespace Captain_Ameribro_Mod
 		public float bounceXM = 0.5f;
 		public float bounceYM = 0.33f;
 		public float frictionM = 0.5f;
-		public float bounceVolumeM = 0.25f;
+		public float bounceVolumeM = 1.0f;
 		public float heightOffGround = 8f;
 		protected List<Unit> alreadyHit = new List<Unit>();
 		protected const float groundRotationSpeed = -10.0f;
@@ -87,7 +87,7 @@ namespace Captain_Ameribro_Mod
 			if ( storedMat == null )
             {
 				storedMat = new Material(boom.GetComponent<MeshRenderer>().material);
-				if ( !Main.DEBUGTEXTURES )
+				if ( !CaptainAmeribro.DEBUGTEXTURES )
                 {
 					storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShieldPlaceholder.png"));
 				}
@@ -211,7 +211,7 @@ namespace Captain_Ameribro_Mod
 
 			this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
 
-			this.damageType = DamageType.Stun;
+			this.damageType = DamageType.Crush;
 
 			this.damage = BaseDamage + (int)System.Math.Round(BaseDamage * this.throwingPlayer.currentSpecialCharge);
 
@@ -702,7 +702,6 @@ namespace Captain_Ameribro_Mod
 			{
 				float num2 = num / 210f;
 				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
-                this.bounceVolumeM = 2f;
 				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 			}
 		}
@@ -716,7 +715,6 @@ namespace Captain_Ameribro_Mod
 				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
 				BMLogger.Log("Playing bounce sound: " + this.bounceVolumeM);
 				BMLogger.Log("hitsounds: " + this.soundHolder.hitSounds.Length);
-                this.bounceVolumeM = 2f;
 				// First one sounds best
 				//Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 				Sound.GetInstance().PlaySoundEffectAt(throwingPlayer.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);

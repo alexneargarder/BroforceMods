@@ -47,6 +47,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="BroMakerLib">
+      <HintPath>..\..\..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\UnityEngine.dll</HintPath>
