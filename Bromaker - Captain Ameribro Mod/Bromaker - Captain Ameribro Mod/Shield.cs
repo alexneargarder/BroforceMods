@@ -280,8 +280,6 @@ namespace Captain_Ameribro_Mod
                 }
 				if (!this.hasReachedApex && this.speed < (0.5 * this.originalSpeed)) // Shield has slowed down enough to be considered at Apex
 				{
-					BMLogger.Log("--------------REACHED APEX, STARTING REVERSE----------------");
-
 					this.hasReachedApex = true;
 					//this.droppingTime = this.droppingDuration;
 
@@ -548,9 +546,9 @@ namespace Captain_Ameribro_Mod
 					this.foundMook = true;
 					this.targetX = nearestVisibleUnitDamagebleBy.X;
 					this.targetY = nearestVisibleUnitDamagebleBy.Y + throwingPlayer.height + 4;
-					Traverse trav = Traverse.Create((nearestVisibleUnitDamagebleBy as Mook));
-					SpriteSM unitSprite = trav.Field("sprite").GetValue() as SpriteSM;
-					unitSprite.SetColor(new Color(0, 255, 0, 1f));
+					//Traverse trav = Traverse.Create((nearestVisibleUnitDamagebleBy as Mook));
+					//SpriteSM unitSprite = trav.Field("sprite").GetValue() as SpriteSM;
+					//unitSprite.SetColor(new Color(0, 255, 0, 1f));
 				}
 				else
 				{
@@ -713,9 +711,6 @@ namespace Captain_Ameribro_Mod
 			{
 				float num2 = num / 210f;
 				float num3 = 0.05f + Mathf.Clamp(num2 * num2, 0f, 0.25f);
-				BMLogger.Log("Playing bounce sound: " + this.bounceVolumeM);
-				BMLogger.Log("hitsounds: " + this.soundHolder.hitSounds.Length);
-				// First one sounds best
 				//Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 				Sound.GetInstance().PlaySoundEffectAt(CaptainAmeribro.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
 			}
