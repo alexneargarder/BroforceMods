@@ -1,3 +1,16 @@
+v2.2.0
+Added options for:
+Infinite lives
+Flight
+Disabling gravity
+Teleporting to mouse cursor
+Teleporting to current checkpoint
+Teleporting to final checkpoint
+Spawning at final checkpoint
+Slowing time
+Unlocking all territories
+Going to muscle temples in the level select
+
 v2.1.0
 Added several new options
 Improved UI

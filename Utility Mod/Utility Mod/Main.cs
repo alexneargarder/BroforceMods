@@ -225,7 +225,7 @@ namespace Utility_Mod
 
                     GUILayout.Space(20);
 
-                    if ( GUILayout.Button("Unlock All Levels", GUILayout.ExpandWidth(false) ) )
+                    if ( GUILayout.Button(new GUIContent("Unlock All Levels", "Only works on the world map screen"), GUILayout.ExpandWidth(false) ) )
                     {
                         if ( WorldMapController_Update_Patch.instance != null )
                         {
@@ -357,18 +357,21 @@ namespace Utility_Mod
 
                     if ( settings.infiniteLives != (settings.infiniteLives = GUILayout.Toggle(settings.infiniteLives, "Infinite Lives")) )
                     {
-                        if ( settings.infiniteLives )
+                        if ( currentCharacter != null )
                         {
-                            for ( int i = 0; i < 4; ++i )
+                            if (settings.infiniteLives)
                             {
-                                HeroController.SetLives(i, int.MaxValue);
+                                for (int i = 0; i < 4; ++i)
+                                {
+                                    HeroController.SetLives(i, int.MaxValue);
+                                }
                             }
-                        }
-                        else
-                        {
-                            for (int i = 0; i < 4; ++i)
+                            else
                             {
-                                HeroController.SetLives(i, 1);
+                                for (int i = 0; i < 4; ++i)
+                                {
+                                    HeroController.SetLives(i, 1);
+                                }
                             }
                         }
                     }
@@ -391,7 +394,7 @@ namespace Utility_Mod
 
                     GUILayout.Space(10);
 
-                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, "Instant Kill Enemies");
+                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, new GUIContent("Instant Kill Enemies", "Sets all enemies to one health") );
                 }
                 GUILayout.EndHorizontal();
 
@@ -403,6 +406,15 @@ namespace Utility_Mod
                     {
                         ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
                     }
+                }
+
+                Rect lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 300;
+                if (GUI.tooltip != previousToolTip)
+                {
+                    GUI.Label(lastRect, GUI.tooltip);
+                    previousToolTip = GUI.tooltip;
                 }
 
                 GUILayout.Space(25);
