@@ -1,0 +1,9 @@
+{
+	"Id": "Mod Template",
+	"DisplayName": "Mod Template",
+	"Author": "AlexN",
+	"Version": "1.0.0",
+	"AssemblyName": "Mod Template.dll",
+	"EntryMethod": "Mod_Template.Main.Load",
+	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+}

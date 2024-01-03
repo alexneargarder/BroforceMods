@@ -1,0 +1,1 @@
+rename Info.json _Info.json
