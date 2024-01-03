@@ -1,0 +1,31 @@
+{
+  "name": "Bro Template",
+  "characterPreset": "Bro Template",
+  "parameters": {
+    "BetterAnimation": true,
+    "SpecialIcons": "special.png",
+    "Avatar": "avatar.png"
+  },
+  "cutscene": {
+    "heading": "Bro Template",
+    "subtitle1": "Joins the Battle!",
+    "headingScale": 0.14,
+    "spritePath": "cutscene.png",
+    "anim": "Intro_Bro_Rambro",
+    "playCutsceneOnFirstSpawn": true
+  },
+  "beforeAwake": {
+    "speed": 130,
+    "fireRate": 0.1,
+    "canChimneyFlip": true,
+    "originalSpecialAmmo": 1
+  },
+  "afterAwake": {},
+  "beforeStart": {
+    "sprite": "sprite.png",
+    "gunSprite": "gunSprite.png"
+  },
+  "afterStart": {
+    
+  }
+}
