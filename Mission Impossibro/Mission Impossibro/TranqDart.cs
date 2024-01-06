@@ -38,13 +38,34 @@ namespace Mission_Impossibro
 
 			storedSprite = sprite;
 
-			BMLogger.Log("in tranq awake");
 			base.Awake();
 		}
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
         {
             base.Fire(newX, newY, xI, yI, _zOffset, playerNum, FiredBy);
+        }
+
+		bool CanFallOnFace( Mook mook )
+        {
+			MookType mookType = mook.mookType;
+			switch( mookType )
+            {
+				case MookType.Trooper:
+					if (mook is MookGeneral)
+						return false;
+					return true;
+				case MookType.Suicide:
+				case MookType.Scout:
+				case MookType.RiotShield:
+				case MookType.Grenadier:
+				case MookType.Bazooka:
+				case MookType.UndeadTrooper:
+				case MookType.Warlock:
+					return true;
+				default:
+					return false;
+            }
         }
 
         protected override void HitUnits()
@@ -67,19 +88,37 @@ namespace Mission_Impossibro
 							float num3 = unit.Y + unit.height / 2f + 4f - Y;
 							if (Mathf.Abs(num3) - yRange < unit.height && (Mathf.Sqrt(num2 * num2 + num3 * num3) <= xRange + unit.width) && (avoidID == null || avoidID != unit || unit.CatchFriendlyBullets()))
 							{
+								float stunTime = 20.0f / unit.health;
 								if ( unit is Mook )
                                 {
 									Mook mook = unit as Mook;
-									BMLogger.Log("mooktype: " + mook.mookType);
-									BMLogger.Log("attempting to fall on face");
-									Traverse trav = Traverse.Create(mook);
-									trav.Method("FallOnFace").GetValue();
-									trav.Field("fallenTime").SetValue(10f);
-									//MethodInfo methodInfo = typeof(CaravanEnterMapUtility).GetMethod("FindNearEdgeCell", BindingFlags.NonPublic | BindingFlags.Instance);
-									//var parameters = new object[] { map, extraCellValidator };
-									//__result = (IntVec3)methodInfo.Invoke(null, parameters);
-									hitUnits = true;
+									
+									if ( CanFallOnFace(mook) )
+                                    {
+										if ( !mook.IsOnGround() && mook is MookJetpack )
+                                        {
+											Traverse trav = Traverse.Create(mook as MookJetpack);
+											trav.Method("StartSpiralling").GetValue();
+										}
+										else
+                                        {
+											Traverse trav = Traverse.Create(mook);
+											trav.Method("FallOnFace").GetValue();
+											trav.Field("fallenTime").SetValue(stunTime);
+                                        }
+									}
+									else
+                                    {
+										unit.Stun(stunTime);
+										//Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+									}
 								}
+								else
+                                {
+									unit.Stun(stunTime);
+									Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+								}
+								hitUnits = true;
 							}
 						}
 					}
@@ -114,7 +153,7 @@ namespace Mission_Impossibro
 		{
 			this.damageType = DamageType.Normal;
 
-			this.damage = 3;
+			this.damage = 5;
 
 			this.damageInternal = this.damage;
 			this.fullDamage = this.damage;
