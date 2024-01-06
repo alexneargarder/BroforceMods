@@ -199,7 +199,7 @@ namespace Captain_Ameribro_Mod
         }
 
        public void AssignNullValues( Boomerang other )
-        {
+       {
             Traverse boomTraverse = Traverse.Create(other);
             //this.shieldCollider = other.boomerangCollider;
             this.soundVolume = other.soundVolume;
