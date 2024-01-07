@@ -13,6 +13,10 @@ namespace Mission_Impossibro
     [HeroPreset("Mission Impossibro", HeroType.Rambro)]
     public class Bro : CustomHero
     {
+        // Sprite variables
+        Material normalMaterial, stealthMaterial;
+        bool wasInvulnerable = false;
+
         // Primary variables
         TranqDart lastFiredTranq;
         float fireCooldown;
@@ -26,11 +30,17 @@ namespace Mission_Impossibro
         protected const float grappleSpeed = 200f;
         protected float grappleMaterialScale = 0.25f;
         protected float grappleMaterialOffset = 0.25f;
-        protected Vector3 grappleOffset = new Vector3(0f, 8f, 0f);
+        protected Vector3 grappleOffset = new Vector3(0f, 14f, 0f);
         protected bool grappleAttached = false;
         protected float grappleCooldown = 0f;
         protected bool exitingGrapple = false;
         protected int grappleFrame = 0;
+
+        // Special variables
+        protected float specialTime = 0f;
+        protected int usingSpecialFrame = 0;
+        protected List<Explosive> currentExplosives;
+        protected Explosive explosivePrefab;
 
         protected override void Awake()
         {
@@ -39,24 +49,57 @@ namespace Mission_Impossibro
             projectile = new GameObject("TranqDart", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(TranqDart) }).GetComponent<TranqDart>();
             projectile.soundHolder = (HeroController.GetHeroPrefab(HeroType.Rambro) as Rambro).projectile.soundHolder;
             projectile.enabled = false;
+
             grappleLine = new GameObject("GrappleLine", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             grappleLine.transform.parent = this.transform;
             grappleLine.material = ResourcesController.GetMaterial(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Mission Impossibro\\line.png");
+
+            explosivePrefab = new GameObject("Explosive", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Explosive) }).GetComponent<Explosive>();
+            explosivePrefab.enabled = false;
+            explosivePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
         }
 
         protected override void Start()
         {
             base.Start();
+
+            this.normalMaterial = this.material;
+            this.stealthMaterial = ResourcesController.GetMaterial(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Mission Impossibro\\spriteStealth.png");
             // DEBUG
             Instance = this;
         }
 
         protected override void Update()
         {
+            if (this.invulnerable)
+            {
+                this.wasInvulnerable = true;
+            }
             base.Update();
+            // Check if invulnerability ran out
+            if (this.wasInvulnerable && !this.invulnerable)
+            {
+                normalMaterial.SetColor("_TintColor", Color.gray);
+                stealthMaterial.SetColor("_TintColor", Color.gray);
+                gunSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            }
 
-            fireCooldown -= this.t;
-            grappleCooldown -= this.t;
+            if ( fireCooldown > 0 )
+            {
+                fireCooldown -= this.t;
+            }
+            if ( grappleCooldown > 0 )
+            {
+                grappleCooldown -= this.t;
+            }
+            if ( specialTime > 0 )
+            {
+                specialTime -= this.t;
+                if ( specialTime <= 0 )
+                {
+                    StopSpecial();
+                }
+            }
 
             if (this.grappleAttached && this.buttonJump && !this.wasButtonJump && this.grappleCooldown <= 0 )
             {
@@ -79,8 +122,6 @@ namespace Mission_Impossibro
         protected override void AirJump()
         {
             base.AirJump();
-
-            BMLogger.Log("in air jump");
 
             if ( !this.grappleAttached && this.grappleCooldown <= 0 && SearchForGrapplePoint() )
             {
@@ -134,16 +175,13 @@ namespace Mission_Impossibro
             if (Physics.Raycast(base.transform.position, Vector3.up, out raycastHit, grappleRange, this.groundLayer | this.barrierLayer))
             {
                 grappleHitPoint = this.raycastHit.point;
-                BMLogger.Log("found grapple point");
                 return true;
             }
-            BMLogger.Log("NO grapple point found");
             return false;
         }
 
         public void AttachGrapple()
         {
-            BMLogger.Log("attempting attach grapple");
             this.grappleLine.enabled = true;
             this.grappleLine.SetPosition(0, base.transform.position + this.grappleOffset);
             this.grappleLine.SetPosition(1, this.grappleHitPoint);
@@ -182,6 +220,10 @@ namespace Mission_Impossibro
             }
             else
             {
+                if ( this.usingSpecial )
+                {
+                    AnimateSpecial();
+                }
                 AnimateGrapple();
             }
         }
@@ -206,6 +248,16 @@ namespace Mission_Impossibro
             ++this.grappleFrame;
         }
 
+        public override void PlayChimneyFlipSound(float volume)
+        {
+            base.PlayChimneyFlipSound(volume);
+
+            if ( this.grappleAttached )
+            {
+                DetachGrapple();
+            }
+        }
+
         // Primary fire methods
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
@@ -228,39 +280,184 @@ namespace Mission_Impossibro
         {
             base.UseFire();
 
-            this.fireCooldown = 0.6f;
+            this.fireCooldown = this.fireRate;
         }
 
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
         {
-            this.gunFrame = 3;
-            y += 3;
-            this.SetGunSprite(this.gunFrame, 0);
-            this.TriggerBroFireEvent();
-            EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed * 0.15f, base.transform);
-            lastFiredTranq = ProjectileController.SpawnProjectileLocally(this.projectile, this, x, y, base.transform.localScale.x * bulletSpeed, 0, base.playerNum) as TranqDart;
-            lastFiredTranq.Setup();
-        }
-
-        protected override void ActivateGun()
-        {
-            base.ActivateGun();
+            if ( this.specialTime <= 0 )
+            {
+                this.gunFrame = 3;
+                y += 3;
+                this.SetGunSprite(this.gunFrame, 0);
+                this.TriggerBroFireEvent();
+                EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed * 0.15f, base.transform);
+                lastFiredTranq = ProjectileController.SpawnProjectileLocally(this.projectile, this, x, y, base.transform.localScale.x * bulletSpeed, 0, base.playerNum) as TranqDart;
+                lastFiredTranq.Setup();
+            }
+            else
+            {
+                Explosive explosive;
+                float horizontalSpeed = 250f;
+                float verticalSpeed = 0f;
+                if ( this.down )
+                {
+                    horizontalSpeed = 0f;
+                    verticalSpeed = -100f;
+                }
+                else if ( this.up )
+                {
+                    horizontalSpeed = 0f;
+                    verticalSpeed = 250f;
+                }
+                currentExplosives.Add(explosive = ProjectileController.SpawnProjectileLocally(this.explosivePrefab, this, x, y, base.transform.localScale.x * horizontalSpeed, verticalSpeed, base.playerNum) as Explosive);
+                SachelPack otherSachel = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile as SachelPack;
+                explosive.AssignNullValues(otherSachel);
+                explosive.life = this.specialTime + 2f;
+                explosive.enabled = true;
+            }
         }
 
         protected override void RunGun()
         {
-            if (!this.WallDrag && this.gunFrame > 0)
+            if (!this.WallDrag)
             {
-                this.gunCounter += this.t;
-                if (this.gunCounter > 0.0334f)
+                if (this.gunFrame > 0 && this.specialTime <= 0)
                 {
-                    this.gunCounter -= 0.0334f;
-                    this.gunFrame--;
-                    if ( this.gunFrame < 1 && this.fire )
+                    this.gunCounter += this.t;
+                    if (this.gunCounter > 0.0334f)
                     {
-                        this.gunFrame = 1;
+                        this.gunCounter -= 0.0334f;
+                        this.gunFrame--;
+                        if (this.gunFrame < 1 && this.fire)
+                        {
+                            this.gunFrame = 1;
+                        }
+                        this.SetGunSprite(this.gunFrame, 0);
                     }
-                    this.SetGunSprite(this.gunFrame, 0);
+                }
+                else
+                {
+                    this.SetGunSprite(0, 0);
+                }
+            }
+        }
+
+        // Special methods
+        protected override void PressSpecial()
+        {
+            if (!this.hasBeenCoverInAcid && this.SpecialAmmo > 0)
+            {
+                this.usingSpecialFrame = 0;
+                this.usingSpecial = true;
+                this.specialTime = 10f;
+                Map.ForgetPlayer(base.playerNum, true, false);
+                this.currentExplosives = new List<Explosive>();
+                this.fireRate = 0.2f;
+            }
+            else if (this.specialTime > 0)
+            {
+                this.specialTime = 0;
+                StopSpecial();
+            }
+        }
+
+        protected override void UseSpecial()
+        {
+            --this.SpecialAmmo;
+        }
+
+        public override bool IsInStealthMode()
+        {
+            return this.specialTime > 0f || base.IsInStealthMode();
+        }
+
+        protected override void AlertNearbyMooks()
+        {
+            if (this.specialTime <= 0f)
+            {
+                base.AlertNearbyMooks();
+            }
+        }
+
+        protected void StopSpecial()
+        {
+            this.usingSpecial = true;
+            this.usingSpecialFrame = 5;
+            this.fireRate = 0.4f;
+            // Detonate explosives
+            foreach ( Explosive explosive in this.currentExplosives )
+            {
+                explosive.Death();
+            }
+        }
+
+        protected override void AnimateSpecial()
+        {
+            
+            if ( this.grappleAttached || this.exitingGrapple )
+            {
+                // Put on balaclava
+                if (this.specialTime > 0)
+                {
+                    if (this.usingSpecialFrame > 5)
+                    {
+                        this.usingSpecial = false;
+                        base.GetComponent<Renderer>().material = this.stealthMaterial;
+                        this.UseSpecial();
+                        return;
+                    }
+
+                    ++this.usingSpecialFrame;
+                }
+                // Take off balaclava
+                else
+                {
+                    if (this.usingSpecialFrame < 0)
+                    {
+                        this.usingSpecial = false;
+                        base.GetComponent<Renderer>().material = this.normalMaterial;
+                        return;
+                    }
+
+                    --this.usingSpecialFrame;
+                }
+            }
+            else
+            {
+                this.DeactivateGun();
+                // Put on balaclava
+                if (this.specialTime > 0)
+                {
+                    if (this.usingSpecialFrame > 5)
+                    {
+                        base.frame = 0;
+                        this.usingSpecial = false;
+                        base.GetComponent<Renderer>().material = this.stealthMaterial;
+                        this.ActivateGun();
+                        this.UseSpecial();
+                        return;
+                    }
+
+                    this.sprite.SetLowerLeftPixel((26 + this.usingSpecialFrame) * this.spritePixelWidth, 8 * this.spritePixelHeight);
+
+                    ++this.usingSpecialFrame;
+                }
+                // Take off balaclava
+                else
+                {
+                    if (this.usingSpecialFrame < 0)
+                    {
+                        base.frame = 0;
+                        this.usingSpecial = false;
+                        base.GetComponent<Renderer>().material = this.normalMaterial;
+                        this.ActivateGun();
+                        return;
+                    }
+
+                    this.sprite.SetLowerLeftPixel((26 + this.usingSpecialFrame) * this.spritePixelWidth, 8 * this.spritePixelHeight);
+
+                    --this.usingSpecialFrame;
                 }
             }
         }
