@@ -13,9 +13,7 @@ namespace Mission_Impossibro
     class TranqDart : Projectile
     {
 		public static Material storedMat;
-		public AnimatedTexture texture;
 		public SpriteSM storedSprite;
-		//public static List<Mook> sleepingUnits = new List<Mook>();
 		protected override void Awake()
 		{
 			MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
