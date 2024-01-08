@@ -7,6 +7,8 @@ using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib;
 using BroMakerLib.Loggers;
 using UnityEngine.Audio;
+using System.IO;
+using System.Reflection;
 
 namespace Captain_Ameribro_Mod
 {
@@ -27,6 +29,7 @@ namespace Captain_Ameribro_Mod
 		public static AudioClip airDashSound;
 		public static AudioClip[] effortSounds;
 		public static AudioClip[] ricochetSounds;
+		public static AudioClip[] pistolSounds;
 		public int currentMeleeSound = 0;
 		public float sliceVolume = 0.7f;
 		public float wallHitVolume = 0.6f;
@@ -68,10 +71,6 @@ namespace Captain_Ameribro_Mod
 		// DEBUG variables
 		public const bool DEBUGTEXTURES = true;
 		public int frameCount = 0;
-		public static string attackRange = "10";
-		public static string offset = "0";
-		public static float attackRangeFloat = 10f;
-		public static float offsetFloat = 0f;
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -95,8 +94,6 @@ namespace Captain_Ameribro_Mod
 
 		public override void UIOptions()
 		{
-			makeTextBox("attackrange", ref attackRange, ref attackRangeFloat);
-			makeTextBox("offset", ref offset, ref offsetFloat);
 		}
 
 		protected override void Awake()
@@ -111,7 +108,7 @@ namespace Captain_Ameribro_Mod
 			this.currentMeleeType = BroBase.MeleeType.Disembowel;
 			this.meleeType = BroBase.MeleeType.Disembowel;
 
-			this.canCeilingHang = true;
+			pistolBullet = (HeroController.GetHeroPrefab(HeroType.DoubleBroSeven) as DoubleBroSeven).projectile;
 
 			base.Awake();
 		}
@@ -125,13 +122,15 @@ namespace Captain_Ameribro_Mod
 
 			materialNormalNoShield = new Material(this.material);
 
+			string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
 			if ( !DEBUGTEXTURES )
             {
 				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroMainNoShield.png"));
 			}
 			else
             {
-				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroMainNoShield.png");
+				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroMainNoShield.png");
 			}
 
 			materialArmless = new Material((HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless);
@@ -141,7 +140,7 @@ namespace Captain_Ameribro_Mod
 			}
 			else
             {
-				materialArmless.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroArmless.png");
+				materialArmless.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroArmless.png");
 			}
 
 			gunMaterialNormal = this.gunMaterial;
@@ -153,68 +152,75 @@ namespace Captain_Ameribro_Mod
 			}
 			else
             {
-				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroGunNoShield.png");
+				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroGunNoShield.png");
 			}
 
 			if ( shieldUnitBounce == null )
             {
 				shieldUnitBounce = new AudioClip[3];
-				shieldUnitBounce[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special1.wav");
-				shieldUnitBounce[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special2.wav");
-				shieldUnitBounce[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "special3.wav");
+				shieldUnitBounce[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special1.wav");
+				shieldUnitBounce[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special2.wav");
+				shieldUnitBounce[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special3.wav");
 			}
 			
 			if ( shieldChargeShing == null )
             {
-				shieldChargeShing = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ShieldShing.wav");
+				shieldChargeShing = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ShieldShing.wav");
 			}
 
 			if ( shieldMeleeSwing == null )
             {
 				shieldMeleeSwing = new AudioClip[2];
-				shieldMeleeSwing[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee1part1.wav");
-				shieldMeleeSwing[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee3part1.wav");
+				shieldMeleeSwing[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part1.wav");
+				shieldMeleeSwing[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part1.wav");
 			}
 
 			if ( shieldMeleeHit == null )
             {
 				shieldMeleeHit = new AudioClip[2];
-				shieldMeleeHit[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee1part2.wav");
-				shieldMeleeHit[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "melee3part2.wav");
+				shieldMeleeHit[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part2.wav");
+				shieldMeleeHit[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part2.wav");
 			}
 		
 			if ( shieldMeleeTerrain == null )
             {
 				shieldMeleeTerrain = new AudioClip[2];
-				shieldMeleeTerrain[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "meleeterrainhit1.wav");
-				shieldMeleeTerrain[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "meleeterrainhit2.wav");
+				shieldMeleeTerrain[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit1.wav");
+				shieldMeleeTerrain[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit2.wav");
 			}
 			
 			if ( airDashSound ==  null )
             {
-				airDashSound = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "swish.wav");
+				airDashSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "swish.wav");
 			}
 
 			if (effortSounds == null)
             {
 				effortSounds = new AudioClip[5];
-				effortSounds[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "DM Effortful Grunt1.wav");
-				effortSounds[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "DM Effortful Grunt2.wav");
-				effortSounds[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "DM Effortful Grunt3.wav");
-				effortSounds[3] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "DM Effortful Grunt4.wav");
-				effortSounds[4] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "DM Effortful Grunt5.wav");
+				effortSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt1.wav");
+				effortSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt2.wav");
+				effortSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt3.wav");
+				effortSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt4.wav");
+				effortSounds[4] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt5.wav");
 			}
 
 			if (ricochetSounds == null)
             {
 				ricochetSounds = new AudioClip[4];
-				ricochetSounds[0] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ricochet1.wav");
-				ricochetSounds[1] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ricochet2.wav");
-				ricochetSounds[2] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ricochet3.wav");
-				ricochetSounds[3] = ResourcesController.CreateAudioClip(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro\\sounds", "ricochet4.wav");
+				ricochetSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet1.wav");
+				ricochetSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet2.wav");
+				ricochetSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet3.wav");
+				ricochetSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet4.wav");
 			}
 
-			pistolBullet = (HeroController.GetHeroPrefab(HeroType.DoubleBroSeven) as DoubleBroSeven).projectile;
+			if (pistolSounds == null)
+            {
+				pistolSounds = new AudioClip[4];
+				pistolSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol1.wav");
+				pistolSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol2.wav");
+				pistolSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol3.wav");
+				pistolSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol4.wav");
+            }
 		}
 
 		protected override void Update()
@@ -284,14 +290,18 @@ namespace Captain_Ameribro_Mod
         {
 			// Cancel holding special if doing any animation that won't work for the armless sprite
 			if ( this.animateSpecial && (this.chimneyFlip || this.wallClimbing || this.WallDrag || (base.actionState == ActionState.Dead) || 
-				(this.inseminatorUnit != null) || this.impaledByTransform != null && this.useImpaledFrames ) )
+				(this.inseminatorUnit != null) || (this.impaledByTransform != null && this.useImpaledFrames) || this.attachedToZipline != null ) )
             {
 				this.CancelSpecial();
             }
             base.ChangeFrame();
-        }
+			if ( this.doingMelee && !this.usingShieldMelee )
+            {
+				base.frameRate = 0.05f;
+			}
+		}
 
-        protected override void AnimateWallAnticipation()
+		protected override void AnimateWallAnticipation()
         {
 			// Cancel holding special if we are about to grab a wall
 			if ( this.animateSpecial )
@@ -342,6 +352,32 @@ namespace Captain_Ameribro_Mod
 			this.materialNormal = this.materialNormalShield;
 			base.GetComponent<Renderer>().material = this.materialNormalShield;
 			this.gunSprite.meshRender.material = this.gunMaterialNormal;
+			if ( this.doingMelee )
+            {
+				this.doingMelee = false;
+				this.jumpingMelee = false;
+				this.dashingMelee = false;
+				this.standingMelee = false;
+				this.meleeFollowUp = false;
+				this.meleeChosenUnit = null;
+				this.counter = 0f;
+				this.hasPlayedMissSound = false;
+				if (base.actionState != ActionState.ClimbingLadder)
+				{
+					if (base.Y > this.groundHeight)
+					{
+						base.actionState = ActionState.Jumping;
+					}
+					else if (this.left || this.right)
+					{
+						base.actionState = ActionState.Running;
+					}
+					else
+					{
+						this.SetActionstateToIdle();
+					}
+				}
+			}
 			if (!this.usingSpecial)
 			{
 				this.usingSpecial = true;
@@ -351,10 +387,20 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		protected override void PressSpecial()
+        // Make shield drop if character is destroyed
+        protected override void OnDestroy()
+        {
+			if (thrownShield != null && !thrownShield.dropping)
+			{
+				thrownShield.StartDropping();
+			}
+			base.OnDestroy();
+        }
+
+        protected override void PressSpecial()
         {
 			// Don't start holding special unless we actually have a shield to prevent shield from charging
-			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag) )
+			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag || this.attachedToZipline != null) )
             {
 				if (!this.hasBeenCoverInAcid && !this.doingMelee)
 				{
@@ -383,13 +429,23 @@ namespace Captain_Ameribro_Mod
 			this.speed = defaultSpeed;
 			this.animateSpecial = false;
 			this.currentSpecialCharge = 0f;
+			this.gunFrame = 0;
 			if (!this.hasBeenCoverInAcid)
 			{
 				base.GetComponent<Renderer>().material = this.materialNormal;
 			}
 		}
 
-		protected override void AnimateSpecial()
+        public override void AttachToZipline(ZipLine zipLine)
+        {
+			if ( this.animateSpecial)
+            {
+                this.CancelSpecial();
+            }
+            base.AttachToZipline(zipLine);
+        }
+
+        protected override void AnimateSpecial()
 		{
 			if (this.grabbingShield)
 			{
@@ -535,7 +591,6 @@ namespace Captain_Ameribro_Mod
 		{
 			if (this.attachedToZipline != null)
 			{
-				this.attachedToZipline.DetachUnit(this);
 				if (base.transform.localScale.x > 0f)
 				{
 					this.AirDashRight();
@@ -552,7 +607,6 @@ namespace Captain_Ameribro_Mod
 			this.gunCounter = 0f;
 			this.SetGunFrame();
 			currentlyHitting = new List<Unit>();
-			//BMLogger.Log("x: " + x + " y: " + y + " xpseed: " + xSpeed + " yspeed: " + ySpeed);
 			float num = base.transform.localScale.x * 12f;
 			this.ConstrainToFragileBarriers(ref num, 16f);
 			if (Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 5.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 18f, this.groundLayer | 1 << LayerMask.NameToLayer("FLUI")) || Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 10.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer("FLUI")))
@@ -573,7 +627,7 @@ namespace Captain_Ameribro_Mod
 			else
 			{
 				this.hasHitWithWall = false;
-				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, attackRangeFloat, x + base.transform.localScale.x * offsetFloat, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false))
+				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -594,7 +648,7 @@ namespace Captain_Ameribro_Mod
 			else
 			{
 				this.hasHitWithWall = false;
-				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, attackRangeFloat, x + base.transform.localScale.x * offsetFloat, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false))
+				if (Map.HitUnits(this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false))
 				{
 					this.hasHitWithSlice = true;
 				}
@@ -723,14 +777,14 @@ namespace Captain_Ameribro_Mod
 
 		protected override void PressHighFiveMelee(bool forceHighFive = false)
 		{
-			if (this.right && this.CanAirDash(DirectionEnum.Right))
+			if (this.right && this.CanAirDash(DirectionEnum.Right) && this.SpecialAmmo > 0 )
 			{
 				if (!this.wasHighFive)
 				{
 					this.Airdash(true);
 				}
 			}
-			else if (this.left && this.CanAirDash(DirectionEnum.Left))
+			else if (this.left && this.CanAirDash(DirectionEnum.Left) && this.SpecialAmmo > 0)
 			{
 				if (!this.wasHighFive)
 				{
@@ -747,6 +801,13 @@ namespace Captain_Ameribro_Mod
         {
 			if ( !this.animateSpecial && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
             {
+				if (this.attachedToZipline != null)
+				{
+					this.attachedToZipline.DetachUnit(this);
+					this.ActivateGun();
+					this.gunFrame = 0;
+					this.SetGunSprite(0, 0);
+				}
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashLeft();
 				this.airDashCooldown = this.airdashTime + 0.2f;
@@ -757,6 +818,13 @@ namespace Captain_Ameribro_Mod
         {
 			if ( !this.animateSpecial && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
 			{
+				if (this.attachedToZipline != null)
+				{
+					this.attachedToZipline.DetachUnit(this);
+					this.ActivateGun();
+					this.gunFrame = 0;
+					this.SetGunSprite(0, 0);
+				}
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashRight();
 				this.airDashCooldown = this.airdashTime + 0.2f;
@@ -878,21 +946,22 @@ namespace Captain_Ameribro_Mod
 			}
 			if (this.CanStartNewMelee())
 			{
-				if (!(this.nearbyMook != null && this.nearbyMook.CanBeThrown()))
+				this.usingShieldMelee = this.SpecialAmmo > 0;
+				if (!(this.nearbyMook != null && this.nearbyMook.CanBeThrown()) && this.usingShieldMelee)
                 {
 					this.currentMeleeSound = UnityEngine.Random.Range(0, shieldMeleeSwing.Length);
 					this.sound.PlaySoundEffectAt(shieldMeleeSwing[this.currentMeleeSound], 0.6f, base.transform.position, 1f, true, false, false, 0f);
 				}
 				base.frame = 1;
 				base.counter = -0.05f;
-				this.usingShieldMelee = this.SpecialAmmo > 0;
+				
 				this.AnimateMelee();
 			}
 			else if (this.CanStartMeleeFollowUp())
 			{
 				this.meleeFollowUp = true;
 			}
-			if (!this.jumpingMelee)
+			if (!this.jumpingMelee && this.usingShieldMelee)
 			{
 				this.dashingMelee = true;
 				this.xI = (float)base.Direction * this.speed;
@@ -954,7 +1023,9 @@ namespace Captain_Ameribro_Mod
 				this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
 				if (base.frame == 3)
                 {
-					ProjectileController.SpawnProjectileLocally(this.pistolBullet, this, this.X, this.Y + 9.5f, this.transform.localScale.x * 250, 0, base.playerNum);
+					this.sound.PlaySoundEffectAt(pistolSounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
+                    Projectile bullet = ProjectileController.SpawnProjectileLocally(this.pistolBullet, this, this.X + (this.transform.localScale.x * 12), this.Y + 13.5f, this.transform.localScale.x * 250, 0, base.playerNum);
+                    EffectsController.CreateMuzzleFlashEffect(this.X + (this.transform.localScale.x * 14), this.Y + 13.5f, -25f, this.transform.localScale.x * 100, 0, base.transform);
 				}
 				if (base.frame >= 6)
 				{
@@ -992,20 +1063,20 @@ namespace Captain_Ameribro_Mod
 				{
 					if (this.meleeChosenUnit == null)
 					{
-						if (!this.isInQuicksand)
+						if (!this.isInQuicksand && this.usingShieldMelee)
 						{
 							this.xI = this.speed * 1f * base.transform.localScale.x;
 						}
 						this.yI = 0f;
 					}
-					else if (!this.isInQuicksand)
+					else if (!this.isInQuicksand && this.usingShieldMelee)
 					{
 						this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
 					}
 				}
 				else if (base.frame <= 5)
 				{
-					if (!this.isInQuicksand)
+					if (!this.isInQuicksand && this.usingShieldMelee)
 					{
 						this.xI = this.speed * 0.3f * base.transform.localScale.x;
 					}

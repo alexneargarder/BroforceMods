@@ -7,6 +7,7 @@ using UnityEngine;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using System.IO;
+using System.Reflection;
 
 namespace Captain_Ameribro_Mod
 {
@@ -84,16 +85,18 @@ namespace Captain_Ameribro_Mod
 
             MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
 
+			string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
 			if ( storedMat == null )
             {
 				storedMat = new Material(boom.GetComponent<MeshRenderer>().material);
 				if ( !CaptainAmeribro.DEBUGTEXTURES )
                 {
-					storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShieldPlaceholder.png"));
+					storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShield.png"));
 				}
 				else
                 {
-					storedMat.mainTexture = ResourcesController.CreateTexture(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Captain Ameribro", "captainAmeribroShield.png");
+					storedMat.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroShield.png");
 				}
 			}
 
@@ -537,8 +540,6 @@ namespace Captain_Ameribro_Mod
 		{
 			if (!this.foundMook)
 			{
-				//this.seekRange = this.returnTime * Mathf.Abs(this.speed);
-				//BMLogger.Log("calculated range: " + this.seekRange);
 				Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy(this.playerNum, (int)this.seekRange, base.X, base.Y, false);
 				// Check that we found a unit, it hasn't already been hit, and it is in the direction the shield is traveling.
 				if (nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy && !this.alreadyHit.Contains(nearestVisibleUnitDamagebleBy) && (Mathf.Sign(nearestVisibleUnitDamagebleBy.X - this.X) == Mathf.Sign(this.xI)) )
@@ -546,9 +547,6 @@ namespace Captain_Ameribro_Mod
 					this.foundMook = true;
 					this.targetX = nearestVisibleUnitDamagebleBy.X;
 					this.targetY = nearestVisibleUnitDamagebleBy.Y + throwingPlayer.height + 4;
-					//Traverse trav = Traverse.Create((nearestVisibleUnitDamagebleBy as Mook));
-					//SpriteSM unitSprite = trav.Field("sprite").GetValue() as SpriteSM;
-					//unitSprite.SetColor(new Color(0, 255, 0, 1f));
 				}
 				else
 				{
