@@ -1,3 +1,6 @@
+v2.0.6
+Fixed small bug with BroMaker compatibility
+
 v2.0.5
 Added support for BroMaker bros.
 Made it so only available bros show in IronBro.
