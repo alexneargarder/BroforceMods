@@ -8,11 +8,15 @@
   <enableVehicles>false</enableVehicles>
   <enableNormalSummoned>true</enableNormalSummoned>
   <enableBossSummoned>true</enableBossSummoned>
+  <enableAmmoRandomization>false</enableAmmoRandomization>
+  <enableCratesTurningIntoAmmo>false</enableCratesTurningIntoAmmo>
+  <unlockAllFlexPowers>false</unlockAllFlexPowers>
   <showNormal>false</showNormal>
   <showWorms>false</showWorms>
   <showBosses>false</showBosses>
   <showLargeBosses>false</showLargeBosses>
   <showVehicles>false</showVehicles>
+  <showAmmo>false</showAmmo>
   <enabledNormal>
     <int>0</int>
     <int>1</int>
@@ -85,6 +89,16 @@
     <int>9</int>
     <int>10</int>
   </enabledVehicles>
+  <enabledAmmoTypes>
+    <int>0</int>
+    <int>1</int>
+    <int>2</int>
+    <int>3</int>
+    <int>4</int>
+    <int>5</int>
+    <int>6</int>
+    <int>8</int>
+  </enabledAmmoTypes>
   <enableInstantWin>true</enableInstantWin>
   <enableDeathField>true</enableDeathField>
   <enableSpawnedEnemiesRandomization>true</enableSpawnedEnemiesRandomization>
@@ -93,7 +107,9 @@
   <wormPercent>2</wormPercent>
   <bossPercent>5</bossPercent>
   <largeBossPercent>3</largeBossPercent>
-  <vehiclePercent>0</vehiclePercent>
+  <vehiclePercent>1</vehiclePercent>
+  <ammoRandomizationPercent>100</ammoRandomizationPercent>
+  <cratesToAmmoPercent>1</cratesToAmmoPercent>
   <defaultSettings>false</defaultSettings>
   <DEBUG>false</DEBUG>
   <debugMookType>0</debugMookType>

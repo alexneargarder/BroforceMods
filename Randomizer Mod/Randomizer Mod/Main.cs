@@ -62,12 +62,12 @@ namespace Randomizer_Mod
 
 
         // Don't spawn at all
-        public static string[] mookTypesNotWorking = new string[] { "Pig Rotten", "Pig", "Seagull", "WarlockPortal Suicide", "WarlockPortal", "WarlockPortalLarge",
-            "ZConradBroneBanks", "ZHellDogEgg" };
+        //public static string[] mookTypesNotWorking = new string[] { "Pig Rotten", "Pig", "Seagull", "WarlockPortal Suicide", "WarlockPortal", "WarlockPortalLarge",
+        //    "ZConradBroneBanks", "ZHellDogEgg" };
 
         // Don't spawn at all
-        public static string[] alienTypesNotWorking = new string[] { "Alien SandWorm Facehugger Launcher Behind", "Alien SandWorm Facehugger Launcher",
-        "AlienGiantBoss SandWorm", "AlienGiantSandWorm", "AlienMiniBoss SandWorm", "SandwormHeadGibHolder" };
+        //public static string[] alienTypesNotWorking = new string[] { "Alien SandWorm Facehugger Launcher Behind", "Alien SandWorm Facehugger Launcher",
+        //"AlienGiantBoss SandWorm", "AlienGiantSandWorm", "AlienMiniBoss SandWorm", "SandwormHeadGibHolder" };
 
         // "ZMook Backup" don't shoot and freeze when thrown
         // "ZMookCaptain" stands still and does nothing
@@ -77,11 +77,13 @@ namespace Randomizer_Mod
         // "ZMookMortar" unfinished mortar enemy
         // "ZSatan Mook" screams and disappears
         // "ZSatanCutscene" uninteractable
-        public static string[] mookTypesGlitchy = new string[] { "ZMook Backup", "ZMookCaptain", "ZMookCaptainCutscene",
-        "ZMookCaptainExpendabro", "ZMookHellArmouredBigGuy", "ZMookMortar", "ZSatan Mook", "ZSatanCutscene" };
+        //public static string[] mookTypesGlitchy = new string[] { "ZMook Backup", "ZMookCaptain", "ZMookCaptainCutscene",
+        //"ZMookCaptainExpendabro", "ZMookHellArmouredBigGuy", "ZMookMortar", "ZSatan Mook", "ZSatanCutscene" };
 
         public static string debugMookString = "0";
         public static string debugMookStringSummoned = "0";
+        public static string debugAmmoTypeString = "0";
+        public static int debugAmmoType = 0;
 
         public static string[] debugMookTypeList = new string[] {
             "mook",
@@ -177,6 +179,7 @@ namespace Randomizer_Mod
                 settings.enabledBosses = new List<int>();
                 settings.enabledLargeBosses = new List<int>();
                 settings.enabledVehicles = new List<int>();
+                settings.enabledAmmoTypes = new List<int>();
                 for (int i = 0; i < Main.normalList.Length; ++i)
                 {
                     settings.enabledNormal.Add(i);
@@ -197,13 +200,26 @@ namespace Randomizer_Mod
                 {
                     settings.enabledVehicles.Add(i);
                 }
+                for (int i = 0; i < Main.ammoList.Length; ++i)
+                {
+                    settings.enabledAmmoTypes.Add(i);
+                }
+                // Pig not enabled by default
+                settings.enabledAmmoTypes.Remove(7);
                 settings.defaultSettings = false;
             }
 
+            mod = modEntry;
             var harmony = new Harmony(modEntry.Info.Id);
             var assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll(assembly);
-            mod = modEntry;
+            try
+            {
+                harmony.PatchAll(assembly);
+            }
+            catch ( Exception ex )
+            {
+                Log("Harmony Patch Exception: " + ex.ToString());
+            }
 
             debugMookString = settings.debugMookType.ToString();
             debugMookStringSummoned = settings.debugMookTypeSummoned.ToString();
@@ -240,6 +256,11 @@ namespace Randomizer_Mod
         public static string[] vehicleList = new string[]
         {
             "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck"
+        };
+
+        public static string[] ammoList = new string[]
+        {
+            "Ammo", "Slow Time", "RC Car", "Air Strike", "Mech Drop", "Alien Pheromones", "Steroids", "Pig", "Flex Power"
         };
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
@@ -598,6 +619,86 @@ namespace Randomizer_Mod
 
             GUILayout.Space(40);
 
+            GUILayout.BeginHorizontal();
+
+            settings.enableAmmoRandomization = GUILayout.Toggle(settings.enableAmmoRandomization, new GUIContent("Randomize Ammo Crates", "Enables crates being randomized to other pickup types"));
+
+            settings.enableCratesTurningIntoAmmo = GUILayout.Toggle(settings.enableCratesTurningIntoAmmo, new GUIContent("Convert Wooden Boxes to Ammo Crates", "Converts wooden boxes to ammo crates, percentage chance can be controlled below"));
+
+            settings.unlockAllFlexPowers = GUILayout.Toggle(settings.unlockAllFlexPowers, new GUIContent("Unlock All Flex Powers", "Unlocks all flex powers immediately when starting a new game"));
+
+            GUILayout.EndHorizontal();
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 500;
+
+                GUI.Label(lastRect, GUI.tooltip);
+            }
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(20);
+
+            if (GUILayout.Button("Ammo Types"))
+            {
+                settings.showAmmo = !settings.showAmmo;
+            }
+
+            if (settings.showAmmo)
+            {
+                GUILayout.BeginVertical();
+                for (int i = 0; i < ammoList.Length; ++i)
+                {
+                    if (i != 0 && i % 5 == 0)
+                    {
+                        GUILayout.EndHorizontal();
+                        GUILayout.Space(5);
+                    }
+                    if (i % 5 == 0)
+                    {
+                        GUILayout.BeginHorizontal();
+                    }
+                    bool containsBefore = settings.enabledAmmoTypes.Contains(i);
+
+                    if (containsBefore != GUILayout.Toggle(containsBefore, ammoList[i], GUILayout.Width(175)))
+                    {
+                        if (containsBefore)
+                        {
+                            settings.enabledAmmoTypes.Remove(i);
+                        }
+                        else
+                        {
+                            settings.enabledAmmoTypes.Add(i);
+                        }
+                    }
+                    if (i + 1 == ammoList.Length)
+                    {
+                        GUILayout.EndHorizontal();
+                    }
+                }
+                GUILayout.EndVertical();
+                GUILayout.Space(20);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Select All", GUILayout.Width(100)))
+                {
+                    settings.enabledAmmoTypes.Clear();
+                    for (int i = 0; i < ammoList.Length; ++i)
+                    {
+                        settings.enabledAmmoTypes.Add(i);
+                    }
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Deselect All", GUILayout.Width(100)))
+                {
+                    settings.enabledAmmoTypes.Clear();
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(40);
+
             settings.enableInstantWin = GUILayout.Toggle(settings.enableInstantWin, new GUIContent("Killing Bosses triggers level finish", "If this is enabled, killing a boss will trigger a level end even if you're not on a boss level"));
 
             if (previousToolTip != GUI.tooltip)
@@ -714,6 +815,30 @@ namespace Randomizer_Mod
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label(new GUIContent("Ammo Chance: ",
+                    "Chance for ammo crates to be randomized to other ammo types."), GUILayout.Width(200));
+
+                GUILayout.Label(settings.ammoRandomizationPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.ammoRandomizationPercent = GUILayout.HorizontalSlider(settings.ammoRandomizationPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label(new GUIContent("Wooden Box to Ammo Chance: ",
+                    "Chance for wooden boxes to be turned into random ammo crates"), GUILayout.Width(200));
+
+                GUILayout.Label(settings.cratesToAmmoPercent.ToString("0.00"), GUILayout.Width(100));
+
+
+                settings.cratesToAmmoPercent = GUILayout.HorizontalSlider(settings.cratesToAmmoPercent, 0, 100);
+            }
+            GUILayout.EndHorizontal();
+
             GUILayout.Space(10);
 
             if (previousToolTip != GUI.tooltip)
@@ -802,17 +927,23 @@ namespace Randomizer_Mod
         public bool enableNormalSummoned = true;
         public bool enableBossSummoned = true;
 
+        public bool enableAmmoRandomization = false;
+        public bool enableCratesTurningIntoAmmo = false;
+        public bool unlockAllFlexPowers = false;
+
         public bool showNormal = false;
         public bool showWorms = false;
         public bool showBosses = false;
         public bool showLargeBosses = false;
         public bool showVehicles = false;
+        public bool showAmmo = false;
 
         public List<int> enabledNormal;
         public List<int> enabledWorms;
         public List<int> enabledBosses;
         public List<int> enabledLargeBosses;
         public List<int> enabledVehicles;
+        public List<int> enabledAmmoTypes;
 
         public bool enableInstantWin = true;
         public bool enableDeathField = true;
@@ -824,7 +955,9 @@ namespace Randomizer_Mod
         public float wormPercent = 2.0f;
         public float bossPercent = 5.0f;
         public float largeBossPercent = 3.0f;
-        public float vehiclePercent = 0.0f;
+        public float vehiclePercent = 1.0f;
+        public float ammoRandomizationPercent = 100.0f;
+        public float cratesToAmmoPercent = 1.0f;
 
         public bool defaultSettings = true;
 
@@ -847,14 +980,14 @@ namespace Randomizer_Mod
         {
             Mook mookPrefab = null;
 
-            int enemyConvertChance = rnd.Next(0, 100);
+            double enemyConvertChance = rnd.NextDouble() * (100);
 
             if (enemyConvertChance > Main.settings.enemyPercent || Map_PlaceDoodad.mapInstance == null )
             {
                 return mookPrefab;
             }
 
-            int enemyType = rnd.Next(0, (int)( (Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0) + (Main.settings.enableBossSummoned ? Main.settings.bossPercent : 0)));
+            double enemyType = rnd.NextDouble() * ((int)( (Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0) + (Main.settings.enableBossSummoned ? Main.settings.bossPercent : 0)));
 
             if (Main.settings.DEBUG)
                 enemyType = (Main.settings.debugMookTypeSummoned < Main.normalList.Length) ? 0 : (int)(Main.settings.normalEnemyPercent + 1);
@@ -1029,7 +1162,7 @@ namespace Randomizer_Mod
                 return;
             }
 
-            if ((Main.settings.enemyPercent > rnd.Next(0, 100)))
+            if ((Main.settings.enemyPercent > rnd.NextDouble() * (100)))
             {
                 Mook replacePrefab = getRandomMookPrefab();
                 if ( replacePrefab != null )
@@ -1050,36 +1183,13 @@ namespace Randomizer_Mod
                 return;
             }
 
-            if ((Main.settings.enemyPercent > MapController_SpawnMook_Networked.rnd.Next(0, 100)))
+            if ((Main.settings.enemyPercent > MapController_SpawnMook_Networked.rnd.NextDouble() * (100)))
             {
                 Mook replacePrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
                 if (replacePrefab != null)
                 {
                     mookPrefab = replacePrefab;
                 }  
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(Mook), "Start")]
-    static class Mook_Start
-    {
-        static System.Random rnd = new System.Random();
-
-        public static void Postfix(Mook __instance)
-        {
-            if (!Main.enabled || !Main.settings.enableEnemyRandomization)
-            {
-                return;
-            }
-
-            return;
-
-
-            // Avoid replacing enemies that have already been replaced
-            if (__instance.playerNum == -1000)
-            {
-                return;
             }
         }
     }
@@ -1106,7 +1216,7 @@ namespace Randomizer_Mod
             if ( (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy) && 
                 (Main.settings.enableNormal || Main.settings.enableWorms || Main.settings.enableBosses || Main.settings.enableLargeBosses || Main.settings.enableVehicles ))
             {
-                int enemyConvertChance = rnd.Next(0, 100);
+                double enemyConvertChance = rnd.NextDouble() * 100;
 
                 if ( enemyConvertChance > Main.settings.enemyPercent )
                 {
@@ -1121,7 +1231,7 @@ namespace Randomizer_Mod
 
                 TestVanDammeAnim original = null;
 
-                int enemyType = rnd.Next(0, (int)( (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) + 
+                double enemyType = rnd.NextDouble() * ((int)( (Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0) + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) + 
                     ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) + ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) + (Main.settings.enableVehicles ? Main.settings.vehiclePercent : 0) ) );
 
                 if ( !Main.settings.DEBUG )
@@ -1649,12 +1759,110 @@ namespace Randomizer_Mod
                     return false;
                 }
             }
+            else if ( (doodad.type == DoodadType.AmmoCrate || doodad.type == DoodadType.Crate) && Main.settings.enableAmmoRandomization && Main.settings.enabledAmmoTypes.Count > 0 )
+            {
+                if (Main.settings.ammoRandomizationPercent > rnd.NextDouble() * 100)
+                {
+                    doodad.type = DoodadType.AmmoCrate;
+                    doodad.variation = Main.settings.enabledAmmoTypes[rnd.Next(0, Main.settings.enabledAmmoTypes.Count)];
+                }
+            }
 
             return true;
-
         }
     }
 
+    [HarmonyPatch(typeof(Map), "PlaceGround")]
+    static class Map_PlaceGround
+    {
+        static System.Random rnd = new System.Random();
+        public static Block getRandomBlockPrefab()
+        {
+            Block blockPrefab = null;
+
+            if (Map_PlaceDoodad.mapInstance != null)
+            {
+                int ammoType = rnd.Next(0, Main.settings.enabledAmmoTypes.Count);
+
+                switch (Main.settings.enabledAmmoTypes[ammoType])
+                {
+                    case 0:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.activeTheme.crateAmmo;
+                        break;
+                    case 1:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateTimeCop;
+                        break;
+                    case 2:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateRCCar;
+                        break;
+                    case 3:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateAirstrike;
+                        break;
+                    case 4:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateMechDrop;
+                        break;
+                    case 5:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateAlienPheromonesDrop;
+                        break;
+                    case 6:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.crateSteroids;
+                        break;
+                    case 7:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.cratePiggy;
+                        break;
+                    case 8:
+                        blockPrefab = Map_PlaceDoodad.mapInstance.sharedObjectsReference.Asset.cratePerk;
+                        break;
+                }
+            }
+
+            return blockPrefab;
+        }
+
+        public static bool Prefix(Map __instance, ref GroundType placeGroundType, ref int x, ref int y, ref Block[,] newBlocks, ref bool addToRegistry, ref Block __result)
+        {
+            if (!Main.enabled)
+            {
+                return true;
+            }
+
+            if ( Main.settings.enableCratesTurningIntoAmmo && placeGroundType == GroundType.WoodenBlock && Main.settings.cratesToAmmoPercent > rnd.NextDouble() * 100 )
+            {
+                Map_PlaceDoodad.mapInstance = __instance;
+                Traverse trav = Traverse.Create(__instance);
+
+                Vector3 vector = new Vector3((float)(x * 16), (float)(y * 16), 5f);
+                Block currentBlock = UnityEngine.Object.Instantiate<Block>( getRandomBlockPrefab(), vector, Quaternion.identity);
+                if (placeGroundType != GroundType.Cage && (placeGroundType != GroundType.AlienFlesh || newBlocks != Map.backGroundBlocks))
+                {
+                    newBlocks[x, y] = currentBlock;
+                    Traverse groundTypesTrav = trav.Field("groundTypes");
+                    (groundTypesTrav.GetValue() as GroundType[,])[x, y] = placeGroundType;
+                }
+                if (currentBlock != null)
+                {
+                    currentBlock.OnSpawned();
+                    if (currentBlock.groundType == GroundType.Earth && currentBlock.size == 2)
+                    {
+                        Map.SetBlockEmpty(newBlocks[x + 1, y], x + 1, y);
+                        newBlocks[x + 1, y] = currentBlock;
+                        Map.SetBlockEmpty(newBlocks[x, y - 1], x, y - 1);
+                        newBlocks[x, y - 1] = currentBlock;
+                        Map.SetBlockEmpty(newBlocks[x + 1, y - 1], x + 1, y - 1);
+                        newBlocks[x + 1, y - 1] = currentBlock;
+                    }
+                }
+                if (currentBlock != null)
+                {
+                    currentBlock.transform.parent = __instance.transform;
+                    __result = currentBlock;
+                    trav.Field("currentBlock").SetValue(currentBlock);
+                }
+                return false;
+            }
+            return true;
+        }
+    }
 
     // Fixes camera locking onto satan after he dies
     [HarmonyPatch(typeof(SatanMiniboss), "ForceCameraToFollow")]
@@ -1789,24 +1997,27 @@ namespace Randomizer_Mod
         }
     }
 
-
-/*    // Find resource names
-    [HarmonyPatch(typeof(NetworkSpawnableManifest), "GetPrefabFromLegacyResourceName")]
-    static class NetworkSpawnableManifest_OnAfterDeserialize
+    // Enables all pickup powers if setting is checked
+    [HarmonyPatch(typeof(PlayerProgress), "GetUnlockedFlexPickups")]
+    static class PlayerProgress_GetUnlockedFlexPickups
     {
-        public static void Postfix(NetworkSpawnableManifest __instance)
+        public static bool Prefix(ref List<PickupType> __result)
         {
-            if (!Main.enabled )
+            if (!Main.enabled || !Main.settings.unlockAllFlexPowers)
             {
-                return;
+                return true;
             }
 
-            Dictionary<string, SpawnablePrefab> resourceNameLookupDictionary = Traverse.Create(__instance).Field("resourceNameLookupDictionary").GetValue() as Dictionary<string, SpawnablePrefab>;
-            foreach ( string s in resourceNameLookupDictionary.Keys )
-            {
-                Main.Log("key: " + s);
-            }
+            __result = new List<PickupType>();
+
+            __result.Add(PickupType.FlexAirJump);
+            __result.Add(PickupType.FlexGoldenLight);
+            __result.Add(PickupType.FlexInvulnerability);
+            __result.Add(PickupType.FlexTeleport);
+            __result.Add(PickupType.FlexAlluring);
+
+            return false;
         }
-    }*/
+    }
 
 }
