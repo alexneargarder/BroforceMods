@@ -59,7 +59,6 @@ namespace Mission_Impossibro
 
 		public void AssignNullValues(SachelPack other)
         {
-			BMLogger.Log("assigning null: " + (other.explosion == null));
 			this.fire1 = other.fire1;
 			this.fire2 = other.fire2;
 			this.fire3 = other.fire3;
@@ -280,22 +279,22 @@ namespace Mission_Impossibro
 			if (this.xI > 0f)
 			{
 				base.transform.localScale = new Vector3(-1f, 1f, 1f);
-				base.transform.eulerAngles = new Vector3(0f, 0f, global::Math.GetAngle(this.yI, -this.xI) * 180f / 3.14159274f + 90f);
+				base.transform.eulerAngles = new Vector3(0f, 0f, global::Math.GetAngle(this.yI, -this.xI) * 180f / 3.14159274f);
 			}
-			else if ( this.xI < 0f || this.stuckLeft || this.stuckRight || this.stuckUp )
+			else if ( this.xI < 0f || this.stuckLeft || this.stuckRight )
 			{
 				base.transform.localScale = new Vector3(1f, 1f, 1f);
-				base.transform.eulerAngles = new Vector3(0f, 0f, global::Math.GetAngle(this.yI, -this.xI) * 180f / 3.14159274f - 90f);
+				base.transform.eulerAngles = new Vector3(0f, 0f, global::Math.GetAngle(this.yI, -this.xI) * 180f / 3.14159274f);
 			}
 			else if ( previousSpeed > 0 )
             {
 				base.transform.localScale = new Vector3(-1f, 1f, 1f);
-				base.transform.eulerAngles = new Vector3(0f, 0f, -(Mathf.PI / 2) * 180f / 3.14159274f + 90f);
+				base.transform.eulerAngles = new Vector3(0f, 0f, -(Mathf.PI / 2) * 180f / 3.14159274f);
 			}
 			else
             {
 				base.transform.localScale = new Vector3(1f, 1f, 1f);
-				base.transform.eulerAngles = new Vector3(0f, 0f, (Mathf.PI / 2) * 180f / 3.14159274f - 90f);
+				base.transform.eulerAngles = new Vector3(0f, 0f, (Mathf.PI / 2) * 180f / 3.14159274f);
 			}
 		}
 	}

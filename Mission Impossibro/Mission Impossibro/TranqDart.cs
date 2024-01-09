@@ -30,8 +30,8 @@ namespace Mission_Impossibro
 			sprite.pixelDimensions = new Vector2(16, 16);
 
 			sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-			sprite.width = 16;
-			sprite.height = 16;
+			sprite.width = 10;
+			sprite.height = 10;
 			sprite.offset = new Vector3(0, 0, 0);
 
 			storedSprite = sprite;
@@ -78,7 +78,7 @@ namespace Mission_Impossibro
 				for (int i = Map.units.Count - 1; i >= 0; i--)
 				{
 					Unit unit = Map.units[i];
-					if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health > 0 && unit.actionState != ActionState.Fallen )
+					if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health > 0 && unit.actionState != ActionState.Fallen && !unit.IsIncapacitated()  )
 					{
 						float num2 = unit.X - X;
 						if (Mathf.Abs(num2) - xRange < unit.width)
@@ -103,7 +103,7 @@ namespace Mission_Impossibro
 											Traverse trav = Traverse.Create(mook);
 											trav.Method("FallOnFace").GetValue();
 											trav.Field("fallenTime").SetValue(stunTime);
-                                        }
+                                        }	
 									}
 									else
                                     {
@@ -146,6 +146,11 @@ namespace Mission_Impossibro
 				this.hasHit = true;
 			}*/
 		}
+
+        protected override void TryHitUnitsAtSpawn()
+        {
+			this.HitUnits();
+        }
 
         public void Setup()
 		{
