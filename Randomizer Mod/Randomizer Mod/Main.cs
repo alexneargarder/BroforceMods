@@ -1206,14 +1206,14 @@ namespace Randomizer_Mod
 
         public static bool Prefix(Map __instance, ref DoodadInfo doodad, ref GameObject __result)
         {
-            if (!Main.enabled || !Main.settings.enableEnemyRandomization)
+            if (!Main.enabled)
             {
                 return true;
             }
 
             mapInstance = __instance;
 
-            if ( (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy) && 
+            if ( Main.settings.enableEnemyRandomization && (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy) && 
                 (Main.settings.enableNormal || Main.settings.enableWorms || Main.settings.enableBosses || Main.settings.enableLargeBosses || Main.settings.enableVehicles ))
             {
                 double enemyConvertChance = rnd.NextDouble() * 100;
