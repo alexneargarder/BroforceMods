@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using BroMakerLib;
 using UnityEngine;
 using BroMakerLib.Loggers;
@@ -28,7 +26,6 @@ namespace Captain_Ameribro_Mod
 		protected float windCounter;
 		protected int windCount;
 		public float windRotationSpeedM = 1f;
-		protected bool stuck;
 		protected float xStart;
 		protected float lastXI;
 		public float bounceXM = 0.5f;
@@ -45,6 +42,7 @@ namespace Captain_Ameribro_Mod
 		//protected const float ChargeDroppingScalar = 0.5f;
 		public const float ChargeSpeedScalar = 100f;
 		protected const int BaseDamage = 3;
+		protected int bossDamage = 3;
 		protected float knockbackXI = 150;
 		protected float knockbackYI = 300;
 
@@ -220,6 +218,7 @@ namespace Captain_Ameribro_Mod
 
 			this.damageInternal = this.damage;
 			this.fullDamage = this.damage;
+			this.bossDamage = 3 * this.damage + 4;
 
 			this.knockbackXI = this.knockbackXI + (this.knockbackXI * this.throwingPlayer.currentSpecialCharge);
 			this.knockbackYI = this.knockbackYI + (this.knockbackYI * this.throwingPlayer.currentSpecialCharge);
@@ -464,52 +463,49 @@ namespace Captain_Ameribro_Mod
 		// Called by RunProjectile Base method
 		protected override void MoveProjectile()
 		{
-			if (!this.stuck)
-			{
-				if ( !this.stopSeeking )
-                {
-					this.RunSeeking();
-					if (this.targetAngle > this.angle + 3.14159274f)
+			if ( !this.stopSeeking )
+            {
+				this.RunSeeking();
+				if (this.targetAngle > this.angle + 3.14159274f)
+				{
+					this.angle += 6.28318548f;
+				}
+				else if (this.targetAngle < this.angle - 3.14159274f)
+				{
+					this.angle -= 6.28318548f;
+				}
+				if (this.reversing)
+				{
+					if (this.IsHeldByZone())
 					{
-						this.angle += 6.28318548f;
-					}
-					else if (this.targetAngle < this.angle - 3.14159274f)
-					{
-						this.angle -= 6.28318548f;
-					}
-					if (this.reversing)
-					{
-						if (this.IsHeldByZone())
-						{
-							this.speed *= 1f - this.t * 8f;
-						}
-						else
-						{
-							this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 8f);
-						}
-					}
-					else if ((this.returnTime >= 0f || this.hasReachedApex)) // If moving forward or towards player and hasn't reached return time
-					{
-						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
+						this.speed *= 1f - this.t * 8f;
 					}
 					else
 					{
-						this.speed = Mathf.Lerp(this.speed, 0, this.t * 10f);
+						this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 8f);
 					}
-					this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
-					this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
-					Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
-					this.xI = vector.x;
-					this.yI = vector.y;
 				}
-
-				base.MoveProjectile();
-				this.shieldCollider.transform.position = base.transform.position;
-				if (this.dropping)
-                {
-					ApplyGravity();
-                }
+				else if ((this.returnTime >= 0f || this.hasReachedApex)) // If moving forward or towards player and hasn't reached return time
+				{
+					this.speed = Mathf.Lerp(this.speed, this.originalSpeed, this.t * 10f);
+				}
+				else
+				{
+					this.speed = Mathf.Lerp(this.speed, 0, this.t * 10f);
+				}
+				this.seekSpeedCurrent = Mathf.Lerp(this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t);
+				this.angle = Mathf.Lerp(this.angle, this.targetAngle, this.t * this.seekSpeedCurrent);
+				Vector2 vector = global::Math.Point2OnCircle(this.angle, this.speed);
+				this.xI = vector.x;
+				this.yI = vector.y;
 			}
+
+			base.MoveProjectile();
+			this.shieldCollider.transform.position = base.transform.position;
+			if (this.dropping)
+            {
+				ApplyGravity();
+            }
 		}
 
 		protected void RunSeeking()
@@ -590,13 +586,27 @@ namespace Captain_Ameribro_Mod
 					this.xI *= -this.bounceXM;
 					if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null && !this.hasReachedApex) // Hit a block / wall
 					{
-						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+						this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(2, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
 
 						HitBlock(raycastHit);
 					}
-					else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
+					else if (this.raycastHit.collider.gameObject.GetComponent<BossBlockPiece>() != null && !this.hasReachedApex) // Hit boss block
 					{
-						
+						this.raycastHit.collider.gameObject.GetComponent<BossBlockPiece>().Damage(new DamageObject(this.bossDamage, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+
+						HitBlock(raycastHit);
+					}
+					else if (this.raycastHit.collider.gameObject.GetComponent<BossBlockWeapon>() != null && !this.hasReachedApex) // Hit boss weapon
+                    {
+						this.raycastHit.collider.gameObject.GetComponent<BossBlockWeapon>().Damage(new DamageObject(this.bossDamage, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+
+						HitBlock(raycastHit);
+					}
+					else if (!this.hasReachedApex) // Hit helicopter / certain boss blocks
+                    {
+						HitBlock(raycastHit);
+
+						this.ProjectileApplyDamageToBlock(raycastHit.collider.gameObject, this.bossDamage, this.damageType, this.xI, this.yI);
 					}
 					if ( !this.hasReachedApex )
                     {
@@ -614,13 +624,27 @@ namespace Captain_Ameribro_Mod
 				this.xI *= -this.bounceXM;
 				if (this.raycastHit.collider.gameObject.GetComponent<Block>() != null && !this.hasReachedApex) // Hit a block / wall
 				{
-					this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(1, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+					this.raycastHit.collider.gameObject.GetComponent<Block>().Damage(new DamageObject(2, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
 
 					HitBlock(raycastHit);
 				}
-				else if (!this.hasReachedApex) // Hit non-block non-unit thing (such as escape helicopter or saw blades)
+				else if (this.raycastHit.collider.gameObject.GetComponent<BossBlockPiece>() != null && !this.hasReachedApex) // Hit boss block
 				{
-					
+					this.raycastHit.collider.gameObject.GetComponent<BossBlockPiece>().Damage(new DamageObject(this.bossDamage, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+
+					HitBlock(raycastHit);
+				}
+				else if (this.raycastHit.collider.gameObject.GetComponent<BossBlockWeapon>() != null && !this.hasReachedApex) // Hit boss weapon
+				{
+					this.raycastHit.collider.gameObject.GetComponent<BossBlockWeapon>().Damage(new DamageObject(this.bossDamage, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this));
+
+					HitBlock(raycastHit);
+				}
+				else if ( !this.hasReachedApex )
+				{
+					HitBlock(raycastHit);
+
+					this.ProjectileApplyDamageToBlock(raycastHit.collider.gameObject, this.bossDamage, this.damageType, this.xI, this.yI);
 				}
 				if ( !this.hasReachedApex )
                 {

@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib;
+using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.Loggers;
-using UnityEngine.Audio;
 using System.IO;
 using System.Reflection;
 
@@ -52,7 +49,7 @@ namespace Captain_Ameribro_Mod
 
 		// Default attack variables
 		protected int punchingIndex = 0;
-		protected const int normalAttackDamage = 5;
+		protected const int normalAttackDamage = 6;
 		protected bool heldGunFrame = false;
 
 		// Melee variables
@@ -94,6 +91,13 @@ namespace Captain_Ameribro_Mod
 
 		public override void UIOptions()
 		{
+			if ( GUILayout.Button("check units") )
+            {
+				for ( int i = 0; i < Map.units.Count; ++i )
+                {
+					BMLogger.Log("unit: " + Map.units[i].name);
+                }
+            }
 		}
 
 		protected override void Awake()
@@ -400,7 +404,7 @@ namespace Captain_Ameribro_Mod
         protected override void PressSpecial()
         {
 			// Don't start holding special unless we actually have a shield to prevent shield from charging
-			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag || this.attachedToZipline != null) )
+			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag || this.attachedToZipline != null || this.IsGesturing() || this.frontSomersaulting) )
             {
 				if (!this.hasBeenCoverInAcid && !this.doingMelee)
 				{
@@ -443,6 +447,15 @@ namespace Captain_Ameribro_Mod
                 this.CancelSpecial();
             }
             base.AttachToZipline(zipLine);
+        }
+
+        public override void SetGestureAnimation(GestureElement.Gestures gesture)
+        {
+			if ( this.animateSpecial && gesture != GestureElement.Gestures.None )
+            {
+				this.CancelSpecial();
+            }
+            base.SetGestureAnimation(gesture);
         }
 
         protected override void AnimateSpecial()
