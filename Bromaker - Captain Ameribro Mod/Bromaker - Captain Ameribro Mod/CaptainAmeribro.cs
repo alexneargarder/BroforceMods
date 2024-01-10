@@ -91,13 +91,6 @@ namespace Captain_Ameribro_Mod
 
 		public override void UIOptions()
 		{
-			if ( GUILayout.Button("check units") )
-            {
-				for ( int i = 0; i < Map.units.Count; ++i )
-                {
-					BMLogger.Log("unit: " + Map.units[i].name);
-                }
-            }
 		}
 
 		protected override void Awake()
