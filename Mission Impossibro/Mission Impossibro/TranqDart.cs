@@ -7,6 +7,7 @@ using BroMakerLib;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using System.Reflection;
+using System.IO;
 
 namespace Mission_Impossibro
 {
@@ -20,7 +21,8 @@ namespace Mission_Impossibro
 
 			if (storedMat == null)
 			{
-				storedMat = ResourcesController.GetMaterial(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Mission Impossibro\\TranqDarts1.png");
+				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+				storedMat = ResourcesController.GetMaterial(directoryPath, "TranqDarts1.png");
 			}
 
 			renderer.material = storedMat;
@@ -37,6 +39,11 @@ namespace Mission_Impossibro
 			storedSprite = sprite;
 
 			base.Awake();
+
+			this.damage = 5;
+
+			this.damageInternal = this.damage;
+			this.fullDamage = this.damage;
 		}
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)

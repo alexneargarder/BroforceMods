@@ -7,6 +7,7 @@ using BroMakerLib;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using System.Reflection;
+using System.IO;
 
 namespace Mission_Impossibro
 {
@@ -23,7 +24,8 @@ namespace Mission_Impossibro
 
 			if (storedMat == null)
 			{
-				storedMat = ResourcesController.GetMaterial(".\\Mods\\Development - BroMaker\\Storage\\Bros\\Mission Impossibro\\explosive.png");
+				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+				storedMat = ResourcesController.GetMaterial(directoryPath, "explosive.png");
 			}
 
 			renderer.material = storedMat;
@@ -144,7 +146,13 @@ namespace Mission_Impossibro
 						{
 							this.Death();
 						}
-						if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
+						if (this.raycastHit.collider.GetComponent<Unit>() != null)
+						{
+							this.TryStickToUnit(this.raycastHit.collider.GetComponent<Unit>());
+							this.xI = (this.yI = 0f);
+							this.PlayStuckSound(0.7f);
+						}
+						else if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
 						{
 							this.stuckLeft = true;
 							this.xI = (this.yI = 0f);
@@ -177,7 +185,13 @@ namespace Mission_Impossibro
 					{
 						this.Death();
 					}
-					if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
+					if (this.raycastHit.collider.GetComponent<Unit>() != null)
+					{
+						this.TryStickToUnit(this.raycastHit.collider.GetComponent<Unit>());
+						this.xI = (this.yI = 0f);
+						this.PlayStuckSound(0.7f);
+					}
+					else if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
 					{
 						this.stuckRight = true;
 						this.xI = (this.yI = 0f);
@@ -232,7 +246,13 @@ namespace Mission_Impossibro
 					{
 						this.Death();
 					}
-					if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
+					if (this.raycastHit.collider.GetComponent<Unit>() != null)
+					{
+						this.TryStickToUnit(this.raycastHit.collider.GetComponent<Unit>());
+						this.xI = (this.yI = 0f);
+						this.PlayStuckSound(0.7f);
+					}
+					else if (this.raycastHit.collider.GetComponent<DamageRelay>() != null)
 					{
 						this.stuckUp = true;
 						this.xI = (this.yI = 0f);
@@ -276,7 +296,12 @@ namespace Mission_Impossibro
 
 		protected override void SetRotation()
 		{
-			if (this.xI > 0f)
+			if (this.stuckToUnit != null )
+            {
+				base.transform.localScale = new Vector3(1f, 1f, 1f);
+				base.transform.eulerAngles = new Vector3(0f, 0f, 0f);
+			}
+			else if (this.xI > 0f)
 			{
 				base.transform.localScale = new Vector3(-1f, 1f, 1f);
 				base.transform.eulerAngles = new Vector3(0f, 0f, global::Math.GetAngle(this.yI, -this.xI) * 180f / 3.14159274f);
