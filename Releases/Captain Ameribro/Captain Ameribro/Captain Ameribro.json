@@ -1,0 +1,42 @@
+{
+  "name": "Captain Ameribro",
+  "characterPreset": "Captain Ameribro",
+  "parameters": {
+    "BetterAnimation": true,
+    "SpecialIcons": "CaptainAmeribroSpecial.png",
+    "Avatar": "captainAmeribroAvatar.png",
+    "deathGunspriteOffsetX": 4,
+    "deathGunspriteOffsetY": -1
+  },
+  "cutscene": {
+    "heading": "Captain Ameribro",
+    "subtitle1": "Joins the Battle!",
+    "headingScale": 0.13,
+    "spriteRect":
+    {
+     "x": 35,
+     "y": 252,
+     "width": 256,
+     "height": 256
+    },
+    "spritePath": "captainAmeribroCutscene.png",
+    "anim": "Intro_Bro_BroDredd",
+    "playCutsceneOnFirstSpawn": true
+  },
+  "beforeAwake": {
+    "speed": 130,
+    "fireRate": 0.1,
+    "canChimneyFlip": true,
+    "originalSpecialAmmo": 1,
+    "canAirdash": true,
+    "airdashMaxTime": 0.2
+  },
+  "afterAwake": {},
+  "beforeStart": {
+    "sprite": "captainAmeribroMain.png",
+    "gunSprite": "captainAmeribroGun.png"
+  },
+  "afterStart": {
+    
+  }
+}

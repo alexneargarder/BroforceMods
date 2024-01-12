@@ -66,8 +66,7 @@ namespace Captain_Ameribro_Mod
 		protected const int defaultSpeed = 130;
 
 		// DEBUG variables
-		public const bool DEBUGTEXTURES = true;
-		public int frameCount = 0;
+		public const bool DEBUGTEXTURES = false;
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -78,16 +77,6 @@ namespace Captain_Ameribro_Mod
 
 			float.TryParse(text, out val);
         }
-
-		public void makeTextBox(string label, ref string text, ref int val)
-		{
-			GUILayout.BeginHorizontal();
-			GUILayout.Label(label);
-			text = GUILayout.TextField(text);
-			GUILayout.EndHorizontal();
-
-			int.TryParse(text, out val);
-		}
 
 		public override void UIOptions()
 		{
@@ -274,13 +263,6 @@ namespace Captain_Ameribro_Mod
             {
 				airDashCooldown -= this.t;
             }
-
-			// DEBUG
-			if (this.frameCount == 120)
-			{
-				this.frameCount = 0;
-			}
-			++this.frameCount;
 		}
 
         protected override void ChangeFrame()
