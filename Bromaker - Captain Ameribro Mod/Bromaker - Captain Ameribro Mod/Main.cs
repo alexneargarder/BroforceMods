@@ -22,17 +22,5 @@ namespace Captain_Ameribro_Mod
                 return ba;
             }
         }
-
-        public static void checkAttached(GameObject gameObject)
-        {
-            BMLogger.Log("\n\n");
-            Component[] allComponents;
-            allComponents = gameObject.GetComponents(typeof(Component));
-            foreach (Component comp in allComponents)
-            {
-                BMLogger.Log("attached: " + comp.name + " also " + comp.GetType());
-            }
-            BMLogger.Log("\n\n");
-        }
     }
 }
