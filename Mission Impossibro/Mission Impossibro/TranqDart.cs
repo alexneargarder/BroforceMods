@@ -104,18 +104,20 @@ namespace Mission_Impossibro
                                         {
 											Traverse trav = Traverse.Create(mook as MookJetpack);
 											trav.Method("StartSpiralling").GetValue();
+											Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 										}
 										else
                                         {
 											Traverse trav = Traverse.Create(mook);
 											trav.Method("FallOnFace").GetValue();
 											trav.Field("fallenTime").SetValue(stunTime);
-                                        }	
+											Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+										}	
 									}
 									else
                                     {
 										unit.Stun(stunTime);
-										//Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+										Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 									}
 								}
 								else
