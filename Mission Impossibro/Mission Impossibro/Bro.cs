@@ -37,6 +37,8 @@ namespace Mission_Impossibro
         protected float grappleCooldown = 0f;
         protected bool exitingGrapple = false;
         protected int grappleFrame = 0;
+        protected bool wasAttachedToBlock = false;
+        protected Block grappleAttachBlock = null;
 
         // Special variables
         protected float specialTime = 0f;
@@ -51,7 +53,7 @@ namespace Mission_Impossibro
         // DEBUG variables
         public static string offsetXstr = "3";
         public static string offsetYstr = "0";
-        public static float offsetX = 0f;
+        public static float offsetX = 3f;
         public static float offsetY = 0f;
 
 
@@ -133,6 +135,17 @@ namespace Mission_Impossibro
             if ( this.actionState == ActionState.Dead )
             {
                 InstantDetachGrapple();
+            }
+        }
+
+        protected override void LateUpdate()
+        {
+            base.LateUpdate();
+
+            // Detach grapple if block it's attached to is destroyed
+            if ( this.grappleAttached && this.wasAttachedToBlock && (this.grappleAttachBlock == null || this.grappleAttachBlock.destroyed || this.grappleAttachBlock.health <= 0) )
+            {
+                DetachGrapple();
             }
         }
 
@@ -238,6 +251,8 @@ namespace Mission_Impossibro
                 this.DeactivateGun();
             }
             this.grappleLine.enabled = true;
+            grappleAttachBlock = this.raycastHit.collider.gameObject.GetComponent<Block>();
+            this.wasAttachedToBlock = (grappleAttachBlock != null);
             this.grappleLine.SetPosition(0, base.transform.position + this.grappleOffset);
             this.grappleLine.SetPosition(1, this.grappleHitPoint);
             float magnitude = (this.grappleHitPoint - (base.transform.position + this.grappleOffset)).magnitude;
@@ -648,11 +663,19 @@ namespace Mission_Impossibro
                     if (this.knifeHand % 2 == 0)
                     {
                         int num3 = 12 + Mathf.Clamp(base.frame, 0, 4);
+                        if (!FluidController.IsSubmerged(this) && this.down)
+                        {
+                            EffectsController.CreateFootPoofEffect(base.X + base.transform.localScale.x * 6f, base.Y + 16f, 0f, Vector3.up * 1f, BloodColor.None);
+                        }
                         this.sprite.SetLowerLeftPixel((float)(num3 * this.spritePixelWidth), (float)(this.spritePixelHeight * 3));
                     }
                     else
                     {
                         int num4 = 22 + Mathf.Clamp(base.frame, 0, 4);
+                        if (!FluidController.IsSubmerged(this) && this.down)
+                        {
+                            EffectsController.CreateFootPoofEffect(base.X + base.transform.localScale.x * 6f, base.Y + 16f, 0f, Vector3.up * 1f, BloodColor.None);
+                        }
                         this.sprite.SetLowerLeftPixel((float)(num4 * this.spritePixelWidth), (float)(this.spritePixelHeight * 3));
                     }
                 }
@@ -660,11 +683,19 @@ namespace Mission_Impossibro
             else if (this.knifeHand % 2 == 0)
             {
                 int num5 = 11 + Mathf.Clamp(base.frame, 0, 2);
+                if (!FluidController.IsSubmerged(this) && this.down)
+                {
+                    EffectsController.CreateFootPoofEffect(base.X + base.transform.localScale.x * 6f, base.Y + 12f, 0f, Vector3.up * 1f, BloodColor.None);
+                }
                 this.sprite.SetLowerLeftPixel((float)(num5 * this.spritePixelWidth), (float)this.spritePixelHeight);
             }
             else
             {
                 int num6 = 14 + Mathf.Clamp(base.frame, 0, 2);
+                if (!FluidController.IsSubmerged(this) && this.down)
+                {
+                    EffectsController.CreateFootPoofEffect(base.X + base.transform.localScale.x * 6f, base.Y + 12f, 0f, Vector3.up * 1f, BloodColor.None);
+                }
                 this.sprite.SetLowerLeftPixel((float)(num6 * this.spritePixelWidth), (float)this.spritePixelHeight);
             }
         }
