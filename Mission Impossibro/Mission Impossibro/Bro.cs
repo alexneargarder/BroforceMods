@@ -309,6 +309,14 @@ namespace Mission_Impossibro
             }
         }
 
+        protected override void PlayFootStepSound(AudioClip[] clips, float v, float p)
+        {
+            if ( !this.grappleAttached )
+            {
+                base.PlayFootStepSound(clips, v, p);
+            }
+        }
+
         // Primary fire methods
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
