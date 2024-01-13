@@ -27,7 +27,6 @@ namespace Mission_Impossibro
 
         // Grapple variables
         LineRenderer grappleLine;
-        public static Bro Instance;
         protected Vector3 grappleHitPoint;
         protected const float grappleRange = 300f;
         protected const float grappleSpeed = 200f;
@@ -50,6 +49,11 @@ namespace Mission_Impossibro
         protected Explosive explosivePrefab;
 
         // DEBUG variables
+        public static string offsetXstr = "3";
+        public static string offsetYstr = "0";
+        public static float offsetX = 0f;
+        public static float offsetY = 0f;
+
 
         protected override void Awake()
         {
@@ -81,8 +85,6 @@ namespace Mission_Impossibro
 
             this.normalGunMaterial = this.gunSprite.meshRender.material;
             this.stealthGunMaterial = ResourcesController.GetMaterial(directoryPath, "gunSpriteStealth.png");
-            // DEBUG
-            Instance = this;
         }
 
         protected override void Update()
@@ -150,6 +152,8 @@ namespace Mission_Impossibro
 
         public override void UIOptions()
         {
+            makeTextBox("x", ref offsetXstr, ref offsetX);
+            makeTextBox("y", ref offsetYstr, ref offsetY);
         }
 
         // Grapple methods
@@ -197,7 +201,14 @@ namespace Mission_Impossibro
             // Make bro able to cling to walls indefinitely
             if ( this.wallDrag && this.yI < 0 )
             {
-                this.yI = 0;
+                if ( this.down )
+                {
+                    this.yI = -100;
+                }
+                else
+                {
+                    this.yI = 0;
+                }
             }
         }
 
@@ -222,7 +233,10 @@ namespace Mission_Impossibro
 
         public void AttachGrapple()
         {
-            this.DeactivateGun();
+            if ( !this.stealthActive )
+            {
+                this.DeactivateGun();
+            }
             this.grappleLine.enabled = true;
             this.grappleLine.SetPosition(0, base.transform.position + this.grappleOffset);
             this.grappleLine.SetPosition(1, this.grappleHitPoint);
@@ -239,7 +253,10 @@ namespace Mission_Impossibro
 
         public void DetachGrapple()
         {
-            this.DeactivateGun();
+            if ( !this.stealthActive )
+            {
+                this.DeactivateGun();
+            }
             this.grappleLine.enabled = false;
             grappleAttached = false;
             this.grappleCooldown = 0.1f;
@@ -292,7 +309,14 @@ namespace Mission_Impossibro
             {
                 if ( !this.stealthActive )
                 {
+                    // Tranq gun offset
                     this.SetGunPosition(3.4f, -1.1f);
+                    this.ActivateGun();
+                }
+                else
+                {
+                    // Explosives offset
+                    this.SetGunPosition(offsetX, offsetY);
                     this.ActivateGun();
                 }
                 this.grappleFrame = 2;
@@ -306,9 +330,13 @@ namespace Mission_Impossibro
                 this.exitingGrapple = false;
                 return;
             }
-            else
+            else if ( !this.stealthActive )
             {
                 this.DeactivateGun();
+            }
+            else
+            {
+                this.SetGunPosition(offsetX, offsetY);
             }
             this.sprite.SetLowerLeftPixel(this.grappleFrame * this.spritePixelWidth, 7 * this.spritePixelHeight);
             ++this.grappleFrame;
@@ -431,7 +459,7 @@ namespace Mission_Impossibro
             }
             else if ( !this.triggeringExplosives && this.currentExplosives.Count < MaxExplosives )
             {
-                this.gunFrame = 4;
+                this.gunFrame = 3;
                 this.SetGunSprite(this.gunFrame, 0);
 
                 Explosive explosive;
@@ -531,7 +559,7 @@ namespace Mission_Impossibro
                     }
                 }
                 // Shoot while on grapple
-                else if ( this.grappleAttached )
+                else if (!this.stealthActive && this.grappleAttached )
                 {
                     if (this.gunFrame > 0)
                     {
@@ -658,7 +686,8 @@ namespace Mission_Impossibro
             {
                 this.usingSpecialFrame = 0;
                 this.usingSpecial = true;
-                this.specialTime = 10f;
+                //this.specialTime = 10f;
+                this.specialTime = 100000000f;
                 Map.ForgetPlayer(base.playerNum, true, false);
                 this.currentExplosives = new List<Explosive>();
                 this.fireRate = 0.3f;
