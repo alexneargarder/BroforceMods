@@ -122,9 +122,18 @@ namespace Mission_Impossibro
                 this.wallHangFiring = false;
             }
 
-            if (this.grappleAttached && this.buttonJump && !this.wasButtonJump && this.grappleCooldown <= 0 )
+            if ( this.grappleAttached && this.buttonJump && !this.wasButtonJump && this.grappleCooldown <= 0 )
             {
                 DetachGrapple();
+            }
+
+            // Detach grapple
+            if ( this.actionState == ActionState.Dead )
+            {
+                this.DeactivateGun();
+                this.grappleLine.enabled = false;
+                grappleAttached = false;
+                this.grappleCooldown = 0.1f;
             }
         }
 
