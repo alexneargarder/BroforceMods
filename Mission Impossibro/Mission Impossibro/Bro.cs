@@ -246,6 +246,11 @@ namespace Mission_Impossibro
             float magnitude = (this.grappleHitPoint - (base.transform.position + this.grappleOffset)).magnitude;
             this.grappleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * this.grappleMaterialScale, 1f));
             this.grappleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * this.grappleMaterialOffset, 0f));
+            // Detach grapple if above hit point
+            if ( base.transform.position.y + 5 > this.grappleHitPoint.y )
+            {
+                DetachGrapple();
+            }
         }
 
         protected override void ChangeFrame()
