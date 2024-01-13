@@ -130,10 +130,7 @@ namespace Mission_Impossibro
             // Detach grapple
             if ( this.actionState == ActionState.Dead )
             {
-                this.DeactivateGun();
-                this.grappleLine.enabled = false;
-                grappleAttached = false;
-                this.grappleCooldown = 0.1f;
+                InstantDetachGrapple();
             }
         }
 
@@ -160,7 +157,7 @@ namespace Mission_Impossibro
         {
             base.AirJump();
 
-            if ( !this.grappleAttached && this.grappleCooldown <= 0 && SearchForGrapplePoint() )
+            if ( !this.grappleAttached && this.grappleCooldown <= 0 && !this.doingMelee && SearchForGrapplePoint() )
             {
                 AttachGrapple();
             }
@@ -249,6 +246,15 @@ namespace Mission_Impossibro
             this.exitingGrapple = true;
         }
 
+        // Doesn't play detach grapple animation
+        public void InstantDetachGrapple()
+        {
+            this.DeactivateGun();
+            this.grappleLine.enabled = false;
+            grappleAttached = false;
+            this.grappleCooldown = 0.1f;
+        }
+
         public void UpdateGrapplePosition()
         {
             this.grappleLine.SetPosition(0, base.transform.position + this.grappleOffset);
@@ -316,6 +322,15 @@ namespace Mission_Impossibro
             {
                 DetachGrapple();
             }
+        }
+
+        protected override void PressHighFiveMelee(bool forceHighFive = false)
+        {
+            if ( this.grappleAttached )
+            {
+                InstantDetachGrapple();
+            }
+            base.PressHighFiveMelee(forceHighFive);
         }
 
         protected override void PlayFootStepSound(AudioClip[] clips, float v, float p)
