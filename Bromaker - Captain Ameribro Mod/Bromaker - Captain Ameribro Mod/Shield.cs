@@ -94,7 +94,7 @@ namespace Captain_Ameribro_Mod
 				}
 				else
                 {
-					storedMat.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroShield.png");
+					storedMat.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroShield.png");
 				}
 			}
 

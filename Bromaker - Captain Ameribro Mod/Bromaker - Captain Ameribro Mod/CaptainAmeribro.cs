@@ -116,7 +116,7 @@ namespace Captain_Ameribro_Mod
 			}
 			else
             {
-				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroMainNoShield.png");
+				materialNormalNoShield.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroMainNoShield.png");
 			}
 
 			materialArmless = new Material((HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless);
@@ -126,7 +126,7 @@ namespace Captain_Ameribro_Mod
 			}
 			else
             {
-				materialArmless.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroArmless.png");
+				materialArmless.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroArmless.png");
 			}
 
 			gunMaterialNormal = this.gunMaterial;
@@ -138,74 +138,74 @@ namespace Captain_Ameribro_Mod
 			}
 			else
             {
-				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(directoryPath, "captainAmeribroGunNoShield.png");
+				gunMaterialNoShield.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroGunNoShield.png");
 			}
 
 			if ( shieldUnitBounce == null )
             {
 				shieldUnitBounce = new AudioClip[3];
-				shieldUnitBounce[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special1.wav");
-				shieldUnitBounce[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special2.wav");
-				shieldUnitBounce[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "special3.wav");
+				shieldUnitBounce[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "special1.wav");
+				shieldUnitBounce[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "special2.wav");
+				shieldUnitBounce[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "special3.wav");
 			}
 			
 			if ( shieldChargeShing == null )
             {
-				shieldChargeShing = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ShieldShing.wav");
+				shieldChargeShing = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "ShieldShing.wav");
 			}
 
 			if ( shieldMeleeSwing == null )
             {
 				shieldMeleeSwing = new AudioClip[2];
-				shieldMeleeSwing[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part1.wav");
-				shieldMeleeSwing[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part1.wav");
+				shieldMeleeSwing[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part1.wav");
+				shieldMeleeSwing[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part1.wav");
 			}
 
 			if ( shieldMeleeHit == null )
             {
 				shieldMeleeHit = new AudioClip[2];
-				shieldMeleeHit[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part2.wav");
-				shieldMeleeHit[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part2.wav");
+				shieldMeleeHit[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "melee1part2.wav");
+				shieldMeleeHit[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "melee3part2.wav");
 			}
 		
 			if ( shieldMeleeTerrain == null )
             {
 				shieldMeleeTerrain = new AudioClip[2];
-				shieldMeleeTerrain[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit1.wav");
-				shieldMeleeTerrain[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit2.wav");
+				shieldMeleeTerrain[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit1.wav");
+				shieldMeleeTerrain[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "meleeterrainhit2.wav");
 			}
 			
 			if ( airDashSound ==  null )
             {
-				airDashSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "swish.wav");
+				airDashSound = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "swish.wav");
 			}
 
 			if (effortSounds == null)
             {
 				effortSounds = new AudioClip[5];
-				effortSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt1.wav");
-				effortSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt2.wav");
-				effortSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt3.wav");
-				effortSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt4.wav");
-				effortSounds[4] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "grunt5.wav");
+				effortSounds[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "grunt1.wav");
+				effortSounds[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "grunt2.wav");
+				effortSounds[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "grunt3.wav");
+				effortSounds[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "grunt4.wav");
+				effortSounds[4] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "grunt5.wav");
 			}
 
 			if (ricochetSounds == null)
             {
 				ricochetSounds = new AudioClip[4];
-				ricochetSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet1.wav");
-				ricochetSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet2.wav");
-				ricochetSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet3.wav");
-				ricochetSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet4.wav");
+				ricochetSounds[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet1.wav");
+				ricochetSounds[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet2.wav");
+				ricochetSounds[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet3.wav");
+				ricochetSounds[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "ricochet4.wav");
 			}
 
 			if (pistolSounds == null)
             {
 				pistolSounds = new AudioClip[4];
-				pistolSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol1.wav");
-				pistolSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol2.wav");
-				pistolSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol3.wav");
-				pistolSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "pistol4.wav");
+				pistolSounds[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "pistol1.wav");
+				pistolSounds[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "pistol2.wav");
+				pistolSounds[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "pistol3.wav");
+				pistolSounds[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "pistol4.wav");
             }
 		}
 
