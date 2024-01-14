@@ -64,6 +64,7 @@ namespace Captain_Ameribro_Mod
 		// Misc Variables
 		protected List<Unit> currentlyHitting;
 		protected const int defaultSpeed = 130;
+		protected bool acceptedDeath = false;
 
 		// DEBUG variables
 		public const bool DEBUGTEXTURES = false;
@@ -245,9 +246,16 @@ namespace Captain_Ameribro_Mod
 			}
 
 			// Make shield drop on death
-			if (base.actionState == ActionState.Dead && thrownShield != null && !thrownShield.dropping)
+			if (base.actionState == ActionState.Dead && !this.acceptedDeath )
 			{
-				thrownShield.StartDropping();
+				if (thrownShield != null && !thrownShield.dropping)
+                {
+					thrownShield.StartDropping();
+				}
+				this.gunFrame = 0;
+				this.currentSpecialCharge = 0f;
+				this.animateSpecial = this.usingSpecial = this.isHoldingSpecial = this.doingMelee = this.usingShieldMelee = false;
+				this.acceptedDeath = true;
 			}
 
 			// Reflect projectiles if using melee
@@ -299,8 +307,9 @@ namespace Captain_Ameribro_Mod
 					this.currentSpecialCharge = this.maxSpecialCharge;
                 }
 
-				this.materialNormal = this.materialNormalNoShield;
-				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
+				this.SpecialAmmo--;
+
+				SwitchToNoShieldMats();
 
 				float chargedShieldSpeed = shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
@@ -316,8 +325,6 @@ namespace Captain_Ameribro_Mod
 				thrownShield.Setup(this.shield, this);
 
 				this.currentSpecialCharge = 0;
-
-				this.SpecialAmmo--;
 			}
 			else
             {
@@ -325,12 +332,29 @@ namespace Captain_Ameribro_Mod
             }
 		}
 
+		protected void SwitchToNoShieldMats()
+        {
+			if ( this._specialAmmo <= 0 )
+            {
+				this.materialNormal = this.materialNormalNoShield;
+				this.gunSprite.meshRender.material = this.gunMaterialNoShield;
+			}
+		}
+
+		protected void SwitchToWithShieldMats()
+        {
+			this.materialNormal = this.materialNormalShield;
+			this.gunSprite.meshRender.material = this.gunMaterialNormal;
+
+			if ( !this.animateSpecial )
+            {
+				base.GetComponent<Renderer>().material = this.materialNormalShield;
+			}
+		}
+
 		public void ReturnShield(Shield shield)
 		{
-			this.SpecialAmmo++;
-			this.materialNormal = this.materialNormalShield;
-			base.GetComponent<Renderer>().material = this.materialNormalShield;
-			this.gunSprite.meshRender.material = this.gunMaterialNormal;
+			SwitchToWithShieldMats();
 			if ( this.doingMelee )
             {
 				this.doingMelee = false;
@@ -357,13 +381,14 @@ namespace Captain_Ameribro_Mod
 					}
 				}
 			}
-			if (!this.usingSpecial)
+			if (!(this.usingSpecial || this.animateSpecial))
 			{
 				this.usingSpecial = true;
 				this.grabbingFrame = 0;
 				this.grabbingShield = true;
 				this.ChangeFrame();
 			}
+			this.SpecialAmmo++;
 		}
 
         // Make shield drop if character is destroyed
@@ -379,7 +404,7 @@ namespace Captain_Ameribro_Mod
         protected override void PressSpecial()
         {
 			// Don't start holding special unless we actually have a shield to prevent shield from charging
-			if ( this.SpecialAmmo > 0 && !(this.wallClimbing || this.wallDrag || this.attachedToZipline != null || this.IsGesturing() || this.frontSomersaulting) )
+			if ( this.SpecialAmmo > 0 && !(this.usingSpecial || this.animateSpecial || this.wallClimbing || this.wallDrag || this.attachedToZipline != null || this.IsGesturing() || this.frontSomersaulting) )
             {
 				if (!this.hasBeenCoverInAcid && !this.doingMelee)
 				{
@@ -447,6 +472,7 @@ namespace Captain_Ameribro_Mod
 					base.frame = 0;
 					this.usingSpecial = false;
 					this.grabbingShield = false;
+					this.ChangeFrame();
 				}
 			}
 			else
@@ -934,7 +960,7 @@ namespace Captain_Ameribro_Mod
 			}
 			if (this.CanStartNewMelee())
 			{
-				this.usingShieldMelee = this.SpecialAmmo > 0;
+				this.usingShieldMelee = this._specialAmmo > 0;
 				if (!(this.nearbyMook != null && this.nearbyMook.CanBeThrown()) && this.usingShieldMelee)
                 {
 					this.currentMeleeSound = UnityEngine.Random.Range(0, shieldMeleeSwing.Length);
