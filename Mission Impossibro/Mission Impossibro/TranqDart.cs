@@ -40,10 +40,14 @@ namespace Mission_Impossibro
 
 			base.Awake();
 
-			this.damage = 5;
+			this.damageType = DamageType.Normal;
+
+			this.damage = 3;
 
 			this.damageInternal = this.damage;
 			this.fullDamage = this.damage;
+
+			this.life = 0.30f;
 		}
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
@@ -94,16 +98,51 @@ namespace Mission_Impossibro
 							if (Mathf.Abs(num3) - yRange < unit.height && (Mathf.Sqrt(num2 * num2 + num3 * num3) <= xRange + unit.width) && (avoidID == null || avoidID != unit || unit.CatchFriendlyBullets()))
 							{
 								float stunTime = 20.0f / unit.health;
-								if ( unit is Mook )
+								stunTime = (stunTime < 2 ? 2 : stunTime);
+								// Hit boss
+								if ( unit.CompareTag("Metal") || unit.CompareTag("Boss") )
+                                {
+									// Stun boss after 8 hits
+									if ( Bro.bossHitCounter.ContainsKey(unit) )
+                                    {
+										int hits = Bro.bossHitCounter[unit];
+										if ( hits > 8 )
+                                        {
+											unit.Stun(stunTime);
+											Bro.bossHitCounter[unit] = -6;
+										}
+										else
+                                        {
+											++Bro.bossHitCounter[unit];
+                                        }
+                                    }
+									else
+                                    {
+										Bro.bossHitCounter.Add(unit, 1);
+                                    }
+
+									Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+								}
+								else if ( unit is Mook )
                                 {
 									Mook mook = unit as Mook;
 									
 									if ( CanFallOnFace(mook) )
                                     {
-										if ( !mook.IsOnGround() && mook is MookJetpack )
+										if ( !mook.IsOnGround() )
                                         {
-											Traverse trav = Traverse.Create(mook as MookJetpack);
-											trav.Method("StartSpiralling").GetValue();
+											if (mook is MookJetpack)
+                                            {
+												Traverse trav = Traverse.Create(mook as MookJetpack);
+												trav.Method("StartSpiralling").GetValue();
+											}
+											else
+                                            {
+												mook.IsParachuteActive = false;
+												Traverse trav = Traverse.Create(mook);
+												trav.Method("FallOnFace").GetValue();
+												trav.Field("fallenTime").SetValue(stunTime);
+											}
 											Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 										}
 										else
@@ -138,22 +177,6 @@ namespace Mission_Impossibro
 				UnityEngine.Object.Destroy(base.gameObject);
 				this.hasHit = true;
 			}
-
-			/*if (this.reversing)
-			{
-				if (Map.HitLivingUnits(this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false))
-				{
-					this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
-					UnityEngine.Object.Destroy(base.gameObject);
-					this.hasHit = true;
-				}
-			}
-			else if (Map.HitUnits(this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, true))
-			{
-				this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
-				UnityEngine.Object.Destroy(base.gameObject);
-				this.hasHit = true;
-			}*/
 		}
 
         protected override void TryHitUnitsAtSpawn()
@@ -163,13 +186,6 @@ namespace Mission_Impossibro
 
         public void Setup()
 		{
-			this.damageType = DamageType.Normal;
-
-			this.damage = 5;
-
-			this.damageInternal = this.damage;
-			this.fullDamage = this.damage;
-
 			this.enabled = true;
 		}
 	}

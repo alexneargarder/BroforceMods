@@ -19,11 +19,17 @@ namespace Mission_Impossibro
         Material normalMaterial, stealthMaterial, normalGunMaterial, stealthGunMaterial;
         bool wasInvulnerable = false;
 
+        // Audio Variables
+        public static AudioClip[] tranqGunSounds;
+        public static AudioClip[] detonatorSound;
+
         // Primary variables
         TranqDart lastFiredTranq;
         float fireCooldown;
         protected const float bulletSpeed = 600f;
         protected bool wallHangFiring = false;
+        public static Dictionary<Unit, int> bossHitCounter = new Dictionary<Unit, int>();
+        protected const float originalFireRate = 0.3f;
 
         // Grapple variables
         LineRenderer grappleLine;
@@ -50,12 +56,10 @@ namespace Mission_Impossibro
         protected const int MaxExplosives = 5;
         protected Explosive explosivePrefab;
 
-        // DEBUG variables
-        public static string offsetXstr = "3";
-        public static string offsetYstr = "0";
-        public static float offsetX = 3f;
-        public static float offsetY = 0f;
+        // Misc Variables
+        protected bool acceptedDeath = false;
 
+        // DEBUG variables
 
         protected override void Awake()
         {
@@ -87,6 +91,29 @@ namespace Mission_Impossibro
 
             this.normalGunMaterial = this.gunSprite.meshRender.material;
             this.stealthGunMaterial = ResourcesController.GetMaterial(directoryPath, "gunSpriteStealth.png");
+
+            // Load sounds
+            if (tranqGunSounds == null)
+            {
+                tranqGunSounds = new AudioClip[7];
+                tranqGunSounds[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun1.wav");
+                tranqGunSounds[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun2.wav");
+                tranqGunSounds[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun3.wav");
+                tranqGunSounds[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun4.wav");
+                tranqGunSounds[4] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun5.wav");
+                tranqGunSounds[5] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun6.wav");
+                tranqGunSounds[6] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "gun7.wav");
+            }
+
+            if (detonatorSound == null)
+            {
+                detonatorSound = new AudioClip[5];
+                detonatorSound[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "Click_Metal1.wav");
+                detonatorSound[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "Click_Metal2.wav");
+                detonatorSound[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "Click_Metal3.wav");
+                detonatorSound[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "Click_Metal5.wav");
+                detonatorSound[4] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "Click_Metal6.wav");
+            }
         }
 
         protected override void Update()
@@ -132,10 +159,17 @@ namespace Mission_Impossibro
             }
 
             // Detach grapple
-            if ( this.actionState == ActionState.Dead )
+            if ( this.actionState == ActionState.Dead && !acceptedDeath )
             {
                 InstantDetachGrapple();
+                this.specialTime = 0;
+                this.triggeringExplosives = this.stealthActive = this.usingSpecial = false;
+                this.acceptedDeath = true;
             }
+
+            // DEBUG
+            //this.SetGunSprite(gunFrameCounter, 0);
+            //this.gunSprite.SetLowerLeftPixel(32 * 6, 32);
         }
 
         protected override void LateUpdate()
@@ -165,8 +199,6 @@ namespace Mission_Impossibro
 
         public override void UIOptions()
         {
-            makeTextBox("x", ref offsetXstr, ref offsetX);
-            makeTextBox("y", ref offsetYstr, ref offsetY);
         }
 
         // Grapple methods
@@ -260,6 +292,7 @@ namespace Mission_Impossibro
             this.grappleCooldown = 0.1f;
             this.grappleFrame = 0;
             this.frameRate = 0.05f;
+            this.chimneyFlip = false;
         }
 
         public void DetachGrapple()
@@ -286,7 +319,7 @@ namespace Mission_Impossibro
             this.grappleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * this.grappleMaterialScale, 1f));
             this.grappleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * this.grappleMaterialOffset, 0f));
             // Detach grapple if above hit point
-            if ( base.transform.position.y + 5 > this.grappleHitPoint.y )
+            if ( base.transform.position.y + 5 > this.grappleHitPoint.y || Mathf.Abs(base.transform.position.x - this.grappleHitPoint.x) > 20 )
             {
                 DetachGrapple();
             }
@@ -327,7 +360,7 @@ namespace Mission_Impossibro
                 else
                 {
                     // Explosives offset
-                    this.SetGunPosition(offsetX, offsetY);
+                    this.SetGunPosition(3f, 0f);
                     this.ActivateGun();
                 }
                 this.grappleFrame = 2;
@@ -357,7 +390,7 @@ namespace Mission_Impossibro
                 // All frames of exiting grapple
                 else
                 {
-                    this.SetGunPosition(offsetX, offsetY);
+                    this.SetGunPosition(3f, 0f);
                 }
             }
             // Entering frames deactivate gun if stealth is not active
@@ -368,7 +401,7 @@ namespace Mission_Impossibro
             // Set stealth gun offset
             else
             {
-                this.SetGunPosition(offsetX, offsetY);
+                this.SetGunPosition(3f, 0f);
             }
             this.sprite.SetLowerLeftPixel(this.grappleFrame * this.spritePixelWidth, 7 * this.spritePixelHeight);
             ++this.grappleFrame;
@@ -405,7 +438,15 @@ namespace Mission_Impossibro
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
             // Fixes arms being offset from body
-            this.gunSprite.transform.localPosition = new Vector3(xOffset, yOffset + 0.4f, -1f);
+            if ( !this.stealthActive )
+            {
+                this.gunSprite.transform.localPosition = new Vector3(xOffset + 1f, yOffset + 0.4f, -1f);
+            }
+            else
+            {
+                this.gunSprite.transform.localPosition = new Vector3(xOffset, yOffset + 0.4f, -1f);
+            }
+            
         }
 
         protected override void StartFiring()
@@ -463,6 +504,7 @@ namespace Mission_Impossibro
 
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
         {
+            // Fire tranq dart
             if ( !this.stealthActive )
             {
                 y += 3;
@@ -488,7 +530,9 @@ namespace Mission_Impossibro
                 lastFiredTranq.Setup();
 
                 // Play tranq dart gun sound
+                Sound.GetInstance().PlaySoundEffectAt(tranqGunSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
             }
+            // Place explosive
             else if ( !this.triggeringExplosives && this.currentExplosives.Count < MaxExplosives )
             {
                 this.gunFrame = 3;
@@ -505,9 +549,9 @@ namespace Mission_Impossibro
                 else if ( this.up )
                 {
                     horizontalSpeed = 0f;
-                    verticalSpeed = 250f;
+                    verticalSpeed = 175f;
                 }
-                currentExplosives.Add(explosive = ProjectileController.SpawnProjectileLocally(this.explosivePrefab, this, x, y, base.transform.localScale.x * horizontalSpeed + this.xI, verticalSpeed + this.yI, base.playerNum) as Explosive);
+                currentExplosives.Add(explosive = ProjectileController.SpawnProjectileLocally(this.explosivePrefab, this, x, y, base.transform.localScale.x * horizontalSpeed + (this.xI / 2), verticalSpeed + (this.yI / 2), base.playerNum) as Explosive);
                 SachelPack otherSachel = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile as SachelPack;
                 explosive.AssignNullValues(otherSachel);
                 explosive.life = this.specialTime + 4f;
@@ -520,6 +564,7 @@ namespace Mission_Impossibro
                     readyToDetonate = false;
                 }
             }
+            // Trigger explosives
             else if ( readyToDetonate )
             {
                 StartDetonating();
@@ -748,8 +793,7 @@ namespace Mission_Impossibro
                     this.usingSpecialFrame = 0;
                 }
                 this.usingSpecial = true;
-                //this.specialTime = 10f;
-                this.specialTime = 100000000f;
+                this.specialTime = 7f;
                 Map.ForgetPlayer(base.playerNum, true, false);
                 this.currentExplosives = new List<Explosive>();
                 this.fireRate = 0.3f;
@@ -801,11 +845,12 @@ namespace Mission_Impossibro
             {
                 this.usingSpecialFrame = 5;
             }
-            this.fireRate = 0.4f;
+            this.fireRate = originalFireRate;
+            Sound.GetInstance().PlaySoundEffectAt(detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f);
             // Detonate explosives
             foreach ( Explosive explosive in this.currentExplosives )
             {
-                explosive.Death();
+                explosive.life = 0.2f;
             }
         }
 
@@ -826,7 +871,7 @@ namespace Mission_Impossibro
                         this.gunSprite.meshRender.material = this.stealthGunMaterial;
                         this.stealthActive = true;
                         this.ActivateGun();
-                        this.SetGunPosition(offsetX, offsetY);
+                        this.SetGunPosition(3f, 0f);
                         this.gunFrame = 0;
                         this.UseSpecial();
                         this.ChangeFrame();
