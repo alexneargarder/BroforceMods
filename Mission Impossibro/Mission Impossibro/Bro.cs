@@ -246,10 +246,6 @@ namespace Mission_Impossibro
 
         public void AttachGrapple()
         {
-            if ( !this.stealthActive )
-            {
-                this.DeactivateGun();
-            }
             this.grappleLine.enabled = true;
             grappleAttachBlock = this.raycastHit.collider.gameObject.GetComponent<Block>();
             this.wasAttachedToBlock = (grappleAttachBlock != null);
@@ -268,10 +264,6 @@ namespace Mission_Impossibro
 
         public void DetachGrapple()
         {
-            if ( !this.stealthActive )
-            {
-                this.DeactivateGun();
-            }
             this.grappleLine.enabled = false;
             grappleAttached = false;
             this.grappleCooldown = 0.1f;
@@ -312,7 +304,10 @@ namespace Mission_Impossibro
                 {
                     AnimateSpecial();
                 }
-                AnimateGrapple();
+                else
+                {
+                    AnimateGrapple();
+                }
             }
         }
 
@@ -320,7 +315,8 @@ namespace Mission_Impossibro
         {
             this.SetSpriteOffset(0f, 0f);
 
-            if ( !this.exitingGrapple && this.grappleFrame > 2 )
+            // Hold frame
+            if ( !this.exitingGrapple && this.grappleFrame >= 2 )
             {
                 if ( !this.stealthActive )
                 {
@@ -336,19 +332,40 @@ namespace Mission_Impossibro
                 }
                 this.grappleFrame = 2;
             }
-            else if ( this.exitingGrapple && this.grappleFrame > 4 )
+            else if ( this.exitingGrapple )
             {
-                base.frame = 0;
-                this.SetGunPosition(0, 0);
-                this.ActivateGun();
-                this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
-                this.exitingGrapple = false;
-                return;
+                // Deactivate gun once we've moved to the next frame where he's holding another gun if not in stealth
+                if ( !this.stealthActive && this.grappleFrame == 3 )
+                {
+                    this.DeactivateGun();
+                }
+                // Finished exiting grapple
+                else if ( this.grappleFrame > 4 )
+                {
+                    base.frame = 0;
+                    this.SetGunPosition(0, 0);
+                    this.ActivateGun();
+                    this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
+                    this.exitingGrapple = false;
+                    return;
+                }
+                // First frame of exitingGrapple
+                else if ( !this.stealthActive )
+                {
+                    this.SetGunPosition(3.4f, -1.1f);
+                }
+                // All frames of exiting grapple
+                else
+                {
+                    this.SetGunPosition(offsetX, offsetY);
+                }
             }
+            // Entering frames deactivate gun if stealth is not active
             else if ( !this.stealthActive )
             {
                 this.DeactivateGun();
             }
+            // Set stealth gun offset
             else
             {
                 this.SetGunPosition(offsetX, offsetY);
@@ -514,7 +531,7 @@ namespace Mission_Impossibro
             if (!this.WallDrag)
             {
                 // FIring tranq gun
-                if ( !this.stealthActive && !this.grappleAttached )
+                if ( !this.stealthActive && !(this.grappleAttached || this.exitingGrapple) )
                 {
                     if (this.gunFrame > 0)
                     {
@@ -549,7 +566,10 @@ namespace Mission_Impossibro
                         }
                         else
                         {
-                            this.StopSpecial();
+                            if ( !this.usingSpecial )
+                            {
+                                this.StopSpecial();
+                            }
                             this.gunFrame = 3;
                             this.SetGunSprite(17 + this.gunFrame, 0);
                         }
@@ -574,9 +594,9 @@ namespace Mission_Impossibro
                     }
                 }
                 // Shoot while on grapple
-                else if (!this.stealthActive && this.grappleAttached )
+                else if (!this.stealthActive && (this.grappleAttached || this.exitingGrapple) )
                 {
-                    if (this.gunFrame > 0)
+                    if (this.gunFrame > 0 && this.grappleFrame > 0 )
                     {
                         this.gunCounter += this.t;
                         if (this.gunCounter > 0.0334f)
@@ -586,9 +606,13 @@ namespace Mission_Impossibro
                             this.SetGunSprite(this.gunFrame + 22, 0);
                         }
                     }
-                    else
+                    else if ( this.grappleFrame > 0 )
                     {
                         this.SetGunSprite(22, 0);
+                    }
+                    else
+                    {
+                        this.SetGunSprite(0, 0);
                     }
                 }
                 // Out of explosives, wait to trigger
@@ -609,9 +633,9 @@ namespace Mission_Impossibro
                     {
                         this.gunCounter -= 0.0334f;
                         this.gunFrame--;
-                        if (this.gunFrame < 1 && this.fire)
+                        if (this.gunFrame < 2 && this.fire)
                         {
-                            this.gunFrame = 1;
+                            this.gunFrame = 2;
                         }
                         this.sprite.SetLowerLeftPixel((this.gunFrame + 7)  * this.spritePixelWidth,this.spritePixelHeight * 7);
                     }
@@ -715,7 +739,14 @@ namespace Mission_Impossibro
         {
             if (!this.stealthActive && !this.hasBeenCoverInAcid && this.SpecialAmmo > 0)
             {
-                this.usingSpecialFrame = 0;
+                if ( this.grappleAttached )
+                {
+                    this.usingSpecialFrame = 1;
+                }
+                else
+                {
+                    this.usingSpecialFrame = 0;
+                }
                 this.usingSpecial = true;
                 //this.specialTime = 10f;
                 this.specialTime = 100000000f;
@@ -761,9 +792,15 @@ namespace Mission_Impossibro
 
         protected void StopSpecial()
         {
-            this.triggeringExplosives = false;
             this.usingSpecial = true;
-            this.usingSpecialFrame = 5;
+            if ( this.grappleAttached )
+            {
+                this.usingSpecialFrame = 4;
+            }
+            else
+            {
+                this.usingSpecialFrame = 5;
+            }
             this.fireRate = 0.4f;
             // Detonate explosives
             foreach ( Explosive explosive in this.currentExplosives )
@@ -774,35 +811,49 @@ namespace Mission_Impossibro
 
         protected override void AnimateSpecial()
         {
-            
+            base.frameRate = 0.0667f;
             if ( this.grappleAttached || this.exitingGrapple )
             {
+                this.DeactivateGun();
+
                 // Put on balaclava
                 if (this.specialTime > 0)
                 {
-                    if (this.usingSpecialFrame > 5)
+                    if (this.usingSpecialFrame > 4)
                     {
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.stealthMaterial;
                         this.gunSprite.meshRender.material = this.stealthGunMaterial;
                         this.stealthActive = true;
+                        this.ActivateGun();
+                        this.SetGunPosition(offsetX, offsetY);
+                        this.gunFrame = 0;
                         this.UseSpecial();
+                        this.ChangeFrame();
                         return;
                     }
+
+                    this.sprite.SetLowerLeftPixel((26 + this.usingSpecialFrame) * this.spritePixelWidth, 9 * this.spritePixelHeight);
 
                     ++this.usingSpecialFrame;
                 }
                 // Take off balaclava
                 else
                 {
-                    if (this.usingSpecialFrame < 0)
+                    this.triggeringExplosives = false;
+
+                    if (this.usingSpecialFrame < 1)
                     {
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.normalMaterial;
                         this.gunSprite.meshRender.material = this.normalGunMaterial;
                         this.stealthActive = false;
+                        this.ActivateGun();
+                        this.ChangeFrame();
                         return;
                     }
+
+                    this.sprite.SetLowerLeftPixel((26 + this.usingSpecialFrame) * this.spritePixelWidth, 9 * this.spritePixelHeight);
 
                     --this.usingSpecialFrame;
                 }
@@ -822,6 +873,7 @@ namespace Mission_Impossibro
                         this.stealthActive = true;
                         this.gunFrame = 0;
                         this.ActivateGun();
+                        this.ChangeFrame();
                         this.UseSpecial();
                         return;
                     }
@@ -833,6 +885,8 @@ namespace Mission_Impossibro
                 // Take off balaclava
                 else
                 {
+                    this.triggeringExplosives = false;
+
                     if (this.usingSpecialFrame < 0)
                     {
                         base.frame = 0;
@@ -842,6 +896,7 @@ namespace Mission_Impossibro
                         this.stealthActive = false;
                         this.gunFrame = 0;
                         this.ActivateGun();
+                        this.ChangeFrame();
                         return;
                     }
 
