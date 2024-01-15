@@ -101,7 +101,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - BroMaker\Storage\Bros\Captain Ameribro\*.cache"
-copy "C:\Users\Alex\Desktop\Coding Things\Github\BroforceModsDev\Bromaker - Captain Ameribro Mod\Bromaker - Captain Ameribro Mod\bin\Debug\Captain Ameribro Mod.dll" "C:\Users\Alex\Dropbox\Captain Ameribro\Captain Ameribro Mod.dll"</PostBuildEvent>
+    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\BroMaker_Storage\Bros\Captain Ameribro\*.cache"</PostBuildEvent>
   </PropertyGroup>
 </Project>

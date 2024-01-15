@@ -1,0 +1,12 @@
+{
+  "Version": "1.0.0",
+  "BroMakerVersion": "2.3.0",
+  "Name": "Bro Template",
+  "Author": "AlexN",
+  "CustomBros":[
+    "Bro Template.json"
+  ],
+  "Assemblies": [
+    "Bro Template.dll"
+  ]
+}
