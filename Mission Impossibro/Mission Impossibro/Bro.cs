@@ -166,10 +166,6 @@ namespace Mission_Impossibro
                 this.triggeringExplosives = this.stealthActive = this.usingSpecial = false;
                 this.acceptedDeath = true;
             }
-
-            // DEBUG
-            //this.SetGunSprite(gunFrameCounter, 0);
-            //this.gunSprite.SetLowerLeftPixel(32 * 6, 32);
         }
 
         protected override void LateUpdate()
@@ -278,6 +274,7 @@ namespace Mission_Impossibro
 
         public void AttachGrapple()
         {
+            SetGestureAnimation(GestureElement.Gestures.None);
             this.grappleLine.enabled = true;
             grappleAttachBlock = this.raycastHit.collider.gameObject.GetComponent<Block>();
             this.wasAttachedToBlock = (grappleAttachBlock != null);
@@ -308,7 +305,8 @@ namespace Mission_Impossibro
         {
             this.DeactivateGun();
             this.grappleLine.enabled = false;
-            grappleAttached = false;
+            this.grappleAttached = false;
+            this.exitingGrapple = false;
             this.grappleCooldown = 0.1f;
         }
 
@@ -419,7 +417,7 @@ namespace Mission_Impossibro
 
         protected override void PressHighFiveMelee(bool forceHighFive = false)
         {
-            if ( this.grappleAttached )
+            if ( this.grappleAttached || this.exitingGrapple )
             {
                 InstantDetachGrapple();
             }
@@ -431,6 +429,22 @@ namespace Mission_Impossibro
             if ( !this.grappleAttached )
             {
                 base.PlayFootStepSound(clips, v, p);
+            }
+        }
+
+        public override void SetGestureAnimation(GestureElement.Gestures gesture)
+        {
+            if ( !(this.grappleAttached || this.exitingGrapple) )
+            {
+                base.SetGestureAnimation(gesture);
+            }
+        }
+
+        protected override void Land()
+        {
+            if ( !this.grappleAttached )
+            {
+                base.Land();
             }
         }
 
@@ -461,6 +475,14 @@ namespace Mission_Impossibro
             if ( !readyToDetonate )
             {
                 readyToDetonate = true;
+            }
+        }
+
+        protected override void RunFiring()
+        {
+            if ( !(this.triggeringExplosives || this.usingSpecial) )
+            {
+                base.RunFiring();
             }
         }
 
@@ -551,7 +573,7 @@ namespace Mission_Impossibro
                     horizontalSpeed = 0f;
                     verticalSpeed = 175f;
                 }
-                currentExplosives.Add(explosive = ProjectileController.SpawnProjectileLocally(this.explosivePrefab, this, x, y, base.transform.localScale.x * horizontalSpeed + (this.xI / 2), verticalSpeed + (this.yI / 2), base.playerNum) as Explosive);
+                currentExplosives.Add(explosive = ProjectileController.SpawnProjectileLocally(this.explosivePrefab, this, base.X + base.transform.localScale.x * 6f, base.Y + 10f, base.transform.localScale.x * horizontalSpeed + (this.xI / 2), verticalSpeed + (this.yI / 2), base.playerNum) as Explosive);
                 SachelPack otherSachel = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile as SachelPack;
                 explosive.AssignNullValues(otherSachel);
                 explosive.life = this.specialTime + 4f;
@@ -782,7 +804,7 @@ namespace Mission_Impossibro
         // Special methods
         protected override void PressSpecial()
         {
-            if (!this.stealthActive && !this.hasBeenCoverInAcid && this.SpecialAmmo > 0)
+            if (!this.usingSpecial && !this.stealthActive && !this.hasBeenCoverInAcid && this.SpecialAmmo > 0)
             {
                 if ( this.grappleAttached )
                 {
@@ -798,7 +820,7 @@ namespace Mission_Impossibro
                 this.currentExplosives = new List<Explosive>();
                 this.fireRate = 0.3f;
             }
-            else if (this.specialTime > 0)
+            else if (this.specialTime > 0 && !this.usingSpecial)
             {
                 StartDetonating();
             }

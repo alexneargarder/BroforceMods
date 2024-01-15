@@ -49,9 +49,9 @@ namespace Mission_Impossibro
 			this.blastForce = 50f;
 			this.sticky = true;
 			this.stickyToUnits = true;
-			this.damage = 25;
-			this.damageInternal = 25;
-			this.fullDamage = 25;
+			this.damage = 8;
+			this.damageInternal = 8;
+			this.fullDamage = 8;
 			this.damageType = DamageType.Fire;
 			this.canHitGrenades = false;
 			this.soundVolume = 0.4f;
