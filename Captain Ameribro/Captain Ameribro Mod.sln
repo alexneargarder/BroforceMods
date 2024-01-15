@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bromaker - Captain Ameribro Mod", "Bromaker - Captain Ameribro Mod\Bromaker - Captain Ameribro Mod.csproj", "{AD2D94AC-3409-4923-8EE7-E200C9395628}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Captain Ameribro Mod", "Captain Ameribro Mod\Captain Ameribro Mod.csproj", "{AD2D94AC-3409-4923-8EE7-E200C9395628}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
