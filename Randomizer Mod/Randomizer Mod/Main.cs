@@ -2014,7 +2014,6 @@ namespace Randomizer_Mod
             __result.Add(PickupType.FlexGoldenLight);
             __result.Add(PickupType.FlexInvulnerability);
             __result.Add(PickupType.FlexTeleport);
-            __result.Add(PickupType.FlexAlluring);
 
             return false;
         }

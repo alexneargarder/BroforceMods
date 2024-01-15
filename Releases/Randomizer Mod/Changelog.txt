@@ -1,3 +1,6 @@
+v2.0.4
+Fixed broken flex power.
+
 v2.0.3
 Added option for randomizing ammo crates
 
