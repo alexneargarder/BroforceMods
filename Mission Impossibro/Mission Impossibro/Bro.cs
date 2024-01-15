@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using BroMakerLib;
 using BroMakerLib.Loggers;
 using BroMakerLib.CustomObjects.Bros;
