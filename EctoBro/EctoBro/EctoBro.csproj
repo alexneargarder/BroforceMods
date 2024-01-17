@@ -61,6 +61,10 @@
     <Reference Include="UnityEngine.IMGUIModule">
       <HintPath>..\..\libs\Core Libs\UnityEngine.IMGUIModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticlesLegacyModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\libs\Extra Libs\UnityEngine.ParticlesLegacyModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>..\..\libs\Extra Libs\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
