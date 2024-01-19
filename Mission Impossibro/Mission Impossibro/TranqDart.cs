@@ -87,7 +87,7 @@ namespace Mission_Impossibro
 				for (int i = Map.units.Count - 1; i >= 0; i--)
 				{
 					Unit unit = Map.units[i];
-					if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health > 0 && unit.actionState != ActionState.Fallen && !unit.IsIncapacitated()  )
+					if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health > 0  )
 					{
 						float num2 = unit.X - X;
 						if (Mathf.Abs(num2) - xRange < unit.width)
@@ -98,7 +98,7 @@ namespace Mission_Impossibro
 								float stunTime = 20.0f / unit.health;
 								stunTime = (stunTime < 2 ? 2 : stunTime);
 								// Hit boss
-								if ( unit.CompareTag("Metal") || unit.CompareTag("Boss") )
+								if ( unit.CompareTag("Metal") || unit.CompareTag("Boss") || unit is DolphLundrenSoldier || unit is SatanMiniboss )
                                 {
 									// Stun boss after 8 hits
 									if ( Bro.bossHitCounter.ContainsKey(unit) )
@@ -120,49 +120,56 @@ namespace Mission_Impossibro
                                     }
 
 									Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+									hitUnits = true;
+									break;
 								}
-								else if ( unit is Mook )
+								// Don't hit mooks other non boss enemies if they are already stunned
+								else if (unit.actionState != ActionState.Fallen && !unit.IsIncapacitated())
                                 {
-									Mook mook = unit as Mook;
-									
-									if ( CanFallOnFace(mook) )
-                                    {
-										if ( !mook.IsOnGround() )
-                                        {
-											if (mook is MookJetpack)
-                                            {
-												Traverse trav = Traverse.Create(mook as MookJetpack);
-												trav.Method("StartSpiralling").GetValue();
+									if (unit is Mook)
+									{
+										Mook mook = unit as Mook;
+
+										if (CanFallOnFace(mook))
+										{
+											if (!mook.IsOnGround())
+											{
+												if (mook is MookJetpack)
+												{
+													Traverse trav = Traverse.Create(mook as MookJetpack);
+													trav.Method("StartSpiralling").GetValue();
+												}
+												else
+												{
+													mook.IsParachuteActive = false;
+													Traverse trav = Traverse.Create(mook);
+													trav.Method("FallOnFace").GetValue();
+													trav.Field("fallenTime").SetValue(stunTime);
+												}
+												Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 											}
 											else
-                                            {
-												mook.IsParachuteActive = false;
+											{
 												Traverse trav = Traverse.Create(mook);
 												trav.Method("FallOnFace").GetValue();
 												trav.Field("fallenTime").SetValue(stunTime);
+												Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 											}
-											Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 										}
 										else
-                                        {
-											Traverse trav = Traverse.Create(mook);
-											trav.Method("FallOnFace").GetValue();
-											trav.Field("fallenTime").SetValue(stunTime);
+										{
+											unit.Stun(stunTime);
 											Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
-										}	
+										}
 									}
 									else
-                                    {
+									{
 										unit.Stun(stunTime);
-										Map.KnockAndDamageUnit(damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
+										Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
 									}
+									hitUnits = true;
+									break;
 								}
-								else
-                                {
-									unit.Stun(stunTime);
-									Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), false, X, Y, false);
-								}
-								hitUnits = true;
 							}
 						}
 					}

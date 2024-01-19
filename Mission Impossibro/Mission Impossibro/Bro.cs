@@ -814,6 +814,7 @@ namespace Mission_Impossibro
                 }
                 this.usingSpecial = true;
                 this.specialTime = 7f;
+                this.stealthActive = true;
                 Map.ForgetPlayer(base.playerNum, true, false);
                 this.currentExplosives = new List<Explosive>();
                 this.fireRate = 0.3f;
