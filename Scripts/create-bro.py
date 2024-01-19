@@ -34,7 +34,7 @@ def renameFiles(directory, find, replace):
             else:
                 renameFiles(filepath, find, replace)
 
-broforcePath = r'D:\Steam\steamapps\common\Broforce\BroMaker_Storage\Bros'
+broforcePath = r'D:\Steam\steamapps\common\Broforce\BroMaker_Storage'
 repoPath = r'C:\Users\Alex\Desktop\Coding Things\Github\BroforceModsDev'
 newName = input('Enter bro name:\n')
 newNameWithUnderscore = newName.replace(' ', '_')

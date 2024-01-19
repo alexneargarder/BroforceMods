@@ -83,6 +83,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\BroMaker_Storage\Bros\Mission Impossibro\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROPATH%25\Mission Impossibro\*.cache"</PostBuildEvent>
   </PropertyGroup>
 </Project>
