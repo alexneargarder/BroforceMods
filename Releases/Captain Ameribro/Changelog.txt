@@ -1,0 +1,8 @@
+v1.0.1
+Updated to latest Bromaker version.
+Fixed issue with mashing special button.
+Fixed issue with dying while punching.
+Fixed issue with animations while having multiple shields.
+
+v1.0.0
+Release

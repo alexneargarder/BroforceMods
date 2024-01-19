@@ -1,0 +1,12 @@
+{
+  "Version": "1.0.1",
+  "BroMakerVersion": "2.3.0",
+  "Name": "Captain Ameribro",
+  "Author": "AlexN",
+  "CustomBros":[
+    "Captain Ameribro.json"
+  ],
+  "Assemblies": [
+    "Captain Ameribro Mod.dll"
+  ]
+}
