@@ -1,0 +1,44 @@
+{
+  "name": "Mission Impossibro",
+  "characterPreset": "Mission Impossibro",
+  "parameters": {
+    "BetterAnimation": true,
+    "SpecialIcons": "special.png",
+    "Avatar": "avatar.png",
+    "GunSpriteOffset":
+    {
+      "x": 1,
+      "y": 0.4
+    }
+  },
+  "cutscene": {
+    "heading": "Mission Impossibro",
+    "subtitle1": "Joins the Battle!",
+    "headingScale": 0.11,
+    "subtitleScale": 0.09,
+    "spritePath": "cutscene.png",
+    "spriteRect":
+    {
+      "x": 0,
+      "y": 270,
+      "width": 256,
+      "height": 256
+     },
+    "anim": "Intro_Bro_BroDredd",
+    "playCutsceneOnFirstSpawn": true
+  },
+  "beforeAwake": {
+    "speed": 130,
+    "fireRate": 0.3,
+    "canChimneyFlip": true,
+    "originalSpecialAmmo": 2
+  },
+  "afterAwake": {},
+  "beforeStart": {
+    "sprite": "sprite.png",
+    "gunSprite": "gunSprite.png"
+  },
+  "afterStart": {
+    
+  }
+}
