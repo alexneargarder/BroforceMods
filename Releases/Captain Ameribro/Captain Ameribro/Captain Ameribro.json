@@ -5,8 +5,11 @@
     "BetterAnimation": true,
     "SpecialIcons": "CaptainAmeribroSpecial.png",
     "Avatar": "captainAmeribroAvatar.png",
-    "deathGunspriteOffsetX": 4,
-    "deathGunspriteOffsetY": -1
+    "GunSpriteOffset":
+    {
+      "x": 4,
+      "y": -1
+    }
   },
   "cutscene": {
     "heading": "Captain Ameribro",
@@ -37,6 +40,5 @@
     "gunSprite": "captainAmeribroGun.png"
   },
   "afterStart": {
-    
   }
 }
