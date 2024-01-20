@@ -217,6 +217,24 @@ namespace Captain_Ameribro_Mod
 				this.wasInvulnerable = true;
             }
 			base.Update();
+			if (this.acceptedDeath)
+			{
+				if (this.health <= 0 && !this.WillReviveAlready)
+				{
+					return;
+				}
+				// Revived
+				else
+				{
+					if ( this.thrownShield != null )
+                    {
+						this.thrownShield.ReturnShieldSilent();
+					}
+					this.SpecialAmmo = 1;
+					this.SwitchToWithShieldMats();
+					this.acceptedDeath = false;
+				}
+			}
 			// Check if invulnerability ran out
 			if ( this.wasInvulnerable && !this.invulnerable )
             {
@@ -246,7 +264,7 @@ namespace Captain_Ameribro_Mod
 			}
 
 			// Make shield drop on death
-			if (base.actionState == ActionState.Dead && !this.acceptedDeath )
+			if (base.actionState == ActionState.Dead && !this.acceptedDeath && !this.WillReviveAlready )
 			{
 				if (thrownShield != null && !thrownShield.dropping)
                 {

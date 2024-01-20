@@ -843,6 +843,12 @@ namespace Captain_Ameribro_Mod
 			UnityEngine.Object.Destroy(base.gameObject);
 		}
 
+		public void ReturnShieldSilent()
+		{
+			this.DeregisterProjectile();
+			UnityEngine.Object.Destroy(base.gameObject);
+		}
+
 		protected virtual void ApplyGravity()
 		{
 			this.yI -= 600f * this.t;
