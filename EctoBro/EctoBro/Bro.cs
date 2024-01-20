@@ -16,18 +16,30 @@ namespace EctoBro
         LineRenderer protonLine1;
         LineRenderer protonLine1Cap;
         LineRenderer protonLine2;
+        Material[] protonLine2Mats;
         protected Vector3 protonLineHitpoint;
+        protected const float protonLineRange = 1000f;
+        protected const float offsetSpeed = 4f;
+        protected const float swaySpeedLerpM = 1f;
+        protected const int protonUnitDamage = 1;
+        protected const int protonWallDamage = 1;
+
         protected float currentOffset = 0f;
         protected float currentOffset2 = 0f;
-        protected float offsetSpeed = 4f;
         protected float targetSway = 0f;
         protected float curSway = 0f;
         protected float swaySpeed = 5f;
         protected float swaySpeedCurrent = 0.5f;
-        protected float swaySpeedLerpM = 1f;
         protected float sparkCooldown = 0;
         protected float muzzleFlashCooldown = 0f;
+        protected int protonLine2Frame = 0;
+        protected float protonLine2FrameCounter = 0f;
+        protected float protonDamageCooldown = 0f;
+        protected float fireKnockbackCooldown = 0f;
+        protected float effectCooldown = 0f;
+        protected float pushBackForceM = 1f;
         public static System.Random rnd = new System.Random();
+        protected LayerMask unitsLayer;
 
         // DEBUG
         //public static string scaleStr = "0.035";
@@ -39,6 +51,10 @@ namespace EctoBro
         //public static float scale = 1f;
         //public static string offsetStr = "1";
         //public static float offset = 0f;
+        public static string proton2SpeedStr = "1.9";
+        public static float proton2Speed = 1.9f;
+        public static string proton2FramerateStr = "0.1";
+        public static float proton2Framerate = 0.1f;
 
         protected override void Awake()
         {
@@ -56,7 +72,15 @@ namespace EctoBro
 
             protonLine2 = new GameObject("ProtonLine2", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             protonLine2.transform.parent = this.transform;
-            protonLine2.material = ResourcesController.GetMaterial(directoryPath, "protonLine2.png");
+            protonLine2Mats = new Material[4];
+            for ( int i = 0; i < 4; ++i )
+            {
+                protonLine2Mats[i] = ResourcesController.GetMaterial(directoryPath, "protonLine2" + (i + 1) + ".png");
+            }
+            protonLine2.material = protonLine2Mats[0];
+            //protonLine2.material = ResourcesController.GetMaterial(directoryPath, "protonLine2.png");
+
+            this.unitsLayer = 1 << LayerMask.NameToLayer("Units");
         }
 
         protected override void Update()
@@ -83,6 +107,8 @@ namespace EctoBro
             //makeTextBox("red", ref redStr, ref red);
             //makeTextBox("scale", ref scaleStr, ref scale);
             //makeTextBox("offset", ref offsetStr, ref offset);
+            makeTextBox("speed", ref proton2SpeedStr, ref proton2Speed);
+            makeTextBox("framerate", ref proton2FramerateStr, ref proton2Framerate);
         }
 
         // Proton Gun methods
@@ -90,16 +116,53 @@ namespace EctoBro
         {
             base.StartFiring();
             this.StartProtonGun();
-        }
+            this.fireKnockbackCooldown = 0f;
+    }
 
         protected override void RunFiring()
         {
             if ( this.fire )
             {
                 this.currentOffset += this.t * offsetSpeed;
-                this.currentOffset2 += this.t * offsetSpeed * 2;
-                //this.currentOffset += this.t;
+                this.currentOffset2 += this.t * offsetSpeed * proton2Speed;
+                this.protonDamageCooldown -= this.t;
+                this.effectCooldown -= this.t;
+                this.fireKnockbackCooldown -= this.t;
                 UpdateProtonGun();
+
+                if ( this.fireKnockbackCooldown <= 0 )
+                {
+                    this.xIBlast -= base.transform.localScale.x * 4f * this.pushBackForceM;
+                    if (base.Y > this.groundHeight)
+                    {
+                        this.yI += Mathf.Clamp(3f * this.pushBackForceM, 3f, 16f);
+                    }
+
+                    this.pushBackForceM = Mathf.Clamp(this.pushBackForceM + this.t * 6f, 1f, 12f);
+                    this.fireKnockbackCooldown = 0.015f;
+                }
+            }
+            else
+            {
+                this.pushBackForceM = 1f;
+            }
+        }
+
+        protected override void AddSpeedLeft()
+        {
+            base.AddSpeedLeft();
+            if (this.xIBlast > this.speed * 1.6f)
+            {
+                this.xIBlast = this.speed * 1.6f;
+            }
+        }
+
+        protected override void AddSpeedRight()
+        {
+            base.AddSpeedRight();
+            if (this.xIBlast < this.speed * -1.6f)
+            {
+                this.xIBlast = this.speed * -1.6f;
             }
         }
 
@@ -108,11 +171,11 @@ namespace EctoBro
             if (!this.wallDrag && this.fire)
             {
                 this.gunCounter += this.t;
-                if (this.gunCounter > 0.06f)
+                if (this.gunCounter > 0.07f)
                 {
-                    this.gunCounter -= 0.06f;
+                    this.gunCounter -= 0.07f;
                     this.gunFrame--;
-                    if (this.gunFrame < 0)
+                    if (this.gunFrame < 1)
                     {
                         this.gunFrame = 3;
                     }
@@ -141,106 +204,16 @@ namespace EctoBro
             this.StopProtonGun();
         }
 
-        protected void DrawProtonLine()
-        {
-            Vector3 startPoint = new Vector3(base.transform.position.x + base.transform.localScale.x * 10f, base.transform.position.y + 7f, 0);
-            Vector3 endPoint;
-            Vector3 startPointCap = startPoint;
-            startPoint.x += base.transform.localScale.x * 10f;
-            Vector3 startPointCapEnd = startPoint;
-            startPointCapEnd.x += base.transform.localScale.x * 0.5f;
-            float capOffset = base.transform.localScale.x * (1.9f * Math.Sin(Math.PI2 * currentOffset));
-            startPointCapEnd.y += capOffset;
-            Vector3 startPointCapMid = new Vector3(base.transform.localScale.x * Mathf.Abs(startPointCap.x - startPointCapEnd.x) / 2 + startPointCap.x, startPointCap.y + 0.75f * capOffset);
-
-            //EffectsController.CreateMuzzleFlashEffect(startPoint.x, startPoint.y, -25f, 0f, UnityEngine.Random.Range(-20, 20), base.transform);
-            //EffectsController.CreateEffect(EffectsController.instance.muzzleFlashGlowPrefab, startPoint.x, startPoint.y, -25f, 0f);
-            //GameObject gameObject = EffectsController.InstantiateEffect(EffectsController.instance.lightObject, startPoint, Quaternion.identity) as GameObject;
-            //gameObject.transform.parent = base.transform;
-
-            /*            if ( muzzleFlashCooldown <= 0 )
-                        {
-                            //Puff puff = EffectsController.CreateEffect(EffectsController.instance.muzzleFlashPrefab, startPoint.x, startPoint.y, -25f, 0f, new Vector3(0f, -100f, 0f), null);
-                            //puff.transform.parent = base.transform;
-                            //puff.SetColor(new Color(1f, 0.439f, 0.188f, 1f));
-
-                            //muzzleFlashCooldown = 0.25f;
-                        }*/
-
-            //muzzleFlashCooldown -= this.t;
-
-            if ( sparkCooldown <= 0 )
-            {
-                int particleCount = rnd.Next(3, 5);
-                for (int i = 0; i < particleCount; ++i)
-                {
-                    EffectsController.CreateSparkParticles(EffectsController.instance.sparkParticleShower, startPointCap.x, startPoint.y, 1, 0, 30f + UnityEngine.Random.value * 20f, UnityEngine.Random.value * 50f, UnityEngine.Random.value * 50f, 0.5f, 0.2f + UnityEngine.Random.value * 0.2f);
-                }
-                sparkCooldown = UnityEngine.Random.Range(0.25f, 0.5f);
-            }
-
-            sparkCooldown -= this.t;
-
-            // Hit ground
-            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, 2000f, this.groundLayer))
-            {
-                endPoint = new Vector3(raycastHit.point.x, raycastHit.point.y, 0);
-            }
-            else
-            {
-                endPoint = new Vector3(startPoint.x + base.transform.localScale.x * 2000f, startPoint.y, 0);
-            }
-
-            swaySpeedCurrent = Mathf.Lerp(swaySpeedCurrent, swaySpeed, swaySpeedLerpM * this.t);
-
-            if ( curSway > targetSway )
-            {
-                curSway -= this.t * swaySpeedCurrent;
-                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
-                if ( curSway - 0.1 <= targetSway )
-                {
-                    targetSway = UnityEngine.Random.Range(0, 10);
-                    swaySpeedCurrent = 1f;
-                }
-            }
-            else
-            {
-                curSway += this.t * swaySpeedCurrent;
-                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
-                if (curSway + 0.1 >= targetSway)
-                {
-                    targetSway = UnityEngine.Random.Range(0, 10);
-                    swaySpeedCurrent = 1f;
-                }
-            }
-
-            endPoint.y += curSway;
-
-            //midPoint = new Vector3(Mathf.Abs(startPoint.x - endPoint.x) / 2 + startPoint.x, endPoint.y);
-
-            float magnitude = (endPoint - startPoint).magnitude;
-
-            this.protonLine1.SetPosition(0, startPoint);
-            this.protonLine1.SetPosition(1, endPoint);
-            this.protonLine1.material.SetTextureScale("_MainTex", new Vector2(magnitude * 0.035f, 1f));
-            this.protonLine1.material.SetTextureOffset("_MainTex", new Vector2(-currentOffset, 0));
-
-            this.protonLine1Cap.SetPosition(0, startPointCap);
-            this.protonLine1Cap.SetPosition(1, startPointCapMid);
-            this.protonLine1Cap.SetPosition(2, startPointCapEnd);
-
-            this.protonLine2.SetPosition(0, startPointCap);
-            this.protonLine2.SetPosition(1, endPoint);
-            this.protonLine2.material.SetTextureScale("_MainTex", new Vector2(magnitude * 0.035f, 1f));
-            this.protonLine2.material.SetTextureOffset("_MainTex", new Vector2(-currentOffset2, 0f));
-        }
-
         protected void StartProtonGun()
         {
             this.currentOffset = 0;
             this.currentOffset2 = 0;
             this.curSway = 0;
             this.targetSway = UnityEngine.Random.Range(0, 10);
+            this.protonLine2Frame = 0;
+            this.protonLine2FrameCounter = 0f;
+            this.protonDamageCooldown = 0f;
+            this.effectCooldown = 0f;
 
             this.protonLine1.enabled = true;
             this.protonLine1.startWidth = 8f;
@@ -271,6 +244,154 @@ namespace EctoBro
             this.protonLine1.enabled = false;
             this.protonLine1Cap.enabled = false;
             this.protonLine2.enabled = false;
+        }
+
+        protected void DrawProtonLine()
+        {
+            Vector3 startPoint = new Vector3(base.transform.position.x + base.transform.localScale.x * 10f, base.transform.position.y + 7f, 0);
+            Vector3 endPoint = Vector3.zero;
+            Vector3 startPointCap = startPoint;
+            startPoint.x += base.transform.localScale.x * 10f;
+            Vector3 startPointCapEnd = startPoint;
+            startPointCapEnd.x += base.transform.localScale.x * 0.5f;
+            float capOffset = base.transform.localScale.x * (1.9f * Math.Sin(Math.PI2 * currentOffset));
+            startPointCapEnd.y += capOffset;
+            Vector3 startPointCapMid = new Vector3(base.transform.localScale.x * Mathf.Abs(startPointCap.x - startPointCapEnd.x) / 2 + startPointCap.x, startPointCap.y + 0.75f * capOffset);
+
+            // Create sparks at tip of gun
+            if ( sparkCooldown <= 0 )
+            {
+                int particleCount = rnd.Next(3, 5);
+                for (int i = 0; i < particleCount; ++i)
+                {
+                    EffectsController.CreateSparkParticles(EffectsController.instance.sparkParticleShower, startPointCap.x, startPoint.y, 1, 0, 30f + UnityEngine.Random.value * 20f, UnityEngine.Random.value * 50f, UnityEngine.Random.value * 50f, 0.5f, 0.2f + UnityEngine.Random.value * 0.2f);
+                }
+                sparkCooldown = UnityEngine.Random.Range(0.25f, 0.5f);
+            }
+            sparkCooldown -= this.t;
+
+            // Run hit detection
+            ProtonLineHitDetection(ref startPoint, ref endPoint);
+
+            endPoint.y += curSway;
+
+            // Calculate sway of proton beams
+            swaySpeedCurrent = Mathf.Lerp(swaySpeedCurrent, swaySpeed, swaySpeedLerpM * this.t);
+            if ( curSway > targetSway )
+            {
+                curSway -= this.t * swaySpeedCurrent;
+                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
+                if ( curSway - 0.1 <= targetSway )
+                {
+                    targetSway = UnityEngine.Random.Range(0, 10);
+                    swaySpeedCurrent = 1f;
+                }
+            }
+            else
+            {
+                curSway += this.t * swaySpeedCurrent;
+                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
+                if (curSway + 0.1 >= targetSway)
+                {
+                    targetSway = UnityEngine.Random.Range(0, 10);
+                    swaySpeedCurrent = 1f;
+                }
+            }
+
+            // Update proton line 2 material
+            this.protonLine2.material = this.protonLine2Mats[protonLine2Frame];
+            this.protonLine2FrameCounter += this.t;
+            if ( this.protonLine2FrameCounter >= proton2Framerate )
+            {
+                this.protonLine2FrameCounter -= proton2Framerate;
+                ++this.protonLine2Frame;
+                if ( this.protonLine2Frame > 3 )
+                {
+                    this.protonLine2Frame = 0;
+                }
+            }
+
+            float magnitude = (endPoint - startPoint).magnitude;
+
+            this.protonLine1.SetPosition(0, startPoint);
+            this.protonLine1.SetPosition(1, endPoint);
+            this.protonLine1.material.SetTextureScale("_MainTex", new Vector2(magnitude * 0.035f, 1f));
+            this.protonLine1.material.SetTextureOffset("_MainTex", new Vector2(-currentOffset, 0));
+
+            this.protonLine1Cap.SetPosition(0, startPointCap);
+            this.protonLine1Cap.SetPosition(1, startPointCapMid);
+            this.protonLine1Cap.SetPosition(2, startPointCapEnd);
+
+            startPointCap.z = -10f;
+            endPoint.z = -10f;
+            this.protonLine2.SetPosition(0, startPointCap);
+            this.protonLine2.SetPosition(1, endPoint);
+            this.protonLine2.material.SetTextureScale("_MainTex", new Vector2(magnitude * 0.035f, 1f));
+            this.protonLine2.material.SetTextureOffset("_MainTex", new Vector2(-currentOffset2, 0f));
+        }
+
+        protected void ProtonLineHitDetection(ref Vector3 startPoint, ref Vector3 endPoint)
+        {
+            RaycastHit groundHit = this.raycastHit;
+            bool haveHitGround = false;
+            float currentRange = protonLineRange;
+
+            // Hit ground
+            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.groundLayer))
+            {
+                groundHit = this.raycastHit;
+                // Shorten the range we check for raycast hits, we don't care about hitting anything past the current terrain.
+                currentRange = this.raycastHit.distance;
+                haveHitGround = true;
+            }
+
+            // Hit Unit, which must be closer than wall since we're checking with a shortened range
+            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.unitsLayer))
+            {
+                DamageCollider(this.raycastHit);
+                endPoint = new Vector3(raycastHit.point.x, raycastHit.point.y, 0);
+            }
+            // Damage ground since no unit hit
+            else if ( haveHitGround )
+            {
+                DamageCollider(groundHit);
+                endPoint = new Vector3(groundHit.point.x, groundHit.point.y, 0);
+            }
+            // Nothing hit
+            else
+            {
+                endPoint = new Vector3(startPoint.x + base.transform.localScale.x * protonLineRange, startPoint.y, 0);
+            }
+        }
+
+        protected void DamageCollider(RaycastHit hit)
+        {
+            if ( this.protonDamageCooldown > 0 )
+            {
+                return;
+            }
+            Unit unit = hit.collider.GetComponent<Unit>();
+            // Damage unit
+            if (unit != null)
+            {
+                unit.Damage( protonUnitDamage, DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y);
+                unit.Knock(DamageType.Fire, base.transform.localScale.x * 30, 20, false);
+            }
+            // Damage other
+            else
+            {
+                hit.collider.SendMessage("Damage", new DamageObject(protonWallDamage, DamageType.Bullet, 0f, 0f, hit.point.x, hit.point.y, this));
+            }
+
+            //EffectsController.CreateLaserParticle(hit.point.x, hit.point.y, hit.collider.gameObject);
+            if ( this.effectCooldown <= 0 )
+            {
+                Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range(-3, 3) + this.curSway, 0f, 0f, Vector3.zero, null);
+                //puff.transform.localScale /= 2;
+                this.effectCooldown = 0.15f;
+            }
+            
+            protonDamageCooldown = 0.05f;
         }
     }
 }
