@@ -1,2 +1,5 @@
+v1.0.1
+Fixed detonator click playing after death.
+
 v1.0.0
 Release
