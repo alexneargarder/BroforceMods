@@ -121,6 +121,22 @@ namespace Mission_Impossibro
                 this.wasInvulnerable = true;
             }
             base.Update();
+            if (this.acceptedDeath)
+            {
+                if (this.health <= 0 && !this.WillReviveAlready)
+                {
+                    return;
+                }
+                // Revived
+                else
+                {
+                    this.usingSpecial = false;
+                    base.GetComponent<Renderer>().material = this.normalMaterial;
+                    this.gunSprite.meshRender.material = this.normalGunMaterial;
+                    this.stealthActive = false;
+                    this.acceptedDeath = false;
+                }
+            }
             // Check if invulnerability ran out
             if (this.wasInvulnerable && !this.invulnerable)
             {
@@ -129,9 +145,9 @@ namespace Mission_Impossibro
                 gunSprite.meshRender.material.SetColor("_TintColor", Color.gray);
             }
 
-            if ( fireCooldown > 0 )
+            if ( this.fireCooldown > 0 )
             {
-                fireCooldown -= this.t;
+                this.fireCooldown -= this.t;
             }
             if ( grappleCooldown > 0 )
             {
@@ -157,7 +173,7 @@ namespace Mission_Impossibro
             }
 
             // Detach grapple
-            if ( this.actionState == ActionState.Dead && !acceptedDeath )
+            if ( this.actionState == ActionState.Dead && !acceptedDeath && !this.WillReviveAlready )
             {
                 InstantDetachGrapple();
                 this.specialTime = 0;
@@ -519,7 +535,7 @@ namespace Mission_Impossibro
             
             Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
 
-            this.fireCooldown = this.fireRate;
+            this.fireCooldown = this.fireRate - 0.12f;
         }
 
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
@@ -593,7 +609,7 @@ namespace Mission_Impossibro
 
         protected override void RunGun()
         {
-            if (!this.WallDrag)
+            if (!this.WallDrag && !this.acceptedDeath)
             {
                 // FIring tranq gun
                 if ( !this.stealthActive && !(this.grappleAttached || this.exitingGrapple) )
@@ -687,7 +703,7 @@ namespace Mission_Impossibro
                 }
             }
             // Shoot while wall clinging
-            else if ( !this.stealthActive && !this.triggeringExplosives )
+            else if ( !this.stealthActive && !this.triggeringExplosives && !this.acceptedDeath )
             {
                 if ( this.gunFrame > 0 )
                 {
