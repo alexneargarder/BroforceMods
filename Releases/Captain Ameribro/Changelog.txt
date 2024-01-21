@@ -1,3 +1,8 @@
+v1.0.2
+Fixed airdash animation issues.
+Fixed issues with reviving Ameribro with holy water.
+Fixed punching while using special.
+
 v1.0.1
 Updated to latest Bromaker version.
 Fixed issue with mashing special button.
