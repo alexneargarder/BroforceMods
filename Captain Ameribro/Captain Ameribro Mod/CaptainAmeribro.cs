@@ -65,6 +65,7 @@ namespace Captain_Ameribro_Mod
 		protected List<Unit> currentlyHitting;
 		protected const int defaultSpeed = 130;
 		protected bool acceptedDeath = false;
+		protected InvulnerabilityFlash flash;
 
 		// DEBUG variables
 		public const bool DEBUGTEXTURES = false;
@@ -372,6 +373,11 @@ namespace Captain_Ameribro_Mod
 
 		public void ReturnShield(Shield shield)
 		{
+			if ( this.hasBeenCoverInAcid )
+            {
+				++this.SpecialAmmo;
+				return;
+            }
 			SwitchToWithShieldMats();
 			if ( this.doingMelee )
             {
@@ -612,7 +618,7 @@ namespace Captain_Ameribro_Mod
 
         protected override void UseFire()
         {
-			if ( !this.animateSpecial)
+			if ( !this.animateSpecial && this.airdashTime <= 0)
             {
 				base.UseFire();
 				this.fireDelay = 0.25f;
@@ -698,7 +704,7 @@ namespace Captain_Ameribro_Mod
 				this.gunFrame = 11;
 				this.SetGunFrame();
 			}
-			else if (!this.WallDrag)
+			else if (!this.WallDrag && !this.animateSpecial)
 			{
 				if (this.gunFrame > 0)
 				{
@@ -837,9 +843,17 @@ namespace Captain_Ameribro_Mod
 				{
 					this.attachedToZipline.DetachUnit(this);
 					this.ActivateGun();
-					this.gunFrame = 0;
-					this.SetGunSprite(0, 0);
 				}
+				this.gunFrame = 0;
+				this.SetGunSprite(0, 0);
+				if ( this.flash == null )
+                {
+					this.flash = this.GetComponent<InvulnerabilityFlash>();
+                }
+				if (this.flash != null && this.invulnerableTime <= 0)
+				{
+					this.flash.enabled = false;
+                }
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashLeft();
 				this.airDashCooldown = this.airdashTime + 0.2f;
@@ -854,8 +868,16 @@ namespace Captain_Ameribro_Mod
 				{
 					this.attachedToZipline.DetachUnit(this);
 					this.ActivateGun();
-					this.gunFrame = 0;
-					this.SetGunSprite(0, 0);
+				}
+				this.gunFrame = 0;
+				this.SetGunSprite(0, 0);
+				if (this.flash == null)
+				{
+					this.flash = this.GetComponent<InvulnerabilityFlash>();
+				}
+				if (this.flash != null && this.invulnerableTime <= 0)
+				{
+					this.flash.enabled = false;
 				}
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashRight();
@@ -863,7 +885,17 @@ namespace Captain_Ameribro_Mod
 			}
         }
 
-        protected override void RunLeftAirDash()
+		protected override void RunAirDashing()
+		{
+			base.RunAirDashing();
+			// Re-enable invulnerability flash when finished air-dashing
+			if (this.airdashTime <= 0 && this.flash != null)
+			{
+				this.flash.enabled = true;
+			}
+		}
+
+		protected override void RunLeftAirDash()
 		{
 			if (this.airDashDelay > 0f)
 			{
@@ -901,7 +933,7 @@ namespace Captain_Ameribro_Mod
 			}
 		}
 
-		protected override void RunRightAirDash()
+        protected override void RunRightAirDash()
 		{
 			if (this.airDashDelay > 0f)
 			{
@@ -943,6 +975,25 @@ namespace Captain_Ameribro_Mod
         {
 			this.sound.PlaySoundEffectAt(effortSounds, 0.25f, base.transform.position, 1f, true, false, false, 0f);
 			this.sound.PlaySoundEffectAt(airDashSound, 0.75f, base.transform.position, 1f, true, false, false, 0f);
+		}
+
+        protected override void CheckFacingDirection()
+        {
+			if (!this.chimneyFlip && this.holdStillTime <= 0f && (this.airdashTime <= 0))
+			{
+				if (this.usingSpecial && !this.turnAroundWhhileUsingSpecials && this.pressSpecialFacingDirection != 0)
+				{
+					base.transform.localScale = new Vector3((float)this.pressSpecialFacingDirection, this.yScale, 1f);
+				}
+				else if (this.xI < 0f || (this.left && this.health > 0))
+				{
+					base.transform.localScale = new Vector3(-1f, this.yScale, 1f);
+				}
+				else if (this.xI > 0f || (this.right && this.health > 0))
+				{
+					base.transform.localScale = new Vector3(1f, this.yScale, 1f);
+				}
+			}
 		}
 
         // Performs melee attack
