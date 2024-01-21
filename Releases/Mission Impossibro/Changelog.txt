@@ -1,3 +1,6 @@
+v1.0.2 (Unreleased)
+Fixed special ammo not flashing when empty.
+
 v1.0.1
 Fixed detonator click playing after death.
 

@@ -839,6 +839,11 @@ namespace Mission_Impossibro
             {
                 StartDetonating();
             }
+            else if ( this.SpecialAmmo <= 0 )
+            {
+                HeroController.FlashSpecialAmmo(base.playerNum);
+                this.ActivateGun();
+            }
         }
 
         protected override void UseSpecial()
