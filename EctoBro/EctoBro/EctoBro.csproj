@@ -79,7 +79,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Bro.cs" />
+    <Compile Include="EctoBro.cs" />
+    <Compile Include="GhostTrap.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
