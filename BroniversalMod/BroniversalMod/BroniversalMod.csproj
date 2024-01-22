@@ -7,8 +7,8 @@
     <ProjectGuid>{52724136-162B-41E7-94F7-EA1E65B59A0C}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Mod_Template</RootNamespace>
-    <AssemblyName>Mod Template</AssemblyName>
+    <RootNamespace>BroniversalMod</RootNamespace>
+    <AssemblyName>BroniversalMod</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -49,6 +49,9 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\libs\Core Libs\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>..\..\libs\Extra Libs\UnityEngine.ImageConversionModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
       <HintPath>..\..\libs\Core Libs\UnityEngine.IMGUIModule.dll</HintPath>
     </Reference>
@@ -68,6 +71,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Mod Template\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\BroniversalMod\*.cache"</PostBuildEvent>
   </PropertyGroup>
 </Project>
