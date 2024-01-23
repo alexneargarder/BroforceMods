@@ -80,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EctoBro.cs" />
+    <Compile Include="FloatingUnit.cs" />
     <Compile Include="GhostTrap.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
