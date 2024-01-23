@@ -60,8 +60,10 @@ namespace EctoBro
         public static float proton2Speed = 1.9f;
         public static string proton2FramerateStr = "0.1";
         public static float proton2Framerate = 0.1f;
-        public static string trapFramerateStr = "0.1";
-        public static float trapFramerate = 0.1f;
+        public static string trapFramerateStr = "0.08";
+        public static float trapFramerate = 0.08f;
+        public static int currentGhostTrapFrame = 0;
+        public static bool debugLines = false;
 
         // DEBUG
         public static void checkAttached(GameObject gameObject)
@@ -134,6 +136,18 @@ namespace EctoBro
             makeTextBox("speed", ref proton2SpeedStr, ref proton2Speed);
             makeTextBox("framerate", ref proton2FramerateStr, ref proton2Framerate);
             makeTextBox("trapframerate", ref trapFramerateStr, ref trapFramerate);
+
+            GUILayout.Label("Current frame: " + currentGhostTrapFrame);
+            if ( GUILayout.Button("previous frame") )
+            {
+                --currentGhostTrapFrame;
+            }
+            if (GUILayout.Button("Next frame"))
+            {
+                ++currentGhostTrapFrame;
+            }
+
+            debugLines = GUILayout.Toggle(debugLines, "debug lines");
         }
 
         // Proton Gun methods
