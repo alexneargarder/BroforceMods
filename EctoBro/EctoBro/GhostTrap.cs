@@ -17,17 +17,27 @@ namespace EctoBro
 		protected float counter = 0f;
 		protected const float trapWidth = 224f;
 		protected const float trapHeight = 128f;
+		protected float trapFramerate = 0.2f;
 
 		// State
-		protected bool opened = false;
+		public enum TrapState
+        {
+			Thrown = 0,
+			Opening = 1,
+			Open = 2,
+			Closing = 3,
+			Closed = 4
+        }
+		public TrapState state = TrapState.Thrown;
+		public float runTime = 0f;
 
 		// Hit detection
 		public float topLeftX, topLeftY, topRightX, topRightY, bottomX, bottomY;
 		public float topFloatingY, leftFloatingX, rightFloatingX;
-		public const float width = 100f;
+		public const float width = 120f;
 		public const float height = 130f;
-		List<Unit> grabbedUnits = new List<Unit>();
-		List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
+		public static List<Unit> grabbedUnits = new List<Unit>();
+		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
 
 		// DEBUG
 		LineRenderer line1, line2, line3;
@@ -86,7 +96,7 @@ namespace EctoBro
 		// Called when picking up and throwing already thrown grenade
         public override void ThrowGrenade(float XI, float YI, float newX, float newY, int _playerNum)
         {
-			base.ThrowGrenade(XI, YI, newX, newY, _playerNum);
+			//base.ThrowGrenade(XI, YI, newX, newY, _playerNum);
 		}
 
 		// Called on first throw
@@ -97,62 +107,99 @@ namespace EctoBro
 			this.life = 10000f;
 		}
 
+		// Don't register grenade
+        protected override void RegisterGrenade()
+        {
+        }
+
         protected override bool Update()
         {
             base.Update();
 
-			if ( this.opened )
+			this.runTime += this.t;
+
+			// Opening or Open
+			if ( this.state > TrapState.Thrown && this.state < TrapState.Closing )
             {
 				this.counter += this.t;
-				if (this.counter > EctoBro.trapFramerate)
+				if (this.counter > trapFramerate)
 				{
-					this.counter -= EctoBro.trapFramerate;
+					this.counter -= trapFramerate;
+					++this.frame;
+					if (this.frame == 3)
+					{
+						this.trapFramerate = 0.08f;
+						this.state = TrapState.Open;
+					}
+					else if (this.frame > 12)
+					{
+						this.frame = 3;
+					}
+					this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+				}
+
+				// Don't start grabbing units until trap is open
+				if ( this.state > TrapState.Opening )
+                {
+					this.FindUnits();
+				}
+
+				if ( this.runTime > 10f )
+                {
+					this.StartClosingTrap();
+                }
+			}
+			// Closing
+			else if ( this.state == TrapState.Closing )
+            {
+				// Animate closing
+				this.counter += this.t;
+				if (this.counter > trapFramerate)
+				{
+					this.counter -= trapFramerate;
 					++this.frame;
 					if (this.frame > 12)
 					{
 						this.frame = 3;
 					}
 					this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
-					//this.sprite.SetLowerLeftPixel(EctoBro.currentGhostTrapFrame * trapWidth, trapHeight);
 				}
 
 				this.FindUnits();
 
-				// DEBUG
-				if (Input.GetMouseButtonUp(1))
-				{
-					Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
-					Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
-
-
-
-					//BMLogger.Log("position: " + newPos.x + " " + newPos.y);
-					//BMLogger.Log("should grab: " + ShouldGrabUnit(newPos.x, newPos.y));
-				}
-
-				if ( EctoBro.debugLines )
+				if ( this.runTime > 13f && this.floatingUnits.Count == 0 )
                 {
-					this.line1.enabled = true;
-					this.line2.enabled = true;
-					this.line3.enabled = true;
+					this.CloseTrap();
+                }
+			}
+			// Closed
+			else if ( this.state == TrapState.Closed )
+            {
+				this.sprite.SetLowerLeftPixel(0, trapHeight);
+			}
 
 
-					this.line1.SetPosition(0, new Vector3(bottomX, bottomY));
-					this.line1.SetPosition(1, new Vector3(topRightX, topRightY));
+			if (EctoBro.debugLines)
+			{
+				this.line1.enabled = true;
+				this.line2.enabled = true;
+				this.line3.enabled = true;
 
-					this.line2.SetPosition(0, new Vector3(topRightX, topRightY));
-					this.line2.SetPosition(1, new Vector3(topLeftX, topLeftY));
 
-					this.line3.SetPosition(0, new Vector3(topLeftX, topLeftY));
-					this.line3.SetPosition(1, new Vector3(bottomX, bottomY));
-				}
-				else
-                {
-					this.line1.enabled = false;
-					this.line2.enabled = false;
-					this.line3.enabled = false;
-				}
+				this.line1.SetPosition(0, new Vector3(bottomX, bottomY));
+				this.line1.SetPosition(1, new Vector3(topRightX, topRightY));
 
+				this.line2.SetPosition(0, new Vector3(topRightX, topRightY));
+				this.line2.SetPosition(1, new Vector3(topLeftX, topLeftY));
+
+				this.line3.SetPosition(0, new Vector3(topLeftX, topLeftY));
+				this.line3.SetPosition(1, new Vector3(bottomX, bottomY));
+			}
+			else
+			{
+				this.line1.enabled = false;
+				this.line2.enabled = false;
+				this.line3.enabled = false;
 			}
 			return true;
 		}
@@ -161,15 +208,12 @@ namespace EctoBro
         {
             base.LateUpdate();
 
-			if ( this.opened )
-            {
-				this.MoveUnits();
-            }
-        }
+			this.MoveUnits();
+		}
 
         protected override void RunMovement()
         {
-			if ( !this.opened )
+			if ( this.state == TrapState.Thrown || this.state == TrapState.Closed )
             {
 				base.RunMovement();
 			}
@@ -177,7 +221,7 @@ namespace EctoBro
 
         protected override void Bounce(bool bounceX, bool bounceY)
 		{
-			if (bounceY && this.yI <= 0f)
+			if (this.state != TrapState.Closed && bounceY && this.yI <= 0f)
 			{
 				this.ActivateTrap();
 				this.yI = 0f;
@@ -193,31 +237,39 @@ namespace EctoBro
         {
         }
 
+		public override void Death()
+        {
+			this.DestroyGrenade();
+        }
+
+        protected override void DestroyGrenade()
+        {
+			UnityEngine.Object.Destroy(base.gameObject);
+		}
+
+        protected override void OnDestroy()
+        {
+			this.ReleaseUnits();
+
+            base.OnDestroy();
+        }
+
         protected void ActivateTrap()
         {
-			this.opened = true;
+			this.state = TrapState.Opening;
 
 			// Set triangle bounds
 			bottomX = base.X;
-			bottomY = base.Y - 5f;
+			bottomY = base.Y - 10f;
 			topRightX = bottomX + width;
 			topRightY = bottomY + height;
 			topLeftX = bottomX - width;
 			topLeftY = topRightY;
 
 			// Controls where the enemies are allowed to be
-			topFloatingY = topRightY - 10f;
-			leftFloatingX = topLeftX + 15f;
-			rightFloatingX = topRightX - 15f;
-
-
-			BMLogger.Log("bottomX: " + bottomX);
-			BMLogger.Log("bottomY: " + bottomY);
-			BMLogger.Log("topRightX: " + topRightX);
-			BMLogger.Log("topRightY: " + topRightY);
-			BMLogger.Log("topLeftX: " + topLeftX);
-			BMLogger.Log("topLeftY: " + topLeftY);
-
+			topFloatingY = base.Y + 110f;
+			leftFloatingX = base.X - 90f;
+			rightFloatingX = base.X + 90f;
 
 			// DEBUG
 			this.line1.enabled = true;
@@ -230,11 +282,21 @@ namespace EctoBro
 			this.line3.startWidth = 3f;
 		}
 
-		public void CloseTrap()
+		public void StartClosingTrap()
         {
-
+			if ( this.state != TrapState.Closing )
+            {
+				this.runTime = 10f;
+				this.state = TrapState.Closing;
+			}
         }
 
+		public void CloseTrap()
+        {
+			this.xI = 0f;
+			this.yI = 0f;
+			this.state = TrapState.Closed;
+        }
 
 		float sign(float p1X, float p1Y, float p2X, float p2Y, float p3X, float p3Y)
 		{
@@ -270,8 +332,12 @@ namespace EctoBro
                     {
 						grabbedUnits.Add(unit);
 						floatingUnits.Add(new FloatingUnit(unit, this));
-						BMLogger.Log("grabbed unit: " + unit.name);
 						unit.Panic(1000f, true);
+						if ( unit is Mook )
+                        {
+							(unit as Mook).SetInvulnerable(float.MaxValue);
+                        }
+						Map.units.Remove(unit);
                     }
                 }
             }
@@ -279,9 +345,30 @@ namespace EctoBro
 
 		protected void MoveUnits()
         {
+			if ( this.state == TrapState.Open)
+            {
+				for (int i = 0; i < floatingUnits.Count; ++i)
+				{
+					floatingUnits[i].MoveUnit(this.t);
+				}
+			}				
+			else
+            {
+				// Iterate backwards since units may be destroyed during this loop
+				for (int i = floatingUnits.Count - 1; i >= 0; --i)
+				{
+					floatingUnits[i].MoveUnitToCenter(this.t);
+				}
+			}
+		}
+
+		protected void ReleaseUnits()
+        {
 			for (int i = 0; i < floatingUnits.Count; ++i)
 			{
-				floatingUnits[i].MoveUnit(this.t);
+				floatingUnits[i].ReleaseUnit();
+				grabbedUnits.Remove(floatingUnits[i].unit);
+				Map.units.Add(floatingUnits[i].unit);
 			}
 		}
 	}

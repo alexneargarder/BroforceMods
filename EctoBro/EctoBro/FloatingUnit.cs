@@ -20,11 +20,12 @@ namespace EctoBro
         public Unit unit;
         public Vector3 grabbedPosition;
         public Vector3 currentPosition;
-        public Vector3 currentRotation;
+        public float currentRotation;
         public float rotationSpeed;
         bool movingRight;
         public float targetHeight;
         public float leftMostX, rightMostX;
+        public float distanceToCenter = 0f;
         
         public FloatingUnit(Unit grabbedUnit, GhostTrap parentTrap)
         {
@@ -32,14 +33,14 @@ namespace EctoBro
             unit = grabbedUnit;
             grabbedPosition = unit.transform.position;
             currentPosition = unit.transform.position;
-            currentRotation = unit.transform.eulerAngles;
+            currentRotation = 0;
             if (UnityEngine.Random.value > 0.5f)
             {
-                rotationSpeed = UnityEngine.Random.Range(-20f, -8f);
+                rotationSpeed = UnityEngine.Random.Range(-40f, -10f);
             }
             else
             {
-                rotationSpeed = UnityEngine.Random.Range(8f, 20f);
+                rotationSpeed = UnityEngine.Random.Range(10f, 40f);
             }
 
             // Unit needs to move down
@@ -52,6 +53,11 @@ namespace EctoBro
             {
                 targetHeight = currentPosition.y + 5f;
             }
+            // Unit needs to move up
+            else if ( currentPosition.y < trap.Y )
+            {
+                targetHeight = trap.Y + 10f;
+            }
             else
             {
                 targetHeight = currentPosition.y + 15f;
@@ -61,12 +67,12 @@ namespace EctoBro
             DetermineLimits();
 
             // Unit close to right edge, move left
-            if (Tools.FastAbsWithinRange(currentPosition.x - rightMostX, 20f))
+            if (Tools.FastAbsWithinRange(currentPosition.x - rightMostX, 30f))
             {
                 movingRight = false;
             }
             // Unit close to left edge, move right
-            else if (Tools.FastAbsWithinRange(currentPosition.x - leftMostX, 20f))
+            else if (Tools.FastAbsWithinRange(currentPosition.x - leftMostX, 30f))
             {
                 movingRight = true;
             }
@@ -75,8 +81,6 @@ namespace EctoBro
             {
                 movingRight = UnityEngine.Random.value > 0.5f;
             }
-
-            
         }
 
         public void DetermineLimits()
@@ -121,14 +125,86 @@ namespace EctoBro
                 movingRight = true;
             }
 
-            currentRotation.z += rotationSpeed * t;
-
+            // Ensure unit isn't moving
             unit.X = grabbedPosition.x;
             unit.Y = grabbedPosition.y;
+            // Move unit visually
             unit.transform.position = currentPosition;
-            unit.transform.eulerAngles = currentRotation;
+            unit.transform.rotation = Quaternion.identity;
+
+            // Rotate unit
+            currentRotation += rotationSpeed * t;
+            if ( currentRotation >= 360 )
+            {
+                currentRotation -= 360f;
+            }
+            else if ( currentRotation <= -360f )
+            {
+                currentRotation += 360f;
+            }
+
+            unit.transform.RotateAround(unit.transform.position + new Vector3(0, unit.height), Vector3.forward, currentRotation);
         }
 
+        public void MoveUnitToCenter(float t)
+        {
+            if ( distanceToCenter == 0f )
+            {
+                distanceToCenter = Vector3.Distance(currentPosition, trap.transform.position);
+            }
+            // Move unit towards center
+            currentPosition = Vector3.MoveTowards(currentPosition, trap.transform.position, moveSpeed * t);
 
+            // Ensure unit isn't moving
+            unit.X = grabbedPosition.x;
+            unit.Y = grabbedPosition.y;
+            // Move unit visually
+            unit.transform.position = currentPosition;
+            unit.transform.rotation = Quaternion.identity;
+
+            unit.transform.RotateAround(unit.transform.position + new Vector3(0, unit.height), Vector3.forward, currentRotation);
+
+            float currentDistance = Vector3.Distance(currentPosition, trap.transform.position);
+
+            // Scale down object
+            if ( currentDistance > 2f )
+            {
+                unit.transform.localScale = new Vector3(currentDistance / distanceToCenter, currentDistance / distanceToCenter, 1f);
+            }
+            else
+            {
+                //unit.transform.localScale = new Vector3(currentDistance / distanceToCenter, currentDistance / distanceToCenter, 1f);
+                this.ConsumeUnit();
+            }
+            
+
+/*            // Rotate unit
+            currentRotation += rotationSpeed * t;
+            if (currentRotation >= 360)
+            {
+                currentRotation -= 360f;
+            }
+            else if (currentRotation <= -360f)
+            {
+                currentRotation += 360f;
+            }
+
+            unit.transform.RotateAround(unit.transform.position + new Vector3(0, unit.height), Vector3.forward, currentRotation);*/
+        }
+
+        public void ConsumeUnit()
+        {
+            trap.floatingUnits.Remove(this);
+            GhostTrap.grabbedUnits.Remove(this.unit);
+            UnityEngine.Object.Destroy(unit.gameObject);
+        }
+
+        public void ReleaseUnit()
+        {
+            unit.X = currentPosition.x;
+            unit.Y = currentPosition.y;
+            unit.transform.position = currentPosition;
+            unit.transform.rotation = Quaternion.identity;
+        }
     }
 }

@@ -6,6 +6,7 @@ using BroMakerLib.Loggers;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using HarmonyLib;
 
 namespace EctoBro
 {
@@ -56,13 +57,15 @@ namespace EctoBro
         //public static float scale = 1f;
         //public static string offsetStr = "1";
         //public static float offset = 0f;
-        public static string proton2SpeedStr = "1.9";
-        public static float proton2Speed = 1.9f;
-        public static string proton2FramerateStr = "0.1";
-        public static float proton2Framerate = 0.1f;
-        public static string trapFramerateStr = "0.08";
-        public static float trapFramerate = 0.08f;
-        public static int currentGhostTrapFrame = 0;
+        //public static string proton2SpeedStr = "1.9";
+        //public static float proton2Speed = 1.9f;
+        //public static string proton2FramerateStr = "0.1";
+        //public static float proton2Framerate = 0.1f;
+        //public static string trapFramerateStr = "0.08";
+        //public static float trapFramerate = 0.08f;
+        //public static string rotPointStr = "-3";
+        //public static float rotPoint = -3f;
+        //public static int currentGhostTrapFrame = 0;
         public static bool debugLines = false;
 
         // DEBUG
@@ -81,6 +84,21 @@ namespace EctoBro
         protected override void Awake()
         {
             base.Awake();
+
+            if (!Main.patched)
+            {
+                try
+                {
+                    var harmony = new Harmony("EctoBro");
+                    var assembly = Assembly.GetExecutingAssembly();
+                    harmony.PatchAll(assembly);
+                    Main.patched = true;
+                }
+                catch (Exception ex)
+                {
+                    BMLogger.Log(ex.ToString());
+                }
+            }
 
             string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
@@ -133,11 +151,12 @@ namespace EctoBro
             //makeTextBox("red", ref redStr, ref red);
             //makeTextBox("scale", ref scaleStr, ref scale);
             //makeTextBox("offset", ref offsetStr, ref offset);
-            makeTextBox("speed", ref proton2SpeedStr, ref proton2Speed);
-            makeTextBox("framerate", ref proton2FramerateStr, ref proton2Framerate);
-            makeTextBox("trapframerate", ref trapFramerateStr, ref trapFramerate);
+            //makeTextBox("speed", ref proton2SpeedStr, ref proton2Speed);
+            //makeTextBox("framerate", ref proton2FramerateStr, ref proton2Framerate);
+            //makeTextBox("rot", ref rotPointStr, ref rotPoint);
+            //makeTextBox("trapframerate", ref trapFramerateStr, ref trapFramerate);
 
-            GUILayout.Label("Current frame: " + currentGhostTrapFrame);
+/*            GUILayout.Label("Current frame: " + currentGhostTrapFrame);
             if ( GUILayout.Button("previous frame") )
             {
                 --currentGhostTrapFrame;
@@ -145,7 +164,7 @@ namespace EctoBro
             if (GUILayout.Button("Next frame"))
             {
                 ++currentGhostTrapFrame;
-            }
+            }*/
 
             debugLines = GUILayout.Toggle(debugLines, "debug lines");
         }
@@ -164,7 +183,7 @@ namespace EctoBro
             if ( this.fire )
             {
                 this.currentOffset += this.t * offsetSpeed;
-                this.currentOffset2 += this.t * offsetSpeed * proton2Speed;
+                this.currentOffset2 += this.t * offsetSpeed * 1.9f;
                 this.protonDamageCooldown -= this.t;
                 this.effectCooldown -= this.t;
                 this.fireKnockbackCooldown -= this.t;
@@ -345,9 +364,9 @@ namespace EctoBro
             // Update proton line 2 material
             this.protonLine2.material = this.protonLine2Mats[protonLine2Frame];
             this.protonLine2FrameCounter += this.t;
-            if ( this.protonLine2FrameCounter >= proton2Framerate )
+            if ( this.protonLine2FrameCounter >= 0.1f )
             {
-                this.protonLine2FrameCounter -= proton2Framerate;
+                this.protonLine2FrameCounter -= 0.1f;
                 ++this.protonLine2Frame;
                 if ( this.protonLine2Frame > 3 )
                 {
@@ -421,7 +440,8 @@ namespace EctoBro
             }
 
             // Hit Unit, which must be closer than wall since we're checking with a shortened range
-            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.unitsLayer))
+            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.unitsLayer) 
+                && (this.raycastHit.collider.GetComponent<Unit>() == null || !this.raycastHit.collider.GetComponent<Unit>().invulnerable) )
             {
                 DamageCollider(this.raycastHit);
                 endPoint = new Vector3(raycastHit.point.x, raycastHit.point.y, 0);
@@ -478,10 +498,10 @@ namespace EctoBro
         #region Special
         protected override void UseSpecial()
         {
-            if (this.currentTrap != null)
+            if (this.currentTrap != null && this.currentTrap.state != GhostTrap.TrapState.Closed )
             {
                 // Close Trap
-                this.currentTrap.CloseTrap();
+                this.currentTrap.StartClosingTrap();
             }
             else if (this.SpecialAmmo > 0)
             {
