@@ -4,6 +4,8 @@ namespace EctoBro
 {
     public class Main
     {
+        public static bool patched = false;
+
         public static byte[] ExtractResource(string filename)
         {
             Assembly a = Assembly.GetExecutingAssembly();
