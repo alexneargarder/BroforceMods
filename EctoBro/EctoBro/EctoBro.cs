@@ -44,6 +44,9 @@ namespace EctoBro
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
 
+        // Misc
+        public static bool patched = false;
+
         // DEBUG
         Transform testTransform;
         MeshFilter testFilter;
@@ -85,14 +88,14 @@ namespace EctoBro
         {
             base.Awake();
 
-            if (!Main.patched)
+            if (!patched)
             {
                 try
                 {
                     var harmony = new Harmony("EctoBro");
                     var assembly = Assembly.GetExecutingAssembly();
                     harmony.PatchAll(assembly);
-                    Main.patched = true;
+                    patched = true;
                 }
                 catch (Exception ex)
                 {
