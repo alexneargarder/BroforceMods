@@ -1,3 +1,6 @@
+v1.0.3 (Unreleased)
+Fixed being able to fire multiple bullets in one melee attack
+
 v1.0.2
 Fixed airdash animation issues.
 Fixed issues with reviving Ameribro with holy water.
