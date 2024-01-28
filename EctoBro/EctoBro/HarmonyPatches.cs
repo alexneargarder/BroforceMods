@@ -23,19 +23,6 @@ namespace EctoBro
             }
         }
 
-/*        [HarmonyPatch(typeof(Mook), "IsOnGround")]
-        static class Mook_IsOnGround_Patch
-        {
-            public static void Postfix(Mook __instance, ref bool __result)
-            {
-                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.Contains(__instance))
-                {
-                    //BMLogger.Log("overrode ground");
-                    __result = true;
-                }
-            }
-        }*/
-
         [HarmonyPatch(typeof(TestVanDammeAnim), "EvaluateIsJumping")]
         static class TestVanDammeAnim_EvaluateIsJumping_Patch
         {
@@ -59,6 +46,28 @@ namespace EctoBro
                     return false;
                 }
                 return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(EffectsController), "GetBloodColor")]
+        static class EffectsController_GetBloodColor_Patch
+        {
+            public static void Postfix(ref BloodColor color, ref Color __result)
+            {
+                if (color == BloodColor.Green && Slimer.overrideBloodColor > 0 )
+                {
+                    __result = EctoBro.SlimerColor;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(Sound), "PlayAudioClip")]
+        static class Sound_PlayAudioClip_Patch
+        {
+            public static void Prefix(ref AudioClip clip)
+            {
+
+                //BMLogger.Log("audio clip played: " + clip.name);
             }
         }
     }
