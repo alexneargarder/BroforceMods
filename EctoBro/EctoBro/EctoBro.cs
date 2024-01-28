@@ -44,32 +44,22 @@ namespace EctoBro
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
 
+        // Melee
+        //protected int SlimerTraps = 0;
+        protected int SlimerTraps = int.MaxValue;
+        protected bool usingSlimerMelee = false;
+        protected bool alreadySpawnedSlimer = false;
+        Slimer slimerPrefab, currentSlimer;
+        public static Color SlimerColor = new Color(0.058824f, 1f, 0f);
+
+
         // Misc
         public static bool patched = false;
+        protected bool acceptedDeath = false;
 
         // DEBUG
-        Transform testTransform;
-        MeshFilter testFilter;
-        GameObject test;
-        //public static string scaleStr = "0.035";
-        //public static float scale = 0.035f;
-        //public static string scaleStr2 = "1";
-        //public static float scale2 = 1f;
-        //public static bool tile = false;
-        //public static string scaleStr = "1";
-        //public static float scale = 1f;
-        //public static string offsetStr = "1";
-        //public static float offset = 0f;
-        //public static string proton2SpeedStr = "1.9";
-        //public static float proton2Speed = 1.9f;
-        //public static string proton2FramerateStr = "0.1";
-        //public static float proton2Framerate = 0.1f;
-        //public static string trapFramerateStr = "0.08";
-        //public static float trapFramerate = 0.08f;
-        //public static string rotPointStr = "-3";
-        //public static float rotPoint = -3f;
-        //public static int currentGhostTrapFrame = 0;
         public static bool debugLines = false;
+        
 
         // DEBUG
         public static void checkAttached(GameObject gameObject)
@@ -127,12 +117,49 @@ namespace EctoBro
             trapPrefab = new GameObject("GhostTrap", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(GhostTrap) }).GetComponent<GhostTrap>();
             trapPrefab.enabled = false;
             trapPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.SnakeBroSkin) as SnakeBroskin).specialGrenade.soundHolder;
+            // Needed for transparent sprites
             trapPrefab.gameObject.layer = 28;
+
+            slimerPrefab = new GameObject("Slimer", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Slimer)}).GetComponent<Slimer>();
+            slimerPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Rambro) as Rambro).projectile.soundHolder;
+            slimerPrefab.gameObject.layer = 28;
+            slimerPrefab.enabled = false;
+
+            this.currentMeleeType = BroBase.MeleeType.Disembowel;
+            this.meleeType = BroBase.MeleeType.Disembowel;
         }
 
         protected override void Update()
-        {
+        {            
             base.Update();
+            if (this.acceptedDeath)
+            {
+                if (this.health <= 0 && !this.WillReviveAlready)
+                {
+                    return;
+                }
+                // Revived
+                else
+                {
+                    this.acceptedDeath = false;
+                }
+            }
+
+            // Stop proton gun when getting on helicopter
+            if ( this.isOnHelicopter )
+            {
+                this.StopProtonGun();
+            }
+
+            // Handle death
+            if (base.actionState == ActionState.Dead && !this.acceptedDeath)
+            {
+                this.StopProtonGun();
+                if (!this.WillReviveAlready )
+                {
+                    this.acceptedDeath = true;
+                }
+            }
         }
 
         public void makeTextBox(string label, ref string text, ref float val)
@@ -151,24 +178,6 @@ namespace EctoBro
 
         public override void UIOptions()
         {
-            //makeTextBox("red", ref redStr, ref red);
-            //makeTextBox("scale", ref scaleStr, ref scale);
-            //makeTextBox("offset", ref offsetStr, ref offset);
-            //makeTextBox("speed", ref proton2SpeedStr, ref proton2Speed);
-            //makeTextBox("framerate", ref proton2FramerateStr, ref proton2Framerate);
-            //makeTextBox("rot", ref rotPointStr, ref rotPoint);
-            //makeTextBox("trapframerate", ref trapFramerateStr, ref trapFramerate);
-
-/*            GUILayout.Label("Current frame: " + currentGhostTrapFrame);
-            if ( GUILayout.Button("previous frame") )
-            {
-                --currentGhostTrapFrame;
-            }
-            if (GUILayout.Button("Next frame"))
-            {
-                ++currentGhostTrapFrame;
-            }*/
-
             debugLines = GUILayout.Toggle(debugLines, "debug lines");
         }
 
@@ -191,6 +200,12 @@ namespace EctoBro
                 this.effectCooldown -= this.t;
                 this.fireKnockbackCooldown -= this.t;
                 UpdateProtonGun();
+                this.StopRolling();
+                this.FireFlashAvatar();
+                if ( this.currentGesture != GestureElement.Gestures.None)
+                {
+                    SetGestureAnimation(GestureElement.Gestures.None);
+                }
 
 /*                if ( this.fireKnockbackCooldown <= 0 )
                 {
@@ -531,6 +546,215 @@ namespace EctoBro
                 this.ActivateGun();
             }
             this.pressSpecialFacingDirection = 0;
+        }
+
+        public void ReturnTrap()
+        {
+            ++this.SlimerTraps;
+        }
+        #endregion
+
+        // Melee methods
+        #region Melee
+        // Performs melee attack
+        protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        {
+            bool flag;
+            Map.DamageDoodads(3, DamageType.Knock, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            this.KickDoors(24f);
+            if (Map.HitClosestUnit(this, base.playerNum, 4, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 200f, 500f, true, false, base.IsMine, false, true))
+            {
+                //this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                this.meleeHasHit = true;
+            }
+            else if (playMissSound)
+            {
+                this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+            }
+            this.meleeChosenUnit = null;
+            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 2))
+            {
+                this.meleeHasHit = true;
+            }
+            this.TriggerBroMeleeEvent();
+        }
+        
+        protected void SpawnSlimer()
+        {
+            currentSlimer = ProjectileController.SpawnProjectileLocally(slimerPrefab, this, base.X, base.Y + 6f, base.transform.localScale.x * 175f, 0f, base.playerNum) as Slimer;
+            currentSlimer.enabled = true;
+            --this.SlimerTraps;
+            this.alreadySpawnedSlimer = true;
+        }
+
+        // Sets up melee attack
+        protected override void StartCustomMelee()
+        {
+            if (this.CanStartNewMelee())
+            {
+                this.alreadySpawnedSlimer = false;
+                base.frame = 1;
+                base.counter = -0.05f;
+                this.usingSlimerMelee = (this.SlimerTraps > 0);
+                this.AnimateMelee();
+            }
+            else if (this.CanStartMeleeFollowUp() )
+            {
+                this.meleeFollowUp = true;
+                this.alreadySpawnedSlimer = false;
+                this.usingSlimerMelee = (this.SlimerTraps > 0);
+            }
+            if (!this.jumpingMelee)
+            {
+                this.dashingMelee = true;
+                this.xI = (float)base.Direction * this.speed;
+            }
+            this.StartMeleeCommon();
+        }
+
+        // Calls MeleeAttack
+        protected override void AnimateCustomMelee()
+        {
+            this.AnimateMeleeCommon();
+            // Release Slimer
+            if (this.usingSlimerMelee)
+            {
+                int num = 25 + Mathf.Clamp(base.frame, 0, 6);
+                int num2 = 1;
+                if (!this.standingMelee)
+                {
+                    if (this.jumpingMelee)
+                    {
+                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
+                        num2 = 6;
+                    }
+                    else if (this.dashingMelee)
+                    {
+                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
+                        num2 = 6;
+                        if (base.frame == 4)
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                        else if (base.frame == 5)
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                    }
+                }
+                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+                if (base.frame == 3 && !this.alreadySpawnedSlimer)
+                {
+                    base.counter -= 0.066f;
+                    SpawnSlimer();
+                }
+                if (base.frame >= 6)
+                {
+                    base.frame = 0;
+                    this.CancelMelee();
+                    this.usingSlimerMelee = false;
+                }
+            }
+            // Proton Bash
+            else
+            {
+                int num = 25 + Mathf.Clamp(base.frame, 0, 6);
+                int num2 = 1;
+                if (!this.standingMelee)
+                {
+                    if (this.jumpingMelee)
+                    {
+                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
+                        num2 = 6;
+                    }
+                    else if (this.dashingMelee)
+                    {
+                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
+                        num2 = 6;
+                        if (base.frame == 4)
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                        else if (base.frame == 5)
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                    }
+                }
+                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+                if (base.frame == 3)
+                {
+                    base.counter -= 0.066f;
+                    this.MeleeAttack(true, true);
+                }
+                else if (base.frame > 3 && !this.meleeHasHit)
+                {
+                    this.MeleeAttack(false, false);
+                }
+                if (base.frame >= 6)
+                {
+                    base.frame = 0;
+                    this.CancelMelee();
+                }
+            }
+        }
+
+        protected override void RunCustomMeleeMovement()
+        {
+            if (!this.useNewKnifingFrames)
+            {
+                if (base.Y > this.groundHeight + 1f)
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if (this.jumpingMelee)
+            {
+                this.ApplyFallingGravity();
+                if (this.yI < this.maxFallSpeed)
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+            }
+            else if (this.dashingMelee)
+            {
+                if (base.frame <= 1)
+                {
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                else if (base.frame <= 3)
+                {
+                    if (this.meleeChosenUnit == null)
+                    {
+                        if (!this.isInQuicksand)
+                        {
+                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                        }
+                        this.yI = 0f;
+                    }
+                    else if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
+                    }
+                }
+                else if (base.frame <= 5)
+                {
+                    if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
+                    }
+                    this.ApplyFallingGravity();
+                }
+                else
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if (base.Y > this.groundHeight + 1f)
+            {
+                this.CancelMelee();
+            }
         }
         #endregion
     }

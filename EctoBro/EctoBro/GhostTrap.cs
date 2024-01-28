@@ -18,6 +18,8 @@ namespace EctoBro
 		protected const float trapWidth = 224f;
 		protected const float trapHeight = 128f;
 		protected float trapFramerate = 0.2f;
+		protected const int lastOpeningFrame = 2;
+		protected const int lastFrame = 12;
 
 		// State
 		public enum TrapState
@@ -26,10 +28,12 @@ namespace EctoBro
 			Opening = 1,
 			Open = 2,
 			Closing = 3,
-			Closed = 4
+			ClosingAnimation = 4,
+			Closed = 5
         }
 		public TrapState state = TrapState.Thrown;
 		public float runTime = 0f;
+		protected float attractCounter = 0f;
 
 		// Hit detection
 		public float topLeftX, topLeftY, topRightX, topRightY, bottomX, bottomY;
@@ -38,6 +42,7 @@ namespace EctoBro
 		public const float height = 130f;
 		public static List<Unit> grabbedUnits = new List<Unit>();
 		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
+		public int killedUnits = 0;
 
 		// DEBUG
 		LineRenderer line1, line2, line3;
@@ -72,8 +77,13 @@ namespace EctoBro
 				this.shrink = false;
 				this.trailType = TrailType.ColorTrail;
 				this.rotationSpeedMultiplier = 0f;
+				this.lifeLossOnBounce = false;
+				this.deathOnBounce = false;
+				this.destroyInsideWalls = false;
+				this.startLife = 10000f;
+				this.life = 10000f;
 
-
+				// DEBUG
 				line1 = new GameObject("Line1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
 				line1.transform.parent = this.transform;
 				line1.material = ResourcesController.GetMaterial(directoryPath, "protonLine1End.png");
@@ -119,63 +129,97 @@ namespace EctoBro
 			this.runTime += this.t;
 
 			// Opening or Open
-			if ( this.state > TrapState.Thrown && this.state < TrapState.Closing )
+			switch ( this.state )
             {
-				this.counter += this.t;
-				if (this.counter > trapFramerate)
-				{
-					this.counter -= trapFramerate;
-					++this.frame;
-					if (this.frame == 3)
+				case TrapState.Opening:
+				case TrapState.Open:
 					{
-						this.trapFramerate = 0.08f;
-						this.state = TrapState.Open;
+						this.counter += this.t;
+						if (this.counter > trapFramerate)
+						{
+							this.counter -= trapFramerate;
+							++this.frame;
+							if (this.frame == lastOpeningFrame + 1)
+							{
+								this.trapFramerate = 0.08f;
+								this.state = TrapState.Open;
+							}
+							else if (this.frame > lastFrame)
+							{
+								this.frame = lastOpeningFrame + 1;
+							}
+							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+						}
+
+						this.attractCounter += this.t;
+						if (this.attractCounter >= 0.0334f)
+						{
+							this.attractCounter -= 0.0334f;
+							Map.AttractMooks(base.X, base.Y, 200f, 100f);
+						}
+
+						// Don't start grabbing units until trap is open
+						if (this.state > TrapState.Opening)
+						{
+							this.FindUnits();
+						}
+
+						if (this.runTime > 10f)
+						{
+							this.StartClosingTrap();
+						}
+						break;
 					}
-					else if (this.frame > 12)
+				case TrapState.Closing:
 					{
-						this.frame = 3;
+						this.counter += this.t;
+						if (this.counter > trapFramerate)
+						{
+							this.counter -= trapFramerate;
+							++this.frame;
+							if (this.frame > lastFrame)
+							{
+								this.frame = lastOpeningFrame + 1;
+							}
+							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+						}
+
+						this.FindUnits();
+
+						if (this.floatingUnits.Count == 0)
+						{
+							this.CloseTrap();
+						}
+						break;
 					}
-					this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
-				}
-
-				// Don't start grabbing units until trap is open
-				if ( this.state > TrapState.Opening )
-                {
-					this.FindUnits();
-				}
-
-				if ( this.runTime > 10f )
-                {
-					this.StartClosingTrap();
-                }
-			}
-			// Closing
-			else if ( this.state == TrapState.Closing )
-            {
-				// Animate closing
-				this.counter += this.t;
-				if (this.counter > trapFramerate)
-				{
-					this.counter -= trapFramerate;
-					++this.frame;
-					if (this.frame > 12)
+				case TrapState.ClosingAnimation:
 					{
-						this.frame = 3;
+						// Animate closing
+						this.counter += this.t;
+						if (this.counter > trapFramerate)
+						{
+							this.counter -= trapFramerate;
+							--this.frame;
+							// Finished closing
+							if (this.frame < 0)
+							{
+								this.frame = 0;
+								this.xI = 0;
+								this.yI = 0;
+								this.state = TrapState.Closed;
+							}
+							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+						}
+						break;
 					}
-					this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
-				}
-
-				this.FindUnits();
-
-				if ( this.runTime > 13f && this.floatingUnits.Count == 0 )
-                {
-					this.CloseTrap();
-                }
-			}
-			// Closed
-			else if ( this.state == TrapState.Closed )
-            {
-				this.sprite.SetLowerLeftPixel(0, trapHeight);
+				case TrapState.Closed:
+                    {
+						CheckReturnTrap();
+						this.sprite.SetLowerLeftPixel(0, trapHeight);
+						break;
+					}
+				default:
+					break;					
 			}
 
 
@@ -293,10 +337,31 @@ namespace EctoBro
 
 		public void CloseTrap()
         {
-			this.xI = 0f;
-			this.yI = 0f;
-			this.state = TrapState.Closed;
-        }
+			this.frame = lastOpeningFrame;
+			this.counter = 0;
+			this.trapFramerate = 0.2f;
+			this.state = TrapState.ClosingAnimation;
+			this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+		}
+
+		protected void CheckReturnTrap()
+		{
+			if (this.firedBy != null && this.state == TrapState.Closed)
+			{
+				float f = this.firedBy.transform.position.x - base.X;
+				float f2 = this.firedBy.transform.position.y + 10f - base.Y;
+				if (Mathf.Abs(f) < 9f && Mathf.Abs(f2) < 14f)
+				{
+					EctoBro bro = this.firedBy as EctoBro;
+					if (bro && killedUnits > 0)
+					{
+						bro.ReturnTrap();
+					}
+					Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f);
+					this.Death();
+				}
+			}
+		}
 
 		float sign(float p1X, float p1Y, float p2X, float p2Y, float p3X, float p3Y)
 		{
@@ -323,22 +388,38 @@ namespace EctoBro
 			for ( int i = 0; i < Map.units.Count; ++i )
             {
 				Unit unit = Map.units[i];
-				// Check that unit is not null, is not a player, is not dead, and is within the possible horizontal range of the trap
-				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.Contains(unit) && Tools.FastAbsWithinRange(unit.X - bottomX, width) )
+				// Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
+				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.Contains(unit) )
                 {
-					float num = unit.Y - bottomY;
-					// Check that unit is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
-					if ( Tools.FastAbsWithinRange(num, height) && (Mathf.Sign(num) == 1f) && ShouldGrabUnit(unit.X, unit.Y) )
+					// Check unit is in rectangle around trap
+					if ( Tools.FastAbsWithinRange(unit.X - bottomX, 50f) && Tools.FastAbsWithinRange(unit.Y - bottomY, 20f) )
                     {
 						grabbedUnits.Add(unit);
 						floatingUnits.Add(new FloatingUnit(unit, this));
 						unit.Panic(1000f, true);
-						if ( unit is Mook )
-                        {
+						if (unit is Mook)
+						{
 							(unit as Mook).SetInvulnerable(float.MaxValue);
-                        }
+						}
 						Map.units.Remove(unit);
-                    }
+					}
+					// Check unit is in trap triangle
+					else if ( Tools.FastAbsWithinRange(unit.X - bottomX, width) )
+                    {
+						float num = unit.Y - bottomY;
+						// Check that unit is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
+						if (Tools.FastAbsWithinRange(num, height) && (Mathf.Sign(num) == 1f) && ShouldGrabUnit(unit.X, unit.Y))
+						{
+							grabbedUnits.Add(unit);
+							floatingUnits.Add(new FloatingUnit(unit, this));
+							unit.Panic(1000f, true);
+							if (unit is Mook)
+							{
+								(unit as Mook).SetInvulnerable(float.MaxValue);
+							}
+							Map.units.Remove(unit);
+						}
+					}
                 }
             }
         }
@@ -347,7 +428,8 @@ namespace EctoBro
         {
 			if ( this.state == TrapState.Open)
             {
-				for (int i = 0; i < floatingUnits.Count; ++i)
+				// Iterate backwards since units may be destroyed during this loop
+				for (int i = floatingUnits.Count - 1; i >= 0; --i)
 				{
 					floatingUnits[i].MoveUnit(this.t);
 				}
