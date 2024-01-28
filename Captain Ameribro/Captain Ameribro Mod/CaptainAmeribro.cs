@@ -60,6 +60,7 @@ namespace Captain_Ameribro_Mod
 		protected bool usingShieldMelee = false;
 		protected Projectile pistolBullet;
 		protected float airDashCooldown = 0f;
+		protected bool alreadySpawnedBullet = false;
 
 		// Misc Variables
 		protected List<Unit> currentlyHitting;
@@ -1030,6 +1031,7 @@ namespace Captain_Ameribro_Mod
 			if (this.CanStartNewMelee())
 			{
 				this.usingShieldMelee = this._specialAmmo > 0;
+				this.alreadySpawnedBullet = false;
 				if (!(this.nearbyMook != null && this.nearbyMook.CanBeThrown()) && this.usingShieldMelee)
                 {
 					this.currentMeleeSound = UnityEngine.Random.Range(0, shieldMeleeSwing.Length);
@@ -1043,6 +1045,7 @@ namespace Captain_Ameribro_Mod
 			else if (this.CanStartMeleeFollowUp())
 			{
 				this.meleeFollowUp = true;
+				this.alreadySpawnedBullet = false;
 			}
 			if (!this.jumpingMelee && this.usingShieldMelee)
 			{
@@ -1104,11 +1107,12 @@ namespace Captain_Ameribro_Mod
 				int num = 25 + Mathf.Clamp(base.frame, 0, 6);
 				int num2 = 1;
 				this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
-				if (base.frame == 3)
+				if (base.frame == 3 && !this.alreadySpawnedBullet)
                 {
 					this.sound.PlaySoundEffectAt(pistolSounds, 0.5f, base.transform.position, 1f, true, false, false, 0f);
                     Projectile bullet = ProjectileController.SpawnProjectileLocally(this.pistolBullet, this, this.X + (this.transform.localScale.x * 12), this.Y + 13.5f, this.transform.localScale.x * 250, 0, base.playerNum);
                     EffectsController.CreateMuzzleFlashEffect(this.X + (this.transform.localScale.x * 14), this.Y + 13.5f, -25f, this.transform.localScale.x * 100, 0, base.transform);
+					this.alreadySpawnedBullet = true;
 				}
 				if (base.frame >= 6)
 				{
