@@ -35,3 +35,9 @@ Information about this mod and a download link can be found [here](https://www.n
 
 ## Randomizer Mod
 Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/22).
+
+## Captain Ameribro
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/34).
+
+## Mission Impossibro
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/36).
