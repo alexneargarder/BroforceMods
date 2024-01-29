@@ -73,6 +73,7 @@ namespace EctoBro
 			this.fullDamage = this.damage;
 
 			this.life = 2f;
+			
 		}
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
@@ -202,6 +203,14 @@ namespace EctoBro
         }
 
         protected override void HitFragile()
+        {
+        }
+
+        protected override void HitGrenades()
+        {
+        }
+
+        protected override void HitProjectiles()
         {
         }
     }

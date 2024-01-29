@@ -24,7 +24,7 @@ namespace EctoBro
         public Unit unit;
         public Vector3 grabbedPosition;
         public Vector3 currentPosition;
-        public float currentRotation;
+        public float currentRotation = 0f;
         public float rotationSpeed;
         bool movingRight;
         public float targetHeight;
@@ -38,7 +38,7 @@ namespace EctoBro
             unit = grabbedUnit;
             grabbedPosition = unit.transform.position;
             currentPosition = unit.transform.position;
-            currentRotation = 0;
+            currentRotation = 0f;
             if (UnityEngine.Random.value > 0.5f)
             {
                 rotationSpeed = UnityEngine.Random.Range(-40f, -10f);
@@ -97,6 +97,11 @@ namespace EctoBro
 
         public void MoveUnit(float t)
         {
+            if ( this.unit == null )
+            {
+                RemoveUnit();
+                return;
+            }
             // Close enough to begin swallow
             if ( reachedStartingHeight && currentPosition.y < trap.Y + 30f )
             {
@@ -193,8 +198,8 @@ namespace EctoBro
             }
 
             // Ensure unit isn't moving
-            unit.X = grabbedPosition.x;
-            unit.Y = grabbedPosition.y;
+            unit.X = currentPosition.x;
+            unit.Y = currentPosition.y;
             // Move unit visually
             unit.transform.position = currentPosition;
             unit.transform.rotation = Quaternion.identity;
@@ -215,6 +220,11 @@ namespace EctoBro
 
         public void MoveUnitToCenter(float t)
         {
+            if (this.unit == null)
+            {
+                RemoveUnit();
+                return;
+            }
             if ( distanceToCenter == 0f )
             {
                 distanceToCenter = Vector3.Distance(currentPosition, trap.transform.position);
@@ -223,8 +233,8 @@ namespace EctoBro
             currentPosition = Vector3.MoveTowards(currentPosition, trap.transform.position, moveSpeed * t);
 
             // Ensure unit isn't moving
-            unit.X = grabbedPosition.x;
-            unit.Y = grabbedPosition.y;
+            unit.X = currentPosition.x;
+            unit.Y = currentPosition.y;
             // Move unit visually
             unit.transform.position = currentPosition;
             unit.transform.rotation = Quaternion.identity;
@@ -240,7 +250,6 @@ namespace EctoBro
             }
             else
             {
-                //unit.transform.localScale = new Vector3(currentDistance / distanceToCenter, currentDistance / distanceToCenter, 1f);
                 this.ConsumeUnit();
             }
         }
@@ -251,6 +260,13 @@ namespace EctoBro
             trap.floatingUnits.Remove(this);
             GhostTrap.grabbedUnits.Remove(this.unit);
             UnityEngine.Object.Destroy(unit.gameObject);
+        }
+
+        public void RemoveUnit()
+        {
+            ++trap.killedUnits;
+            trap.floatingUnits.Remove(this);
+            GhostTrap.grabbedUnits.Remove(this.unit);
         }
 
         public void ReleaseUnit()
