@@ -39,7 +39,7 @@ namespace EctoBro
         protected float effectCooldown = 0f;
         protected float pushBackForceM = 1f;
         public static System.Random rnd = new System.Random();
-        protected LayerMask unitsLayer;
+        protected LayerMask fragileGroundLayer;
 
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
@@ -112,7 +112,7 @@ namespace EctoBro
             }
             protonLine2.material = protonLine2Mats[0];
 
-            this.unitsLayer = 1 << LayerMask.NameToLayer("Units");
+            this.fragileGroundLayer = this.fragileLayer | this.groundLayer;
 
             trapPrefab = new GameObject("GhostTrap", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(GhostTrap) }).GetComponent<GhostTrap>();
             trapPrefab.enabled = false;
@@ -336,7 +336,7 @@ namespace EctoBro
             Vector3 startPointCapMid = new Vector3(base.transform.localScale.x * Mathf.Abs(startPointCap.x - startPointCapEnd.x) / 2 + startPointCap.x, startPointCap.y + 0.75f * capOffset);
 
             // Create sparks at tip of gun
-            if ( sparkCooldown <= 0 )
+            if (sparkCooldown <= 0)
             {
                 int particleCount = rnd.Next(3, 5);
                 for (int i = 0; i < particleCount; ++i)
@@ -382,11 +382,11 @@ namespace EctoBro
             // Update proton line 2 material
             this.protonLine2.material = this.protonLine2Mats[protonLine2Frame];
             this.protonLine2FrameCounter += this.t;
-            if ( this.protonLine2FrameCounter >= 0.1f )
+            if (this.protonLine2FrameCounter >= 0.1f)
             {
                 this.protonLine2FrameCounter -= 0.1f;
                 ++this.protonLine2Frame;
-                if ( this.protonLine2Frame > 3 )
+                if (this.protonLine2Frame > 3)
                 {
                     this.protonLine2Frame = 0;
                 }
@@ -394,7 +394,7 @@ namespace EctoBro
 
             float magnitude = (endPoint - startPoint).magnitude;
 
-            if ( DistanceToEnd > 30f)
+            if (DistanceToEnd > 30f)
             {
                 this.protonLine1.SetPosition(0, startPoint);
                 this.protonLine1.SetPosition(1, endPoint);
@@ -412,7 +412,7 @@ namespace EctoBro
                 this.protonLine2.material.SetTextureScale("_MainTex", new Vector2(magnitude * 0.035f, 1f));
                 this.protonLine2.material.SetTextureOffset("_MainTex", new Vector2(-currentOffset2, 0f));
             }
-            else if ( DistanceToEnd > 15f )
+            else if (DistanceToEnd > 15f)
             {
                 this.protonLine1.SetPosition(0, startPoint);
                 this.protonLine1.SetPosition(1, startPoint);
@@ -442,6 +442,71 @@ namespace EctoBro
             }
         }
 
+        public Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, float xRange, float yRange, float x, float y, int direction, Vector3 startPoint, bool haveHitGround, Vector3 groundVector )
+        {
+            if (Map.units == null)
+            {
+                return null;
+            }
+            int num = 999999;
+            float num2 = Mathf.Max(xRange, yRange);
+            Unit unit = null;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                Unit unit3 = Map.units[i];
+                if (unit3 != null && !unit3.invulnerable && unit3.health <= num && GameModeController.DoesPlayerNumDamage(playerNum, unit3.playerNum))
+                {
+                    float f = unit3.X - x;
+                    if (Mathf.Abs(f) - xRange < unit3.width && Mathf.Sign(f) == direction )
+                    {
+                        float f2 = unit3.Y + unit3.height / 2f + 3f - y;
+                        if (Mathf.Abs(f2) - yRange < unit3.height)
+                        {
+                            float num4 = Mathf.Abs(f) + Mathf.Abs(f2);
+                            if (num4 < num2)
+                            {
+                                if (unit3.health > 0)
+                                {
+                                    unit = unit3;
+                                    num2 = num4;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (unit != null && (!haveHitGround || Mathf.Abs(unit.X - x) < Mathf.Abs(groundVector.x - x) ) )
+            {
+                DamageUnit(unit, startPoint);
+                return unit;
+            }
+            return null;
+        }
+
+        public bool HitProjectiles(int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, int direction)
+        {
+            bool result = false;
+            for (int i = Map.damageableProjectiles.Count - 1; i >= 0; i--)
+            {
+                Projectile projectile = Map.damageableProjectiles[i];
+                if (projectile != null && GameModeController.DoesPlayerNumDamage(playerNum, projectile.playerNum))
+                {
+                    float f = projectile.X - x;
+                    if (Mathf.Abs(f) - xRange < projectile.projectileSize && Mathf.Sign(f) == direction)
+                    {
+                        float f2 = projectile.Y - y;
+                        if (Mathf.Abs(f2) - yRange < projectile.projectileSize)
+                        {
+                            Map.DamageProjectile(projectile, damage, damageType, xI, yI, 0f, playerNum);
+                            result = true;
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         protected void ProtonLineHitDetection(Vector3 startPoint, ref Vector3 endPoint)
         {
             RaycastHit groundHit = this.raycastHit;
@@ -449,7 +514,7 @@ namespace EctoBro
             float currentRange = protonLineRange;
 
             // Hit ground
-            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.groundLayer))
+            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.fragileGroundLayer))
             {
                 groundHit = this.raycastHit;
                 // Shorten the range we check for raycast hits, we don't care about hitting anything past the current terrain.
@@ -457,12 +522,10 @@ namespace EctoBro
                 haveHitGround = true;
             }
 
-            // Hit Unit, which must be closer than wall since we're checking with a shortened range
-            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.unitsLayer) 
-                && (this.raycastHit.collider.GetComponent<Unit>() == null || !this.raycastHit.collider.GetComponent<Unit>().invulnerable) )
+            Unit unit;
+            if ( (unit = HitClosestUnit(this, this.playerNum, currentRange, 6, startPoint.x,  startPoint.y, (int) base.transform.localScale.x, startPoint, haveHitGround, groundHit.point )) != null )
             {
-                DamageCollider(this.raycastHit);
-                endPoint = new Vector3(raycastHit.point.x, raycastHit.point.y, 0);
+                endPoint = new Vector3(unit.X, startPoint.y, 0);
             }
             // Damage ground since no unit hit
             else if ( haveHitGround )
@@ -475,6 +538,32 @@ namespace EctoBro
             {
                 endPoint = new Vector3(startPoint.x + base.transform.localScale.x * protonLineRange, startPoint.y, 0);
             }
+
+            HitProjectiles(this.playerNum, protonUnitDamage, DamageType.Fire, Mathf.Abs(endPoint.x - startPoint.x), 6f, startPoint.x, startPoint.y, base.transform.localScale.x * 30, 20, (int)base.transform.localScale.x);
+        }
+
+        protected void DamageUnit(Unit unit, Vector3 startPoint )
+        {
+            if (this.protonDamageCooldown > 0)
+            {
+                return;
+            }
+
+            // Only damage visible objects
+            if (unit != null && SortOfFollow.IsItSortOfVisible(unit.transform.position, 24, 24f))
+            {
+                // Add damage if we're hitting a boss
+                unit.Damage(protonUnitDamage + (unit.health > 30 ? 1 : 0), DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, unit.X, unit.Y);
+                unit.Knock(DamageType.Fire, base.transform.localScale.x * 30, 20, false);
+            }
+;
+            if (this.effectCooldown <= 0)
+            {
+                Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, unit.X + base.transform.localScale.x * 4, startPoint.y + UnityEngine.Random.Range(-3, 3), 0f, 0f, Vector3.zero, null);
+                this.effectCooldown = 0.15f;
+            }
+
+            protonDamageCooldown = 0.05f;
         }
 
         protected void DamageCollider(RaycastHit hit)
@@ -491,7 +580,8 @@ namespace EctoBro
                 // Damage unit
                 if (unit != null)
                 {
-                    unit.Damage(protonUnitDamage, DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y);
+                    // Add damage if we're hitting a boss
+                    unit.Damage(protonUnitDamage + (unit.health > 30 ? 1 : 0), DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y);
                     unit.Knock(DamageType.Fire, base.transform.localScale.x * 30, 20, false);
                 }
                 // Damage other
@@ -501,7 +591,6 @@ namespace EctoBro
                 }
             }
 
-            //EffectsController.CreateLaserParticle(hit.point.x, hit.point.y, hit.collider.gameObject);
             if ( this.effectCooldown <= 0 )
             {
                 Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range(-3, 3), 0f, 0f, Vector3.zero, null);

@@ -15,7 +15,7 @@ namespace EctoBro
         {
             public static bool Prefix(Mook __instance)
             {
-                if ( GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.Contains(__instance) )
+                if ( GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.ContainsKey(__instance) )
                 {
                     return false;
                 }
@@ -28,7 +28,7 @@ namespace EctoBro
         {
             public static bool Prefix(TestVanDammeAnim __instance)
             {
-                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.Contains(__instance))
+                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.ContainsKey(__instance))
                 {
                     return false;
                 }
@@ -39,10 +39,25 @@ namespace EctoBro
         [HarmonyPatch(typeof(Mook), "Land")]
         static class Mook_Land_Patch
         {
-            public static bool Prefix(TestVanDammeAnim __instance)
+            public static bool Prefix(Mook __instance)
             {
-                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.Contains(__instance))
+                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.ContainsKey(__instance))
                 {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(Mook), "GetGroundHeightGround")]
+        static class Mook_GetGroundHeightGround_Patch
+        {
+            public static bool Prefix(Mook __instance, ref float __result)
+            {
+                FloatingUnit unit;
+                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.TryGetValue(__instance, out unit))
+                {
+                    __result = unit.currentPosition.y;
                     return false;
                 }
                 return true;

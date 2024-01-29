@@ -40,8 +40,9 @@ namespace EctoBro
 		public float topFloatingY, leftFloatingX, rightFloatingX;
 		public const float width = 120f;
 		public const float height = 130f;
-		public static List<Unit> grabbedUnits = new List<Unit>();
+		public static Dictionary<Unit, FloatingUnit> grabbedUnits = new Dictionary<Unit, FloatingUnit>();
 		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
+		public List<Unit> ignoredUnits = new List<Unit>();
 		public int killedUnits = 0;
 
 		// DEBUG
@@ -122,6 +123,26 @@ namespace EctoBro
         {
         }
 
+		// Don't bounce off door infinitely
+        protected override void HitFragile()
+        {
+			Vector3 vector = new Vector3(this.xI, this.yI, 0f);
+			Vector3 normalized = vector.normalized;
+			Collider[] array = Physics.OverlapSphere(new Vector3(base.X + normalized.x * 2f, base.Y + normalized.y * 2f, 0f), 2f, this.fragileLayer);
+			for (int i = 0; i < array.Length; i++)
+			{
+				EffectsController.CreateProjectilePuff(base.X, base.Y);
+				if (array[i].GetComponent<DoorDoodad>() != null && this.state != TrapState.Closed)
+				{
+					this.Bounce(true, false);
+				}
+				else
+				{
+					array[i].gameObject.SendMessage("Damage", new DamageObject(1, this.damageType, this.xI, this.yI, base.X, base.Y, this), SendMessageOptions.DontRequireReceiver);
+				}
+			}
+		}
+
         protected override bool Update()
         {
             base.Update();
@@ -152,7 +173,7 @@ namespace EctoBro
 						}
 
 						this.attractCounter += this.t;
-						if (this.attractCounter >= 0.0334f)
+						if (this.runTime < 6f && this.attractCounter >= 0.0334f)
 						{
 							this.attractCounter -= 0.0334f;
 							Map.AttractMooks(base.X, base.Y, 200f, 100f);
@@ -184,7 +205,10 @@ namespace EctoBro
 							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
 						}
 
-						this.FindUnits();
+						if ( this.runTime < 15f )
+                        {
+							this.FindUnits();
+						}
 
 						if (this.floatingUnits.Count == 0)
 						{
@@ -283,7 +307,10 @@ namespace EctoBro
 
 		public override void Death()
         {
-			this.DestroyGrenade();
+			if ( this.state == TrapState.Closed && this.runTime > 100f )
+            {
+				this.DestroyGrenade();
+			}
         }
 
         protected override void DestroyGrenade()
@@ -328,7 +355,7 @@ namespace EctoBro
 
 		public void StartClosingTrap()
         {
-			if ( this.state != TrapState.Closing )
+			if ( this.state < TrapState.Closing )
             {
 				this.runTime = 10f;
 				this.state = TrapState.Closing;
@@ -358,7 +385,7 @@ namespace EctoBro
 						bro.ReturnTrap();
 					}
 					Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f);
-					this.Death();
+					this.DestroyGrenade();
 				}
 			}
 		}
@@ -383,25 +410,37 @@ namespace EctoBro
 			return !(has_neg && has_pos);
 		}
 
+		protected void AddUnit(Unit unit)
+        {
+			FloatingUnit floatUnit = new FloatingUnit(unit, this);
+			floatingUnits.Add(floatUnit);
+			grabbedUnits.Add(unit, floatUnit);
+			unit.Panic(1000f, true);
+			if (unit is Mook)
+			{
+				(unit as Mook).SetInvulnerable(float.MaxValue);
+			}
+			Map.units.Remove(unit);
+		}
+
 		protected void FindUnits()
         {
 			for ( int i = 0; i < Map.units.Count; ++i )
             {
 				Unit unit = Map.units[i];
 				// Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.Contains(unit) )
+				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.ContainsKey(unit) && !ignoredUnits.Contains(unit) )
                 {
+					// Ignore all vehicles and bosses
+					if (unit.CompareTag("Boss") || unit.CompareTag("Metal") || unit is SatanMiniboss || unit is DolphLundrenSoldier || unit is Tank || unit is MookVehicleDigger)
+                    {
+						ignoredUnits.Add(unit);
+						continue;
+                    }
 					// Check unit is in rectangle around trap
 					if ( Tools.FastAbsWithinRange(unit.X - bottomX, 50f) && Tools.FastAbsWithinRange(unit.Y - bottomY, 20f) )
                     {
-						grabbedUnits.Add(unit);
-						floatingUnits.Add(new FloatingUnit(unit, this));
-						unit.Panic(1000f, true);
-						if (unit is Mook)
-						{
-							(unit as Mook).SetInvulnerable(float.MaxValue);
-						}
-						Map.units.Remove(unit);
+						AddUnit(unit);
 					}
 					// Check unit is in trap triangle
 					else if ( Tools.FastAbsWithinRange(unit.X - bottomX, width) )
@@ -410,14 +449,7 @@ namespace EctoBro
 						// Check that unit is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
 						if (Tools.FastAbsWithinRange(num, height) && (Mathf.Sign(num) == 1f) && ShouldGrabUnit(unit.X, unit.Y))
 						{
-							grabbedUnits.Add(unit);
-							floatingUnits.Add(new FloatingUnit(unit, this));
-							unit.Panic(1000f, true);
-							if (unit is Mook)
-							{
-								(unit as Mook).SetInvulnerable(float.MaxValue);
-							}
-							Map.units.Remove(unit);
+							AddUnit(unit);
 						}
 					}
                 }
