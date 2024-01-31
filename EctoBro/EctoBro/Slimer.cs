@@ -22,6 +22,8 @@ namespace EctoBro
 		protected float counter = 0f;
 		protected float startingY;
 		protected float startingX;
+		public static AudioClip[] slimerGroans;
+		protected AudioSource slimerAudio;
 
 		protected override void Awake()
 		{
@@ -63,6 +65,15 @@ namespace EctoBro
 				freezeSounds[7] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze8.wav");
 			}
 
+			if ( slimerGroans == null )
+            {
+				slimerGroans = new AudioClip[4];
+				slimerGroans[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer1.wav");
+				slimerGroans[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer2.wav");
+				slimerGroans[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer3.wav");
+				slimerGroans[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer4.wav");
+			}
+
 			base.Awake();
 
 			this.damageType = DamageType.Freeze;
@@ -72,8 +83,25 @@ namespace EctoBro
 			this.damageInternal = this.damage;
 			this.fullDamage = this.damage;
 
-			this.life = 2f;
-			
+			this.life = 4f;
+
+			if (this.slimerAudio == null)
+			{
+				if (base.gameObject.GetComponent<AudioSource>() == null)
+				{
+					this.slimerAudio = base.gameObject.AddComponent<AudioSource>();
+					this.slimerAudio.rolloffMode = AudioRolloffMode.Logarithmic;
+					this.slimerAudio.minDistance = 150f;
+					this.slimerAudio.maxDistance = 2000f;
+					this.slimerAudio.dopplerLevel = 0.1f;
+					this.slimerAudio.spatialBlend = 1f;
+					this.slimerAudio.volume = 0.4f;
+				}
+				else
+				{
+					this.slimerAudio = this.GetComponent<AudioSource>();
+				}
+			}
 		}
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
@@ -83,6 +111,10 @@ namespace EctoBro
 			base.transform.localScale = new Vector3(base.transform.localScale.x * -1f, base.transform.localScale.y, base.transform.localScale.z);
 			startingY = base.Y;
 			startingX = base.X;
+
+			this.slimerAudio.clip = slimerGroans[UnityEngine.Random.Range(0, slimerGroans.Length)];
+			this.slimerAudio.loop = false;
+			this.slimerAudio.Play();
         }
 
         protected override void Update()
@@ -112,6 +144,17 @@ namespace EctoBro
         protected override bool HitWalls()
         {
 			++overrideBloodColor;
+
+			float num = Mathf.Abs(this.xI) * this.t;
+			if (Physics.Raycast(new Vector3(base.X - Mathf.Sign(this.xI) * this.projectileSize, base.Y + this.projectileSize * 0.5f, 0f), new Vector3(this.xI, this.yI, 0f), out this.raycastHit, this.projectileSize * 2f + num, this.groundLayer) && this.raycastHit.distance < this.projectileSize + num)
+			{
+				if ( this.raycastHit.collider.gameObject.GetComponent<Block>() == null )
+                {
+					this.ProjectileApplyDamageToBlock(raycastHit.collider.gameObject, 15, this.damageType, this.xI, this.yI);
+					this.MakeEffects(true, raycastHit.point.x + raycastHit.normal.x * 3f, raycastHit.point.y + raycastHit.normal.y * 3f, true, raycastHit.normal, raycastHit.point);
+				}
+				
+			}
 
 			int column = (int)((base.X + 8f) / 16f);
 			int row = (int)((base.Y + 8f) / 16f);
