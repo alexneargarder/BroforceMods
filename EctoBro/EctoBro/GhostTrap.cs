@@ -66,7 +66,7 @@ namespace EctoBro
 				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 				if (storedMat == null)
 				{
-					storedMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "ghostTrap2.0.png"), ResourcesController.Particle_AlphaBlend);
+					storedMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "ghostTrap.png"), ResourcesController.Particle_AlphaBlend);
 				}
 
 				renderer.material = storedMat;
