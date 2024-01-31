@@ -40,17 +40,24 @@ namespace EctoBro
         protected float pushBackForceM = 1f;
         public static System.Random rnd = new System.Random();
         protected LayerMask fragileGroundLayer;
+        public static AudioClip protonStartup;
+        public static AudioClip protonBeamStartup;
+        public static AudioClip protonLoop;
+        public static AudioClip protonEnd;
+        protected AudioSource protonAudio;
+        protected bool playedBeamStartup = false;
+        protected float startupTime = 0f;
 
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
 
         // Melee
-        //protected int SlimerTraps = 0;
-        protected int SlimerTraps = int.MaxValue;
+        protected int SlimerTraps = 0;
         protected bool usingSlimerMelee = false;
         protected bool alreadySpawnedSlimer = false;
         Slimer slimerPrefab, currentSlimer;
         public static Color SlimerColor = new Color(0.058824f, 1f, 0f);
+        protected bool throwingMook = false;
 
 
         // Misc
@@ -127,10 +134,48 @@ namespace EctoBro
 
             this.currentMeleeType = BroBase.MeleeType.Disembowel;
             this.meleeType = BroBase.MeleeType.Disembowel;
+
+            if (this.protonAudio == null)
+            {
+                if ( base.gameObject.GetComponent<AudioSource>() == null )
+                {
+                    this.protonAudio = base.gameObject.AddComponent<AudioSource>();
+                    this.protonAudio.rolloffMode = AudioRolloffMode.Linear;
+                    this.protonAudio.minDistance = 200f;
+                    this.protonAudio.dopplerLevel = 0.1f;
+                    this.protonAudio.maxDistance = 500f;
+                    this.protonAudio.spatialBlend = 1f;
+                    this.protonAudio.volume = 0.33f;
+                }
+                else
+                {
+                    this.protonAudio = this.GetComponent<AudioSource>();
+                }
+            }
+
+            if ( protonStartup == null )
+            {
+                protonStartup = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "protonStartup.wav");
+            }
+
+            if ( protonBeamStartup == null )
+            {
+                protonBeamStartup = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "protonStartup2.wav");
+            }
+
+            if ( protonLoop == null )
+            {
+                protonLoop = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "protonLoop.wav");
+            }
+
+            if ( protonEnd == null )
+            {
+                protonEnd = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "protonEnd.wav");
+            }
         }
 
         protected override void Update()
-        {            
+        {
             base.Update();
             if (this.acceptedDeath)
             {
@@ -186,38 +231,65 @@ namespace EctoBro
         protected override void StartFiring()
         {
             base.StartFiring();
-            this.StartProtonGun();
             this.fireKnockbackCooldown = 0f;
-    }
+            this.protonAudio.clip = protonStartup;
+            this.protonAudio.loop = false;
+            this.protonAudio.volume = 0.33f;
+            this.protonAudio.Play();
+            this.playedBeamStartup = false;
+            this.startupTime = 0f;
+        }
 
         protected override void RunFiring()
         {
             if ( this.fire )
             {
-                this.currentOffset += this.t * offsetSpeed;
-                this.currentOffset2 += this.t * offsetSpeed * 1.9f;
-                this.protonDamageCooldown -= this.t;
-                this.effectCooldown -= this.t;
-                this.fireKnockbackCooldown -= this.t;
-                UpdateProtonGun();
-                this.StopRolling();
-                this.FireFlashAvatar();
-                if ( this.currentGesture != GestureElement.Gestures.None)
+                if ( !this.playedBeamStartup )
                 {
-                    SetGestureAnimation(GestureElement.Gestures.None);
-                }
-
-/*                if ( this.fireKnockbackCooldown <= 0 )
-                {
-                    this.xIBlast -= base.transform.localScale.x * 3f * this.pushBackForceM;
-                    if (base.Y > this.groundHeight)
+                    this.startupTime += this.t;
+                    // Play beam startup, start beam
+                    if (this.startupTime > 1.1f || !this.protonAudio.isPlaying)
                     {
-                        this.yI += Mathf.Clamp(3f * this.pushBackForceM, 3f, 6f);
+                        this.protonAudio.clip = protonBeamStartup;
+                        protonAudio.Play();
+                        this.StartProtonGun();
+                        this.playedBeamStartup = true;
+                    }
+                }
+                else
+                {
+                    // Start proton loop
+                    if (!this.protonAudio.isPlaying)
+                    {
+                        this.protonAudio.clip = protonLoop;
+                        this.protonAudio.loop = true;
+                        this.protonAudio.Play();
+                    }
+                    this.currentOffset += this.t * offsetSpeed;
+                    this.currentOffset2 += this.t * offsetSpeed * 1.9f;
+                    this.protonDamageCooldown -= this.t;
+                    this.effectCooldown -= this.t;
+                    this.fireKnockbackCooldown -= this.t;
+                    UpdateProtonGun();
+                    this.StopRolling();
+                    this.FireFlashAvatar();
+                    if (this.currentGesture != GestureElement.Gestures.None)
+                    {
+                        SetGestureAnimation(GestureElement.Gestures.None);
                     }
 
-                    this.pushBackForceM = Mathf.Clamp(this.pushBackForceM + this.t * 6f, 1f, 6f);
-                    this.fireKnockbackCooldown = 0.015f;
-                }*/
+                    /*                if ( this.fireKnockbackCooldown <= 0 )
+                                    {
+                                        this.xIBlast -= base.transform.localScale.x * 3f * this.pushBackForceM;
+                                        if (base.Y > this.groundHeight)
+                                        {
+                                            this.yI += Mathf.Clamp(3f * this.pushBackForceM, 3f, 6f);
+                                        }
+
+                                        this.pushBackForceM = Mathf.Clamp(this.pushBackForceM + this.t * 6f, 1f, 6f);
+                                        this.fireKnockbackCooldown = 0.015f;
+                                    }*/
+                }
             }
             else
             {
@@ -245,7 +317,7 @@ namespace EctoBro
 
         protected override void RunGun()
         {
-            if (!this.wallDrag && this.fire)
+            if (!this.wallDrag && this.fire && this.playedBeamStartup)
             {
                 this.gunCounter += this.t;
                 if (this.gunCounter > 0.07f)
@@ -279,6 +351,10 @@ namespace EctoBro
         {
             base.StopFiring();
             this.StopProtonGun();
+            this.protonAudio.clip = protonEnd;
+            this.protonAudio.loop = false;
+            this.protonAudio.volume = 0.15f;
+            this.protonAudio.Play();
         }
 
         protected void StartProtonGun()
@@ -684,7 +760,8 @@ namespace EctoBro
                 this.alreadySpawnedSlimer = false;
                 base.frame = 1;
                 base.counter = -0.05f;
-                this.usingSlimerMelee = (this.SlimerTraps > 0);
+                this.throwingMook = (this.nearbyMook != null && this.nearbyMook.CanBeThrown());
+                this.usingSlimerMelee = (this.SlimerTraps > 0) && !this.throwingMook;
                 this.AnimateMelee();
             }
             else if (this.CanStartMeleeFollowUp() )
@@ -696,7 +773,7 @@ namespace EctoBro
             if (!this.jumpingMelee)
             {
                 this.dashingMelee = true;
-                this.xI = (float)base.Direction * this.speed;
+                //this.xI = (float)base.Direction * this.speed / 2.0f;
             }
             this.StartMeleeCommon();
         }
@@ -708,9 +785,10 @@ namespace EctoBro
             // Release Slimer
             if (this.usingSlimerMelee)
             {
-                int num = 25 + Mathf.Clamp(base.frame, 0, 6);
-                int num2 = 1;
-                if (!this.standingMelee)
+                base.frameRate = 0.06f;
+                int num = 11 + base.frame;
+                //int num2 = 1;
+/*                if (!this.standingMelee)
                 {
                     if (this.jumpingMelee)
                     {
@@ -730,14 +808,14 @@ namespace EctoBro
                             base.counter -= 0.0334f;
                         }
                     }
-                }
-                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
-                if (base.frame == 3 && !this.alreadySpawnedSlimer)
+                }*/
+                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(9 * this.spritePixelHeight));
+                if (base.frame == 8 && !this.alreadySpawnedSlimer)
                 {
                     base.counter -= 0.066f;
                     SpawnSlimer();
                 }
-                if (base.frame >= 6)
+                if (base.frame >= 9)
                 {
                     base.frame = 0;
                     this.CancelMelee();
@@ -747,6 +825,10 @@ namespace EctoBro
             // Proton Bash
             else
             {
+                if ( !this.throwingMook )
+                {
+                    base.frameRate = 0.05f;
+                }
                 int num = 25 + Mathf.Clamp(base.frame, 0, 6);
                 int num2 = 1;
                 if (!this.standingMelee)

@@ -11,13 +11,21 @@ namespace EctoBro
 {
     class GhostTrap : Grenade
     {
+		// Audio
+		public static AudioClip trapOpen;
+		public static AudioClip trapMain;
+		public static AudioClip trapClosing;
+		public static AudioClip trapClosed;
+		protected AudioSource trapAudio;
+		protected int currentClip = 0;
+
 		// Visuals
 		Material storedMat;
 		protected int frame = 0;
 		protected float counter = 0f;
 		protected const float trapWidth = 224f;
 		protected const float trapHeight = 128f;
-		protected float trapFramerate = 0.2f;
+		protected float trapFramerate = 0.4f;
 		protected const int lastOpeningFrame = 2;
 		protected const int lastFrame = 12;
 
@@ -34,6 +42,7 @@ namespace EctoBro
 		public TrapState state = TrapState.Thrown;
 		public float runTime = 0f;
 		protected float attractCounter = 0f;
+		public bool expediteClose = false;
 
 		// Hit detection
 		public float topLeftX, topLeftY, topRightX, topRightY, bottomX, bottomY;
@@ -83,6 +92,44 @@ namespace EctoBro
 				this.destroyInsideWalls = false;
 				this.startLife = 10000f;
 				this.life = 10000f;
+
+				if (this.trapAudio == null)
+				{
+					if (base.gameObject.GetComponent<AudioSource>() == null)
+					{
+						this.trapAudio = base.gameObject.AddComponent<AudioSource>();
+						this.trapAudio.rolloffMode = AudioRolloffMode.Linear;
+						this.trapAudio.minDistance = 600f;
+						this.trapAudio.dopplerLevel = 0.1f;
+						this.trapAudio.maxDistance = 1000f;
+						this.trapAudio.spatialBlend = 1f;
+						this.trapAudio.volume = 0.33f;
+					}
+					else
+					{
+						this.trapAudio = this.GetComponent<AudioSource>();
+					}
+				}
+
+				if ( trapOpen == null )
+                {
+					trapOpen = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "trapOpen.wav");
+				}
+
+				if ( trapMain == null )
+                {
+					trapMain = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "trapMain.wav");
+				}
+
+				if (trapClosing == null)
+				{
+					trapClosing = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "trapClosing.wav");
+				}
+
+				if (trapClosed == null)
+				{
+					trapClosed = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "trapClosed.wav");
+				}
 
 				// DEBUG
 				line1 = new GameObject("Line1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
@@ -160,7 +207,7 @@ namespace EctoBro
 						{
 							this.counter -= trapFramerate;
 							++this.frame;
-							if (this.frame == lastOpeningFrame + 1)
+							if (this.state != TrapState.Open && this.frame == lastOpeningFrame + 1)
 							{
 								this.trapFramerate = 0.08f;
 								this.state = TrapState.Open;
@@ -179,16 +226,40 @@ namespace EctoBro
 							Map.AttractMooks(base.X, base.Y, 200f, 100f);
 						}
 
-						// Don't start grabbing units until trap is open
+						
 						if (this.state > TrapState.Opening)
 						{
+							// Don't start grabbing units until trap is open
 							this.FindUnits();
+
+							// Play next clip
+							if ( !this.trapAudio.isPlaying )
+                            {
+								// Start playing main audio clip
+								if ( this.currentClip == 0 )
+                                {
+									this.trapAudio.clip = trapMain;
+									this.trapAudio.Play();
+									++this.currentClip;
+                                }
+								// Play closing clip
+								else
+                                {
+									this.trapAudio.clip = trapClosing;
+									this.trapAudio.Play();
+									this.currentClip = 2;
+								}
+                            }
+							
+							// Start closing trap after closing audio clip has played for a second
+							if ( this.runTime > 7.89f )
+                            {
+								this.trapFramerate = 0.08f;
+								this.runTime = 10f;
+								this.state = TrapState.Closing;
+							}
 						}
 
-						if (this.runTime > 10f)
-						{
-							this.StartClosingTrap();
-						}
 						break;
 					}
 				case TrapState.Closing:
@@ -197,20 +268,46 @@ namespace EctoBro
 						if (this.counter > trapFramerate)
 						{
 							this.counter -= trapFramerate;
+							--this.frame;
+							if (this.frame < lastOpeningFrame + 1)
+							{
+								this.frame = lastFrame;
+							}
+							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+						}
+						/*if (this.counter > trapFramerate)
+						{
+							this.counter -= trapFramerate;
 							++this.frame;
 							if (this.frame > lastFrame)
 							{
 								this.frame = lastOpeningFrame + 1;
 							}
 							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
-						}
+						}*/
 
-						if ( this.runTime < 15f )
+						if ( this.runTime < 14f )
                         {
 							this.FindUnits();
 						}
 
-						if (this.floatingUnits.Count == 0)
+						if (currentClip == 2 && !this.trapAudio.isPlaying)
+						{
+							this.trapAudio.clip = trapClosed;
+							this.trapAudio.Play();
+							++this.currentClip;
+						}
+
+						// Speed up trap closing by moving to final clip
+						if ( this.expediteClose && this.runTime > 12f && this.floatingUnits.Count == 0 && currentClip == 2 )
+                        {
+							this.trapAudio.clip = trapClosed;
+							this.trapAudio.Play();
+							++this.currentClip;
+							this.runTime = 15.5f;
+						}
+
+						if (this.runTime > 16.5f)
 						{
 							this.CloseTrap();
 						}
@@ -329,6 +426,10 @@ namespace EctoBro
         {
 			this.state = TrapState.Opening;
 
+			this.trapAudio.clip = trapOpen;
+			this.trapAudio.loop = false;
+			this.trapAudio.Play();
+
 			// Set triangle bounds
 			bottomX = base.X;
 			bottomY = base.Y - 10f;
@@ -355,10 +456,19 @@ namespace EctoBro
 
 		public void StartClosingTrap()
         {
-			if ( this.state < TrapState.Closing )
+			this.expediteClose = true;
+			if ( this.state == TrapState.Thrown )
             {
+				this.ActivateTrap();
+            }
+			else if ( this.state < TrapState.Closing )
+            {
+				this.trapFramerate = 0.08f;
 				this.runTime = 10f;
 				this.state = TrapState.Closing;
+				this.trapAudio.clip = trapClosing;
+				this.trapAudio.Play();
+				this.currentClip = 2;
 			}
         }
 
@@ -369,6 +479,7 @@ namespace EctoBro
 			this.trapFramerate = 0.2f;
 			this.state = TrapState.ClosingAnimation;
 			this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
+			this.ReleaseUnits();
 		}
 
 		protected void CheckReturnTrap()
@@ -429,7 +540,7 @@ namespace EctoBro
             {
 				Unit unit = Map.units[i];
 				// Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.ContainsKey(unit) && !ignoredUnits.Contains(unit) )
+				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.ContainsKey(unit) && !ignoredUnits.Contains(unit) && !unit.IsHero )
                 {
 					// Ignore all vehicles and bosses
 					if (unit.CompareTag("Boss") || unit.CompareTag("Metal") || unit is SatanMiniboss || unit is DolphLundrenSoldier || unit is Tank || unit is MookVehicleDigger)
