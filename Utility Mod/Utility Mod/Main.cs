@@ -28,7 +28,7 @@
  * Infinite special option fixed for double bro seven
  * 
 **/
-
+#define DEBUG
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,6 +38,7 @@ using UnityEngine;
 using UnityModManagerNet;
 using System.Reflection;
 using UnityEngine.SceneManagement;
+
 
 namespace Utility_Mod
 {
@@ -153,6 +154,10 @@ namespace Utility_Mod
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
 
+#if DEBUG
+            unitDropdown = new Dropdown(400, 150, 200, 300, unitList, settings.selectedEnemy);
+#endif
+
             return true;
         }
 
@@ -209,116 +214,12 @@ namespace Utility_Mod
 
             if ( settings.showLevelOptions )
             {
-                GUILayout.BeginHorizontal();
-                {
-                    settings.loopCurrent = GUILayout.Toggle(settings.loopCurrent, new GUIContent("Loop Current Level", "After beating a level you replay the current one instead of moving on"), GUILayout.ExpandWidth(false));
-
-                    Rect lastRect = GUILayoutUtility.GetLastRect();
-                    lastRect.y += 20;
-                    lastRect.width += 300;
-
-                    if (GUI.tooltip != previousToolTip)
-                    {
-                        GUI.Label(lastRect, GUI.tooltip);
-                        previousToolTip = GUI.tooltip;
-                    }
-
-                    GUILayout.Space(20);
-
-                    if ( GUILayout.Button(new GUIContent("Unlock All Levels", "Only works on the world map screen"), GUILayout.ExpandWidth(false) ) )
-                    {
-                        if ( WorldMapController_Update_Patch.instance != null )
-                        {
-                            WorldTerritory3D[] territories = Traverse.Create(WorldMapController_Update_Patch.instance).Field("territories3D").GetValue() as WorldTerritory3D[];
-                            foreach ( WorldTerritory3D ter in territories )
-                            {
-                                if ( ter.properties.state != TerritoryState.Liberated && ter.properties.state != TerritoryState.AlienLiberated )
-                                {
-                                    UnlockTerritory(ter);
-                                }
-                            }
-                        }
-                    }
-
-                }
-                GUILayout.EndHorizontal();
-
-
-                GUILayout.Space(25);
-
-
-                GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((campaignNum.show || levelNum.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
-                {
-                    GUILayout.BeginVertical();
-                    {
-                        GUILayout.BeginHorizontal();
-                        {
-                            campaignNum.OnGUI(modEntry);
-
-                            determineLevelsInCampaign();
-
-                            levelNum.OnGUI(modEntry);
-
-                            Main.settings.levelNum = levelNum.indexNumber;
-
-                            if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
-                            {
-                                GoToLevel();
-                            }
-
-                            if (GUI.tooltip != previousToolTip)
-                            {
-                                Rect lastRect = campaignNum.dropDownRect;
-                                lastRect.y += 20;
-                                lastRect.width += 300;
-
-                                GUI.Label(lastRect, GUI.tooltip);
-                                previousToolTip = GUI.tooltip;
-                            }
-                        }
-                        GUILayout.EndHorizontal();
-
-                        GUILayout.Space(25);
-
-                        GUILayout.BeginHorizontal();
-                        {
-                            GUILayout.Space(1);
-
-                            if (!campaignNum.show && !levelNum.show)
-                            {
-
-                                if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
-                                {
-                                    ChangeLevel(-1);
-                                }
-
-                                Rect lastRect = GUILayoutUtility.GetLastRect();
-                                lastRect.y += 20;
-                                lastRect.width += 300;
-
-                                if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
-                                {
-                                    ChangeLevel(1);
-                                }
-
-                                if (GUI.tooltip != previousToolTip)
-                                {
-                                    GUI.Label(lastRect, GUI.tooltip);
-                                    previousToolTip = GUI.tooltip;
-                                }
-                            }
-                        }
-                        GUILayout.EndHorizontal();
-                    }
-                    GUILayout.EndVertical();
-                }
-                GUILayout.EndHorizontal();
+                ShowLevelControls(modEntry, ref previousToolTip);
             } // End Level Controls
+
 
             TestVanDammeAnim currentCharacter = null;
 
-
-            
             if (settings.quickLoadScene)
             {
                 if ( loadedScene && HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
@@ -339,147 +240,9 @@ namespace Utility_Mod
 
             if ( settings.showCheatOptions )
             {
-                GUILayout.BeginHorizontal();
-                {
-                    if ( settings.invulnerable != (settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility")))
-                    {
-                        if ( settings.invulnerable && currentCharacter != null)
-                        {
-                            currentCharacter.SetInvulnerable(float.MaxValue, false);
-                        }
-                        else if ( currentCharacter != null )
-                        {
-                            currentCharacter.SetInvulnerable(0, false);
-                        }
-                    }    
-
-                    GUILayout.Space(15);
-
-                    if ( settings.infiniteLives != (settings.infiniteLives = GUILayout.Toggle(settings.infiniteLives, "Infinite Lives")) )
-                    {
-                        if ( currentCharacter != null )
-                        {
-                            if (settings.infiniteLives)
-                            {
-                                for (int i = 0; i < 4; ++i)
-                                {
-                                    HeroController.SetLives(i, int.MaxValue);
-                                }
-                            }
-                            else
-                            {
-                                for (int i = 0; i < 4; ++i)
-                                {
-                                    HeroController.SetLives(i, 1);
-                                }
-                            }
-                        }
-                    }
-
-                    GUILayout.Space(15);
-
-                    settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials");
-
-                    GUILayout.Space(15);
-
-                    settings.disableGravity = GUILayout.Toggle(settings.disableGravity, "Disable Gravity");
-
-                    GUILayout.Space(15);
-
-                    settings.enableFlight = GUILayout.Toggle(settings.enableFlight, "Enable Flight");
-
-                    GUILayout.Space(15);
-
-                    settings.disableEnemySpawn = GUILayout.Toggle(settings.disableEnemySpawn, "Disable Enemy Spawns");
-
-                    GUILayout.Space(10);
-
-                    settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, new GUIContent("Instant Kill Enemies", "Sets all enemies to one health") );
-                }
-                GUILayout.EndHorizontal();
-
-                GUILayout.Space(15);
-
-                if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
-                {
-                    if (currentCharacter != null)
-                    {
-                        ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
-                    }
-                }
-
-                Rect lastRect = GUILayoutUtility.GetLastRect();
-                lastRect.y += 20;
-                lastRect.width += 300;
-                if (GUI.tooltip != previousToolTip)
-                {
-                    GUI.Label(lastRect, GUI.tooltip);
-                    previousToolTip = GUI.tooltip;
-                }
-
-                GUILayout.Space(25);
-
-                GUILayout.BeginHorizontal(GUILayout.Width(400));
-
-                GUILayout.Label("Time Slow Factor: " + settings.timeSlowFactor);
-
-                if (settings.timeSlowFactor != (settings.timeSlowFactor = GUILayout.HorizontalSlider(settings.timeSlowFactor, 0, 5, GUILayout.Width(200))))
-                {
-                    Main.StartTimeSlow();
-                }
-
-                GUILayout.EndHorizontal();
-
-                if (settings.slowTime != (settings.slowTime = GUILayout.Toggle(settings.slowTime, "Slow Time")))
-                {
-                    if (settings.slowTime)
-                    {
-                        StartTimeSlow();
-                    }
-                    else
-                    {
-                        StopTimeSlow();
-                    }
-                }
-
-                GUILayout.Space(25);
-
-                GUILayout.BeginHorizontal(GUILayout.Width(500));
-
-                GUILayout.Label("Scene to Load: ");
-
-                settings.sceneToLoad = GUILayout.TextField(settings.sceneToLoad, GUILayout.Width(200));
-
-                GUILayout.EndHorizontal();
-
-                settings.quickLoadScene = GUILayout.Toggle(settings.quickLoadScene, "Immediately load chosen scene", GUILayout.Width(200));
-
-                GUILayout.Space(10);
-
-                GUILayout.BeginHorizontal();
-
-                if (GUILayout.Button("Load Current Scene", GUILayout.Width(200)))
-                {
-                    if (!Main.settings.cameraShake)
-                    {
-                        PlayerOptions.Instance.cameraShakeAmount = 0f;
-                    }
-
-                    Utility.SceneLoader.LoadScene(settings.sceneToLoad);
-                }
-
-                if (GUILayout.Button("Get Current Scene", GUILayout.Width(200)))
-                {
-                    for (int i = 0; i < SceneManager.sceneCount; ++i)
-                    {
-                        Main.Log("Scene Name: " + SceneManager.GetSceneAt(i).name);
-                    }
-                }
-
-                GUILayout.EndHorizontal();
-
-                GUILayout.Space(25);
+                ShowCheatOptions(modEntry, ref previousToolTip, currentCharacter);
             } // End Cheat Options
+
 
 
             if (GUILayout.Button("Teleport Options", headerStyle))
@@ -489,143 +252,682 @@ namespace Utility_Mod
 
             if ( settings.showTeleportOptions )
             {
-                GUILayout.BeginHorizontal();
+                ShowTeleportOptions(modEntry, ref previousToolTip, currentCharacter);   
+            } // End Teleport Options
+
+#if DEBUG
+            if (GUILayout.Button("Debug Options", headerStyle))
+            {
+                settings.showDebugOptions = !settings.showDebugOptions;
+            }
+
+            if ( settings.showDebugOptions )
+            {
+                ShowDebugOptions(modEntry, ref previousToolTip, currentCharacter);
+            }
+#endif
+        }
+
+        static void ShowLevelControls(UnityModManager.ModEntry modEntry, ref string previousToolTip)
+        {
+            GUILayout.BeginHorizontal();
+            {
+                settings.loopCurrent = GUILayout.Toggle(settings.loopCurrent, new GUIContent("Loop Current Level", "After beating a level you replay the current one instead of moving on"), GUILayout.ExpandWidth(false));
+
+                Rect lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 300;
+
+                if (GUI.tooltip != previousToolTip)
                 {
-                    if (currentCharacter != null)
-                    {
-                        GUILayout.Label("Position: " + currentCharacter.X.ToString("0.00") + ", " + currentCharacter.Y.ToString("0.00"));
-                    }
-                    else
-                    {
-                        GUILayout.Label("Position: ");
-                    }
+                    GUI.Label(lastRect, GUI.tooltip);
+                    previousToolTip = GUI.tooltip;
                 }
-                GUILayout.EndHorizontal();
 
-                GUILayout.Space(15);
+                GUILayout.Space(20);
 
-                GUILayout.BeginHorizontal();
+                if (GUILayout.Button(new GUIContent("Unlock All Levels", "Only works on the world map screen"), GUILayout.ExpandWidth(false)))
                 {
-                    GUILayout.Label("X", GUILayout.Width(10));
-                    teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
-                    GUILayout.Space(20);
-                    GUILayout.Label("Y", GUILayout.Width(10));
-                    GUILayout.Space(10);
-                    teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
-
-                    if (GUILayout.Button("Teleport", GUILayout.Width(100)))
+                    if (WorldMapController_Update_Patch.instance != null)
                     {
-                        float x, y;
-                        if (float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y))
+                        WorldTerritory3D[] territories = Traverse.Create(WorldMapController_Update_Patch.instance).Field("territories3D").GetValue() as WorldTerritory3D[];
+                        foreach (WorldTerritory3D ter in territories)
                         {
-                            if (currentCharacter != null)
+                            if (ter.properties.state != TerritoryState.Liberated && ter.properties.state != TerritoryState.AlienLiberated)
                             {
-                                currentCharacter.X = x;
-                                currentCharacter.Y = y;
+                                UnlockTerritory(ter);
                             }
                         }
                     }
                 }
-                GUILayout.EndHorizontal();
 
-                GUILayout.Space(15);
+            }
+            GUILayout.EndHorizontal();
 
-                GUILayout.BeginHorizontal(GUILayout.Width(400));
 
-                settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click");
+            GUILayout.Space(25);
 
-                GUILayout.Space(10);
 
-                settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Spawn at Custom Waypoint");
-
-                GUILayout.Space(10);
-
-                settings.changeSpawnFinal = GUILayout.Toggle(settings.changeSpawnFinal, "Spawn at Final Checkpoint");
-
-                GUILayout.EndHorizontal();
-
-                GUILayout.Space(10);
-
-                GUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("Save Position for Custom Spawn", GUILayout.Width(250)))
-                    {
-                        if (currentCharacter != null)
-                        {
-                            settings.SpawnPositionX = currentCharacter.X;
-                            settings.SpawnPositionY = currentCharacter.Y;
-                        }
-                    }
-
-                    if (GUILayout.Button("Teleport to Custom Spawn Position", GUILayout.Width(300)))
-                    {
-                        if (currentCharacter != null)
-                        {
-                            currentCharacter.X = settings.SpawnPositionX;
-                            currentCharacter.Y = settings.SpawnPositionY;
-                        }
-                    }
-
-                    GUILayout.Label("Saved position: " + settings.SpawnPositionX + ", " + settings.SpawnPositionY);
-                }
-                GUILayout.EndHorizontal();
-
-                GUILayout.Space(15);
-
-                GUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("Teleport to Current Checkpoint ", GUILayout.Width(250)))
-                    {
-                        if (currentCharacter != null)
-                        {
-                            Vector3 checkPoint = HeroController.GetCheckPointPosition(0, Map.IsCheckPointAnAirdrop(HeroController.GetCurrentCheckPointID()));
-                            currentCharacter.X = checkPoint.x;
-                            currentCharacter.Y = checkPoint.y;
-                        }
-                    }
-
-                    if (GUILayout.Button("Teleport to Final Checkpoint", GUILayout.Width(200)))
-                    {
-                        if (currentCharacter != null)
-                        {
-                            Vector3 checkPoint = GetFinalCheckpointPos();
-                            currentCharacter.X = checkPoint.x;
-                            currentCharacter.Y = checkPoint.y;
-                        }
-                    }
-                }
-                GUILayout.EndHorizontal();
-
-                for (int i = 0; i < settings.waypointsX.Length; ++i)
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((campaignNum.show || levelNum.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
+            {
+                GUILayout.BeginVertical();
                 {
                     GUILayout.BeginHorizontal();
                     {
-                        if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250)))
+                        campaignNum.OnGUI(modEntry);
+
+                        determineLevelsInCampaign();
+
+                        levelNum.OnGUI(modEntry);
+
+                        Main.settings.levelNum = levelNum.indexNumber;
+
+                        if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
                         {
-                            if (currentCharacter != null)
-                            {
-                                settings.waypointsX[i] = currentCharacter.X;
-                                settings.waypointsY[i] = currentCharacter.Y;
-                            }
+                            GoToLevel();
                         }
 
-                        if (GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200)))
+                        if (GUI.tooltip != previousToolTip)
                         {
-                            if (currentCharacter != null)
+                            Rect lastRect = campaignNum.dropDownRect;
+                            lastRect.y += 20;
+                            lastRect.width += 300;
+
+                            GUI.Label(lastRect, GUI.tooltip);
+                            previousToolTip = GUI.tooltip;
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(25);
+
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Space(1);
+
+                        if (!campaignNum.show && !levelNum.show)
+                        {
+
+                            if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
                             {
-                                currentCharacter.X = settings.waypointsX[i];
-                                currentCharacter.Y = settings.waypointsY[i];
+                                ChangeLevel(-1);
+                            }
+
+                            Rect lastRect = GUILayoutUtility.GetLastRect();
+                            lastRect.y += 20;
+                            lastRect.width += 300;
+
+                            if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            {
+                                ChangeLevel(1);
+                            }
+
+                            if (GUI.tooltip != previousToolTip)
+                            {
+                                GUI.Label(lastRect, GUI.tooltip);
+                                previousToolTip = GUI.tooltip;
                             }
                         }
-
-                        GUILayout.Label("Saved position: " + settings.waypointsX[i] + ", " + settings.waypointsY[i]);
                     }
                     GUILayout.EndHorizontal();
                 }
-            } // End Teleport Options
-
+                GUILayout.EndVertical();
+            }
+            GUILayout.EndHorizontal();
         }
 
+        static void ShowCheatOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        {
+            GUILayout.BeginHorizontal();
+            {
+                if (settings.invulnerable != (settings.invulnerable = GUILayout.Toggle(settings.invulnerable, "Invincibility")))
+                {
+                    if (settings.invulnerable && currentCharacter != null)
+                    {
+                        currentCharacter.SetInvulnerable(float.MaxValue, false);
+                    }
+                    else if (currentCharacter != null)
+                    {
+                        currentCharacter.SetInvulnerable(0, false);
+                    }
+                }
+
+                GUILayout.Space(15);
+
+                if (settings.infiniteLives != (settings.infiniteLives = GUILayout.Toggle(settings.infiniteLives, "Infinite Lives")))
+                {
+                    if (currentCharacter != null)
+                    {
+                        if (settings.infiniteLives)
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                HeroController.SetLives(i, int.MaxValue);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                HeroController.SetLives(i, 1);
+                            }
+                        }
+                    }
+                }
+
+                GUILayout.Space(15);
+
+                settings.infiniteSpecials = GUILayout.Toggle(settings.infiniteSpecials, "Infinite Specials");
+
+                GUILayout.Space(15);
+
+                settings.disableGravity = GUILayout.Toggle(settings.disableGravity, "Disable Gravity");
+
+                GUILayout.Space(15);
+
+                settings.enableFlight = GUILayout.Toggle(settings.enableFlight, "Enable Flight");
+
+                GUILayout.Space(15);
+
+                settings.disableEnemySpawn = GUILayout.Toggle(settings.disableEnemySpawn, "Disable Enemy Spawns");
+
+                GUILayout.Space(10);
+
+                settings.oneHitEnemies = GUILayout.Toggle(settings.oneHitEnemies, new GUIContent("Instant Kill Enemies", "Sets all enemies to one health"));
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
+            {
+                if (currentCharacter != null)
+                {
+                    ProjectileController.SpawnGrenadeOverNetwork(ProjectileController.GetMechDropGrenadePrefab(), currentCharacter, currentCharacter.X + Mathf.Sign(currentCharacter.transform.localScale.x) * 8f, currentCharacter.Y + 8f, 0.001f, 0.011f, Mathf.Sign(currentCharacter.transform.localScale.x) * 200f, 150f, currentCharacter.playerNum);
+                }
+            }
+
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 300;
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(25);
+
+            GUILayout.BeginHorizontal(GUILayout.Width(400));
+
+            GUILayout.Label("Time Slow Factor: " + settings.timeSlowFactor);
+
+            if (settings.timeSlowFactor != (settings.timeSlowFactor = GUILayout.HorizontalSlider(settings.timeSlowFactor, 0, 5, GUILayout.Width(200))))
+            {
+                Main.StartTimeSlow();
+            }
+
+            GUILayout.EndHorizontal();
+
+            if (settings.slowTime != (settings.slowTime = GUILayout.Toggle(settings.slowTime, "Slow Time")))
+            {
+                if (settings.slowTime)
+                {
+                    StartTimeSlow();
+                }
+                else
+                {
+                    StopTimeSlow();
+                }
+            }
+
+            GUILayout.Space(25);
+
+            GUILayout.BeginHorizontal(GUILayout.Width(500));
+
+            GUILayout.Label("Scene to Load: ");
+
+            settings.sceneToLoad = GUILayout.TextField(settings.sceneToLoad, GUILayout.Width(200));
+
+            GUILayout.EndHorizontal();
+
+            settings.quickLoadScene = GUILayout.Toggle(settings.quickLoadScene, "Immediately load chosen scene", GUILayout.Width(200));
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Load Current Scene", GUILayout.Width(200)))
+            {
+                if (!Main.settings.cameraShake)
+                {
+                    PlayerOptions.Instance.cameraShakeAmount = 0f;
+                }
+
+                Utility.SceneLoader.LoadScene(settings.sceneToLoad);
+            }
+
+            if (GUILayout.Button("Get Current Scene", GUILayout.Width(200)))
+            {
+                for (int i = 0; i < SceneManager.sceneCount; ++i)
+                {
+                    Main.Log("Scene Name: " + SceneManager.GetSceneAt(i).name);
+                }
+            }
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(25);
+        }
+
+        static void ShowTeleportOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        {
+            GUILayout.BeginHorizontal();
+            {
+                if (currentCharacter != null)
+                {
+                    GUILayout.Label("Position: " + currentCharacter.X.ToString("0.00") + ", " + currentCharacter.Y.ToString("0.00"));
+                }
+                else
+                {
+                    GUILayout.Label("Position: ");
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal();
+            {
+                GUILayout.Label("X", GUILayout.Width(10));
+                teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
+                GUILayout.Space(20);
+                GUILayout.Label("Y", GUILayout.Width(10));
+                GUILayout.Space(10);
+                teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
+
+                if (GUILayout.Button("Teleport", GUILayout.Width(100)))
+                {
+                    float x, y;
+                    if (float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            currentCharacter.X = x;
+                            currentCharacter.Y = y;
+                        }
+                    }
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal(GUILayout.Width(400));
+
+            settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click");
+
+            GUILayout.Space(10);
+
+            settings.changeSpawn = GUILayout.Toggle(settings.changeSpawn, "Spawn at Custom Waypoint");
+
+            GUILayout.Space(10);
+
+            settings.changeSpawnFinal = GUILayout.Toggle(settings.changeSpawnFinal, "Spawn at Final Checkpoint");
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+            {
+                if (GUILayout.Button("Save Position for Custom Spawn", GUILayout.Width(250)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        settings.SpawnPositionX = currentCharacter.X;
+                        settings.SpawnPositionY = currentCharacter.Y;
+                    }
+                }
+
+                if (GUILayout.Button("Teleport to Custom Spawn Position", GUILayout.Width(300)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        currentCharacter.X = settings.SpawnPositionX;
+                        currentCharacter.Y = settings.SpawnPositionY;
+                    }
+                }
+
+                GUILayout.Label("Saved position: " + settings.SpawnPositionX + ", " + settings.SpawnPositionY);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal();
+            {
+                if (GUILayout.Button("Teleport to Current Checkpoint ", GUILayout.Width(250)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        Vector3 checkPoint = HeroController.GetCheckPointPosition(0, Map.IsCheckPointAnAirdrop(HeroController.GetCurrentCheckPointID()));
+                        currentCharacter.X = checkPoint.x;
+                        currentCharacter.Y = checkPoint.y;
+                    }
+                }
+
+                if (GUILayout.Button("Teleport to Final Checkpoint", GUILayout.Width(200)))
+                {
+                    if (currentCharacter != null)
+                    {
+                        Vector3 checkPoint = GetFinalCheckpointPos();
+                        currentCharacter.X = checkPoint.x;
+                        currentCharacter.Y = checkPoint.y;
+                    }
+                }
+            }
+            GUILayout.EndHorizontal();
+
+            for (int i = 0; i < settings.waypointsX.Length; ++i)
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            settings.waypointsX[i] = currentCharacter.X;
+                            settings.waypointsY[i] = currentCharacter.Y;
+                        }
+                    }
+
+                    if (GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200)))
+                    {
+                        if (currentCharacter != null)
+                        {
+                            currentCharacter.X = settings.waypointsX[i];
+                            currentCharacter.Y = settings.waypointsY[i];
+                        }
+                    }
+
+                    GUILayout.Label("Saved position: " + settings.waypointsX[i] + ", " + settings.waypointsY[i]);
+                }
+                GUILayout.EndHorizontal();
+            }
+        }
+
+#if DEBUG
+        static Dropdown unitDropdown;
+
+        #region DEBUG
+        public static string[] unitList = new string[]
+        {
+            // Normal
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook",
+            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            // Aliens
+            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
+            // Hell
+            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher",
+            "SandWorm", "Boneworm", "Boneworm Behind", "Alien Worm", "Alien Facehugger Worm", "Alien Facehugger Worm Behind",
+            "Satan", "CR666",
+            "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm",
+            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck"
+        };
+
+        static void ShowDebugOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        {
+            GUILayout.BeginHorizontal();
+
+            settings.printAudioPlayed = GUILayout.Toggle(settings.printAudioPlayed, "Print Audio Played");
+
+            GUILayout.EndHorizontal();
+
+
+            GUILayout.Space(20);
+
+
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((unitDropdown.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
+            unitDropdown.OnGUI(modEntry);
+            Main.settings.selectedEnemy = unitDropdown.indexNumber;
+
+            if ( settings.spawnEnemyOnRightClick != (settings.spawnEnemyOnRightClick = GUILayout.Toggle(settings.spawnEnemyOnRightClick, "Spawn Enemy On Right Click") ) )
+            {
+                if ( settings.spawnEnemyOnRightClick )
+                {
+                    settings.teleportToMouseCursor = false;
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        static void SpawnUnit(int unit, Vector3 vector)
+        {
+            TestVanDammeAnim original = null;
+            GameObject __result = null;
+
+            switch (unit)
+            {
+                // Mooks
+                case 0:
+                    original = Map.Instance.activeTheme.mook;
+                    break;
+                case 1:
+                    original = Map.Instance.activeTheme.mookSuicide;
+                    break;
+                case 2:
+                    original = Map.Instance.activeTheme.mookBigGuy;
+                    break;
+                case 3:
+                    original = Map.Instance.activeTheme.mookSuicideBigGuy;
+                    break;
+                case 4:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookBigGuyStrong, vector, Quaternion.identity).gameObject;
+                    break;
+                case 5:
+                    original = Map.Instance.activeTheme.mookBigGuyElite;
+                    break;
+                case 6:
+                    original = Map.Instance.activeTheme.mookScout;
+                    break;
+                case 7:
+                    original = Map.Instance.activeTheme.mookRiotShield;
+                    break;
+                case 8:
+                    original = Map.Instance.activeTheme.mookArmoured;
+                    break;
+                case 9:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mechBrown, vector, Quaternion.identity).gameObject;
+                    break;
+                case 10:
+                    original = Map.Instance.sharedObjectsReference.Asset.mookJetpack;
+                    break;
+                case 11:
+                    original = Map.Instance.activeTheme.mookGrenadier;
+                    break;
+                case 12:
+                    original = Map.Instance.activeTheme.mookBazooka;
+                    break;
+                case 13:
+                    original = Map.Instance.activeTheme.mookJetpackBazooka;
+                    break;
+                case 14:
+                    original = Map.Instance.activeTheme.mookNinja;
+                    break;
+                case 15:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.treasureMook, vector, Quaternion.identity).gameObject;
+                    break;
+                case 16:
+                    original = Map.Instance.activeTheme.mookDog;
+                    break;
+                case 17:
+                    original = Map.Instance.activeTheme.skinnedMook;
+                    break;
+                case 18:
+                    original = Map.Instance.activeTheme.mookGeneral;
+                    break;
+                case 19:
+                    original = Map.Instance.activeTheme.mookAlarmist;
+                    break;
+                case 20:
+                    original = Map.Instance.activeTheme.mookStrong;
+                    break;
+                case 21:
+                    original = Map.Instance.activeTheme.mookScientist;
+                    break;
+                case 22:
+                    original = Map.Instance.activeTheme.snake;
+                    break;
+                // Satan
+                case 23:
+                    original = Map.Instance.activeTheme.satan;
+                    break;
+                // Aliens
+                case 24:
+                    original = Map.Instance.activeTheme.alienFaceHugger;
+                    break;
+                case 25:
+                    original = Map.Instance.activeTheme.alienXenomorph;
+                    break;
+                case 26:
+                    original = Map.Instance.activeTheme.alienBrute;
+                    break;
+                case 27:
+                    original = Map.Instance.activeTheme.alienBaneling;
+                    break;
+                case 28:
+                    original = Map.Instance.activeTheme.alienMosquito;
+                    break;
+                case 29:
+                    original = Map.Instance.activeTheme.mookXenomorphBrainbox;
+                    break;
+                // HellDog
+                case 30:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                    break;
+                // ZMookUndead
+                case 31:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
+                    break;
+                // ZMookUndeadStartDead
+                case 32:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
+                    break;
+                // ZMookWarlock
+                case 33:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
+                    break;
+                // ZMookHellBoomer
+                case 34:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
+                    break;
+                // ZMookUndeadSuicide
+                case 35:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
+                    break;
+                // ZHellBigGuy
+                case 36:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
+                    break;
+                // Lost Soul
+                case 37:
+                    vector.y += 5;
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
+                    break;
+                // ZMookHellSoulCatcher
+                case 38:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
+                    break;
+                // Sandworm
+                case 39:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[7], vector, Quaternion.identity);
+                    break;
+                // Boneworm
+                case 40:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[12], vector, Quaternion.identity);
+                    break;
+                // Boneworm Behind
+                case 41:
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[13], vector, Quaternion.identity);
+                    break;
+                // Alien Worm
+                case 42:
+                    __result = (UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.alienMinibossSandWorm, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
+                    break;
+                // Alien Facehugger Worm
+                case 43:
+                    __result = (UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.alienSandWormFacehuggerSpitter, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
+                    break;
+                // Alien Facehugger Worm Behind
+                case 44:
+                    __result = (UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.alienSandWormFacehuggerSpitterBehind, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
+                    break;
+                case 45:
+                    SatanMiniboss satanMiniboss = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.satanMiniboss, vector, Quaternion.identity) as SatanMiniboss;
+                    if (satanMiniboss != null)
+                    {
+                        __result = satanMiniboss.gameObject;
+                    }
+                    break;
+                case 46:
+                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.mookDolfLundgren, vector, Quaternion.identity).gameObject;
+                    break;
+                case 47:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookMammothTank, vector, Quaternion.identity).gameObject;
+                    break;
+                case 48:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookKopterMiniBoss, vector, Quaternion.identity).gameObject;
+                    break;
+                case 49:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.goliathMech, vector, Quaternion.identity).gameObject;
+                    break;
+                // Large Alien Worm
+                case 50:
+                    __result = (UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.alienGiantSandWormBoss, vector, Quaternion.identity) as AlienMinibossSandWorm).gameObject;
+                    break;
+                case 51:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookTankMookLauncher, vector, Quaternion.identity).gameObject;
+                    break;
+                case 52:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookTankCannon, vector, Quaternion.identity).gameObject;
+                    break;
+                case 53:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookTankRockets, vector, Quaternion.identity).gameObject;
+                    break;
+                case 54:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookArtilleryTruck, vector, Quaternion.identity).gameObject;
+                    break;
+                case 55:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookBlimp, vector, Quaternion.identity).gameObject;
+                    break;
+                case 56:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookDrillCarrier, vector, Quaternion.identity).gameObject;
+                    break;
+                case 57:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.mookTruck, vector, Quaternion.identity).gameObject;
+                    break;
+                case 58:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.activeTheme.sandbag, vector, Quaternion.identity).gameObject;
+                    break;
+                case 59:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookMotorBike, vector, Quaternion.identity).gameObject;
+                    break;
+                case 60:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookMotorBikeNuclear, vector, Quaternion.identity).gameObject;
+                    break;
+                case 61:
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookDumpTruck, vector, Quaternion.identity).gameObject;
+                    break;
+            }
+
+            if (original != null)
+            {
+                __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
+            }
+        }
+        #endregion
+#endif
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
         {
             settings.Save(modEntry);
@@ -680,7 +982,25 @@ namespace Utility_Mod
                 catch (Exception ex)
                 {}
             }
-            
+
+#if DEBUG
+            if ( settings.spawnEnemyOnRightClick )
+            {
+                try
+                {
+                    if (Input.GetMouseButtonUp(1))
+                    {
+                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
+                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
+
+                        SpawnUnit(settings.selectedEnemy, newPos);
+                    }
+                }
+                catch (Exception ex)
+                { }
+            }
+#endif
+
             if ( settings.enableFlight )
             {
                 try
@@ -1378,6 +1698,22 @@ namespace Utility_Mod
         }
     }
 
+#if DEBUG
+    [HarmonyPatch(typeof(Sound), "PlayAudioClip")]
+    static class Sound_PlayAudioClip_Patch
+    {
+        public static void Prefix(ref AudioClip clip)
+        {
+            if (!Main.enabled || !Main.settings.printAudioPlayed)
+            {
+                return;
+            }
+
+            Main.Log("Audio clip played: " + clip.name);
+        }
+    }
+#endif
+
     public class Settings : UnityModManager.ModSettings
     {
         public bool cameraShake = false;
@@ -1417,6 +1753,14 @@ namespace Utility_Mod
         public bool showCheatOptions = false;
         public bool showTeleportOptions = false;
 
+#if DEBUG
+        // DEBUG Options
+        public bool spawnEnemyOnRightClick = false;
+        public int selectedEnemy = 0;
+        public bool printAudioPlayed = false;
+        public bool showDebugOptions = false;
+#endif
+
         public override void Save(UnityModManager.ModEntry modEntry)
         {
             Save(this, modEntry);
@@ -1445,9 +1789,6 @@ namespace Utility_Mod
 
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
-
-
-            //if (GUI.Button(new Rect((dropDownRect.x - 100), dropDownRect.y, dropDownRect.width, 25), ""))
             if (GUILayout.Button("", GUILayout.Width(dropDownRect.width)))
             {
                 if (!show)
@@ -1462,8 +1803,6 @@ namespace Utility_Mod
             Rect lastRect = GUILayoutUtility.GetLastRect();
             dropDownRect.x = lastRect.x;  // + lastRect.width + offsetX;
             dropDownRect.y = lastRect.y;
-            //Main.mod.Logger.Log(lastRect.width + " last rect " + list[0]);
-            //Main.mod.Logger.Log(dropDownRect.width + " dropdown width");
 
 
             if (show)
@@ -1489,8 +1828,6 @@ namespace Utility_Mod
             }
             else
             {
-                
-                //GUI.Label(new Rect((dropDownRect.x - 95), dropDownRect.y, 300, 25), list[indexNumber]);
                 GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), list[indexNumber]);
             }
 
