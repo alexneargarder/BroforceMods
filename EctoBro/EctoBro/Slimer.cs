@@ -15,14 +15,14 @@ namespace EctoBro
 		public SpriteSM storedSprite;
 		BloodColor bloodColor = BloodColor.Green;
 		public static int overrideBloodColor = 0;
-		public static AudioClip[] freezeSounds;
 		public List<Unit> frozenUnits = new List<Unit>();
 		protected const float frameRate = 0.1f;
 		protected int frame = 0;
 		protected float counter = 0f;
 		protected float startingY;
 		protected float startingX;
-		public static AudioClip[] slimerGroans;
+		public AudioClip[] freezeSounds;
+		public AudioClip[] slimerGroans;
 		protected AudioSource slimerAudio;
 
 		protected override void Awake()
@@ -52,27 +52,21 @@ namespace EctoBro
 			storedSprite = sprite;
 
 			// Load sounds
-			if (freezeSounds == null)
-			{
-				freezeSounds = new AudioClip[7];
-				freezeSounds[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze1.wav");
-				freezeSounds[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze2.wav");
-				freezeSounds[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze3.wav");
-				freezeSounds[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze4.wav");
-				freezeSounds[4] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze5.wav");
-				freezeSounds[5] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze6.wav");
-				freezeSounds[6] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze7.wav");
-				freezeSounds[7] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "freeze8.wav");
-			}
+			freezeSounds = new AudioClip[8];
+			freezeSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze1.wav");
+			freezeSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze2.wav");
+			freezeSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze3.wav");
+			freezeSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze4.wav");
+			freezeSounds[4] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze5.wav");
+			freezeSounds[5] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze6.wav");
+			freezeSounds[6] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze7.wav");
+			freezeSounds[7] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze8.wav");
 
-			if ( slimerGroans == null )
-            {
-				slimerGroans = new AudioClip[4];
-				slimerGroans[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer1.wav");
-				slimerGroans[1] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer2.wav");
-				slimerGroans[2] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer3.wav");
-				slimerGroans[3] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "slimer4.wav");
-			}
+			slimerGroans = new AudioClip[4];
+			slimerGroans[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer1.wav");
+			slimerGroans[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer2.wav");
+			slimerGroans[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer3.wav");
+			slimerGroans[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer4.wav");
 
 			base.Awake();
 
