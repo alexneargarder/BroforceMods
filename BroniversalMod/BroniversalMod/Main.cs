@@ -15,7 +15,7 @@ namespace BroniversalMod
         public static UnityModManager.ModEntry mod;
         public static bool enabled;
 
-        public static Material normalMat, metalMat, metalAvatarMat;
+        public static Material normalMat, metalMat, metalAvatarMat, normalGunMat, metalGunMat;
         public static float[] brominatorTime = new float[] { 0f, 0f, 0f, 0f };
         public static bool[] brominatorMode = new bool[] { false, false, false, false };
 
@@ -36,6 +36,10 @@ namespace BroniversalMod
                     string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
                     metalMat = CreateMaterial(Path.Combine(directoryPath, "metalSprite.png"), Shader.Find("Unlit/Depth Cutout With ColouredImage"));
+
+                    metalAvatarMat = CreateMaterial(Path.Combine(directoryPath, "metalAvatar.png"), Shader.Find("Unlit/Depth Cutout With ColouredImage"));
+
+                    metalGunMat = CreateMaterial(Path.Combine(directoryPath, "metalGunsprite.png"), Shader.Find("Unlit/Depth Cutout With ColouredImage"));
                 }
             }
             catch ( Exception ex )
@@ -92,7 +96,7 @@ namespace BroniversalMod
             tex.filterMode = FilterMode.Point;
             tex.anisoLevel = 1;
             tex.mipMapBias = 0;
-            tex.wrapMode = TextureWrapMode.Repeat;
+            tex.wrapMode = TextureWrapMode.Clamp;
             return tex;
         }
     }
@@ -134,7 +138,11 @@ namespace BroniversalMod
                     Main.brominatorMode[playerNum] = false;
                     Main.brominatorTime[playerNum] = 0f;
                     if ( !__instance.invulnerable )
+                    {
                         Main.normalMat.SetColor("_TintColor", Color.gray);
+                        Main.normalGunMat.SetColor("_TintColor", Color.gray);
+                    }
+                        
                     __instance.GetComponent<Renderer>().material = Main.normalMat;
                     HeroController.SetAvatarMaterial(playerNum, HeroController.GetAvatarMaterial(HeroType.BroniversalSoldier));
                 }
@@ -143,13 +151,14 @@ namespace BroniversalMod
                     Main.brominatorMode[playerNum] = true;
                     Main.brominatorTime[playerNum] = 5.5f;
                     Main.normalMat = __instance.GetComponent<Renderer>().material;
+                    Main.normalGunMat = __instance.gunSprite.meshRender.material;
                     if ( !__instance.invulnerable )
-                        Main.metalMat.SetColor("_TintColor", Color.gray);
-                    __instance.GetComponent<Renderer>().material = Main.metalMat;
-                    if ( Main.metalAvatarMat == null )
                     {
-                        Main.metalAvatarMat = (HeroController.GetHeroPrefab(HeroType.Brominator) as Brominator).brominatorRobotAvatar;
+                        Main.metalMat.SetColor("_TintColor", Color.gray);
+                        Main.metalGunMat.SetColor("_TintColor", Color.gray);
                     }
+                    __instance.GetComponent<Renderer>().material = Main.metalMat;
+                    __instance.gunSprite.meshRender.material = Main.metalGunMat;
                     HeroController.SetAvatarMaterial(playerNum, Main.metalAvatarMat);
                 }
             }
@@ -175,8 +184,12 @@ namespace BroniversalMod
                 {
                     Main.brominatorMode[playerNum] = false;
                     if (!__instance.invulnerable)
+                    {
                         Main.normalMat.SetColor("_TintColor", Color.gray);
+                        Main.normalGunMat.SetColor("_TintColor", Color.gray);
+                    }
                     __instance.GetComponent<Renderer>().material = Main.normalMat;
+                    __instance.gunSprite.meshRender.material = Main.normalGunMat;
                     HeroController.SetAvatarMaterial(playerNum, HeroController.GetAvatarMaterial(HeroType.BroniversalSoldier));
                 }
             }
