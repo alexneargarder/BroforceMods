@@ -50,17 +50,6 @@ namespace Randomizer_Mod
         public static bool enabled;
         public static Settings settings;
 
-
-/*        public static string[] mookTypes = new string[] { "ZMook", "ZMookSuicide", "ZMookBigGuy",  "ZHellBigGuy", "ZHellDog", "ZMook Grenadier", "ZMookBazooka",
-            "ZMookDog", "ZMookGeneral", "ZMookHellBoomer", "ZMookHellSoulCatcher", "ZMookJetpack", "ZMookNinja", "ZMookRiotShield",
-        "ZMookScout", "ZMookSkinless", "ZMookUndead", "ZMookUndeadStartDead", "ZMookUndeadSuicide", "ZMookWarlock", "ZSatan", "ZHellLostSoul", "ZMookArmouredGuy"};
-
-        public static string[] alienTypes = new string[] { "ZAlienBrute", "ZAlienFaceHugger",
-        "ZAlienMelter", "ZAlienMosquito", "ZAlienXenomorph", "ZAlienXenomorphBrainBox" };
-
-        public static string[] mookBossTypes = new string[] { "DolfLundgrenSoldier", "SatanMinibossStage1" };*/
-
-
         // Don't spawn at all
         //public static string[] mookTypesNotWorking = new string[] { "Pig Rotten", "Pig", "Seagull", "WarlockPortal Suicide", "WarlockPortal", "WarlockPortalLarge",
         //    "ZConradBroneBanks", "ZHellDogEgg" };
