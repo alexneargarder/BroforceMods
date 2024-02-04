@@ -26,9 +26,9 @@ namespace EctoBro
 		protected float counter = 0f;
 		protected const float trapWidth = 224f;
 		protected const float trapHeight = 128f;
-		protected float trapFramerate = 0.4f;
-		protected const int lastOpeningFrame = 2;
-		protected const int lastFrame = 12;
+		protected float trapFramerate = 0.3f;
+		protected const int lastOpeningFrame = 4;
+		protected const int lastFrame = 14;
 
 		// State
 		public enum TrapState
@@ -54,9 +54,6 @@ namespace EctoBro
 		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
 		public List<Unit> ignoredUnits = new List<Unit>();
 		public int killedUnits = 0;
-
-		// DEBUG
-		LineRenderer line1, line2, line3;
 
 		protected override void Awake()
 		{
@@ -100,9 +97,9 @@ namespace EctoBro
 					{
 						this.trapAudio = base.gameObject.AddComponent<AudioSource>();
 						this.trapAudio.rolloffMode = AudioRolloffMode.Linear;
-						this.trapAudio.minDistance = 600f;
+						this.trapAudio.minDistance = 500f;
 						this.trapAudio.dopplerLevel = 0.1f;
-						this.trapAudio.maxDistance = 1000f;
+						this.trapAudio.maxDistance = 2000f;
 						this.trapAudio.spatialBlend = 1f;
 						this.trapAudio.volume = 0.33f;
 					}
@@ -117,19 +114,6 @@ namespace EctoBro
 				trapMain = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapMain.wav" );
 				trapClosing = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapClosing.wav" );
 				trapClosed = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapClosed.wav" );
-
-				// DEBUG
-				line1 = new GameObject("Line1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
-				line1.transform.parent = this.transform;
-				line1.material = ResourcesController.GetMaterial(directoryPath, "protonLine1End.png");
-
-				line2 = new GameObject("Line1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
-				line2.transform.parent = this.transform;
-				line2.material = ResourcesController.GetMaterial(directoryPath, "protonLine1End.png");
-
-				line3 = new GameObject("Line1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
-				line3.transform.parent = this.transform;
-				line3.material = ResourcesController.GetMaterial(directoryPath, "protonLine1End.png");
 			}
 			catch ( Exception ex )
             {
@@ -221,8 +205,6 @@ namespace EctoBro
 						}
 						
 
-						//BMLogger.Log("remaining time: " + (trapAudio.clip.length - trapAudio.time));
-
 						// Play next clip
 						if ((this.trapAudio.clip.length - this.trapAudio.time) <= 0.02f)
 						{
@@ -289,7 +271,7 @@ namespace EctoBro
 							this.shutdownTime = trapClosed.length + 0.1f;
 						}
 
-						if (this.runTime > 16.5f)
+						if (this.runTime > 16f)
 						{
 							this.CloseTrap();
 						}
@@ -333,29 +315,6 @@ namespace EctoBro
 					break;					
 			}
 
-
-			if (EctoBro.debugLines)
-			{
-				this.line1.enabled = true;
-				this.line2.enabled = true;
-				this.line3.enabled = true;
-
-
-				this.line1.SetPosition(0, new Vector3(bottomX, bottomY));
-				this.line1.SetPosition(1, new Vector3(topRightX, topRightY));
-
-				this.line2.SetPosition(0, new Vector3(topRightX, topRightY));
-				this.line2.SetPosition(1, new Vector3(topLeftX, topLeftY));
-
-				this.line3.SetPosition(0, new Vector3(topLeftX, topLeftY));
-				this.line3.SetPosition(1, new Vector3(bottomX, bottomY));
-			}
-			else
-			{
-				this.line1.enabled = false;
-				this.line2.enabled = false;
-				this.line3.enabled = false;
-			}
 			return true;
 		}
 
@@ -371,6 +330,10 @@ namespace EctoBro
 			if ( this.state == TrapState.Thrown || this.state == TrapState.Closed )
             {
 				base.RunMovement();
+				if ( this.Y < 0 )
+                {
+					this.DestroyGrenade();
+                }
 			}
         }
 
@@ -432,16 +395,6 @@ namespace EctoBro
 			topFloatingY = base.Y + 110f;
 			leftFloatingX = base.X - 90f;
 			rightFloatingX = base.X + 90f;
-
-			// DEBUG
-			this.line1.enabled = true;
-			this.line1.startWidth = 3f;
-
-			this.line2.enabled = true;
-			this.line2.startWidth = 3f;
-
-			this.line3.enabled = true;
-			this.line3.startWidth = 3f;
 		}
 
 		public void StartClosingTrap()
