@@ -89,7 +89,7 @@ namespace EctoBro
 					this.slimerAudio.maxDistance = 2000f;
 					this.slimerAudio.dopplerLevel = 0.1f;
 					this.slimerAudio.spatialBlend = 1f;
-					this.slimerAudio.volume = 0.4f;
+					this.slimerAudio.volume = 0.6f;
 				}
 				else
 				{

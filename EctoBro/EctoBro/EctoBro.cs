@@ -26,10 +26,6 @@ namespace EctoBro
         protected const int protonWallDamage = 1;
         protected float currentOffset = 0f;
         protected float currentOffset2 = 0f;
-        protected float targetSway = 0f;
-        protected float curSway = 0f;
-        protected float swaySpeed = 5f;
-        protected float swaySpeedCurrent = 0.5f;
         protected float sparkCooldown = 0;
         protected float muzzleFlashCooldown = 0f;
         protected int protonLine2Frame = 0;
@@ -37,7 +33,6 @@ namespace EctoBro
         protected float protonDamageCooldown = 0f;
         protected float fireKnockbackCooldown = 0f;
         protected float effectCooldown = 0f;
-        protected float pushBackForceM = 1f;
         public static System.Random rnd = new System.Random();
         protected LayerMask fragileGroundLayer;
         public AudioClip protonStartup;
@@ -48,12 +43,16 @@ namespace EctoBro
         protected bool playedBeamStartup = false;
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
+        public static int ectobroCount = 0;
+        public List<EctoBro> currentBros;
+        public int currentBrosCount;
+        public int acknowledgedCount = 0;
 
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
 
         // Melee
-        protected int SlimerTraps = 5;
+        protected int SlimerTraps = 0;
         protected bool usingSlimerMelee = false;
         protected bool playedSlimerAudio = false;
         protected bool alreadySpawnedSlimer = false;
@@ -62,27 +61,11 @@ namespace EctoBro
         protected bool throwingMook = false;
         protected AudioClip[] slimerTrapElectricity;
         protected AudioClip slimerTrapOpen;
+        protected AudioSource slimerPortalSource;
 
         // Misc
         public static bool patched = false;
         protected bool acceptedDeath = false;
-
-        // DEBUG
-        public static bool debugLines = false;
-        
-
-        // DEBUG
-        public static void checkAttached(GameObject gameObject)
-        {
-            BMLogger.Log("\n\n");
-            Component[] allComponents;
-            allComponents = gameObject.GetComponents(typeof(Component));
-            foreach (Component comp in allComponents)
-            {
-                BMLogger.Log("attached: " + comp.name + " also " + comp.GetType());
-            }
-            BMLogger.Log("\n\n");
-        }
 
         protected override void Awake()
         {
@@ -170,6 +153,46 @@ namespace EctoBro
             slimerTrapOpen = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapOpen.wav");
         }
 
+        protected void FindOtherBros()
+        {
+            try
+            {
+                this.currentBros = new List<EctoBro>();
+                for (int i = 0; i < 4; ++i)
+                {
+                    if (HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && 
+                        HeroController.players[i].character is EctoBro && HeroController.players[i].character != this )
+                    {
+                        this.currentBros.Add(HeroController.players[i].character as EctoBro);
+                    }
+                }
+                this.currentBrosCount = currentBros.Count + 1;
+                this.acknowledgedCount = ectobroCount;
+                BMLogger.Log( this.playerNum + " found bros: " + this.currentBrosCount);
+            }
+            catch ( Exception ex )
+            {
+            }
+        }
+
+        protected override void Start()
+        {
+            base.Start();
+            int recount = 0;
+            for ( int i = 0; i < 4; ++i )
+            {
+                if ( HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character is EctoBro )
+                {
+                    ++recount;
+                }
+            }
+            ++ectobroCount;
+            if ( ectobroCount > 1 )
+            {
+                FindOtherBros();
+            }
+        }
+
         protected override void Update()
         {
             base.Update();
@@ -193,11 +216,19 @@ namespace EctoBro
                 this.protonAudio.enabled = false;
             }
 
+            // EctoBro spawned or died and changed count
+            if (ectobroCount != acknowledgedCount)
+            {
+                BMLogger.Log(this.playerNum + " recounting");
+                FindOtherBros();
+            }
+
             // Handle death
             if (base.actionState == ActionState.Dead && !this.acceptedDeath)
             {
                 this.StopProtonGun();
                 this.protonAudio.enabled = false;
+                ++ectobroCount;
                 if (!this.WillReviveAlready )
                 {
                     this.acceptedDeath = true;
@@ -205,23 +236,8 @@ namespace EctoBro
             }
         }
 
-        public void makeTextBox(string label, ref string text, ref float val)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(label);
-            text = GUILayout.TextField(text);
-            GUILayout.EndHorizontal();
-
-            float temp;
-            if (float.TryParse(text, out temp))
-            {
-                val = temp;
-            }
-        }
-
         public override void UIOptions()
         {
-            debugLines = GUILayout.Toggle(debugLines, "debug lines");
         }
 
         // Proton Gun methods
@@ -276,23 +292,10 @@ namespace EctoBro
                     {
                         SetGestureAnimation(GestureElement.Gestures.None);
                     }
-
-                    /*                if ( this.fireKnockbackCooldown <= 0 )
-                                    {
-                                        this.xIBlast -= base.transform.localScale.x * 3f * this.pushBackForceM;
-                                        if (base.Y > this.groundHeight)
-                                        {
-                                            this.yI += Mathf.Clamp(3f * this.pushBackForceM, 3f, 6f);
-                                        }
-
-                                        this.pushBackForceM = Mathf.Clamp(this.pushBackForceM + this.t * 6f, 1f, 6f);
-                                        this.fireKnockbackCooldown = 0.015f;
-                                    }*/
                 }
             }
             else
             {
-                this.pushBackForceM = 1f;
                 if ( this.shutdownTime > 0f )
                 {
                     this.shutdownTime -= this.t;
@@ -306,6 +309,10 @@ namespace EctoBro
 
         protected override void AddSpeedLeft()
         {
+            if ( this.usingSlimerMelee )
+            {
+                return;
+            }
             base.AddSpeedLeft();
             if (this.xIBlast > this.speed * 1.6f)
             {
@@ -315,6 +322,10 @@ namespace EctoBro
 
         protected override void AddSpeedRight()
         {
+            if ( this.usingSlimerMelee )
+            {
+                return;
+            }
             base.AddSpeedRight();
             if (this.xIBlast < this.speed * -1.6f)
             {
@@ -369,8 +380,6 @@ namespace EctoBro
         {
             this.currentOffset = 0;
             this.currentOffset2 = 0;
-            this.curSway = 0;
-            this.targetSway = UnityEngine.Random.Range(0, 10);
             this.protonLine2Frame = 0;
             this.protonLine2FrameCounter = 0f;
             this.protonDamageCooldown = 0f;
@@ -437,31 +446,6 @@ namespace EctoBro
 
             // Check if hit point is too close to have both segments of proton line 1
             float DistanceToEnd = Vector3.Distance(hitDetectionStart, endPoint);
-
-            //endPoint.y += curSway;
-
-            // Calculate sway of proton beams
-/*            swaySpeedCurrent = Mathf.Lerp(swaySpeedCurrent, swaySpeed, swaySpeedLerpM * this.t);
-            if ( curSway > targetSway )
-            {
-                curSway -= this.t * swaySpeedCurrent;
-                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
-                if ( curSway - 0.1 <= targetSway )
-                {
-                    targetSway = UnityEngine.Random.Range(0, 7);
-                    swaySpeedCurrent = 1f;
-                }
-            }
-            else
-            {
-                curSway += this.t * swaySpeedCurrent;
-                //curSway = Mathf.Lerp(curSway, targetSway, swaySpeedCurrent * this.t);
-                if (curSway + 0.1 >= targetSway)
-                {
-                    targetSway = UnityEngine.Random.Range(0, 7);
-                    swaySpeedCurrent = 1f;
-                }
-            }*/
 
             // Update proton line 2 material
             this.protonLine2.material = this.protonLine2Mats[protonLine2Frame];
@@ -595,6 +579,7 @@ namespace EctoBro
         {
             RaycastHit groundHit = this.raycastHit;
             bool haveHitGround = false;
+            bool haveCrossedStreams = false;
             float currentRange = protonLineRange;
 
             // Hit ground
@@ -604,6 +589,26 @@ namespace EctoBro
                 // Shorten the range we check for raycast hits, we don't care about hitting anything past the current terrain.
                 currentRange = this.raycastHit.distance;
                 haveHitGround = true;
+            }
+
+            // Check for streams crossing
+            if ( currentBrosCount > 1 )
+            {
+                for ( int i = 0; i < currentBros.Count; ++i )
+                {
+                    // Check both are firing and are around the same y level
+                    if ( currentBros[i].fire && currentBros[i].playedBeamStartup && Tools.FastAbsWithinRange(base.Y - currentBros[i].Y, 10) )
+                    {
+                        float distance = base.X - currentBros[i].X;
+                        // Check they are firing towards each other
+                        if ( Tools.FastAbsWithinRange(distance, currentRange) && -1 * Mathf.Sign(distance) == base.transform.localScale.x && Mathf.Sign(distance) == currentBros[i].transform.localScale.x )
+                        {
+                            currentRange = Mathf.Abs(distance / 2.0f);
+                            haveCrossedStreams = true;
+                            haveHitGround = false;
+                        }
+                    }
+                }
             }
 
             Unit unit;
@@ -616,6 +621,13 @@ namespace EctoBro
             {
                 DamageCollider(groundHit);
                 endPoint = new Vector3(groundHit.point.x, groundHit.point.y, 0);
+            }
+            // Crossed streams with another EctoBro
+            else if ( haveCrossedStreams )
+            {
+                endPoint = new Vector3(startPoint.x + base.transform.localScale.x * currentRange, startPoint.y, 0);
+                // Create explosion
+                this.CreateExplosion(endPoint);
             }
             // Nothing hit
             else
@@ -681,6 +693,37 @@ namespace EctoBro
             }
             
             protonDamageCooldown = 0.05f;
+        }
+
+        protected void CreateExplosion(Vector3 position)
+        {
+            if ( this.effectCooldown > 0 )
+            {
+                return;
+            }
+            EffectsController.CreatePlumes(position.x, position.y, 5, 10f, 360f, 0f, 0f);
+            if (base.IsMine)
+            {
+                float explodeRange = 90f;
+                int explodeDamage = 30;
+                MapController.DamageGround(this, explodeDamage, DamageType.Explosion, explodeRange, position.x, position.y, null, false);
+                Map.ExplodeUnits(this, explodeDamage, DamageType.Explosion, explodeRange, explodeRange * 0.8f, position.x, position.y - 32f, 200f, 200f, base.playerNum, true, true, true);
+                MapController.BurnUnitsAround_NotNetworked(this, base.playerNum, 5, explodeRange * 1f, position.x, position.y, true, true);
+                Map.HitProjectiles(base.playerNum, explodeDamage, DamageType.Explosion, explodeRange, position.x, position.y, 0f, 0f, 0.25f);
+                Map.ShakeTrees(position.x, position.y, 320f, 64f, 160f);
+            }
+            SortOfFollow.Shake(1f);
+            EffectsController.CreateHugeExplosion(position.x, position.y, 20f, 20f, 80f, 1f, 32f, 0.7f, 0.9f, 8, 20, 110f, 160f, 0f, 0.9f);
+            this.effectCooldown = 0.3f;
+        }
+
+        protected override void OnDestroy()
+        {
+            if ( this.actionState != ActionState.Dead )
+            {
+                ++ectobroCount;
+            }
+            base.OnDestroy();
         }
         #endregion
 
@@ -762,6 +805,10 @@ namespace EctoBro
         // Sets up melee attack
         protected override void StartCustomMelee()
         {
+            if ( this.usingSlimerMelee )
+            {
+                return;
+            }
             if (this.CanStartNewMelee())
             {
                 this.alreadySpawnedSlimer = false;
@@ -784,7 +831,7 @@ namespace EctoBro
                 this.dashingMelee = true;
                 if ( !this.usingSlimerMelee )
                 {
-                    this.xI = (float)base.Direction * this.speed / 2.0f;
+                    this.xI = (float)base.Direction * this.speed;
                 }
             }
             this.StartMeleeCommon();
@@ -802,7 +849,7 @@ namespace EctoBro
                 this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(9 * this.spritePixelHeight));
                 if ( base.frame == 0 && !this.playedSlimerAudio )
                 {
-                    this.sound.PlaySoundEffectAt(this.slimerTrapOpen, 0.4f, base.transform.position, 1f, true, false, false, 0f);
+                    this.slimerPortalSource = this.sound.PlaySoundEffectAt(this.slimerTrapOpen, 0.4f, base.transform.position, 1f, true, false, true, 0f);
                     this.playedSlimerAudio = true;
                 }
                 else if (base.frame == 8 && !this.alreadySpawnedSlimer)
@@ -814,7 +861,6 @@ namespace EctoBro
                 {
                     base.frame = 0;
                     this.CancelMelee();
-                    this.usingSlimerMelee = false;
                 }
             }
             // Proton Bash
@@ -871,7 +917,10 @@ namespace EctoBro
             {
                 if (!this.jumpingMelee)
                 {
-                    this.xI *= 1f - this.t * 25f;
+                    if ( this.frame < 9 )
+                    {
+                        this.xI = Mathf.Lerp(this.xI, 0, this.t * 5);
+                    }
                 }
 
                 if (base.actionState == ActionState.Jumping)
@@ -917,6 +966,12 @@ namespace EctoBro
                     {
                         this.RunCheckHanging();
                     }
+                }
+
+                // Have to cancel slimer melee if interacting with walls because the animation gets glitched out with how long it takes
+                if ( this.chimneyFlip || this.wallClimbing || this.wallDragTime > 0f )
+                {
+                    this.CancelMelee();
                 }
             }
             else
@@ -969,6 +1024,27 @@ namespace EctoBro
                     this.CancelMelee();
                 }
             }
+        }
+
+        protected override void CancelMelee()
+        {
+            // Stop portal sound if melee was cancelled before slimer spawned
+            if (this.slimerPortalSource != null && !this.alreadySpawnedSlimer && this.usingSlimerMelee)
+            {
+                this.slimerPortalSource.Stop();
+            }
+            base.CancelMelee();
+            this.usingSlimerMelee = false;
+        }
+
+        protected override void AnimateWallAnticipation()
+        {
+            // Have to cancel slimer melee if interacting with walls because the animation gets glitched out with how long it takes
+            if ( this.usingSlimerMelee )
+            {
+                this.CancelMelee();
+            }
+            base.AnimateWallAnticipation();
         }
         #endregion
     }
