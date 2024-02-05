@@ -6,7 +6,7 @@ using UnityEngine;
 using HarmonyLib;
 using BroMakerLib.Loggers;
 
-namespace EctoBro
+namespace Brostbuster
 {
     class HarmonyPatches
     {
@@ -71,7 +71,7 @@ namespace EctoBro
             {
                 if (color == BloodColor.Green && Slimer.overrideBloodColor > 0 )
                 {
-                    __result = EctoBro.SlimerColor;
+                    __result = Brostbuster.SlimerColor;
                 }
             }
         }

@@ -8,10 +8,10 @@ using System.Reflection;
 using UnityEngine;
 using HarmonyLib;
 
-namespace EctoBro
+namespace Brostbuster
 {
-    [HeroPreset("EctoBro", HeroType.Rambro)]
-    public class EctoBro : CustomHero
+    [HeroPreset("Brostbuster", HeroType.Rambro)]
+    public class Brostbuster : CustomHero
     {
         // Proton beam
         LineRenderer protonLine1;
@@ -43,8 +43,8 @@ namespace EctoBro
         protected bool playedBeamStartup = false;
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
-        public static int ectobroCount = 0;
-        public List<EctoBro> currentBros;
+        public static int BrostbusterCount = 0;
+        public List<Brostbuster> currentBros;
         public int currentBrosCount;
         public int acknowledgedCount = 0;
 
@@ -59,7 +59,6 @@ namespace EctoBro
         Slimer slimerPrefab, currentSlimer;
         public static Color SlimerColor = new Color(0.058824f, 1f, 0f);
         protected bool throwingMook = false;
-        protected AudioClip[] slimerTrapElectricity;
         protected AudioClip slimerTrapOpen;
         protected AudioSource slimerPortalSource;
 
@@ -75,7 +74,7 @@ namespace EctoBro
             {
                 try
                 {
-                    var harmony = new Harmony("EctoBro");
+                    var harmony = new Harmony("Brostbuster");
                     var assembly = Assembly.GetExecutingAssembly();
                     harmony.PatchAll(assembly);
                     patched = true;
@@ -144,12 +143,6 @@ namespace EctoBro
             protonLoop = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "protonLoop.wav");
             protonEnd = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "protonEnd.wav");
 
-            slimerTrapElectricity = new AudioClip[4];
-            slimerTrapElectricity[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapElectricity1.wav");
-            slimerTrapElectricity[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapElectricity2.wav");
-            slimerTrapElectricity[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapElectricity3.wav");
-            slimerTrapElectricity[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapElectricity4.wav");
-
             slimerTrapOpen = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimerTrapOpen.wav");
         }
 
@@ -157,18 +150,17 @@ namespace EctoBro
         {
             try
             {
-                this.currentBros = new List<EctoBro>();
+                this.currentBros = new List<Brostbuster>();
                 for (int i = 0; i < 4; ++i)
                 {
                     if (HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && 
-                        HeroController.players[i].character is EctoBro && HeroController.players[i].character != this )
+                        HeroController.players[i].character is Brostbuster && HeroController.players[i].character != this )
                     {
-                        this.currentBros.Add(HeroController.players[i].character as EctoBro);
+                        this.currentBros.Add(HeroController.players[i].character as Brostbuster);
                     }
                 }
                 this.currentBrosCount = currentBros.Count + 1;
-                this.acknowledgedCount = ectobroCount;
-                BMLogger.Log( this.playerNum + " found bros: " + this.currentBrosCount);
+                this.acknowledgedCount = BrostbusterCount;
             }
             catch ( Exception ex )
             {
@@ -181,13 +173,13 @@ namespace EctoBro
             int recount = 0;
             for ( int i = 0; i < 4; ++i )
             {
-                if ( HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character is EctoBro )
+                if ( HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character is Brostbuster )
                 {
                     ++recount;
                 }
             }
-            ++ectobroCount;
-            if ( ectobroCount > 1 )
+            ++BrostbusterCount;
+            if ( BrostbusterCount > 1 )
             {
                 FindOtherBros();
             }
@@ -216,10 +208,9 @@ namespace EctoBro
                 this.protonAudio.enabled = false;
             }
 
-            // EctoBro spawned or died and changed count
-            if (ectobroCount != acknowledgedCount)
+            // Brostbuster spawned or died and changed count
+            if (BrostbusterCount != acknowledgedCount)
             {
-                BMLogger.Log(this.playerNum + " recounting");
                 FindOtherBros();
             }
 
@@ -228,7 +219,7 @@ namespace EctoBro
             {
                 this.StopProtonGun();
                 this.protonAudio.enabled = false;
-                ++ectobroCount;
+                ++BrostbusterCount;
                 if (!this.WillReviveAlready )
                 {
                     this.acceptedDeath = true;
@@ -622,7 +613,7 @@ namespace EctoBro
                 DamageCollider(groundHit);
                 endPoint = new Vector3(groundHit.point.x, groundHit.point.y, 0);
             }
-            // Crossed streams with another EctoBro
+            // Crossed streams with another Brostbuster
             else if ( haveCrossedStreams )
             {
                 endPoint = new Vector3(startPoint.x + base.transform.localScale.x * currentRange, startPoint.y, 0);
@@ -721,7 +712,7 @@ namespace EctoBro
         {
             if ( this.actionState != ActionState.Dead )
             {
-                ++ectobroCount;
+                ++BrostbusterCount;
             }
             base.OnDestroy();
         }

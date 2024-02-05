@@ -9,7 +9,7 @@ using HarmonyLib;
 
 
 
-namespace EctoBro
+namespace Brostbuster
 {
     class FloatingUnit
     {

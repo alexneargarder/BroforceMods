@@ -7,7 +7,7 @@ using HarmonyLib;
 using System.Reflection;
 using System.IO;
 
-namespace EctoBro
+namespace Brostbuster
 {
     class Slimer : Projectile
     {

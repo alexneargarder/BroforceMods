@@ -7,8 +7,8 @@
     <ProjectGuid>{F637A9E4-6C18-40E6-834A-0A75C00103C5}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>EctoBro</RootNamespace>
-    <AssemblyName>EctoBro</AssemblyName>
+    <RootNamespace>Brostbuster</RootNamespace>
+    <AssemblyName>Brostbuster</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -79,7 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EctoBro.cs" />
+    <Compile Include="Brostbuster.cs" />
     <Compile Include="FloatingUnit.cs" />
     <Compile Include="GhostTrap.cs" />
     <Compile Include="HarmonyPatches.cs" />
@@ -88,6 +88,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROPATH%25\EctoBro\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROPATH%25\Brostbuster\*.cache"</PostBuildEvent>
   </PropertyGroup>
 </Project>

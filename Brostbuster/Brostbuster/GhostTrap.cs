@@ -7,7 +7,7 @@ using System.Reflection;
 using System.IO;
 using HarmonyLib;
 
-namespace EctoBro
+namespace Brostbuster
 {
     class GhostTrap : Grenade
     {
@@ -96,10 +96,10 @@ namespace EctoBro
 					if (base.gameObject.GetComponent<AudioSource>() == null)
 					{
 						this.trapAudio = base.gameObject.AddComponent<AudioSource>();
-						this.trapAudio.rolloffMode = AudioRolloffMode.Linear;
-						this.trapAudio.minDistance = 500f;
+						this.trapAudio.rolloffMode = AudioRolloffMode.Logarithmic;
+						this.trapAudio.minDistance = 300f;
 						this.trapAudio.dopplerLevel = 0.1f;
-						this.trapAudio.maxDistance = 2000f;
+						this.trapAudio.maxDistance = 3000f;
 						this.trapAudio.spatialBlend = 1f;
 						this.trapAudio.volume = 0.33f;
 					}
@@ -433,7 +433,7 @@ namespace EctoBro
 				float f2 = this.firedBy.transform.position.y + 10f - base.Y;
 				if (Mathf.Abs(f) < 9f && Mathf.Abs(f2) < 14f)
 				{
-					EctoBro bro = this.firedBy as EctoBro;
+					Brostbuster bro = this.firedBy as Brostbuster;
 					if (bro && killedUnits > 0)
 					{
 						bro.ReturnTrap();

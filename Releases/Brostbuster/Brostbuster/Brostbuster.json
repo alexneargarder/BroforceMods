@@ -1,0 +1,44 @@
+{
+  "name": "Brostbuster",
+  "characterPreset": "Brostbuster",
+  "parameters": {
+    "BetterAnimation": true,
+    "SpecialIcons": "special.png",
+    "SpecialIconOffset":
+    {
+      "x": 3,
+      "y": 0
+    },
+    "SpecialIconSpacing": 4,
+    "Avatar": "avatar.png"
+  },
+  "cutscene": {
+    "heading": "Brostbuster",
+    "subtitle1": "Joins the Battle!",
+    "headingScale": 0.14,
+    "spritePath": "cutscene.png",
+    "spriteRect":
+    {
+      "x": 16,
+      "y": 256,
+      "width": 256,
+      "height": 256
+     },
+    "anim": "Intro_Bro_Rambro",
+    "playCutsceneOnFirstSpawn": true
+  },
+  "beforeAwake": {
+    "speed": 120,
+    "fireRate": 0.1,
+    "canChimneyFlip": true,
+    "originalSpecialAmmo": 2
+  },
+  "afterAwake": {},
+  "beforeStart": {
+    "sprite": "sprite.png",
+    "gunSprite": "gunSprite.png"
+  },
+  "afterStart": {
+    
+  }
+}
