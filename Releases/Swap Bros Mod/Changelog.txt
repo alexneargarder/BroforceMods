@@ -1,3 +1,6 @@
+v2.0.7
+Updated to work with latest BroMaker update.
+
 v2.0.6
 Fixed small bug with BroMaker compatibility
 
