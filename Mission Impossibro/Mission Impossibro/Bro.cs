@@ -14,7 +14,7 @@ namespace Mission_Impossibro
     public class Bro : CustomHero
     {
         // Sprite variables
-        Material normalMaterial, stealthMaterial, normalGunMaterial, stealthGunMaterial;
+        Material normalMaterial, stealthMaterial, normalGunMaterial, stealthGunMaterial, normalAvatarMaterial, stealthAvatarMaterial;
         bool wasInvulnerable = false;
 
         // Audio Variables
@@ -54,6 +54,11 @@ namespace Mission_Impossibro
         protected const int MaxExplosives = 5;
         protected Explosive explosivePrefab;
 
+        // Melee Variables
+        protected ExplosiveGum gumPrefab;
+        SachelPack brommerExplosive;
+        protected float sachelPackCooldown = 0f;
+
         // Misc Variables
         protected bool acceptedDeath = false;
 
@@ -76,6 +81,14 @@ namespace Mission_Impossibro
             explosivePrefab = new GameObject("Explosive", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Explosive) }).GetComponent<Explosive>();
             explosivePrefab.enabled = false;
             explosivePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
+
+            gumPrefab = new GameObject("ExplosiveGum", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(ExplosiveGum) }).GetComponent<ExplosiveGum>();
+            gumPrefab.enabled = false;
+            brommerExplosive = (HeroController.GetHeroPrefab(HeroType.BroGummer) as BroGummer).sachelPackProjectile as SachelPack;
+            gumPrefab.soundHolder = brommerExplosive.soundHolder;
+
+            this.meleeType = MeleeType.Punch;
+            this.currentMeleeType = MeleeType.Punch;
         }
 
         protected override void Start()
@@ -89,6 +102,9 @@ namespace Mission_Impossibro
 
             this.normalGunMaterial = this.gunSprite.meshRender.material;
             this.stealthGunMaterial = ResourcesController.GetMaterial(directoryPath, "gunSpriteStealth.png");
+
+            this.normalAvatarMaterial = ResourcesController.GetMaterial(directoryPath, "avatar.png");
+            this.stealthAvatarMaterial = ResourcesController.GetMaterial(directoryPath, "avatarStealth.png");
 
             // Load sounds
             if (tranqGunSounds == null)
@@ -137,6 +153,7 @@ namespace Mission_Impossibro
                     this.acceptedDeath = false;
                 }
             }
+
             // Check if invulnerability ran out
             if (this.wasInvulnerable && !this.invulnerable)
             {
@@ -144,6 +161,8 @@ namespace Mission_Impossibro
                 stealthMaterial.SetColor("_TintColor", Color.gray);
                 gunSprite.meshRender.material.SetColor("_TintColor", Color.gray);
             }
+
+            this.sachelPackCooldown -= this.t;
 
             if ( this.fireCooldown > 0 )
             {
@@ -212,6 +231,7 @@ namespace Mission_Impossibro
         }
 
         // Grapple methods
+        #region Grapple
         protected override void AirJump()
         {
             base.AirJump();
@@ -461,8 +481,10 @@ namespace Mission_Impossibro
                 base.Land();
             }
         }
+        #endregion
 
         // Primary fire methods
+        #region Primary
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
             // Fixes arms being offset from body
@@ -521,16 +543,26 @@ namespace Mission_Impossibro
             {
                 this.FireWeapon(base.X + num * 14f, base.Y + 10f, num * bulletSpeed, 0);
             }
-            // Normal fire and stealth fire
-            else if ( !this.wallDrag || this.stealthActive )
-            {
-                this.FireWeapon(base.X + num * 12f, base.Y + 10f, num * bulletSpeed, 0);
-            }
             // Fire while wall dragging
-            else
+            else if ( this.WallDrag )
             {
                 num *= -1;
                 this.FireWeapon(base.X + num * 14f, base.Y + 10f, num * bulletSpeed, 0);
+            }
+            // Stealth fire
+            else if ( stealthActive )
+            {
+                this.FireWeapon(base.X + num * 12f, base.Y + 10f, num * bulletSpeed, 0);
+            }
+            // Normal fire ducking
+            else if ( this.ducking )
+            {
+                this.FireWeapon(base.X + num * 14f, base.Y + 7f, num * bulletSpeed, 0);
+            }
+            // Normal fire
+            else
+            {
+                this.FireWeapon(base.X + num * 12f, base.Y + 10f, num * bulletSpeed, 0);
             }
             
             Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
@@ -814,8 +846,10 @@ namespace Mission_Impossibro
             
             base.Jump(wallJump);
         }
+        #endregion
 
         // Special methods
+        #region Special
         protected override void PressSpecial()
         {
             if (!this.usingSpecial && !this.stealthActive && !this.hasBeenCoverInAcid && this.SpecialAmmo > 0)
@@ -911,6 +945,7 @@ namespace Mission_Impossibro
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.stealthMaterial;
                         this.gunSprite.meshRender.material = this.stealthGunMaterial;
+                        HeroController.SetAvatarMaterial(playerNum, this.stealthAvatarMaterial);
                         this.stealthActive = true;
                         this.ActivateGun();
                         this.SetGunPosition(3f, 0f);
@@ -934,6 +969,7 @@ namespace Mission_Impossibro
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.normalMaterial;
                         this.gunSprite.meshRender.material = this.normalGunMaterial;
+                        HeroController.SetAvatarMaterial(playerNum, this.normalAvatarMaterial);
                         this.stealthActive = false;
                         this.ActivateGun();
                         this.ChangeFrame();
@@ -957,6 +993,7 @@ namespace Mission_Impossibro
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.stealthMaterial;
                         this.gunSprite.meshRender.material = this.stealthGunMaterial;
+                        HeroController.SetAvatarMaterial(playerNum, this.stealthAvatarMaterial);
                         this.stealthActive = true;
                         this.gunFrame = 0;
                         this.ActivateGun();
@@ -980,6 +1017,7 @@ namespace Mission_Impossibro
                         this.usingSpecial = false;
                         base.GetComponent<Renderer>().material = this.normalMaterial;
                         this.gunSprite.meshRender.material = this.normalGunMaterial;
+                        HeroController.SetAvatarMaterial(playerNum, this.normalAvatarMaterial);
                         this.stealthActive = false;
                         this.gunFrame = 0;
                         this.ActivateGun();
@@ -993,5 +1031,89 @@ namespace Mission_Impossibro
                 }
             }
         }
+        #endregion
+
+        // Melee methods
+        #region Melee
+        protected override void AnimatePunch()
+        {
+            this.AnimateMeleeCommon();
+            int num = 25 + Mathf.Clamp(base.frame, 0, 8);
+            int num2 = 10;
+            if (base.frame == 5)
+            {
+                base.counter -= 0.0334f;
+                base.counter -= 0.0334f;
+                base.counter -= 0.0334f;
+            }
+            if (base.frame == 3)
+            {
+                base.counter -= 0.0334f;
+            }
+            this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+            if (base.frame == 3 && !this.meleeHasHit)
+            {
+                this.PerformPunchAttack(true, true);
+            }
+            if (this.currentMeleeType == BroBase.MeleeType.JetpackPunch && base.frame >= 4 && base.frame <= 5 && !this.meleeHasHit)
+            {
+                this.PerformPunchAttack(true, true);
+            }
+            if (base.frame >= 7)
+            {
+                base.frame = 0;
+                this.CancelMelee();
+            }
+        }
+
+        protected override void PerformPunchAttack(bool shouldTryHitTerrain, bool playMissSound)
+        {
+            if (this.sachelPackCooldown > 0f)
+            {
+                base.PerformPunchAttack(shouldTryHitTerrain, playMissSound);
+                return;
+            }
+            Unit unit = Map.GeLivingtUnit(base.playerNum, 8f, 8f, base.X + (float)(base.Direction * 6), base.Y + 6f);
+            ExplosiveGum proj;
+            if (unit != null)
+            {
+                proj = ProjectileController.SpawnProjectileLocally(this.gumPrefab, this, unit.X, unit.Y + 6f, 0f, 0f, false, base.playerNum, false, false, 0f) as ExplosiveGum;
+                proj.AssignNullValues(brommerExplosive);
+                proj.enabled = true;
+
+                this.sachelPackCooldown = 0.5f;
+            }
+            else if (base.Direction < 0 && Physics.Raycast(new Vector3(base.X + 6f, base.Y + 10f, 0f), Vector3.left, out this.raycastHit, 16f, this.groundLayer | this.fragileLayer))
+            {
+                proj = ProjectileController.SpawnProjectileLocally(this.gumPrefab, this, base.X - 6f, base.Y + 10f, -10f, 10f, false, base.playerNum, false, false, 0f) as ExplosiveGum;
+                proj.AssignNullValues(brommerExplosive);
+                proj.enabled = true;
+                this.sachelPackCooldown = 0.5f;
+            }
+            else if (base.Direction > 0 && Physics.Raycast(new Vector3(base.X - 6f, base.Y + 10f, 0f), Vector3.right, out this.raycastHit, 12f, this.groundLayer | this.fragileLayer))
+            {
+                proj = ProjectileController.SpawnProjectileLocally(this.gumPrefab, this, base.X + 6f, base.Y + 10f, 10f, 10f, false, base.playerNum, false, false, 0f) as ExplosiveGum;
+                proj.AssignNullValues(brommerExplosive);
+                proj.enabled = true;
+                this.sachelPackCooldown = 0.5f;
+            }
+            else
+            {
+                base.PerformPunchAttack(shouldTryHitTerrain, playMissSound);
+            }
+        }
+
+        protected override void ThrowBackMook(Mook mook)
+        {
+            if (base.IsMine)
+            {
+                ExplosiveGum sachelPack = ProjectileController.SpawnProjectileLocally(this.gumPrefab, this, mook.X, mook.Y + 10f, base.transform.localScale.x * 100f + this.xI * 0.7f, this.yI, false, base.playerNum, false, false, 0f) as ExplosiveGum;
+                sachelPack.AssignNullValues(brommerExplosive);
+                sachelPack.enabled = true;
+                sachelPack.TryStickToUnit(mook, true);
+            }
+            base.ThrowBackMook(mook);
+        }
+        #endregion
     }
 }
