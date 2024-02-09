@@ -75,15 +75,5 @@ namespace Brostbuster
                 }
             }
         }
-
-        [HarmonyPatch(typeof(Sound), "PlayAudioClip")]
-        static class Sound_PlayAudioClip_Patch
-        {
-            public static void Prefix(ref AudioClip clip)
-            {
-
-                //BMLogger.Log("audio clip played: " + clip.name);
-            }
-        }
     }
 }
