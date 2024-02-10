@@ -225,7 +225,7 @@ namespace Brostbuster
 						}
 
 						// Start closing trap after closing audio clip has played for a second
-						if (this.runTime > 7.89f)
+						if (this.runTime > 8f)
 						{
 							this.trapFramerate = 0.08f;
 							this.runTime = 10f;
@@ -377,6 +377,7 @@ namespace Brostbuster
 
         protected void ActivateTrap()
         {
+			this.runTime = 0.5f;
 			this.state = TrapState.Opening;
 
 			this.trapAudio.clip = trapOpen;

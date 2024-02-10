@@ -1,2 +1,5 @@
+v1.0.1 (Unreleased)
+Fixed audio bug with Ghost Trap.
+
 v1.0.0
 Release
