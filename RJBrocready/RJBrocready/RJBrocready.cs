@@ -10,7 +10,7 @@ using UnityEngine;
 namespace RJBrocready
 {
     [HeroPreset("R.J. Brocready", HeroType.Rambro)]
-    public class Bro : CustomHero
+    public class RJBrocready : CustomHero
     {
         // Primary
         Projectile[] projectiles;
@@ -22,6 +22,8 @@ namespace RJBrocready
         protected const float originalFirerate = 0.2f;
 
         // Special
+        Dynamite dynamitePrefab;
+        Grenade otherProjectile;
 
         // Melee
 
@@ -41,6 +43,10 @@ namespace RJBrocready
 
             this.flameStart = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameStart.wav");
             this.flameLoop = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameLoop.wav");
+
+            dynamitePrefab = new GameObject("Dynamite", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Dynamite) }).GetComponent<Dynamite>();
+            dynamitePrefab.enabled = false;
+            dynamitePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
 
             base.Awake();
         }
@@ -255,6 +261,27 @@ namespace RJBrocready
         #endregion
 
         #region Special
+        protected override void UseSpecial()
+        {
+            if (this.SpecialAmmo > 0)
+            {
+                Dynamite dynamite;
+                if (this.down && this.IsOnGround() && this.ducking)
+                {
+                    dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 30f, 70f, base.playerNum, 0) as Dynamite;
+                }
+                else
+                {
+                    dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 200f, 150f, base.playerNum, 0) as Dynamite;
+                }
+                dynamite.enabled = true;
+                --this.SpecialAmmo;
+            }
+            else
+            {
+                base.UseSpecial();
+            }
+        }
         #endregion
 
         #region Melee
