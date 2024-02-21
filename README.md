@@ -43,3 +43,6 @@ Information about this mod and a download link can be found [here](https://www.n
 
 ## Mission Impossibro
 Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/36).
+
+## Brostbuster
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/39).
