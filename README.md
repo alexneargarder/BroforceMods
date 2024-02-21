@@ -23,6 +23,8 @@ There is also an Info.json file in the Compliled Mod Folder that shows you how y
 * [How to install Unity Mod Manager and my mods](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
 * [Unity Mod Manager Wiki](https://wiki.nexusmods.com/index.php/Category:Unity_Mod_Manager)
 * [Harmony Documentation](https://harmony.pardeike.net/articles/intro.html)
+* [Dnspy - A tool for viewing the game's code](https://github.com/dnSpy/dnSpy)
+* [RuntimeUnityEditor - A tool for debugging game objects in game](https://github.com/ManlyMarco/RuntimeUnityEditor)
 
 ## Swap Bros Mod
 Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/1).
