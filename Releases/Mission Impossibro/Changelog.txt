@@ -1,4 +1,9 @@
-v1.0.2 (Unreleased)
+v1.0.2
+Added explosive gum melee.
+Added balaclava to avatar when using special.
+Fixed Gun Sprite alignment.
+Made tranq gun fire lower when crouching.
+
 Fixed special ammo not flashing when empty.
 
 v1.0.1
