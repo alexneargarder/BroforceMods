@@ -16,14 +16,15 @@ namespace RJBrocready
 		protected int flashFrame = 0;
 		protected bool flashReversing = false;
 		Rigidbody rigidbody;
+		AudioClip explosionSound;
 
 		protected override void Awake()
 		{
 			MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
 
+			string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 			if (storedMat == null)
 			{
-				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 				storedMat = ResourcesController.GetMaterial(directoryPath, "dynamite.png");
 			}
 
@@ -36,6 +37,8 @@ namespace RJBrocready
 			sprite.plane = SpriteBase.SPRITE_PLANE.XY;
 			sprite.width = 18;
 			sprite.height = 22;
+
+			this.explosionSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "dynamiteExplosion.wav");
 
 			base.Awake();
 
@@ -59,8 +62,17 @@ namespace RJBrocready
 			base.enabled = true;
 			base.transform.parent = null;
 			this.SetXY(newX, newY);
-			this.xI = XI;
-			this.yI = YI;
+			if (Mathf.Abs(XI) > 100)
+			{
+				this.xI = Mathf.Sign(XI) * 300f;
+				this.yI = 250f;
+			}
+			else
+            {
+				this.xI = XI;
+				this.yI = YI;
+            }
+			
 			this.playerNum = _playerNum;
 			rigidbody.position = new Vector3(newX, newY);
 			if (Mathf.Abs(xI) > 100)
@@ -233,12 +245,120 @@ namespace RJBrocready
         {
         }
 
+		public static int ExplodeUnits(MonoBehaviour damageSender, int damage, DamageType damageType, float range, float killRange, float x, float y, float force, float yI, int playerNum, bool forceTumble, bool knockSelf, bool knockFriendlies = true)
+		{
+			int num = 0;
+			if (Worm.worms != null)
+			{
+				for (int i = 0; i < Worm.worms.Count; i++)
+				{
+					Worm worm = Worm.worms[i];
+					if (worm != null)
+					{
+						int num2 = (int)Mathf.Abs(x - worm.X);
+						int num3 = (int)Mathf.Abs(y - worm.Y);
+						if ((float)num2 < range && (float)num3 < range)
+						{
+							worm.Death();
+						}
+					}
+				}
+			}
+			if (Map.units == null)
+			{
+				return 0;
+			}
+			for (int j = Map.units.Count - 1; j >= 0; j--)
+			{
+				if (j < Map.units.Count)
+				{
+					Unit unit = Map.units[j];
+					if (unit != null && !unit.invulnerable)
+					{
+						float num4 = unit.X - x;
+						if (Mathf.Abs(num4) < range)
+						{
+							float num5 = unit.Y + unit.height / 2f - y;
+							if (Mathf.Abs(num5) < range)
+							{
+								float num6 = num4 * num4 + num5 * num5;
+								if (num6 < killRange * killRange)
+								{
+									num6 = Mathf.Sqrt(num6);
+									if (unit.playerNum < 0 || GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum))
+									{
+										if (Mathf.Abs(num4) < range * 0.4f)
+										{
+											num4 *= 0.66f;
+											yI *= 1.5f;
+										}
+										bool flag = unit.health > 0;
+										Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, num4 / num6 * force, num5 / num6 * force + yI, (int)Mathf.Sign(num4), false, x, y, false);
+										if ((flag && unit == null) || unit.health <= 0)
+										{
+											num++;
+										}
+									}
+									else if ((damageSender != unit || knockSelf) && knockFriendlies)
+									{
+										BMLogger.Log("knocking self: " + (num5 / num6 * force + yI) * 50);
+										unit.Knock(damageType, (num4 / num6 * force) * 2, 300000000, forceTumble);
+									}
+								}
+								else if (num6 < range * range)
+								{
+									num6 = Mathf.Sqrt(num6);
+									if (num6 < 65f)
+									{
+										num6 = 65f;
+									}
+									if (damageSender != unit || GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum))
+									{
+										unit.Knock(damageType, num4 / num6 * force, num5 / num6 * force + yI, true);
+										bool flag2 = unit.health > 0;
+										if (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum))
+										{
+											Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, num4 / num6 * force, num5 / num6 * force + yI, 0, forceTumble, x, y, false);
+										}
+										if ((flag2 && unit == null) || unit.health <= 0)
+										{
+											num++;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			Vector2[] array = new Vector2[]
+			{
+			new Vector2(1f, 0f),
+			new Vector2(0f, 1f),
+			new Vector2(-1f, 0f),
+			new Vector2(0f, -1f),
+			new Vector2(1f, 1f),
+			new Vector2(-1f, 1f),
+			new Vector2(1f, -1f),
+			new Vector2(-1f, -1f)
+			};
+			return num;
+		}
+
 		protected override void MakeEffects()
         {
+			if (this.sound == null)
+			{
+				this.sound = Sound.GetInstance();
+			}
+			if (this.sound != null)
+			{
+				this.sound.PlaySoundEffectAt(this.explosionSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+			}
 			EffectsController.CreateNuclearExplosion(X, Y - 6, 0f);
 			MapController.DamageGround(this, 100, DamageType.Explosion, 128f, X, Y, null, false);
-			Map.ExplodeUnits(this, 12, DamageType.Explosion, 144f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
-			Map.ExplodeUnits(this, 32, DamageType.Crush, 96f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
+			ExplodeUnits(this, 12, DamageType.Explosion, 144f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
+			ExplodeUnits(this, 32, DamageType.Crush, 96f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
 			MapController.BurnUnitsAround_NotNetworked(this, -15, 5, 160f, X, Y, true, true);
 			Map.HitProjectiles(base.playerNum, 15, DamageType.Explosion, 80f, X, Y, 0f, 0f, 0.25f);
 			Map.ShakeTrees(X, Y, 320f, 64f, 160f);
