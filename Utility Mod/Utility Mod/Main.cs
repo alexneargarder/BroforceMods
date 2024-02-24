@@ -125,6 +125,8 @@ namespace Utility_Mod
 
         public static bool skipNextMenu = false;
 
+        public static float levelStartedCounter = 0f;
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
@@ -565,7 +567,15 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal(GUILayout.Width(400));
 
-            settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click");
+            if ( settings.teleportToMouseCursor != (settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click")) )
+            {
+#if DEBUG
+                if ( settings.teleportToMouseCursor )
+                {
+                    settings.spawnEnemyOnRightClick = false;
+                }
+#endif
+            }
 
             GUILayout.Space(10);
 
@@ -681,6 +691,30 @@ namespace Utility_Mod
             GUILayout.BeginHorizontal();
 
             settings.printAudioPlayed = GUILayout.Toggle(settings.printAudioPlayed, "Print Audio Played");
+
+            GUILayout.EndHorizontal();
+
+
+            GUILayout.Space(20);
+
+
+            if ( settings.setZoom != (settings.setZoom = GUILayout.Toggle(settings.setZoom, "Set Zoom Level")) )
+            {
+                if ( !settings.setZoom )
+                {
+                    SortOfFollow.zoomLevel = 1;
+                }
+            }
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+
+            GUILayout.Label(settings.zoomLevel.ToString("0.00"), GUILayout.Width(100));
+
+            settings.zoomLevel = GUILayout.HorizontalSlider(settings.zoomLevel, 0, 10);
+
+            GUILayout.Space(10);
 
             GUILayout.EndHorizontal();
 
@@ -988,6 +1022,12 @@ namespace Utility_Mod
             {
                 try
                 {
+                    levelStartedCounter += dt;
+
+                    if ( settings.setZoom && levelStartedCounter > 1.5f && SortOfFollow.zoomLevel != settings.zoomLevel )
+                    {
+                        SortOfFollow.zoomLevel = settings.zoomLevel;
+                    }
                     if (Input.GetMouseButtonUp(1))
                     {
                         Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
@@ -1712,6 +1752,21 @@ namespace Utility_Mod
             Main.Log("Audio clip played: " + clip.name);
         }
     }
+
+    [HarmonyPatch(typeof(GameModeController), "ResetForNextLevel")]
+    static class GameModeController_ResetForNextLevel_Patch
+    {
+        public static void Prefix()
+        {
+            if (!Main.enabled || !Main.settings.setZoom)
+            {
+                return;
+            }
+
+            Main.levelStartedCounter = 0f;
+            SortOfFollow.zoomLevel = 1;
+        }
+    }
 #endif
 
     public class Settings : UnityModManager.ModSettings
@@ -1758,6 +1813,8 @@ namespace Utility_Mod
         public bool spawnEnemyOnRightClick = false;
         public int selectedEnemy = 0;
         public bool printAudioPlayed = false;
+        public float zoomLevel = 1f;
+        public bool setZoom = false;
         public bool showDebugOptions = false;
 #endif
 
