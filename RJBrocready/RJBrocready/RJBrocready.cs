@@ -23,9 +23,13 @@ namespace RJBrocready
 
         // Special
         Dynamite dynamitePrefab;
-        Grenade otherProjectile;
 
         // Melee
+        protected bool throwingMook = false;
+        AudioClip[] fireAxeSound;
+        AudioClip[] axeHitSound;
+        protected bool playedAxeSound = false;
+        protected bool meleeBufferedPress = false;
 
         // Misc
         protected bool theThing = false;
@@ -47,6 +51,19 @@ namespace RJBrocready
             dynamitePrefab = new GameObject("Dynamite", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Dynamite) }).GetComponent<Dynamite>();
             dynamitePrefab.enabled = false;
             dynamitePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
+
+            this.currentMeleeType = MeleeType.Disembowel;
+            this.meleeType = MeleeType.Disembowel;
+
+            this.fireAxeSound = new AudioClip[3];
+            this.fireAxeSound[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe1.wav");
+            this.fireAxeSound[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe2.wav");
+            this.fireAxeSound[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe3.wav");
+
+            this.axeHitSound = new AudioClip[3];
+            this.axeHitSound[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit1.wav");
+            this.axeHitSound[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit2.wav");
+            this.axeHitSound[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit3.wav");
 
             base.Awake();
         }
@@ -168,7 +185,8 @@ namespace RJBrocready
             if ( this.fire )
             {
                 // Start flame loop
-                if ( !this.flameSource.isPlaying )
+                //if ( !this.flameSource.isPlaying )
+                if ( !this.flameSource.loop && (this.flameSource.clip.length - this.flameSource.time) <= 0.02f )
                 {
                     this.flameSource.clip = flameLoop;
                     this.flameSource.loop = true;
@@ -272,7 +290,7 @@ namespace RJBrocready
                 }
                 else
                 {
-                    dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 200f, 150f, base.playerNum, 0) as Dynamite;
+                    dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 300f, 250f, base.playerNum, 0) as Dynamite;
                 }
                 dynamite.enabled = true;
                 --this.SpecialAmmo;
@@ -285,6 +303,185 @@ namespace RJBrocready
         #endregion
 
         #region Melee
+        protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        {
+            bool flag;
+            Map.DamageDoodads(3, DamageType.Fire, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            this.KickDoors(24f);
+            Unit hitUnit;
+            if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
+            {
+                hitUnit.Damage(1, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                this.meleeHasHit = true;
+            }
+            else if (playMissSound)
+            {
+            }
+            this.meleeChosenUnit = null;
+            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 2))
+            {
+                this.meleeHasHit = true;
+            }
+            this.TriggerBroMeleeEvent();
+        }
+
+        protected override bool TryMeleeTerrain(int offset = 0, int meleeDamage = 2)
+        {
+            if (!Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(16 + offset), this.groundLayer))
+            {
+                return false;
+            }
+            Cage component = this.raycastHit.collider.GetComponent<Cage>();
+            if (component == null && this.raycastHit.collider.transform.parent != null)
+            {
+                component = this.raycastHit.collider.transform.parent.GetComponent<Cage>();
+            }
+            if (component != null)
+            {
+                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
+                return true;
+            }
+            MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
+            this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitTerrainSound, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+            EffectsController.CreateProjectilePopWhiteEffect(base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f);
+            return true;
+        }
+
+
+        // Sets up melee attack
+        protected override void StartCustomMelee()
+        {
+            if (this.CanStartNewMelee())
+            {
+                base.frame = 1;
+                base.counter = -0.05f;
+                this.AnimateMelee();
+                this.throwingMook = (this.nearbyMook != null && this.nearbyMook.CanBeThrown());
+                this.playedAxeSound = false;
+                this.meleeBufferedPress = false;
+            }
+            else if (this.CanStartMeleeFollowUp())
+            {
+                this.meleeBufferedPress = true;
+            }
+            this.StartMeleeCommon();
+        }
+
+        protected override void StartMeleeCommon()
+        {
+            if (!this.meleeFollowUp && this.CanStartNewMelee())
+            {
+                base.frame = 0;
+                base.counter = -0.05f;
+                this.ResetMeleeValues();
+                this.lerpToMeleeTargetPos = 0f;
+                this.doingMelee = true;
+                this.showHighFiveAfterMeleeTimer = 0f;
+                this.DeactivateGun();
+                this.SetMeleeType();
+                this.meleeStartPos = base.transform.position;
+                this.AnimateMelee();
+            }
+        }
+
+        protected override bool CanStartNewMelee()
+        {
+            return !this.doingMelee;
+        }
+
+        protected override bool CanStartMeleeFollowUp()
+        {
+            return true;
+        }
+
+        // Calls MeleeAttack
+        protected override void AnimateCustomMelee()
+        {
+            this.AnimateMeleeCommon();
+            if (!this.throwingMook)
+            {
+                base.frameRate = 0.06f;
+            }
+            int num = 24 + Mathf.Clamp(base.frame, 0, 7);
+            int num2 = 10;
+            this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+            if ( !this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound )
+            {
+                this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                this.playedAxeSound = true;
+            }
+            else if (base.frame == 3)
+            {
+                base.counter -= 0.066f;
+                this.MeleeAttack(true, true);
+            }
+            else if (base.frame > 3 && !this.meleeHasHit)
+            {
+                this.MeleeAttack(false, false);
+            }
+            if (base.frame >= 8)
+            {
+                base.frame = 0;
+                this.CancelMelee();
+                if ( this.meleeBufferedPress )
+                {
+                    this.meleeBufferedPress = false;
+                    this.StartCustomMelee();
+                }
+            }
+        }
+
+        protected override void RunCustomMeleeMovement()
+        {
+            if (this.jumpingMelee)
+            {
+                this.ApplyFallingGravity();
+                if (this.yI < this.maxFallSpeed)
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+            }
+            else if (this.dashingMelee)
+            {
+                if (base.frame <= 1)
+                {
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                else if (base.frame <= 3)
+                {
+                    if (this.meleeChosenUnit == null)
+                    {
+                        if (!this.isInQuicksand)
+                        {
+                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                        }
+                        this.yI = 0f;
+                    }
+                    else if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
+                    }
+                }
+                else if (base.frame <= 5)
+                {
+                    if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
+                    }
+                    this.ApplyFallingGravity();
+                }
+                else
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if (base.Y > this.groundHeight + 1f)
+            {
+                this.CancelMelee();
+            }
+        }
         #endregion
     }
 }
