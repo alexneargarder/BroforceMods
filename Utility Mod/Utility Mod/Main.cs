@@ -1018,16 +1018,16 @@ namespace Utility_Mod
             }
 
 #if DEBUG
-            if ( settings.spawnEnemyOnRightClick )
+            try
             {
-                try
-                {
-                    levelStartedCounter += dt;
+                levelStartedCounter += dt;
 
-                    if ( settings.setZoom && levelStartedCounter > 1.5f && SortOfFollow.zoomLevel != settings.zoomLevel )
-                    {
-                        SortOfFollow.zoomLevel = settings.zoomLevel;
-                    }
+                if (settings.setZoom && levelStartedCounter > 1.5f && SortOfFollow.zoomLevel != settings.zoomLevel)
+                {
+                    SortOfFollow.zoomLevel = settings.zoomLevel;
+                }
+                if ( settings.teleportToMouseCursor )
+                {
                     if (Input.GetMouseButtonUp(1))
                     {
                         Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
@@ -1036,9 +1036,9 @@ namespace Utility_Mod
                         SpawnUnit(settings.selectedEnemy, newPos);
                     }
                 }
-                catch (Exception ex)
-                { }
             }
+            catch (Exception ex)
+            { }
 #endif
 
             if ( settings.enableFlight )
