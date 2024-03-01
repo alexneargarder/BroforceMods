@@ -301,8 +301,7 @@ namespace RJBrocready
 									}
 									else if ((damageSender != unit || knockSelf) && knockFriendlies)
 									{
-										BMLogger.Log("knocking self: " + (num5 / num6 * force + yI) * 50);
-										unit.Knock(damageType, (num4 / num6 * force) * 2, 300000000, forceTumble);
+										unit.Knock(DamageType.SelfEsteem, (num4 / num6 * force) * 2, (num5 / num6 * force + yI) * 0.5f, forceTumble);
 									}
 								}
 								else if (num6 < range * range)
