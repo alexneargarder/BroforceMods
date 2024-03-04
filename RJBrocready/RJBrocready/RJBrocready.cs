@@ -52,6 +52,11 @@ namespace RJBrocready
 
         // DEBUG
         public static RJBrocready currentInstance;
+        public static bool pauseMelee = false;
+        public static string meleeOffsetXStr = "16";
+        public static float meleeOffsetX = 16f;
+        public static string meleeOffsetYStr = "16";
+        public static float meleeOffsetY = 16f;
 
         #region General
         protected override void Awake()
@@ -87,7 +92,7 @@ namespace RJBrocready
             this.thingMeleeMaterial = ResourcesController.GetMaterial(directoryPath, "thingMeleeSprite.png");
             this.thingSpecialIconMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecial.png");
             this.thingSpecialMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecialSprite.png");
-            this.thingSpecialMaterial = ResourcesController.GetMaterial(directoryPath, "armlessSprite.png");
+            this.thingArmlessMaterial = ResourcesController.GetMaterial(directoryPath, "armlessSprite.png");
 
             base.Awake();
         }
@@ -176,12 +181,26 @@ namespace RJBrocready
             }
         }
 
+        public void makeTextBox(string label, ref string text, ref float val)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label);
+            text = GUILayout.TextField(text);
+            GUILayout.EndHorizontal();
+
+            float.TryParse(text, out val);
+        }
+
         public override void UIOptions()
         {
             if ( GUILayout.Button("die") )
             {
-                currentInstance.fakeDeath(0f, 0f, null);
+                currentInstance.FakeDeath(0f, 0f, null);
             }
+
+            makeTextBox("offsetx", ref meleeOffsetXStr, ref meleeOffsetX);
+            makeTextBox("offsety", ref meleeOffsetYStr, ref meleeOffsetY);
+            pauseMelee = GUILayout.Toggle(pauseMelee, "pause melee");
         }
         #endregion
 
@@ -354,8 +373,11 @@ namespace RJBrocready
             }
             else
             {
-                this.gunFrame = 0;
-                this.SetGunSprite(0, 0);
+                if ( !this.doingMelee )
+                {
+                    this.gunFrame = 0;
+                    this.SetGunSprite(0, 0);
+                }
             }
         }
 
@@ -514,16 +536,32 @@ namespace RJBrocready
         {
             if (!this.meleeFollowUp && this.CanStartNewMelee())
             {
-                base.frame = 0;
-                base.counter = -0.05f;
-                this.ResetMeleeValues();
-                this.lerpToMeleeTargetPos = 0f;
-                this.doingMelee = true;
-                this.showHighFiveAfterMeleeTimer = 0f;
-                this.DeactivateGun();
-                this.SetMeleeType();
-                this.meleeStartPos = base.transform.position;
-                this.AnimateMelee();
+                if (this.theThing)
+                {
+                    StartThingMelee();
+                    base.frame = 0;
+                    base.counter = -0.05f;
+                    this.ResetMeleeValues();
+                    this.lerpToMeleeTargetPos = 0f;
+                    this.doingMelee = true;
+                    this.showHighFiveAfterMeleeTimer = 0f;
+                    this.SetMeleeType();
+                    this.meleeStartPos = base.transform.position;
+                    this.AnimateMelee();
+                }
+                else
+                {
+                    base.frame = 0;
+                    base.counter = -0.05f;
+                    this.ResetMeleeValues();
+                    this.lerpToMeleeTargetPos = 0f;
+                    this.doingMelee = true;
+                    this.showHighFiveAfterMeleeTimer = 0f;
+                    this.DeactivateGun();
+                    this.SetMeleeType();
+                    this.meleeStartPos = base.transform.position;
+                    this.AnimateMelee();
+                }
             }
         }
 
@@ -535,12 +573,33 @@ namespace RJBrocready
         protected override bool CanStartMeleeFollowUp()
         {
             return true;
-        }
+        }        
 
         // Calls MeleeAttack
         protected override void AnimateCustomMelee()
         {
-            this.AnimateMeleeCommon();
+            // AnimateMeleeCommon except throwing mooks is disabled for the thing
+            this.SetSpriteOffset(0f, 0f);
+            this.rollingFrames = 0;
+            if (base.frame == 1)
+            {
+                base.counter -= 0.0334f;
+            }
+            if (base.frame == 6 && this.meleeFollowUp)
+            {
+                base.counter -= 0.08f;
+                base.frame = 1;
+                this.meleeFollowUp = false;
+                this.ResetMeleeValues();
+            }
+            this.frameRate = 0.025f;
+            if (!this.theThing && base.frame == 2 && this.nearbyMook != null && this.nearbyMook.CanBeThrown() && this.highFive)
+            {
+                this.CancelMelee();
+                this.ThrowBackMook(this.nearbyMook);
+                this.nearbyMook = null;
+            }
+
             if ( !theThing )
             {
                 if (!this.throwingMook)
@@ -574,6 +633,10 @@ namespace RJBrocready
                         this.StartCustomMelee();
                     }
                 }
+            }
+            else
+            {
+                AnimateThingMelee();
             }
         }
 
@@ -611,7 +674,7 @@ namespace RJBrocready
                             this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
                         }
                     }
-                    else if (base.frame <= 5)
+                    else if (base.frame <= 7)
                     {
                         if (!this.isInQuicksand)
                         {
@@ -631,7 +694,16 @@ namespace RJBrocready
             }
             else
             {
+                RunThingMeleeMovement();
+            }
+        }
 
+        protected override void CancelMelee()
+        {
+            base.CancelMelee();
+            if ( this.theThing )
+            {
+                this.CancelThingMelee();
             }
         }
         #endregion
@@ -647,7 +719,7 @@ namespace RJBrocready
         {
             if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
             {
-                fakeDeath(xI, yI, damage);
+                FakeDeath(xI, yI, damage);
             }
             else
             {
@@ -656,7 +728,7 @@ namespace RJBrocready
             this.flameSource.Stop();
         }
 
-        public void fakeDeath(float xI, float yI, DamageObject damage)
+        public void FakeDeath(float xI, float yI, DamageObject damage)
         {
             this.health = 1;
             currentState = ThingState.FakeDeath;
@@ -743,7 +815,7 @@ namespace RJBrocready
 
         protected void AnimateFakeDeath()
         {
-            this.frameRate = 0.0334f;
+            this.frameRate = 0.025f;
             if (base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null)
             {
                 this.AnimateFallingDeath();
@@ -783,10 +855,146 @@ namespace RJBrocready
             this.SpecialAmmo = 1;
             this.originalSpecialAmmo = 1;
         }
+        #endregion
 
+        #region ThingPrimary
+        #endregion
+
+        #region ThingSpecial
         protected void UseThingSpecial()
         {
 
+        }
+        #endregion
+
+        #region ThingMelee
+        protected override void DeactivateGun()
+        {
+            if ( !(this.theThing && this.doingMelee) )
+            {
+                base.DeactivateGun();
+            }
+        }
+
+        protected void StartThingMelee()
+        {
+            try
+            {
+                this.gunSprite.meshRender.material = this.thingMeleeMaterial;
+                this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
+                this.gunSprite.SetSize(64, 64);
+                this.gunSprite.RecalcTexture();
+                base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
+            }
+            catch (Exception ex )
+            {
+                BMLogger.Log("exception: " + ex.ToString());
+            }
+        }
+
+        protected void ThingMeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        {
+            bool flag;
+            Map.DamageDoodads(3, DamageType.InstaGib, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            this.KickDoors(24f);
+            Unit hitUnit;
+            if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 5, DamageType.InstaGib, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
+            {
+                Map.HitClosestUnit(this, base.playerNum, 5, DamageType.InstaGib, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true);
+                //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                this.meleeHasHit = true;
+            }
+            else if (playMissSound)
+            {
+            }
+            this.meleeChosenUnit = null;
+            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 2))
+            {
+                this.meleeHasHit = true;
+            }
+            this.TriggerBroMeleeEvent();
+        }
+
+        protected void AnimateThingMelee()
+        {
+            try
+            {
+                if ( base.frame < 5 )
+                {
+                    base.frame = 5;
+                }
+                if ( pauseMelee )
+                {
+                    --base.frame;
+                }
+
+                this.SetGunPosition(meleeOffsetX, meleeOffsetY);
+                base.frameRate = 0.1f;
+                //int num = 24 + Mathf.Clamp(base.frame, 0, 7);
+                //int num2 = 10;
+                //this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+                this.sprite.SetLowerLeftPixel(0f, 32f);
+                this.gunSprite.SetLowerLeftPixel(base.frame * 64f, 64f);
+                if (!this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound)
+                {
+                    //this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                    //this.playedAxeSound = true;
+                }
+                else if (base.frame == 13)
+                {
+                    this.ThingMeleeAttack(true, true);
+                }
+                else if (base.frame > 13 && !this.meleeHasHit)
+                {
+                    this.ThingMeleeAttack(false, false);
+                }
+                if (base.frame >= 15)
+                {
+                    base.frame = 0;
+                    this.CancelMelee();
+                    if (this.meleeBufferedPress)
+                    {
+                        this.meleeBufferedPress = false;
+                        this.StartCustomMelee();
+                    }
+                }
+            }
+            catch ( Exception ex )
+            {
+                BMLogger.Log("exception: " + ex.ToString());
+            }
+        }
+
+        protected void RunThingMeleeMovement()
+        {
+            if (this.jumpingMelee)
+            {
+                this.ApplyFallingGravity();
+                if (this.yI < this.maxFallSpeed)
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+            }
+            else if (this.dashingMelee)
+            {
+                this.xI = 0f;
+                this.ApplyFallingGravity();
+            }
+            else if (base.Y > this.groundHeight + 1f)
+            {
+                this.CancelMelee();
+            }
+        }
+
+        protected void CancelThingMelee()
+        {
+            this.SetGunPosition(0f, 0f);
+            //this.gunSprite.meshRender.material = this.thingGunMaterial;
+            //this.gunSpriteOffset.x = -3f;
+            //this.gunSprite.pixelDimensions = new Vector2(32f, 32f);
+            //this.gunSprite.SetSize(32, 32);
+            //this.gunSprite.RecalcTexture();
+            //base.GetComponent<Renderer>().material = this.thingMaterial;
         }
         #endregion
     }
