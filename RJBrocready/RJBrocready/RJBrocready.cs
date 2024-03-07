@@ -37,7 +37,7 @@ namespace RJBrocready
             Human = 0,
             FakeDeath = 1,
             Thing = 2,
-            Attacking = 3,
+            MonsterForm = 3,
             Reforming = 4,
         }
         protected bool gibbed = false;
@@ -45,6 +45,9 @@ namespace RJBrocready
         protected ThingState currentState = ThingState.Human;
         protected float fakeDeathTime = 0f;
         Material thingMaterial, thingGunMaterial, thingMeleeMaterial, thingSpecialIconMaterial, thingSpecialMaterial, thingArmlessMaterial;
+        protected float MonsterFormCounter = 0f;
+        //protected const float MaxMonsterFormTime = 3f;
+        protected const float MaxMonsterFormTime = 8f;
 
         // Misc
         protected bool acceptedDeath = false;
@@ -169,6 +172,17 @@ namespace RJBrocready
             {
                 base.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
                 gunSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            }
+
+            // Count down thing timer
+            if ( this.MonsterFormCounter > 0f )
+            {
+                this.MonsterFormCounter -= this.t;
+                if ( this.MonsterFormCounter <= 0f )
+                {
+                    this.currentState = ThingState.Reforming;
+                    BMLogger.Log("start reforming");
+                }
             }
 
             // Handle death
@@ -373,11 +387,43 @@ namespace RJBrocready
             }
             else
             {
-                if ( !this.doingMelee )
+                if ( this.fire )
+                {
+                    // Animate thing attack
+                }
+                // Human form
+                else if ( !this.doingMelee && this.currentState == ThingState.Thing )
                 {
                     this.gunFrame = 0;
                     this.SetGunSprite(0, 0);
                 }
+                // Monster form
+                else if ( this.currentState == ThingState.MonsterForm )
+                {
+                    this.SetGunPosition(meleeOffsetX, meleeOffsetY);
+                    this.gunFrame = 8;
+                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+                }
+                // Going from monster back to human
+                else if ( this.currentState == ThingState.Reforming )
+                {
+                    this.SetGunPosition(meleeOffsetX, meleeOffsetY);
+                    this.gunCounter += this.t;
+                    if ( this.gunCounter > 0.08f )
+                    {
+                        this.gunCounter -= 0.08f;
+                        --this.gunFrame;
+                        if (this.gunFrame >= 0)
+                        {
+                            this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+                        }
+                        else
+                        {
+                            ExitMonsterForm();
+                        }
+                    }
+                }
+
             }
         }
 
@@ -389,6 +435,11 @@ namespace RJBrocready
             }
             else
             {
+                // Mess with gunsprite in Monster form
+                if ( this.currentState != ThingState.Thing )
+                {
+                    return;
+                }
                 if (base.actionState == ActionState.Hanging)
                 {
                     this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * (this.gunSpriteHangingFrame + spriteFrame)), 128);
@@ -476,7 +527,11 @@ namespace RJBrocready
             if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
             {
                 hitUnit.Damage(1, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
-                this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                // Don't play hit sound multiple times
+                if ( !this.meleeHasHit )
+                {
+                    this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                }
                 this.meleeHasHit = true;
             }
             else if (playMissSound)
@@ -538,7 +593,6 @@ namespace RJBrocready
             {
                 if (this.theThing)
                 {
-                    StartThingMelee();
                     base.frame = 0;
                     base.counter = -0.05f;
                     this.ResetMeleeValues();
@@ -547,6 +601,7 @@ namespace RJBrocready
                     this.showHighFiveAfterMeleeTimer = 0f;
                     this.SetMeleeType();
                     this.meleeStartPos = base.transform.position;
+                    StartThingMelee();
                     this.AnimateMelee();
                 }
                 else
@@ -815,7 +870,7 @@ namespace RJBrocready
 
         protected void AnimateFakeDeath()
         {
-            this.frameRate = 0.025f;
+            this.frameRate = 0.015f;
             if (base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null)
             {
                 this.AnimateFallingDeath();
@@ -855,6 +910,48 @@ namespace RJBrocready
             this.SpecialAmmo = 1;
             this.originalSpecialAmmo = 1;
         }
+
+        protected void EnterMonsterForm()
+        {
+            this.MonsterFormCounter = MaxMonsterFormTime;
+            this.currentState = ThingState.MonsterForm;
+            this.doRollOnLand = false;
+            this.canWallClimb = false;
+        }
+
+        protected void ExitMonsterForm()
+        {
+            this.currentState = ThingState.Thing;
+            this.doRollOnLand = true;
+            this.canWallClimb = true;
+
+            base.GetComponent<Renderer>().material = this.thingMaterial;
+
+            this.SetGunPosition(0, 0);
+            this.gunSpriteOffset.x = -3f;
+            this.gunSprite.pixelDimensions = new Vector2(32f, 32f);
+            this.gunSprite.SetSize(32, 32);
+
+            this.SetGunSprite(0, 0);
+        }
+
+        protected override void AnimateWallAnticipation()
+        {
+            // Don't animate wall anticipation if in monster form
+            if ( this.currentState <= ThingState.Thing )
+            {
+                base.AnimateWallAnticipation();
+            }
+        }
+
+        protected override void Jump(bool wallJump)
+        {
+            if ( this.currentState > ThingState.Thing  && wallJump )
+            {
+                return;
+            }
+            base.Jump(wallJump);
+        }
         #endregion
 
         #region ThingPrimary
@@ -878,29 +975,35 @@ namespace RJBrocready
 
         protected void StartThingMelee()
         {
-            try
+            // Start melee from fully formed frame
+            if ( this.currentState == ThingState.MonsterForm )
             {
-                this.gunSprite.meshRender.material = this.thingMeleeMaterial;
-                this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
-                this.gunSprite.SetSize(64, 64);
-                this.gunSprite.RecalcTexture();
-                base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
+                base.frame = 8;
             }
-            catch (Exception ex )
+            // Reverse reforming and start from current frame
+            else if ( this.currentState == ThingState.Reforming )
             {
-                BMLogger.Log("exception: " + ex.ToString());
+                base.frame = this.gunFrame;
             }
+            this.MonsterFormCounter = 0f;
+            this.currentState = ThingState.Thing;
+            this.gunSprite.meshRender.material = this.thingMeleeMaterial;
+            this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
+            this.gunSprite.SetSize(64, 64);
+            this.gunSprite.RecalcTexture();
+            base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
         }
 
         protected void ThingMeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.InstaGib, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            Map.DamageDoodads(3, DamageType.GibIfDead, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
             this.KickDoors(24f);
             Unit hitUnit;
-            if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 5, DamageType.InstaGib, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
+            if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 5, DamageType.GibIfDead, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
             {
-                Map.HitClosestUnit(this, base.playerNum, 5, DamageType.InstaGib, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true);
+                Map.HitClosestUnit(this, base.playerNum, 5, DamageType.GibIfDead, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true);
+
                 //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
                 this.meleeHasHit = true;
             }
@@ -917,51 +1020,41 @@ namespace RJBrocready
 
         protected void AnimateThingMelee()
         {
-            try
+            if (pauseMelee)
             {
-                if ( base.frame < 5 )
-                {
-                    base.frame = 5;
-                }
-                if ( pauseMelee )
-                {
-                    --base.frame;
-                }
-
-                this.SetGunPosition(meleeOffsetX, meleeOffsetY);
-                base.frameRate = 0.1f;
-                //int num = 24 + Mathf.Clamp(base.frame, 0, 7);
-                //int num2 = 10;
-                //this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
-                this.sprite.SetLowerLeftPixel(0f, 32f);
-                this.gunSprite.SetLowerLeftPixel(base.frame * 64f, 64f);
-                if (!this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound)
-                {
-                    //this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
-                    //this.playedAxeSound = true;
-                }
-                else if (base.frame == 13)
-                {
-                    this.ThingMeleeAttack(true, true);
-                }
-                else if (base.frame > 13 && !this.meleeHasHit)
-                {
-                    this.ThingMeleeAttack(false, false);
-                }
-                if (base.frame >= 15)
-                {
-                    base.frame = 0;
-                    this.CancelMelee();
-                    if (this.meleeBufferedPress)
-                    {
-                        this.meleeBufferedPress = false;
-                        this.StartCustomMelee();
-                    }
-                }
+                --base.frame;
             }
-            catch ( Exception ex )
+
+            this.SetGunPosition(meleeOffsetX, meleeOffsetY);
+            base.frameRate = 0.07f;
+            //int num = 24 + Mathf.Clamp(base.frame, 0, 7);
+            //int num2 = 10;
+            //this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
+            this.sprite.SetLowerLeftPixel(0f, 32f);
+            this.gunSprite.SetLowerLeftPixel(base.frame * 64f, 64f);
+            if (!this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound)
             {
-                BMLogger.Log("exception: " + ex.ToString());
+                //this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                //this.playedAxeSound = true;
+            }
+            else if (base.frame == 13)
+            {
+                this.ThingMeleeAttack(true, true);
+            }
+            else if (base.frame > 13 && !this.meleeHasHit)
+            {
+                this.ThingMeleeAttack(false, false);
+            }
+            if (base.frame >= 15)
+            {
+                base.frame = 0;
+                EnterMonsterForm();
+                this.CancelMelee();
+                if (this.meleeBufferedPress)
+                {
+                    this.meleeBufferedPress = false;
+                    this.StartCustomMelee();
+                }
             }
         }
 
@@ -975,26 +1068,17 @@ namespace RJBrocready
                     this.yI = this.maxFallSpeed;
                 }
             }
-            else if (this.dashingMelee)
+            else
             {
                 this.xI = 0f;
                 this.ApplyFallingGravity();
-            }
-            else if (base.Y > this.groundHeight + 1f)
-            {
-                this.CancelMelee();
             }
         }
 
         protected void CancelThingMelee()
         {
-            this.SetGunPosition(0f, 0f);
-            //this.gunSprite.meshRender.material = this.thingGunMaterial;
-            //this.gunSpriteOffset.x = -3f;
-            //this.gunSprite.pixelDimensions = new Vector2(32f, 32f);
-            //this.gunSprite.SetSize(32, 32);
-            //this.gunSprite.RecalcTexture();
-            //base.GetComponent<Renderer>().material = this.thingMaterial;
+            this.gunSprite.meshRender.material = this.thingGunMaterial;
+            this.gunSprite.RecalcTexture();
         }
         #endregion
     }
