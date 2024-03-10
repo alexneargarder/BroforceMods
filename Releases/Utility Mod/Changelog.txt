@@ -1,3 +1,9 @@
+v2.2.1 (Unreleased)
+Added debug options for:
+Printing audio clip names
+Spawning enemies on right-click
+Changing zoom level
+
 v2.2.0
 Added options for:
 Infinite lives
