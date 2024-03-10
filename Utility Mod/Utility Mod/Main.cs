@@ -1026,7 +1026,7 @@ namespace Utility_Mod
                 {
                     SortOfFollow.zoomLevel = settings.zoomLevel;
                 }
-                if ( settings.teleportToMouseCursor )
+                if ( settings.spawnEnemyOnRightClick )
                 {
                     if (Input.GetMouseButtonUp(1))
                     {
