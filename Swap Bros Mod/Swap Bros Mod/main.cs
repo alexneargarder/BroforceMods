@@ -863,6 +863,8 @@ namespace Swap_Bros_Mod
                 if (Main.settings.enableBromaker && (Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom))
                 {
                     Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
+                    // Ensure we don't spawn boondock bros because one gets left over
+                    nextHeroType = HeroType.Rambro;
                 }
                 else
                 {
@@ -875,6 +877,8 @@ namespace Swap_Bros_Mod
             else if ( Main.settings.enableBromaker && Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom)
             {
                 Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
+                // Ensure we don't spawn boondock bros because one gets left over
+                nextHeroType = HeroType.Rambro;
             }
             // If we're just spawning a normal character
             else
