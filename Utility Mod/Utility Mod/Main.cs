@@ -695,6 +695,16 @@ namespace Utility_Mod
             GUILayout.EndHorizontal();
 
 
+            GUILayout.Space(10);
+
+
+            GUILayout.BeginHorizontal();
+
+            settings.suppressAnnouncer = GUILayout.Toggle(settings.suppressAnnouncer, "Suppress Announcer");
+
+            GUILayout.EndHorizontal();
+
+
             GUILayout.Space(20);
 
 
@@ -1039,6 +1049,10 @@ namespace Utility_Mod
             }
             catch (Exception ex)
             { }
+            if ( Map.MapData != null && settings.suppressAnnouncer )
+            {
+                Map.MapData.suppressAnnouncer = true;
+            }
 #endif
 
             if ( settings.enableFlight )
@@ -1767,6 +1781,20 @@ namespace Utility_Mod
             SortOfFollow.zoomLevel = 1;
         }
     }
+
+    [HarmonyPatch(typeof(HeroController), "DoCountDown")]
+    static class HeroController_DoCountDown_Patch
+    {
+        public static void Prefix()
+        {
+            if (!Main.enabled || !Main.settings.suppressAnnouncer)
+            {
+                return;
+            }
+
+            Map.MapData.suppressAnnouncer = true;
+        }
+    }
 #endif
 
     public class Settings : UnityModManager.ModSettings
@@ -1816,6 +1844,7 @@ namespace Utility_Mod
         public float zoomLevel = 1f;
         public bool setZoom = false;
         public bool showDebugOptions = false;
+        public bool suppressAnnouncer = false;
 #endif
 
         public override void Save(UnityModManager.ModEntry modEntry)
