@@ -6,6 +6,8 @@ using BroMakerLib.Loggers;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using System.Net;
+using HarmonyLib;
 
 namespace RJBrocready
 {
@@ -48,9 +50,41 @@ namespace RJBrocready
         protected float MonsterFormCounter = 0f;
         protected const float MaxMonsterFormTime = 3f;
 
+        // The Thing Special
+        SpriteSM tentacleWhipSprite;
+        LineRenderer tentacleLine;
+        public enum TentacleState
+        { 
+            Inactive = 0,
+            Extending = 1,
+            Attached = 2,
+            Retracting = 3,
+            ReadyToEat = 4
+        }
+        protected bool tentacleHitUnit = false;
+        protected bool tentacleHitGround = false;
+        protected Unit unitHit;
+        protected RaycastHit groundHit;
+        protected Vector3 tentacleHitPoint, tentacleDirection;
+        protected Vector3 tentacleOffset = new Vector3(0f, 13f, 0f);
+        protected float tentacleMaterialScale = 0.25f;
+        protected float tentacleMaterialOffset = -0.125f;
+        protected TentacleState currentTentacleState = TentacleState.Inactive;
+        protected float tentacleExtendTime = 0f;
+        protected float tentacleRange = 128f;
+        protected LayerMask fragileGroundLayer;
+        protected int tentacleDamage = 3;
+        protected bool impaled = false;
+        protected Transform tentacleImpaler;
+        protected float tentacleRetractTimer = 0f;
+
         // Misc
+        protected const float OriginalSpeed = 130f;
+        protected const float MonsterFormSpeed = 90f;
+        protected const float AttackingMonsterFormSpeed = 50f; 
         protected bool acceptedDeath = false;
         protected bool wasInvulnerable = false;
+        protected bool startAsTheThing = true;
 
         // DEBUG
         public static RJBrocready currentInstance;
@@ -61,20 +95,43 @@ namespace RJBrocready
         public static float meleeOffsetY = 16f;
 
         #region General
-        protected override void Awake()
+        protected override void Start()
         {
+            base.Start();
             string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
             BaBroracus bro = HeroController.GetHeroPrefab(HeroType.BaBroracus) as BaBroracus;
             projectiles = new Projectile[] { bro.projectile, bro.projectile2, bro.projectile3 };
             this.flameBurst = bro.flameSoundEnd;
 
-            this.flameStart = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameStart.wav");
-            this.flameLoop = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameLoop.wav");
-
             dynamitePrefab = new GameObject("Dynamite", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Dynamite) }).GetComponent<Dynamite>();
             dynamitePrefab.enabled = false;
             dynamitePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
+
+            tentacleWhipSprite = new GameObject("TentacleWhip", new Type[] { typeof(Transform), typeof(MeshRenderer), typeof(MeshFilter), typeof(SpriteSM) }).GetComponent<SpriteSM>();
+            MeshRenderer renderer = tentacleWhipSprite.GetComponent<MeshRenderer>();
+            renderer.material = ResourcesController.GetMaterial(directoryPath, "tentacle.png");
+            renderer.material.mainTexture.wrapMode = TextureWrapMode.Clamp;
+            tentacleWhipSprite.transform.parent = this.transform;
+            tentacleWhipSprite.lowerLeftPixel = new Vector2(0, 16);
+            tentacleWhipSprite.pixelDimensions = new Vector2(128, 16);
+            tentacleWhipSprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            tentacleWhipSprite.width = 128;
+            tentacleWhipSprite.height = 8;
+            tentacleWhipSprite.transform.localPosition = new Vector3(65f, 12f, -2f);
+            tentacleWhipSprite.SetTextureDefaults();
+            tentacleWhipSprite.gameObject.SetActive(false);
+
+            tentacleLine = new GameObject("TentacleLine", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
+            tentacleLine.transform.parent = this.transform;
+            tentacleLine.material = ResourcesController.GetMaterial(directoryPath, "tentacleLine.png");
+
+            this.tentacleImpaler = new GameObject("TentacleImpaler", new Type[] { typeof(Transform) }).transform;
+
+            this.fragileGroundLayer = this.fragileLayer | this.groundLayer;
+
+            this.flameStart = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameStart.wav");
+            this.flameLoop = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameLoop.wav");
 
             this.currentMeleeType = MeleeType.Disembowel;
             this.meleeType = MeleeType.Disembowel;
@@ -96,12 +153,6 @@ namespace RJBrocready
             this.thingSpecialMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecialSprite.png");
             this.thingArmlessMaterial = ResourcesController.GetMaterial(directoryPath, "armlessSprite.png");
 
-            base.Awake();
-        }
-
-        protected override void Start()
-        {
-            base.Start();
             this.flameSource = base.gameObject.AddComponent<AudioSource>();
             this.flameSource.rolloffMode = AudioRolloffMode.Linear;
             this.flameSource.maxDistance = 500f;
@@ -110,6 +161,13 @@ namespace RJBrocready
             this.flameSource.playOnAwake = false;
             this.flameSource.Stop();
             currentInstance = this;
+
+            if ( startAsTheThing )
+            {
+                this.theThing = true;
+                base.GetComponent<Renderer>().material = this.thingMaterial;
+                this.BecomeTheThing();
+            }
         }
 
         protected override void Update()
@@ -181,6 +239,12 @@ namespace RJBrocready
                 {
                     this.currentState = ThingState.Reforming;
                 }
+            }
+
+            // Update thing's special tentacle
+            if ( this.usingSpecial && this.currentTentacleState > TentacleState.Inactive )
+            {
+                this.UpdateTentacle();
             }
 
             // Handle death
@@ -424,6 +488,18 @@ namespace RJBrocready
         #endregion
 
         #region Special
+        protected override void PressSpecial()
+        {
+            if ( !this.theThing )
+            {
+                base.PressSpecial();
+            }
+            else
+            {
+                this.ThingPressSpecial();
+            }
+        }
+
         protected override void UseSpecial()
         {
             if (this.SpecialAmmo > 0)
@@ -444,12 +520,24 @@ namespace RJBrocready
                 }
                 else
                 {
-                    UseThingSpecial();
+                    this.ThingUseSpecial();
                 }
             }
             else
             {
                 base.UseSpecial();
+            }
+        }
+
+        protected override void AnimateSpecial()
+        {
+            if ( !this.theThing )
+            {
+                base.AnimateSpecial();
+            }
+            else
+            {
+                this.ThingAnimateSpecial();
             }
         }
 
@@ -755,7 +843,7 @@ namespace RJBrocready
             this.doRollOnLand = false;
             this.canWallClimb = false;
             this.canChimneyFlip = false;
-            theThing = true;
+            this.theThing = true;
             this.DeactivateGun();
             if (damage != null)
             {
@@ -805,7 +893,7 @@ namespace RJBrocready
 
         public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
         {
-            if ( currentState != ThingState.FakeDeath )
+            if ( currentState != ThingState.FakeDeath && !(this.theThing && this.usingSpecial) )
             {
                 base.Damage(damage, damageType, xI, yI, direction, damageSender, hitX, hitY);
             }
@@ -904,6 +992,7 @@ namespace RJBrocready
 
         protected void EnterMonsterForm()
         {
+            this.speed = MonsterFormSpeed;
             this.MonsterFormCounter = MaxMonsterFormTime;
             this.currentState = ThingState.MonsterForm;
             this.doRollOnLand = false;
@@ -913,6 +1002,7 @@ namespace RJBrocready
 
         protected void ExitMonsterForm()
         {
+            this.speed = OriginalSpeed;
             this.currentState = ThingState.Thing;
             this.doRollOnLand = true;
             this.canWallClimb = true;
@@ -993,7 +1083,11 @@ namespace RJBrocready
 
         protected void ThingRunGun()
         {
-            if (this.fire)
+            if ( this.doingMelee || this.usingSpecial )
+            {
+                // Do nothing
+            }
+            else if (this.fire)
             {
                 // Animate thing attack
                 // Start frame 9
@@ -1063,9 +1157,359 @@ namespace RJBrocready
         #endregion
 
         #region ThingSpecial
-        protected void UseThingSpecial()
+        protected void ThingPressSpecial()
+        {
+            if ( !this.usingSpecial && this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee)
+            {
+                this.usingSpecial = true;
+                this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+
+                this.speed = AttackingMonsterFormSpeed;
+                this.currentTentacleState = TentacleState.Inactive;
+                this.tentacleHitUnit = false;
+
+                this.SwitchToMonsterSprites(thingSpecialMaterial);
+                if ( this.currentState == ThingState.MonsterForm )
+                {
+                    base.frame = 8;
+                }
+                else if ( this.currentState == ThingState.Reforming )
+                {
+                    base.frame = this.gunFrame;
+                }
+                this.ChangeFrame();
+            }
+            else if ( this.SpecialAmmo <= 0 )
+            {
+                HeroController.FlashSpecialAmmo(base.playerNum);
+            }
+        }
+
+        protected void ThingUseSpecial()
         {
 
+        }
+
+        protected void ThingAnimateSpecial()
+        {
+            base.frameRate = 0.08f;
+
+            this.SetGunPosition(meleeOffsetX, meleeOffsetY);
+            this.sprite.SetLowerLeftPixel(0f, 32f);
+            this.gunSprite.SetLowerLeftPixel(base.frame * 64f, 64f);
+
+
+            if ( base.frame == 16 && this.currentTentacleState == TentacleState.Inactive )
+            {
+                StartTentacleWhip();
+            }
+            else if (this.currentTentacleState > TentacleState.Inactive && this.currentTentacleState < TentacleState.ReadyToEat )
+            {
+                base.frame = 16;
+            }
+            else if ( base.frame >= 16 && base.frame < 22 )
+            {
+                base.frame = 22;
+            }
+            // Eat mook
+            else if ( base.frame == 23 )
+            {
+                BMLogger.Log("eaten");
+                this.ThingMeleeAttack(true, true);
+                this.tentacleLine.enabled = false;
+                this.currentTentacleState = TentacleState.Inactive;
+            }
+            else if ( base.frame >= 25 )
+            {
+                this.usingSpecial = this.usingPockettedSpecial = false;
+                this.EnterMonsterForm();
+                this.SwitchToMonsterSprites(this.thingGunMaterial);
+                this.ChangeFrame();
+            }
+        }
+
+        protected void StartTentacleWhip()
+        {
+            this.currentTentacleState = TentacleState.Extending;
+            this.tentacleExtendTime = 0.02f;
+            this.tentacleRetractTimer = 0f;
+            this.tentacleDirection = new Vector3(base.transform.localScale.x, 0f, 0f);
+            this.tentacleDirection.Normalize();
+            this.tentacleWhipSprite.gameObject.SetActive(true);
+            impaled = false;
+            tentacleHitGround = false;
+            tentacleHitUnit = false;
+        }
+        
+        protected void UpdateTentacle()
+        {
+            try
+            {
+                DrawTentacle();
+            }
+            catch ( Exception ex )
+            {
+                BMLogger.Log("exception: " + ex.ToString());
+            }
+        }
+
+        public Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, float xRange, float yRange, float x, float y, int direction, Vector3 startPoint, bool haveHitGround, Vector3 groundVector)
+        {
+            if (Map.units == null)
+            {
+                return null;
+            }
+            int num = 999999;
+            float num2 = Mathf.Max(xRange, yRange);
+            Unit unit = null;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                Unit unit3 = Map.units[i];
+                if (unit3 != null && !unit3.invulnerable && unit3.health <= num && GameModeController.DoesPlayerNumDamage(playerNum, unit3.playerNum))
+                {
+                    float f = unit3.X - x;
+                    if (Mathf.Abs(f) - xRange < unit3.width && Mathf.Sign(f) == direction)
+                    {
+                        float f2 = unit3.Y + unit3.height / 2f + 3f - y;
+                        if (Mathf.Abs(f2) - yRange < unit3.height)
+                        {
+                            float num4 = Mathf.Abs(f) + Mathf.Abs(f2);
+                            if (num4 < num2)
+                            {
+                                if (unit3.health > 0)
+                                {
+                                    unit = unit3;
+                                    num2 = num4;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (unit != null && (!haveHitGround || Mathf.Abs(unit.X - x) < Mathf.Abs(groundVector.x - x)))
+            {
+                return unit;
+            }
+            return null;
+        }
+
+        public bool HitProjectiles(int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, int direction)
+        {
+            bool result = false;
+            for (int i = Map.damageableProjectiles.Count - 1; i >= 0; i--)
+            {
+                Projectile projectile = Map.damageableProjectiles[i];
+                if (projectile != null && GameModeController.DoesPlayerNumDamage(playerNum, projectile.playerNum))
+                {
+                    float f = projectile.X - x;
+                    if (Mathf.Abs(f) - xRange < projectile.projectileSize && Mathf.Sign(f) == direction)
+                    {
+                        float f2 = projectile.Y - y;
+                        if (Mathf.Abs(f2) - yRange < projectile.projectileSize)
+                        {
+                            Map.DamageProjectile(projectile, damage, damageType, xI, yI, 0f, playerNum);
+                            result = true;
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        protected void TentacleLineHitDetection(float tentacleRange, Vector3 startPoint)
+        {
+            RaycastHit groundHit = this.raycastHit;
+            bool haveHitGround = false;
+            float currentRange = tentacleRange;
+            Vector3 endPoint;
+
+            // Hit ground
+            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.fragileGroundLayer))
+            {
+                groundHit = this.raycastHit;
+                // Shorten the range we check for raycast hits, we don't care about hitting anything past the current terrain.
+                currentRange = this.raycastHit.distance;
+                haveHitGround = true;
+            }
+
+            Unit unit;
+            // Check for unit collision
+            if ((unit = HitClosestUnit(this, this.playerNum, currentRange, 6, startPoint.x, startPoint.y, (int)base.transform.localScale.x, startPoint, haveHitGround, groundHit.point)) != null)
+            {
+                tentacleHitUnit = true;
+                unitHit = unit;
+                endPoint = new Vector3(unit.X, startPoint.y, 0);
+            }
+            // Use ground collsion if no unit was hit
+            else if (haveHitGround)
+            {
+                tentacleHitGround = true;
+                this.groundHit = groundHit;
+                endPoint = new Vector3(groundHit.point.x, groundHit.point.y, 0);
+            }
+            // Nothing hit
+            else
+            {
+                endPoint = new Vector3(startPoint.x + base.transform.localScale.x * tentacleRange, startPoint.y, 0);
+            }
+
+            HitProjectiles(this.playerNum, tentacleDamage, DamageType.Knifed, Mathf.Abs(endPoint.x - startPoint.x), 6f, startPoint.x, startPoint.y, base.transform.localScale.x * 30, 20, (int)base.transform.localScale.x);
+        }
+
+/*        protected void DamageUnit(Unit unit, Vector3 startPoint)
+        {
+            // Only damage visible objects
+            if (unit != null && SortOfFollow.IsItSortOfVisible(unit.transform.position, 24, 24f))
+            {
+                unit.Damage(protonUnitDamage, DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, unit.X, unit.Y);
+                unit.Knock(DamageType.Fire, base.transform.localScale.x * 30, 20, false);
+            }
+;
+            if (this.effectCooldown <= 0)
+            {
+                Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, unit.X + base.transform.localScale.x * 4, startPoint.y + UnityEngine.Random.Range(-3, 3), 0f, 0f, Vector3.zero, null);
+                this.effectCooldown = 0.15f;
+            }
+
+            protonDamageCooldown = 0.08f;
+        }*/
+
+        protected void DamageCollider(RaycastHit hit)
+        {
+            // Only damage visible objects
+            if (SortOfFollow.IsItSortOfVisible(hit.point, 24, 24f))
+            {
+                Unit unit = hit.collider.GetComponent<Unit>();
+                // Damage unit
+                if (unit != null)
+                {
+                    // Add damage if we're hitting a boss
+                    unit.Damage(tentacleDamage + (unit.health > 30 ? 1 : 0), DamageType.Knifed, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y);
+                    unit.Knock(DamageType.Fire, base.transform.localScale.x * 30, 20, false);
+                }
+                // Damage other
+                else
+                {
+                    hit.collider.SendMessage("Damage", new DamageObject(tentacleDamage, DamageType.Knifed, 0f, 0f, hit.point.x, hit.point.y, this));
+                }
+            }
+
+            Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range(-3, 3), 0f, 0f, Vector3.zero, null);
+        }
+
+        protected void DrawTentacle()
+        {
+            if ( this.currentTentacleState == TentacleState.Extending )
+            {
+                float max = this.tentacleRange;
+                Vector2 tentaclePosition = new Vector2(128f - Mathf.Clamp(this.tentacleExtendTime * 1280f, 0f, max), 16f);
+                float currentRange = 128f - tentaclePosition.x;
+                if ( !tentacleHitUnit && !tentacleHitGround )
+                {
+                    TentacleLineHitDetection(currentRange, base.transform.position + this.tentacleOffset);
+                }
+
+                if ( tentacleHitUnit )
+                {
+                    this.tentacleHitPoint = new Vector3( unitHit.transform.position.x, base.transform.position.y + this.tentacleOffset.y, 0 );
+                }
+                else if ( tentacleHitGround )
+                {
+                    this.tentacleHitPoint = new Vector3( groundHit.point.x, base.transform.position.y + this.tentacleOffset.y, 0);
+                }
+                else
+                {
+                    this.tentacleHitPoint = base.transform.position + this.tentacleOffset + this.tentacleDirection.normalized * this.tentacleRange;
+                }
+                float num = this.tentacleHitPoint.x - (base.transform.position.x + this.tentacleOffset.x);
+                if (num > 0f != base.transform.localScale.x > 0f)
+                {
+                    num *= -1f;
+                }
+                num *= Mathf.Sign(this.tentacleHitPoint.x - (base.transform.position.x + this.tentacleOffset.x));
+                this.tentacleWhipSprite.transform.localEulerAngles = new Vector3(0f, 0f, 0f);
+                this.tentacleWhipSprite.gameObject.SetActive(true);
+                this.tentacleExtendTime += this.t / 2f;
+                this.tentacleWhipSprite.SetLowerLeftPixel(tentaclePosition);
+                this.tentacleWhipSprite.UpdateUVs();
+                if (tentaclePosition.x <= 0 || this.tentacleHitUnit || this.tentacleHitGround )
+                {
+                    this.currentTentacleState = TentacleState.Attached;
+                    this.tentacleWhipSprite.gameObject.SetActive(false);
+                    this.tentacleLine.enabled = true;
+                    this.tentacleLine.startWidth = 3f;
+                    this.tentacleLine.endWidth = 3f;
+                    this.tentacleLine.widthMultiplier = 1f;
+                    this.tentacleLine.textureMode = LineTextureMode.Stretch;
+                    this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
+                    this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
+                    float magnitude = (this.tentacleHitPoint - (base.transform.position + this.tentacleOffset)).magnitude;
+                    if (base.transform.localScale.x < 0f)
+                    {
+                        this.tentacleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * tentacleMaterialScale, 1f));
+                        this.tentacleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * tentacleMaterialOffset, 0f));
+                    }
+                    else if (base.transform.localScale.x > 0f)
+                    {
+                        this.tentacleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * tentacleMaterialScale, -1f));
+                        this.tentacleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * tentacleMaterialOffset, 0f));
+                    }
+                }
+            }
+            else if ( this.currentTentacleState == TentacleState.Attached )
+            {
+                this.tentacleRetractTimer += this.t;
+                // Impale unit if possible or hit unit / ground if not
+                if ( !this.impaled )
+                {
+                    if ( this.tentacleHitUnit )
+                    {
+                        this.tentacleImpaler.position = tentacleHitPoint;
+                        this.unitHit.Impale(tentacleImpaler, new Vector3(base.transform.localScale.x, 0f, 0f), 0, base.transform.localScale.x, 0, 0, 0);
+                        this.unitHit.Y = this.tentacleHitPoint.y - 8f;
+                        if (unitHit is Mook)
+                        {
+                            unitHit.useImpaledFrames = true;
+                            Traverse.Create((unitHit as Mook)).Field("impaledPosition").SetValue(new Vector3(base.transform.localScale.x < 0 ? float.MaxValue : float.MinValue, 0, 0));
+                        }
+                    }
+                    else if ( this.tentacleHitGround )
+                    {   
+                        DamageCollider(groundHit);
+                    }
+                    this.impaled = true;
+                }
+                this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
+                this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
+                this.tentacleLine.startWidth = 3f;
+                this.tentacleLine.endWidth = 3f;
+                this.tentacleLine.widthMultiplier = 1f;
+                if (this.tentacleRetractTimer > 0.25f)
+                {
+                    this.currentTentacleState = TentacleState.Retracting;
+                }
+            }
+            else if ( this.currentTentacleState == TentacleState.Retracting || this.currentTentacleState == TentacleState.ReadyToEat )
+            {
+                // Move tentacleHitPoint towards player
+                this.tentacleHitPoint = Vector3.MoveTowards(this.tentacleHitPoint, base.transform.position + this.tentacleOffset, (tentacleHitUnit ? 200f : 400f) * this.t);
+                // Update tentacleImpaler position
+                this.tentacleImpaler.position = tentacleHitPoint;
+
+                this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
+                this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
+                this.tentacleLine.startWidth = 3f;
+                this.tentacleLine.endWidth = 3f;
+                this.tentacleLine.widthMultiplier = 1f;
+
+                // If tentacleHitPoint is close to player, move to ready to eat state
+                if ( this.currentTentacleState != TentacleState.ReadyToEat && Tools.FastAbsWithinRange(tentacleHitPoint.x - base.transform.position.x, 27f))
+                {
+                    base.frame = 21;
+                    this.currentTentacleState = TentacleState.ReadyToEat;
+                }
+            }
         }
         #endregion
 
