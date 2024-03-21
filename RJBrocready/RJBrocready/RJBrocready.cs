@@ -40,16 +40,19 @@ namespace RJBrocready
             Human = 0,
             FakeDeath = 1,
             Thing = 2,
-            MonsterForm = 3,
-            Reforming = 4,
+            EnteringMonsterForm = 3,
+            MonsterForm = 4,
+            Reforming = 5,
         }
         protected bool gibbed = false;
         protected bool theThing = false;
         protected ThingState currentState = ThingState.Human;
         protected float fakeDeathTime = 0f;
-        Material thingMaterial, thingGunMaterial, thingMeleeMaterial, thingSpecialIconMaterial, thingSpecialMaterial, thingArmlessMaterial, thingAvatarMaterial, thingMonsterFormMaterial;
+        Material thingMaterial, thingGunMaterial, thingSpecialIconMaterial, thingArmlessMaterial, thingAvatarMaterial, thingMonsterFormMaterial;
         protected float MonsterFormCounter = 0f;
         protected const float MaxMonsterFormTime = 3f;
+        protected float spriteOffsetX = 0f;
+        protected float spriteOffsetY = 0f;
 
         // The Thing Primary
         protected List<Unit> alreadyHitUnits;
@@ -90,11 +93,10 @@ namespace RJBrocready
         protected const float AttackingMonsterFormSpeed = 50f; 
         protected bool acceptedDeath = false;
         protected bool wasInvulnerable = false;
-        protected bool startAsTheThing = false;
+        protected bool startAsTheThing = true;
 
         // DEBUG
         public static RJBrocready currentInstance;
-        public static bool pauseMelee = false;
 
         #region General
         protected override void Start()
@@ -150,9 +152,7 @@ namespace RJBrocready
 
             this.thingMaterial = ResourcesController.GetMaterial(directoryPath, "thingSprite.png");
             this.thingGunMaterial = ResourcesController.GetMaterial(directoryPath, "thingGunSprite.png");
-            this.thingMeleeMaterial = ResourcesController.GetMaterial(directoryPath, "thingMeleeSprite.png");
             this.thingSpecialIconMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecial.png");
-            this.thingSpecialMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecialSprite.png");
             this.thingArmlessMaterial = ResourcesController.GetMaterial(directoryPath, "armlessSprite.png");
             this.thingAvatarMaterial = ResourcesController.GetMaterial(directoryPath, "thingAvatar.png");
             this.thingMonsterFormMaterial = ResourcesController.GetMaterial(directoryPath, "thingMonsterSprite.png");
@@ -242,9 +242,19 @@ namespace RJBrocready
                 if ( this.MonsterFormCounter <= 0f )
                 {
                     this.currentState = ThingState.Reforming;
-                    this.SwitchToMonsterSprites(this.thingGunMaterial);
-                    this.SetGunPosition(16f, 16f);
+                    this.gunFrame = 0;
+                    base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
+                    this.sprite.pixelDimensions = new Vector2(32f, 32f);
+                    this.sprite.SetSize(32, 32);
+                    this.sprite.RecalcTexture();
+                    this.spritePixelHeight = 32;
+                    this.spritePixelWidth = 32;
+                    this.spriteOffsetX = 0f;
+                    this.spriteOffsetY = 0f;
+                    this.sprite.SetLowerLeftPixel(0f, 32f);
+                    this.ActivateGun();
                     this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+                    this.ChangeFrame();
                 }
             }
 
@@ -281,8 +291,6 @@ namespace RJBrocready
                 DamageObject damage = new DamageObject(1, DamageType.Bullet, 100, 0, currentInstance.X, currentInstance.Y, currentInstance );
                 currentInstance.FakeDeath(0f, 0f, damage);
             }
-
-            pauseMelee = GUILayout.Toggle(pauseMelee, "pause melee");
         }
         #endregion
 
@@ -474,19 +482,19 @@ namespace RJBrocready
                 }
                 if (base.actionState == ActionState.Hanging)
                 {
-                    this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * (this.gunSpriteHangingFrame + spriteFrame)), 128);
+                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
                 }
                 else if (base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed)
                 {
-                    this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * (this.gunSpriteHangingFrame + spriteFrame)), 128);
+                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
                 }
                 else if (this.attachedToZipline != null && base.actionState == ActionState.Jumping)
                 {
-                    this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * (this.gunSpriteHangingFrame + spriteFrame)), 128);
+                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
                 }
                 else
                 {
-                    this.gunSprite.SetLowerLeftPixel((float)(this.gunSpritePixelWidth * spriteFrame), 128);
+                    this.gunSprite.SetLowerLeftPixel((float)(64f * spriteFrame), 128);
                 }
             }
         }
@@ -945,7 +953,7 @@ namespace RJBrocready
             }
             else
             {
-                this.frameRate = 0.15f;
+                this.frameRate = 0.12f;
                 this.sprite.SetLowerLeftPixel(((base.frame - 1) * this.spritePixelWidth), 10 * this.spritePixelHeight);
                 // Finished turning
                 if ( base.frame == 11 )
@@ -971,41 +979,57 @@ namespace RJBrocready
             this.lastParentedToTransform = null;
             this.gunFrame = 0;
             this.gunSprite.meshRender.material = this.thingGunMaterial;
+            this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
+            this.gunSprite.SetSize(64, 64);
             this.gunSprite.RecalcTexture();
-            this.gunSpriteOffset.x = -3f;
+            this.gunSpriteOffset.x = -2f;
             BroMakerUtilities.SetSpecialMaterials(this.playerNum, new List<Material> { this.thingSpecialIconMaterial }, new Vector2(3, 0),  0f);
             this.SpecialAmmo = 1;
             this.originalSpecialAmmo = 1;
             HeroController.SetAvatarMaterial(playerNum, this.thingAvatarMaterial);
         }
 
-        protected void SwitchToMonsterSprites(Material gunMat)
-        {
-            bool changedMaterial = false;
-            if ( gunMat != this.gunSprite.meshRender.material )
-            {
-                this.gunSprite.meshRender.material = gunMat;
-                changedMaterial = true;
-            }
-            this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
-            this.gunSprite.SetSize(64, 64);
-            if ( changedMaterial )
-            {
-                this.gunSprite.RecalcTexture();
-            }
-            base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
-            this.ActivateGun();
-        }
-
         protected void EnterMonsterForm()
         {
+            if ( this.currentState < ThingState.EnteringMonsterForm )
+            {
+                // Start entering monster form
+                this.currentState = ThingState.EnteringMonsterForm;
+                this.gunFrame = 0;
+            }
+            else if ( this.currentState == ThingState.Reforming )
+            {
+                // Turn back into a monster
+                if ( this.gunFrame < 2 )
+                {
+                    this.currentState = ThingState.MonsterForm;
+                }
+                else
+                {
+                    this.gunFrame = 0;
+                    this.currentState = ThingState.EnteringMonsterForm;
+                }
+            }
             // Disable counter so we don't revert in the middle of an attack
             this.MonsterFormCounter = -1f;
             this.speed = MonsterFormSpeed;
-            this.currentState = ThingState.MonsterForm;
             this.doRollOnLand = false;
             this.canWallClimb = false;
             this.canChimneyFlip = false;
+
+            this.ActivateGun();
+
+            // Switch to armless sprite
+            base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
+            this.sprite.pixelDimensions = new Vector2(32f, 32f);
+            this.sprite.SetSize(32, 32);
+            this.sprite.RecalcTexture();
+            this.spritePixelHeight = 32;
+            this.spritePixelWidth = 32;
+            this.spriteOffsetX = 0f;
+            this.spriteOffsetY = 0f;
+            this.sprite.SetLowerLeftPixel(0f, 32f);
+            this.ChangeFrame();
         }
 
         protected void EnterMonsterFormIdle()
@@ -1017,9 +1041,18 @@ namespace RJBrocready
             this.canWallClimb = false;
             this.canChimneyFlip = false;
 
-            this.gunFrame = 7;
+            this.gunFrame = 0;
             this.DeactivateGun();
+
             base.GetComponent<Renderer>().material = this.thingMonsterFormMaterial;
+            this.sprite.pixelDimensions = new Vector2(64f, 64f);
+            this.sprite.SetSize(64, 64);
+            this.sprite.RecalcTexture();
+            this.spritePixelHeight = 64;
+            this.spritePixelWidth = 64;
+            this.spriteOffsetX = 16f;
+            this.spriteOffsetY = 16f;
+            this.ChangeFrame();
         }
 
         protected void ExitMonsterForm()
@@ -1030,14 +1063,52 @@ namespace RJBrocready
             this.canWallClimb = true;
             this.canChimneyFlip = true;
 
-            base.GetComponent<Renderer>().material = this.thingMaterial;
-
             this.SetGunPosition(0, 0);
-            this.gunSpriteOffset.x = -3f;
-            this.gunSprite.pixelDimensions = new Vector2(32f, 32f);
-            this.gunSprite.SetSize(32, 32);
-
+            this.gunSpriteOffset.x = -2f;
             this.SetGunSprite(0, 0);
+
+            base.GetComponent<Renderer>().material = this.thingMaterial;
+            this.sprite.pixelDimensions = new Vector2(32f, 32f);
+            this.sprite.SetSize(32, 32);
+            this.sprite.RecalcTexture();
+            this.spritePixelHeight = 32;
+            this.spritePixelWidth = 32;
+            this.spriteOffsetX = 0f;
+            this.spriteOffsetY = 0f;
+            this.ChangeFrame();
+        }
+
+        protected void AnimateBecomingMonster()
+        {
+            if (this.gunFrame >= 6)
+            {
+                this.currentState = ThingState.MonsterForm;
+            }
+
+            this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+        }
+
+        protected void AnimateBecomingHuman()
+        {
+            this.gunCounter += this.t;
+            if (this.gunCounter > 0.08f)
+            {
+                this.gunCounter -= 0.08f;
+                ++this.gunFrame;
+                if (this.gunFrame > 5)
+                {
+                    ExitMonsterForm();
+                }
+                else
+                {
+                    this.gunSprite.SetLowerLeftPixel((this.gunFrame + 12) * 64f, 64f);
+                }
+            }
+        }
+
+        protected override void SetSpriteOffset(float xOffset, float yOffset)
+        {
+            base.SetSpriteOffset(this.spriteOffsetX + xOffset, this.spriteOffsetY + yOffset);
         }
 
         protected override void AnimateWallAnticipation()
@@ -1057,6 +1128,15 @@ namespace RJBrocready
             }
             base.Jump(wallJump);
         }
+
+        protected override void ChangeFrame()
+        {
+            base.ChangeFrame();
+            if ( this.theThing && !(this.usingSpecial || this.doingMelee) )
+            {
+                this.frameRate = 0.0334f;
+            }
+        }
         #endregion
 
         #region ThingPrimary
@@ -1066,7 +1146,6 @@ namespace RJBrocready
             {
                 // Switch sprites to monster sprites
                 EnterMonsterForm();
-                SwitchToMonsterSprites(this.thingGunMaterial);
                 this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
             }
         }
@@ -1075,12 +1154,8 @@ namespace RJBrocready
         {
             if ( !(this.usingSpecial || this.doingMelee) )
             {
-                if ( this.gunFrame >= 7 )
+                if ( this.currentState == ThingState.MonsterForm )
                 {
-                    if (this.gunFrame > 9)
-                    {
-                        this.gunFrame = 11;
-                    }
                     EnterMonsterFormIdle();
                 }
             }
@@ -1174,32 +1249,61 @@ namespace RJBrocready
             {
                 // Do nothing
             }
+            else if (this.currentState == ThingState.EnteringMonsterForm)
+            {
+                this.gunCounter += this.t;
+                if (this.gunCounter > 0.07f)
+                {
+                    this.gunCounter -= 0.07f;
+                    ++this.gunFrame;
+
+                    AnimateBecomingMonster();
+                }
+                if ( this.currentState == ThingState.MonsterForm )
+                {
+                    this.gunFrame = 0;
+                    // Enter monster form idle because we're not firing or meleeing or using special
+                    if ( !this.fire )
+                    {
+                        EnterMonsterFormIdle();
+                    }
+                }
+            }
+            // Going from monster back to human
+            else if (this.currentState == ThingState.Reforming)
+            {
+                AnimateBecomingHuman();
+                
+            }
             else if (this.fire)
             {
                 // Animate thing attack
-                this.SetGunPosition(16f, 16f);
                 this.gunCounter += this.t;
                 if ( this.gunCounter > 0.07f )
                 {
                     this.gunCounter -= 0.07f;
                     ++this.gunFrame;
-                    if ( this.gunFrame > 16 )
+                    if ( this.gunFrame < 2 )
                     {
-                        this.gunFrame = 9;
+                        this.gunFrame = 2;
+                    }
+                    if ( this.gunFrame > 11 )
+                    {
+                        this.gunFrame = 5;
                     }
 
-                    if ( this.gunFrame == 9 )
+                    if ( this.gunFrame == 5 )
                     {
                         this.alreadyHitUnits = new List<Unit>();
                         this.hasHitTerrain = false;
                     }
 
-                    if ( this.gunFrame > 13 && this.gunFrame < 16 )
+                    if ( this.gunFrame > 8 && this.gunFrame < 11 )
                     {
                         this.ThingUseFire();
                     }
 
-                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 192f);
                 }
             }
             // Human form
@@ -1211,46 +1315,20 @@ namespace RJBrocready
             // Monster form
             else if (this.currentState == ThingState.MonsterForm)
             {
-                // Finish entering monster form, needed in case attack is released prematurely
-                if (this.gunFrame < 7)
-                {
-                    this.gunCounter += this.t;
-                    if (this.gunCounter > 0.07f)
-                    {
-                        this.gunCounter -= 0.07f;
-                        ++this.gunFrame;
-                        if (this.gunFrame == 7)
-                        {
-                            this.EnterMonsterFormIdle();
-                        }
-                    }
-                    this.SetGunPosition(16f, 16f);
-                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
-                }
-                else
-                {
-                    this.DeactivateGun();
-                    this.gunFrame = 7;
-                }
+                this.gunFrame = 0;
+                this.DeactivateGun();
             }
-            // Going from monster back to human
-            else if (this.currentState == ThingState.Reforming)
+        }
+
+        protected override void SetGunPosition(float xOffset, float yOffset)
+        {
+            if ( this.theThing )
             {
-                this.SetGunPosition(16f, 16f);
-                this.gunCounter += this.t;
-                if (this.gunCounter > 0.08f)
-                {
-                    this.gunCounter -= 0.08f;
-                    --this.gunFrame;
-                    if (this.gunFrame >= 0)
-                    {
-                        this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
-                    }
-                    else
-                    {
-                        ExitMonsterForm();
-                    }
-                }
+                base.SetGunPosition(16f + xOffset, 16f + yOffset);
+            }
+            else
+            {
+                base.SetGunPosition(xOffset, yOffset);
             }
         }
         #endregion
@@ -1269,20 +1347,9 @@ namespace RJBrocready
                 this.currentTentacleState = TentacleState.Inactive;
                 this.tentacleHitUnit = false;
 
-                if ( this.currentState == ThingState.MonsterForm )
-                {
-                    this.gunFrame = 7;
-                }
-                else if ( this.currentState == ThingState.Reforming )
-                {
-                    --this.gunFrame;
-                }
-
                 this.EnterMonsterForm();
-                this.SwitchToMonsterSprites(thingSpecialMaterial);
+                this.gunFrame = -1;
                 this.speed = AttackingMonsterFormSpeed;
-
-                this.ChangeFrame();
             }
             else if ( this.SpecialAmmo <= 0 )
             {
@@ -1302,49 +1369,57 @@ namespace RJBrocready
             this.usingSpecial = false;
             this.ChangeFrame();
             this.usingSpecial = true;
-
             this.ActivateGun();
-            this.SetGunPosition(16f, 16f);
-            this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
-
-            base.frameRate = 0.08f;
-
-            if ( this.gunFrame == 16 && this.currentTentacleState == TentacleState.Inactive )
+            if ( this.currentState == ThingState.EnteringMonsterForm )
             {
-                StartTentacleWhip();
-            }
-            else if (this.currentTentacleState > TentacleState.Inactive && this.currentTentacleState < TentacleState.ReadyToEat )
-            {
-                this.gunFrame = 16;
-            }
-            else if ( this.gunFrame >= 16 && this.gunFrame < 22 )
-            {
-                this.gunFrame = 22;
-            }
-            // Eat mook
-            else if ( this.gunFrame == 23 )
-            {
-                this.ThingMeleeAttack(true, true);
-                this.tentacleLine.enabled = false;
-                this.currentTentacleState = TentacleState.Inactive;
-                // Release unit if still alive
-                if ( this.unitHit.health > 0 )
+                this.AnimateBecomingMonster();
+                if ( this.currentState == ThingState.MonsterForm )
                 {
-                    this.unitHit.Unimpale(3, DamageType.Knifed, 0f, 0f, this);
-                    if (unitHit is Mook)
-                    {
-                        unitHit.useImpaledFrames = false;
-                    }
+                    this.gunFrame = 0;
                 }
             }
-            else if ( this.gunFrame >= 25 )
+            else
             {
-                this.usingSpecial = this.usingPockettedSpecial = false;
-                this.actuallyUsingSpecial = false;
-                this.canDuck = true;
-                this.SwitchToMonsterSprites(this.thingGunMaterial);
-                this.EnterMonsterFormIdle();
-                this.ChangeFrame();
+                this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 256f);
+
+                base.frameRate = 0.08f;
+
+                if (this.gunFrame == 7 && this.currentTentacleState == TentacleState.Inactive)
+                {
+                    StartTentacleWhip();
+                }
+                else if (this.currentTentacleState > TentacleState.Inactive && this.currentTentacleState < TentacleState.ReadyToEat && this.gunFrame > 8 )
+                {
+                    this.gunFrame = 8;
+                }
+                // Eat mook
+                else if (this.gunFrame == 12)
+                {
+                    this.ThingMeleeAttack(true, true);
+                    this.tentacleLine.enabled = false;
+                    this.currentTentacleState = TentacleState.Inactive;
+                    // Release unit if still alive
+                    if (this.unitHit.health > 0)
+                    {
+                        this.unitHit.Unimpale(3, DamageType.Knifed, 0f, 0f, this);
+                        if (unitHit is Mook)
+                        {
+                            unitHit.useImpaledFrames = false;
+                        }
+                    }
+                }
+                else if (this.gunFrame > 13)
+                {
+                    this.usingSpecial = this.usingPockettedSpecial = false;
+                    this.actuallyUsingSpecial = false;
+                    this.canDuck = true;
+                    this.EnterMonsterFormIdle();
+                }
+
+                if ( this.currentTentacleState == TentacleState.ReadyToEat )
+                {
+                    base.frameRate = 0.07f;
+                }
             }
         }
 
@@ -1363,14 +1438,7 @@ namespace RJBrocready
         
         protected void UpdateTentacle()
         {
-            try
-            {
-                DrawTentacle();
-            }
-            catch ( Exception ex )
-            {
-                BMLogger.Log("exception: " + ex.ToString());
-            }
+            DrawTentacle();
         }
 
         public Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, float xRange, float yRange, float x, float y, int direction, Vector3 startPoint, bool haveHitGround, Vector3 groundVector)
@@ -1624,9 +1692,8 @@ namespace RJBrocready
                 this.tentacleLine.widthMultiplier = 1f;
 
                 // If tentacleHitPoint is close to player, move to ready to eat state
-                if ( this.currentTentacleState != TentacleState.ReadyToEat && Tools.FastAbsWithinRange(tentacleHitPoint.x - base.transform.position.x, 27f))
+                if ( this.currentTentacleState != TentacleState.ReadyToEat && Tools.FastAbsWithinRange(tentacleHitPoint.x - base.transform.position.x, 45f))
                 {
-                    this.gunFrame = 21;
                     this.currentTentacleState = TentacleState.ReadyToEat;
                 }
             }
@@ -1644,19 +1711,9 @@ namespace RJBrocready
 
         protected void ThingStartMelee()
         {
-            // Start melee from fully formed frame
-            if ( this.currentState == ThingState.MonsterForm )
-            {
-                base.frame = 8;
-            }
-            // Reverse reforming and start from current frame
-            else if ( this.currentState == ThingState.Reforming )
-            {
-                base.frame = this.gunFrame;
-            }
             this.MonsterFormCounter = 0f;
             EnterMonsterForm();
-            SwitchToMonsterSprites(this.thingMeleeMaterial);
+            this.gunFrame = 0;
             this.ActivateGun();
         }
 
@@ -1729,38 +1786,48 @@ namespace RJBrocready
 
         protected void ThingAnimateMelee()
         {
-            if (pauseMelee)
+            if (this.currentState == ThingState.EnteringMonsterForm)
             {
-                --base.frame;
-            }
-
-            this.SetGunPosition(16f, 16f);
-            base.frameRate = 0.07f;
-            this.sprite.SetLowerLeftPixel(0f, 32f);
-            this.gunSprite.SetLowerLeftPixel(base.frame * 64f, 64f);
-            if (!this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound)
-            {
-                //this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
-                //this.playedAxeSound = true;
-            }
-            else if (base.frame == 13)
-            {
-                this.ThingMeleeAttack(true, true);
-            }
-            else if (base.frame > 13 && !this.meleeHasHit)
-            {
-                this.ThingMeleeAttack(false, false);
-            }
-            if (base.frame >= 15)
-            {
-                base.frame = 0;
-                this.CancelMelee();
-                if (this.meleeBufferedPress)
+                this.AnimateBecomingMonster();
+                if (this.currentState == ThingState.MonsterForm)
                 {
-                    this.meleeBufferedPress = false;
-                    this.StartCustomMelee();
+                    this.gunFrame = 0;
                 }
             }
+            else
+            {
+                if (this.gunFrame < 2)
+                {
+                    this.gunFrame = 2;
+                }
+                base.frameRate = 0.07f;
+                this.sprite.SetLowerLeftPixel(0f, 32f);
+                this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 320f);
+                if (!this.throwingMook && (this.gunFrame == 0 || this.gunFrame == 1) && !this.playedAxeSound)
+                {
+                    //this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                    //this.playedAxeSound = true;
+                }
+                else if (this.gunFrame == 6)
+                {
+                    this.ThingMeleeAttack(true, true);
+                }
+                else if (this.gunFrame > 6 && !this.meleeHasHit)
+                {
+                    this.ThingMeleeAttack(false, false);
+                }
+                if (this.gunFrame > 7)
+                {
+                    this.gunFrame = 0;
+                    this.CancelMelee();
+                    if (this.meleeBufferedPress)
+                    {
+                        this.meleeBufferedPress = false;
+                        this.StartCustomMelee();
+                    }
+                }
+            }
+            ++this.gunFrame;
         }
 
         protected void ThingRunMeleeMovement()
