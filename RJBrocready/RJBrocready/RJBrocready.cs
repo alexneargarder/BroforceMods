@@ -48,11 +48,15 @@ namespace RJBrocready
         protected bool theThing = false;
         protected ThingState currentState = ThingState.Human;
         protected float fakeDeathTime = 0f;
+        protected const float fakeDeathMaxTime = 1.25f;
         Material thingMaterial, thingGunMaterial, thingSpecialIconMaterial, thingArmlessMaterial, thingAvatarMaterial, thingMonsterFormMaterial;
         protected float MonsterFormCounter = 0f;
         protected const float MaxMonsterFormTime = 3f;
+        protected const float MaxMonsterFormTimeReduced = 0.2f;
         protected float spriteOffsetX = 0f;
         protected float spriteOffsetY = 0f;
+        protected bool wasAnticipatingWallClimb = false;
+        protected bool currentlyAnticipatingWallClimb = false;
 
         // The Thing Primary
         protected List<Unit> alreadyHitUnits;
@@ -90,7 +94,7 @@ namespace RJBrocready
 
         // Misc
         protected const float OriginalSpeed = 130f;
-        protected const float MonsterFormSpeed = 90f;
+        protected const float MonsterFormSpeed = 100f;
         protected const float AttackingMonsterFormSpeed = 50f; 
         protected bool acceptedDeath = false;
         protected bool wasInvulnerable = false;
@@ -98,6 +102,7 @@ namespace RJBrocready
 
         // DEBUG
         public static RJBrocready currentInstance;
+        public static bool startAsThingDebug = true;
 
         #region General
         protected override void Start()
@@ -167,6 +172,8 @@ namespace RJBrocready
             this.flameSource.Stop();
             currentInstance = this;
 
+            this.startAsTheThing = startAsThingDebug;
+
             if ( startAsTheThing )
             {
                 this.theThing = true;
@@ -198,10 +205,10 @@ namespace RJBrocready
                     this.AnimateFakeDeath();
                 }
 
-                if ( this.fakeDeathTime < 2f )
+                if ( this.fakeDeathTime < fakeDeathMaxTime )
                 {
                     this.fakeDeathTime += this.t;
-                    if (this.fakeDeathTime >= 2f)
+                    if (this.fakeDeathTime >= fakeDeathMaxTime)
                     {
                         base.frame = 0;
                     }
@@ -239,6 +246,10 @@ namespace RJBrocready
             // Count down thing timer
             if ( this.MonsterFormCounter > 0f )
             {
+                if ( this.down && this.ducking )
+                {
+                    this.MonsterFormCounter = Mathf.Min(this.MonsterFormCounter, MaxMonsterFormTimeReduced);
+                }
                 this.MonsterFormCounter -= this.t;
                 if ( this.MonsterFormCounter <= 0f )
                 {
@@ -254,7 +265,7 @@ namespace RJBrocready
                     this.spriteOffsetY = 0f;
                     this.sprite.SetLowerLeftPixel(0f, 32f);
                     this.ActivateGun();
-                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+                    this.gunSprite.SetLowerLeftPixel((this.gunFrame + 12) * 64f, 64f);
                     this.ChangeFrame();
                 }
             }
@@ -292,6 +303,8 @@ namespace RJBrocready
                 DamageObject damage = new DamageObject(1, DamageType.Bullet, 100, 0, currentInstance.X, currentInstance.Y, currentInstance );
                 currentInstance.FakeDeath(0f, 0f, damage);
             }
+
+            startAsThingDebug = GUILayout.Toggle(startAsThingDebug, "start as thing");
         }
         #endregion
 
@@ -586,7 +599,7 @@ namespace RJBrocready
         protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Fire, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            Map.DamageDoodads(3, DamageType.Fire, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 8f, base.playerNum, out flag, null);
             this.KickDoors(24f);
             Unit hitUnit;
             if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
@@ -632,6 +645,20 @@ namespace RJBrocready
             return true;
         }
 
+        protected override void StartMelee()
+        {
+            // Make it so we use the knife melee when touching walls so we don't fall off and have no way to get through
+            if ( !this.doingMelee && this.theThing && (this.wallDrag || this.currentlyAnticipatingWallClimb) )
+            {
+                this.meleeType = MeleeType.Knife;
+            }
+            else if ( this.doingMelee )
+            {
+                this.meleeType = currentMeleeType;
+            }
+            base.StartMelee();
+            this.meleeType = MeleeType.Disembowel;
+        }
 
         // Sets up melee attack
         protected override void StartCustomMelee()
@@ -820,7 +847,7 @@ namespace RJBrocready
 
         protected override void CancelMelee()
         {
-            if (this.theThing)
+            if (this.theThing && this.currentMeleeType != MeleeType.Knife)
             {
                 this.ThingCancelMelee();
             }
@@ -843,6 +870,15 @@ namespace RJBrocready
             }
             else
             {
+                ThingState previousState = this.currentState;
+                ExitMonsterForm();
+                // Explode into blood if we're in monster form and not coming back to life
+                if ( previousState > ThingState.HumanForm && !this.willComeBackToLife )
+                {
+                    damage.damageType = DamageType.Crush;
+                    this.Gib(damage.damageType, Mathf.Sign(xI) * 50, yI);
+                    EffectsController.CreateSlimeExplosion(base.X, base.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Red);
+                }
                 base.Death(xI, yI, damage);
             }
             this.flameSource.Stop();
@@ -946,23 +982,23 @@ namespace RJBrocready
         protected void AnimateFakeDeath()
         {
             this.frameRate = 0.0334f;
-            if (base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null)
-            {
-                this.AnimateFallingDeath();
-            }
-            else if ( this.fakeDeathTime < 2f )
-            {
-                this.AnimateActualDeath();
-            }
-            else
+            if ( this.fakeDeathTime >= fakeDeathMaxTime )
             {
                 this.frameRate = 0.12f;
                 this.sprite.SetLowerLeftPixel(((base.frame - 1) * this.spritePixelWidth), 10 * this.spritePixelHeight);
                 // Finished turning
-                if ( base.frame == 11 )
+                if (base.frame == 11)
                 {
                     this.BecomeTheThing();
                 }
+            }
+            else if (base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null)
+            {
+                this.AnimateFallingDeath();
+            }
+            else
+            {
+                this.AnimateActualDeath();
             }
         }
 
@@ -972,6 +1008,8 @@ namespace RJBrocready
             {
                 base.GetComponent<Collider>().enabled = true;
             }
+            this.headHeight = this.standingHeadHeight;
+            this.waistHeight = this.standingWaistHeight;
             this.doRollOnLand = true;
             this.canWallClimb = true;
             this.canChimneyFlip = true;
@@ -986,7 +1024,13 @@ namespace RJBrocready
             this.gunSprite.SetSize(64, 64);
             this.gunSprite.RecalcTexture();
             this.gunSpriteOffset.x = -2f;
-            BroMakerUtilities.SetSpecialMaterials(this.playerNum, new List<Material> { this.thingSpecialIconMaterial }, new Vector2(3, 0),  4f);
+            this.specialMaterials = new List<Material> { this.thingSpecialIconMaterial };
+            this.specialMaterialOffset = new Vector2(3, 0);
+            this.specialMaterialSpacing = 4f;
+            if ( this.pockettedSpecialAmmo.Count == 0 )
+            {
+                BroMakerUtilities.SetSpecialMaterials(this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing);
+            }
             this.SpecialAmmo = 2;
             this.originalSpecialAmmo = 2;
             HeroController.SetAvatarMaterial(playerNum, this.thingAvatarMaterial);
@@ -1131,6 +1175,11 @@ namespace RJBrocready
             {
                 base.AnimateWallAnticipation();
             }
+            else
+            {
+                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
+            }
+            this.wasAnticipatingWallClimb = true;
         }
 
         protected override void Jump(bool wallJump)
@@ -1147,15 +1196,28 @@ namespace RJBrocready
             base.ChangeFrame();
             if ( this.theThing && !(this.usingSpecial || this.doingMelee) && this.currentState == ThingState.MonsterForm )
             {
-                this.frameRate = 0.0334f;
+                this.frameRate = Mathf.Max(0.0334f, this.frameRate);
             }
+            if ( this.wasAnticipatingWallClimb )
+            {
+                this.currentlyAnticipatingWallClimb = true;
+            }
+            else
+            {
+                this.currentlyAnticipatingWallClimb = false;
+            }
+            this.wasAnticipatingWallClimb = false;
         }
 
         public override void SetGestureAnimation(GestureElement.Gestures gesture)
         {
-            if ( !(gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm) )
+            if (!(gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm))
             {
                 base.SetGestureAnimation(gesture);
+            }
+            else
+            {
+                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
             }
         }
         #endregion
@@ -1250,8 +1312,12 @@ namespace RJBrocready
         protected void ThingFireWeapon(float x, float y, float xSpeed, float ySpeed)
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Blade, x, y, xSpeed, ySpeed, 6f, base.playerNum, out flag, null);
-            this.KickDoors(24f);
+            Map.DamageDoodads(3, DamageType.Blade, x, y, xSpeed, ySpeed, 14f, base.playerNum, out flag, null);
+            if (Physics.Raycast(new Vector3(base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 33f, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
+            {
+                this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
+                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
+            }
             if ( HitUnits(this, playerNum, 4, DamageType.Blade, 30f, 24f, x, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
                 //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
@@ -1376,6 +1442,20 @@ namespace RJBrocready
         #endregion
 
         #region ThingSpecial
+        protected override void StartPockettedSpecial()
+        {
+            // Don't use special if in thing form
+            if ( !(this.theThing && this.currentState != ThingState.HumanForm) )
+            {
+                base.StartPockettedSpecial();
+            }
+            else
+            {
+                // Hasten turning back into human form so we can use the pocketted special
+                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
+            }
+        }
+
         protected void ThingPressSpecial()
         {
             if ( !this.usingSpecial && this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee && !this.acceptedDeath )
@@ -1393,6 +1473,7 @@ namespace RJBrocready
                 this.EnterMonsterForm();
                 this.gunFrame = -1;
                 this.speed = AttackingMonsterFormSpeed;
+                --this.SpecialAmmo;
             }
             else if ( this.SpecialAmmo <= 0 )
             {
@@ -1415,6 +1496,7 @@ namespace RJBrocready
             this.ActivateGun();
             if ( this.currentState == ThingState.EnteringMonsterForm )
             {
+                base.frameRate = 0.07f;
                 this.AnimateBecomingMonster();
                 if ( this.currentState == ThingState.MonsterForm )
                 {
@@ -1763,7 +1845,6 @@ namespace RJBrocready
         protected void ThingStartMelee()
         {
             SetGestureAnimation(GestureElement.Gestures.None);
-            this.MonsterFormCounter = 0f;
             EnterMonsterForm();
             this.gunFrame = 0;
             this.ActivateGun();
@@ -1772,14 +1853,18 @@ namespace RJBrocready
         protected void ThingMeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Blade, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 12f, base.playerNum, out flag, null);
-            this.KickDoors(24f);
+            Map.DamageDoodads(3, DamageType.Blade, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 14f, base.playerNum, out flag, null);
+            if (Physics.Raycast(new Vector3(base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 20f, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
+            {
+                this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
+                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
+            }
             List<BroforceObject> temp = new List<BroforceObject>();
 
             if (Map.HitUnits(this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp))
             {
                 temp.Clear();
-                Map.HitUnits(this, base.playerNum, 5, 5, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
+                Map.HitUnits(this, base.playerNum, 5, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
 
                 //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
                 this.meleeHasHit = true;
@@ -1842,6 +1927,7 @@ namespace RJBrocready
         {
             if (this.currentState == ThingState.EnteringMonsterForm)
             {
+                base.frameRate = 0.05f;
                 this.AnimateBecomingMonster();
                 if (this.currentState == ThingState.MonsterForm)
                 {
@@ -1905,6 +1991,7 @@ namespace RJBrocready
         {
             if ( this.doingMelee )
             {
+                this.jumpTime = -1f;
                 this.gunSprite.meshRender.material = this.thingGunMaterial;
                 this.gunSprite.RecalcTexture();
                 EnterMonsterFormIdle();
