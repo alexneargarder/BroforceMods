@@ -98,7 +98,7 @@ namespace RJBrocready
 			this.xI = xI;
 			this.yI = yI;
 			this.r = 0;
-			this.life = 3f;
+			this.life = 2f;
 			this.startLife = this.life;
 			if (this.sprite != null)
 			{
