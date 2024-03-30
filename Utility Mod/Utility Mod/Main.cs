@@ -705,6 +705,19 @@ namespace Utility_Mod
             GUILayout.EndHorizontal();
 
 
+            GUILayout.Space(10);
+
+
+            GUILayout.BeginHorizontal();
+
+            settings.maxCageSpawns = GUILayout.Toggle(settings.maxCageSpawns, "Max Cage Spawns");
+
+            GUILayout.EndHorizontal();
+
+
+            GUILayout.Space(20);
+
+
             GUILayout.Space(20);
 
 
@@ -1795,6 +1808,54 @@ namespace Utility_Mod
             Map.MapData.suppressAnnouncer = true;
         }
     }
+
+    [HarmonyPatch(typeof(Map), "PlaceDoodad")]
+    static class Map_PlaceDoodad_Patch
+    {
+        public static bool Prefix(Map __instance, ref DoodadInfo doodad, GameObject __result)
+        {
+            if (!Main.enabled || !Main.settings.maxCageSpawns)
+            {
+                return true;
+            }
+
+            if ( doodad.type == DoodadType.Cage)
+            {
+                GridPoint gridPoint = new GridPoint(doodad.position.collumn, doodad.position.row);
+                gridPoint.collumn -= Map.lastXLoadOffset;
+                gridPoint.row -= Map.lastYLoadOffset;
+
+                Vector3 vector = new Vector3((float)(gridPoint.c * 16), (float)(gridPoint.r * 16), 5f);
+
+                if ( GameModeController.IsHardcoreMode )
+                {
+                    Map.havePlacedCageForHardcore = true;
+                    Map.cagesSinceLastHardcoreCage = 0;
+                }
+
+                __result = (UnityEngine.Object.Instantiate<Block>(__instance.activeTheme.blockPrefabCage, vector, Quaternion.identity) as Cage).gameObject;
+                __result.GetComponent<Cage>().row = gridPoint.row;
+                __result.GetComponent<Cage>().collumn = gridPoint.collumn;
+
+                doodad.entity = __result;
+                __result.transform.parent = __instance.transform;
+                Block component = __result.GetComponent<Block>();
+                if (component != null)
+                {
+                    component.OnSpawned();
+                }
+                Registry.RegisterDeterminsiticGameObject(__result.gameObject);
+                if (component != null)
+                {
+                    component.FirstFrame();
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+    }
 #endif
 
     public class Settings : UnityModManager.ModSettings
@@ -1845,6 +1906,7 @@ namespace Utility_Mod
         public bool setZoom = false;
         public bool showDebugOptions = false;
         public bool suppressAnnouncer = false;
+        public bool maxCageSpawns = false;
 #endif
 
         public override void Save(UnityModManager.ModEntry modEntry)
