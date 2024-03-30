@@ -27,5 +27,26 @@ namespace RJBrocready
                 return true;
             }
         }
+
+        [HarmonyPatch(typeof(SaveSlotsMenu), "SelectSlot")]
+        static class SaveSlotsMenu_SelectSlot_Patch
+        {
+            public static void Prefix(SaveSlotsMenu __instance, ref int slot)
+            {
+                if (SaveSlotsMenu.createNewGame)
+                {
+                    try
+                    {
+                        // If a new save is being created, previously died in IronBro to false
+                        RJBrocready.previouslyDiedInIronBro[slot] = false;
+                        RJBrocready.WriteJson();
+                    }
+                    catch (Exception e)
+                    {
+                        BMLogger.ExceptionLog(e);
+                    }
+                }
+            }
+        }
     }
 }

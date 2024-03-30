@@ -9,6 +9,8 @@ using UnityEngine;
 using System.Net;
 using HarmonyLib;
 using Rogueforce;
+using Newtonsoft.Json;
+using System.Runtime;
 
 namespace RJBrocready
 {
@@ -60,6 +62,7 @@ namespace RJBrocready
         protected bool currentlyAnticipatingWallClimb = false;
         protected AudioClip[] thingTransformSounds;
         protected AudioClip reformSound;
+        protected float scareDelay = 0f;
 
         // The Thing Primary
         protected List<Unit> alreadyHitUnits;
@@ -114,10 +117,8 @@ namespace RJBrocready
         protected bool wasInvulnerable = false;
         protected bool startAsTheThing = false;
         public static bool patched = false;
-
-        // DEBUG
-        public static RJBrocready currentInstance;
-        public static bool startAsThingDebug = false;
+        public static bool jsonLoaded = false;
+        public static List<bool> previouslyDiedInIronBro = new List<bool>();
 
         #region General
         protected override void Awake()
@@ -137,7 +138,38 @@ namespace RJBrocready
                 }
             }
 
+            if ( !jsonLoaded )
+            {
+                string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string jsonPath = Path.Combine(directoryPath, "IronBroSaves.json");
+
+                if ( File.Exists(jsonPath) )
+                {
+                    string json = File.ReadAllText(jsonPath);
+                    previouslyDiedInIronBro = JsonConvert.DeserializeObject<List<bool>>(json);
+                }
+                else
+                {
+                    for (int i = 0; i < 5; i++)
+                    {
+                        previouslyDiedInIronBro.Add(false);
+                    }
+                }
+
+                jsonLoaded = true;
+            }
+
             base.Awake();
+        }
+
+        public static void WriteJson()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string jsonPath = Path.Combine(directoryPath, "IronBroSaves.json");
+
+            // Write previouslyDiedInIronBro to json
+            string json = JsonConvert.SerializeObject(previouslyDiedInIronBro, Formatting.Indented);
+            File.WriteAllText(jsonPath, json);
         }
 
         protected override void Start()
@@ -205,9 +237,11 @@ namespace RJBrocready
             this.flameSource.volume = 0.4f;
             this.flameSource.playOnAwake = false;
             this.flameSource.Stop();
-            currentInstance = this;
 
-            this.startAsTheThing = startAsThingDebug;
+            if (GameModeController.IsHardcoreMode)
+            {
+                startAsTheThing = previouslyDiedInIronBro[PlayerProgress.currentWorldMapSaveSlot];
+            }
 
             if ( startAsTheThing )
             {
@@ -281,6 +315,15 @@ namespace RJBrocready
                     if (this.fakeDeathTime >= fakeDeathMaxTime)
                     {
                         base.frame = 0;
+                    }
+                }
+                else
+                {
+                    this.scareDelay -= this.t;
+                    if ( this.scareDelay <= 0f && base.frame > 4 )
+                    {
+                        this.scareDelay = 0.0667f;
+                        Map.PanicUnits(base.X, base.Y, 100f, 6f, 2f, true, false);
                     }
                 }
                 this.CheckFacingDirection();
@@ -380,13 +423,6 @@ namespace RJBrocready
 
         public override void UIOptions()
         {
-            if ( GUILayout.Button("die") )
-            {
-                DamageObject damage = new DamageObject(1, DamageType.Bullet, 100, 0, currentInstance.X, currentInstance.Y, currentInstance );
-                currentInstance.FakeDeath(0f, 0f, damage);
-            }
-
-            startAsThingDebug = GUILayout.Toggle(startAsThingDebug, "start as thing");
         }
         #endregion
 
@@ -766,6 +802,16 @@ namespace RJBrocready
             this.StartMeleeCommon();
         }
 
+        protected override void SetMeleeType()
+        {
+            base.SetMeleeType();
+            // Set dashing melee to true if we're jumping and dashing so that we can transition to dashing on landing
+            if ( this.jumpingMelee && (this.right || this.left) )
+            {
+                this.dashingMelee = true;
+            }
+        }
+
         protected override void StartMeleeCommon()
         {
             if (!this.meleeFollowUp && this.CanStartNewMelee())
@@ -1029,10 +1075,16 @@ namespace RJBrocready
             HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
             this.SetGestureAnimation(GestureElement.Gestures.None);
             // Remove life if we have more than one life left
-            if (HeroController.players[base.playerNum].Lives > 1)
+            if (GameModeController.IsHardcoreMode)
+            {
+                previouslyDiedInIronBro[PlayerProgress.currentWorldMapSaveSlot] = true;
+                WriteJson();
+            }
+            else if(HeroController.players[base.playerNum].Lives > 1)
             {
                 --HeroController.players[base.playerNum].Lives;
             }
+
             this.GetComponent<InvulnerabilityFlash>().enabled = false;
             this.invulnerable = true;
             this.AnimateFakeDeath();
@@ -1459,7 +1511,7 @@ namespace RJBrocready
                 this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
                 MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
             }
-            if ( HitUnits(this, playerNum, 4, DamageType.Blade, 30f, 24f, x, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
+            if ( HitUnits(this, playerNum, 4, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
                 //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
             }
@@ -1502,9 +1554,9 @@ namespace RJBrocready
             {
                 // Animate thing attack
                 this.gunCounter += this.t;
-                if ( this.gunCounter > 0.07f )
+                if ( this.gunCounter > 0.065f )
                 {
-                    this.gunCounter -= 0.07f;
+                    this.gunCounter -= 0.065f;
                     ++this.gunFrame;
                     if ( this.gunFrame < 2 )
                     {
@@ -2157,10 +2209,50 @@ namespace RJBrocready
                     this.yI = this.maxFallSpeed;
                 }
             }
-            else
+            else if (this.dashingMelee)
             {
-                this.xI = 0f;
-                this.ApplyFallingGravity();
+                // Stand still during transformation
+                if ( this.currentState == ThingState.EnteringMonsterForm )
+                {
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                else if (this.gunFrame <= 1)
+                {
+                    this.xI = this.speed * 0.1f * base.transform.localScale.x;
+                    this.yI = 0f;
+                }
+                else if (this.gunFrame <= 5)
+                {
+                    if (this.meleeChosenUnit == null)
+                    {
+                        if (!this.isInQuicksand)
+                        {
+                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                        }
+                        this.yI = 0f;
+                    }
+                    else if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.6f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 2f;
+                    }
+                }
+                else if (this.gunFrame <= 9)
+                {
+                    if (!this.isInQuicksand)
+                    {
+                        this.xI = this.speed * 0.2f * base.transform.localScale.x;
+                    }
+                    this.ApplyFallingGravity();
+                }
+                else
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if (base.Y > this.groundHeight + 1f)
+            {
+                this.CancelMelee();
             }
         }
 
