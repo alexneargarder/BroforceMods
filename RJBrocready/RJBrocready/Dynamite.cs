@@ -352,7 +352,7 @@ namespace RJBrocready
 			}
 			if (this.sound != null)
 			{
-				this.sound.PlaySoundEffectAt(this.explosionSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+				this.sound.PlaySoundEffectAt(this.explosionSound, 0.4f, base.transform.position, 1f, true, false, false, 0f);
 			}
 			EffectsController.CreateNuclearExplosion(X, Y - 6, 0f);
 			MapController.DamageGround(this, 100, DamageType.Explosion, 128f, X, Y, null, false);

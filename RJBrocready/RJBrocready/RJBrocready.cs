@@ -702,8 +702,8 @@ namespace RJBrocready
                 {
                     return;
                 }
-                this.xI = Mathf.Clamp(this.xI + xI / 2f, -2000f, 2000f);
-                this.xIBlast = Mathf.Clamp(this.xIBlast + xI / 2f, -2000f, 2000f);
+                this.xI = Mathf.Clamp(this.xI + xI / 2f, -1200f, 1200f);
+                this.xIBlast = Mathf.Clamp(this.xIBlast + xI / 2f, -1200f, 1200f);
                 this.yI = this.yI + yI;
                 if (this.IsParachuteActive && yI > 0f)
                 {
@@ -786,6 +786,10 @@ namespace RJBrocready
         // Sets up melee attack
         protected override void StartCustomMelee()
         {
+            if ( this.IsInseminated() || this.HasFaceHugger() )
+            {
+                return;
+            }
             if (this.CanStartNewMelee())
             {
                 base.frame = 1;
@@ -998,7 +1002,7 @@ namespace RJBrocready
 
         public override void Death(float xI, float yI, DamageObject damage)
         {
-            if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
+            if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes && !this.IsInseminated() && !this.HasFaceHugger() )
             {
                 FakeDeath(xI, yI, damage);
             }
@@ -1291,6 +1295,7 @@ namespace RJBrocready
 
         protected void ExitMonsterForm()
         {
+            this.MonsterFormCounter = -1f;
             this.speed = OriginalSpeed;
             this.currentState = ThingState.HumanForm;
             this.doRollOnLand = true;
@@ -1408,12 +1413,21 @@ namespace RJBrocready
             }
             base.CoverInAcidRPC();
         }
+
+        public override bool Inseminate(AlienFaceHugger unit, float xForce, float yForce)
+        {
+            if ( this.theThing )
+            {
+                ExitMonsterForm();
+            }
+            return base.Inseminate(unit, xForce, yForce);
+        }
         #endregion
 
         #region ThingPrimary
         protected void ThingStartFiring()
         {
-            if ( !this.hasBeenCoverInAcid && !this.releasedFire && !(this.usingSpecial || this.doingMelee) )
+            if ( !this.IsInseminated() && !this.HasFaceHugger() && !this.hasBeenCoverInAcid && !this.releasedFire && !(this.usingSpecial || this.doingMelee) )
             {
                 // Switch sprites to monster sprites
                 EnterMonsterForm();
@@ -1477,6 +1491,11 @@ namespace RJBrocready
                                     num = 0;
                                     flag = true;
                                 }
+                                // Deal extra damage to bosses
+                                if ( unit.health > 30 )
+                                {
+                                    damage += 3;
+                                }
                                 if (!canGib && unit.health <= 0)
                                 {
                                     Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
@@ -1511,15 +1530,32 @@ namespace RJBrocready
                 this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
                 MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
             }
-            if ( HitUnits(this, playerNum, 4, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
+            if ( HitUnits(this, playerNum, 5, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
-                //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
             }
 
             if ( !this.hasHitTerrain )
             {
                 this.hasHitTerrain = this.ThingHitTerrain(33f, 4f, 0, 14f, 5, false);
             }
+        }
+
+        protected override void ClearFireInput()
+        {
+            if ( this.theThing && this.fire )
+            {
+                this.releasedFire = true;
+            }
+            base.ClearFireInput();
+        }
+
+        public override void ClearAllInput()
+        {
+            if ( this.theThing && this.fire)
+            {
+                this.releasedFire = true;
+            }
+            base.ClearAllInput();
         }
 
         protected void ThingRunGun()
@@ -1548,8 +1584,14 @@ namespace RJBrocready
             else if (this.currentState == ThingState.Reforming)
             {
                 AnimateBecomingHuman();
-                
             }
+            // Human form
+            else if (this.currentState == ThingState.HumanForm)
+            {
+                this.gunFrame = 0;
+                this.SetGunSprite(0, 0);
+            }
+            // Attacking
             else if (this.fire || (this.releasedFire && !this.firedOnce))
             {
                 // Animate thing attack
@@ -1624,12 +1666,6 @@ namespace RJBrocready
                     EnterMonsterFormIdle();
                 }
             }
-            // Human form
-            else if (this.currentState == ThingState.HumanForm)
-            {
-                this.gunFrame = 0;
-                this.SetGunSprite(0, 0);
-            }
             // Monster form
             else if (this.currentState == ThingState.MonsterForm)
             {
@@ -1668,7 +1704,7 @@ namespace RJBrocready
 
         protected void ThingPressSpecial()
         {
-            if ( !this.usingSpecial && this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee && !this.acceptedDeath )
+            if ( !this.usingSpecial && this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee && !this.acceptedDeath && !this.IsInseminated() && !this.HasFaceHugger() )
             {
                 SetGestureAnimation(GestureElement.Gestures.None);
                 this.usingSpecial = true;
@@ -1965,8 +2001,8 @@ namespace RJBrocready
                     Sound.GetInstance().PlaySoundEffectAt(this.whipStartSound, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
                     if (this.tentacleHitUnit || this.tentacleHitGround)
                     {
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds, 0.6f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds2, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds2, 0.3f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
                     }
                     else
                     {
@@ -2063,7 +2099,7 @@ namespace RJBrocready
         #region ThingMelee
         protected override void DeactivateGun()
         {
-            if ( !(this.theThing && (this.doingMelee || this.actuallyUsingSpecial)) )
+            if ( !(this.theThing && (this.doingMelee || this.actuallyUsingSpecial || this.fire || this.releasedFire || this.currentState == ThingState.EnteringMonsterForm || this.currentState == ThingState.Reforming)) )
             {
                 base.DeactivateGun();
             }
@@ -2091,7 +2127,7 @@ namespace RJBrocready
             if (Map.HitUnits(this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp))
             {
                 temp.Clear();
-                Map.HitUnits(this, base.playerNum, 5, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
+                Map.HitUnits(this, base.playerNum, 6, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
 
                 //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
                 this.meleeHasHit = true;
