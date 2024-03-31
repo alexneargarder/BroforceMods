@@ -1,0 +1,12 @@
+{
+  "Version": "1.0.0",
+  "BroMakerVersion": "2.3.2",
+  "Name": "R.J. Brocready",
+  "Author": "AlexN",
+  "CustomBros":[
+    "RJBrocready.json"
+  ],
+  "Assemblies": [
+    "RJBrocready.dll"
+  ]
+}

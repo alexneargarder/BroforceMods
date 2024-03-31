@@ -116,34 +116,26 @@ namespace RJBrocready
         protected bool acceptedDeath = false;
         protected bool wasInvulnerable = false;
         protected bool startAsTheThing = false;
-        public static bool patched = false;
         public static bool jsonLoaded = false;
         public static List<bool> previouslyDiedInIronBro = new List<bool>();
 
         #region General
         protected override void Awake()
         {
-            if (!patched)
-            {
-                try
-                {
-                    var harmony = new Harmony("RJBrocready");
-                    var assembly = Assembly.GetExecutingAssembly();
-                    harmony.PatchAll(assembly);
-                    patched = true;
-                }
-                catch (Exception ex)
-                {
-                    BMLogger.Log(ex.ToString());
-                }
-            }
+            LoadJson();
 
-            if ( !jsonLoaded )
+            base.Awake();
+        }
+
+        public static void LoadJson()
+        {
+            if (!jsonLoaded)
             {
+                previouslyDiedInIronBro = new List<bool>();
                 string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 string jsonPath = Path.Combine(directoryPath, "IronBroSaves.json");
 
-                if ( File.Exists(jsonPath) )
+                if (File.Exists(jsonPath))
                 {
                     string json = File.ReadAllText(jsonPath);
                     previouslyDiedInIronBro = JsonConvert.DeserializeObject<List<bool>>(json);
@@ -158,8 +150,6 @@ namespace RJBrocready
 
                 jsonLoaded = true;
             }
-
-            base.Awake();
         }
 
         public static void WriteJson()
@@ -423,6 +413,12 @@ namespace RJBrocready
 
         public override void UIOptions()
         {
+        }
+
+        public override void HarmonyPatches(Harmony harmony)
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            harmony.PatchAll(assembly);
         }
         #endregion
 
@@ -731,7 +727,15 @@ namespace RJBrocready
                 // Don't play hit sound multiple times
                 if ( !this.meleeHasHit )
                 {
-                    this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                    // Play default knife sound if we hit a metal enemy
+                    if (hitUnit.gameObject.CompareTag("Metal"))
+                    {
+                        this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitTerrainSound, 0.5f, base.transform.position, 1f, true, false, false, 0f);
+                    }
+                    else
+                    {
+                        this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                    }
                 }
                 this.meleeHasHit = true;
             }
@@ -997,6 +1001,11 @@ namespace RJBrocready
         protected override void Gib(DamageType damageType, float xI, float yI)
         {
             gibbed = true;
+            // Cancel out of fake death state to allow character to actually die
+            if (this.currentState == ThingState.FakeDeath)
+            {
+                this.currentState = ThingState.Human;
+            }
             base.Gib(damageType, xI, yI);
         }
 
@@ -2127,16 +2136,14 @@ namespace RJBrocready
             if (Map.HitUnits(this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp))
             {
                 temp.Clear();
-                Map.HitUnits(this, base.playerNum, 6, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
-
-                //this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                Map.HitUnits(this, base.playerNum, 8, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
                 this.meleeHasHit = true;
             }
             else if (playMissSound)
             {
             }
             this.meleeChosenUnit = null;
-            if (shouldTryHitTerrain && this.ThingHitTerrain(20, 4, 0, 12f, 3, true))
+            if (shouldTryHitTerrain && this.ThingHitTerrain(20, 4, 0, 12f, 6, true))
             {
                 this.meleeHasHit = true;
             }
