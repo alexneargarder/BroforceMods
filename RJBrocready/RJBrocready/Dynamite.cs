@@ -356,8 +356,8 @@ namespace RJBrocready
 			}
 			EffectsController.CreateNuclearExplosion(X, Y - 6, 0f);
 			MapController.DamageGround(this, 100, DamageType.Explosion, 128f, X, Y, null, false);
-			ExplodeUnits(this, 12, DamageType.Explosion, 144f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
-			ExplodeUnits(this, 32, DamageType.Crush, 96f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
+			ExplodeUnits(this, 40, DamageType.Explosion, 144f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
+			ExplodeUnits(this, 60, DamageType.Crush, 96f, 96f, X, Y - 10f, 360f, 400f, base.playerNum, true, true, true);
 			MapController.BurnUnitsAround_NotNetworked(this, -15, 5, 160f, X, Y, true, true);
 			Map.HitProjectiles(base.playerNum, 15, DamageType.Explosion, 80f, X, Y, 0f, 0f, 0.25f);
 			Map.ShakeTrees(X, Y, 320f, 64f, 160f);

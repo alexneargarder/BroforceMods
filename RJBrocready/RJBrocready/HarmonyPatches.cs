@@ -38,6 +38,7 @@ namespace RJBrocready
                     try
                     {
                         // If a new save is being created, previously died in IronBro to false
+                        RJBrocready.LoadJson();
                         RJBrocready.previouslyDiedInIronBro[slot] = false;
                         RJBrocready.WriteJson();
                     }
