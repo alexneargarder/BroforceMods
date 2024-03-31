@@ -10,7 +10,6 @@ using System.Net;
 using HarmonyLib;
 using Rogueforce;
 using Newtonsoft.Json;
-using System.Runtime;
 
 namespace RJBrocready
 {
@@ -508,7 +507,7 @@ namespace RJBrocready
                             if (burstCooldown < 0)
                             {
                                 this.fireRate = 0.1f;
-                                this.burstCount = UnityEngine.Random.Range(8, 18);
+                                this.burstCount = UnityEngine.Random.Range(12, 20);
                                 this.sound.PlaySoundEffectAt(this.flameBurst, 0.5f, base.transform.position, 1f, true, false, false, 0f);
                             }
                         }
@@ -723,7 +722,14 @@ namespace RJBrocready
             Unit hitUnit;
             if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
             {
-                hitUnit.Damage(1, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                if ( hitUnit.health > 30 )
+                {
+                    hitUnit.Damage(7, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                }
+                else
+                {
+                    hitUnit.Damage(5, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                }
                 // Don't play hit sound multiple times
                 if ( !this.meleeHasHit )
                 {
@@ -743,7 +749,7 @@ namespace RJBrocready
             {
             }
             this.meleeChosenUnit = null;
-            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 2))
+            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 5))
             {
                 this.meleeHasHit = true;
             }
@@ -752,7 +758,7 @@ namespace RJBrocready
 
         protected override bool TryMeleeTerrain(int offset = 0, int meleeDamage = 2)
         {
-            if (!Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(16 + offset), this.groundLayer))
+            if (!Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(20 + offset), this.groundLayer))
             {
                 return false;
             }
@@ -1011,8 +1017,13 @@ namespace RJBrocready
 
         public override void Death(float xI, float yI, DamageObject damage)
         {
-            if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes && !this.IsInseminated() && !this.HasFaceHugger() )
+            if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
             {
+                if ( this.IsInseminated() || this.HasFaceHugger() )
+                {
+                    this.DisConnectFaceHugger();
+                    this.inseminatedCounter = 0f;
+                }
                 FakeDeath(xI, yI, damage);
             }
             else
@@ -1033,6 +1044,9 @@ namespace RJBrocready
 
         public void FakeDeath(float xI, float yI, DamageObject damage)
         {
+            this.flameSource.Stop();
+            this.DeactivateGun();
+
             this.health = 1;
             currentState = ThingState.FakeDeath;
             this.CancelMelee();
@@ -1041,7 +1055,6 @@ namespace RJBrocready
             this.canWallClimb = false;
             this.canChimneyFlip = false;
             this.theThing = true;
-            this.DeactivateGun();
             if (damage != null)
             {
                 if (damage.damageType != DamageType.Fall && damage.damageType != DamageType.ChainsawImpale && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.Acid)
@@ -1193,8 +1206,8 @@ namespace RJBrocready
             {
                 BroMakerUtilities.SetSpecialMaterials(this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing);
             }
-            this.SpecialAmmo = 2;
-            this.originalSpecialAmmo = 2;
+            this.SpecialAmmo = 4;
+            this.originalSpecialAmmo = 4;
             HeroController.SetAvatarMaterial(playerNum, this.thingAvatarMaterial);
         }
 
@@ -1431,6 +1444,92 @@ namespace RJBrocready
             }
             return base.Inseminate(unit, xForce, yForce);
         }
+
+        protected override void PressHighFiveMelee(bool forceHighFive = false)
+        {
+            if (this.health <= 0)
+            {
+                return;
+            }
+            if (this.MustIgnoreHighFiveMeleePress())
+            {
+                return;
+            }
+            this.SetGestureAnimation(GestureElement.Gestures.None);
+            Grenade nearbyGrenade = Map.GetNearbyGrenade(20f, base.X, base.Y + this.waistHeight);
+            this.FindNearbyMook();
+            TeleportDoor nearbyTeleportDoor = Map.GetNearbyTeleportDoor(base.X, base.Y);
+            if (nearbyTeleportDoor != null && this.CanUseSwitch() && nearbyTeleportDoor.Activate(this))
+            {
+                return;
+            }
+            Switch nearbySwitch = Map.GetNearbySwitch(base.X, base.Y);
+            if (GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.BroDown)
+            {
+                if (nearbySwitch != null && this.CanUseSwitch())
+                {
+                    nearbySwitch.Activate(this);
+                }
+                else
+                {
+                    bool flag = false;
+                    for (int i = -1; i < 4; i++)
+                    {
+                        if (i != base.playerNum && Map.IsUnitNearby(i, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, true, out this.meleeChosenUnit))
+                        {
+                            this.StartMelee();
+                            flag = true;
+                        }
+                    }
+                    if (!flag && nearbySwitch != null && this.CanUseSwitch())
+                    {
+                        nearbySwitch.Activate(this);
+                    }
+                }
+            }
+            if (nearbyGrenade != null && this.currentState <= ThingState.HumanForm)
+            {
+                this.doingMelee = (this.dashingMelee = false);
+                this.ThrowBackGrenade(nearbyGrenade);
+            }
+            else if (!GameModeController.IsDeathMatchMode || !this.doingMelee)
+            {
+                if (Map.IsCitizenNearby(base.X, base.Y, 32, 32))
+                {
+                    if (!this.doingMelee)
+                    {
+                        this.StartHighFive();
+                    }
+                }
+                else if (forceHighFive && !this.doingMelee)
+                {
+                    this.StartHighFive();
+                }
+                else if (nearbySwitch != null && this.CanUseSwitch())
+                {
+                    nearbySwitch.Activate(this);
+                }
+                else if (this.meleeChosenUnit == null && Map.IsUnitNearby(-1, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, false, out this.meleeChosenUnit))
+                {
+                    this.StartMelee();
+                }
+                else if (this.CheckBustCage())
+                {
+                    this.StartMelee();
+                }
+                else if (HeroController.IsAnotherPlayerNearby(base.playerNum, base.X, base.Y, 32f, 32f))
+                {
+                    if (!this.doingMelee)
+                    {
+                        this.StartHighFive();
+                    }
+                }
+                else
+                {
+                    this.StartMelee();
+                }
+            }
+        }
         #endregion
 
         #region ThingPrimary
@@ -1570,7 +1669,7 @@ namespace RJBrocready
         protected void ThingRunGun()
         {
             this.firePressed += this.t;
-            if ( this.hasBeenCoverInAcid || this.doingMelee || this.usingSpecial )
+            if ( this.hasBeenCoverInAcid || this.doingMelee || this.usingSpecial || base.actionState == ActionState.Recalling)
             {
                 // Do nothing
             }
