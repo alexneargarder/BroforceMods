@@ -1,3 +1,8 @@
+v1.0.2
+Removed life cost for transforming into the thing.
+Reduced thing special charges.
+Buffed thing attack damage.
+
 v1.0.1
 Increased melee damage in human form
 Increased thing's special charges to 4
