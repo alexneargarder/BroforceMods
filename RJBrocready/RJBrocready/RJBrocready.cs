@@ -1100,15 +1100,10 @@ namespace RJBrocready
             base.actionState = ActionState.Idle;
             HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
             this.SetGestureAnimation(GestureElement.Gestures.None);
-            // Remove life if we have more than one life left
             if (GameModeController.IsHardcoreMode)
             {
                 previouslyDiedInIronBro[PlayerProgress.currentWorldMapSaveSlot] = true;
                 WriteJson();
-            }
-            else if(HeroController.players[base.playerNum].Lives > 1)
-            {
-                --HeroController.players[base.playerNum].Lives;
             }
 
             this.GetComponent<InvulnerabilityFlash>().enabled = false;
@@ -1206,8 +1201,8 @@ namespace RJBrocready
             {
                 BroMakerUtilities.SetSpecialMaterials(this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing);
             }
-            this.SpecialAmmo = 4;
-            this.originalSpecialAmmo = 4;
+            this.SpecialAmmo = 2;
+            this.originalSpecialAmmo = 2;
             HeroController.SetAvatarMaterial(playerNum, this.thingAvatarMaterial);
         }
 
@@ -1638,7 +1633,7 @@ namespace RJBrocready
                 this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
                 MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
             }
-            if ( HitUnits(this, playerNum, 5, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
+            if ( HitUnits(this, playerNum, 7, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
             }
 
@@ -2235,7 +2230,7 @@ namespace RJBrocready
             if (Map.HitUnits(this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp))
             {
                 temp.Clear();
-                Map.HitUnits(this, base.playerNum, 8, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
+                Map.HitUnits(this, base.playerNum, 12, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
                 this.meleeHasHit = true;
             }
             else if (playMissSound)
