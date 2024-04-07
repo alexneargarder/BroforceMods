@@ -216,7 +216,7 @@ namespace Swap_Bros_Mod
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button(
                         new GUIContent("Swap Bro Left: " + (settings.swapLeftKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapLeftKeys[i].DPADKey == DPAD.NONE ? settings.swapLeftKeys[i].kc.ToString() : "DPAD " + settings.swapLeftKeys[i].DPADString)),
-                        "Set a key for swapping bros, or press Esc to unbind")
+                        "Set a key for swapping bros, or press Delete to unbind")
                         ) && !InputReader.IsBlocked)
                     {
                         settings.swapLeftKeys[i].waitingForInput = true;
@@ -233,7 +233,7 @@ namespace Swap_Bros_Mod
 
                     if (GUILayout.Button(
                         new GUIContent("Swap Bro Right: " + (settings.swapRightKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapRightKeys[i].DPADKey == DPAD.NONE ? settings.swapRightKeys[i].kc.ToString() : "DPAD " + settings.swapRightKeys[i].DPADString)),
-                        "Set a key for swapping bros, or press Esc to unbind")
+                        "Set a key for swapping bros, or press Delete to unbind")
                         ) && !InputReader.IsBlocked)
                     {
                         settings.swapRightKeys[i].waitingForInput = true;
