@@ -39,6 +39,8 @@ namespace Swap_Bros_Mod
                 "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee", "Seth Brondle", "Xebro", "Desperabro", "Broffy the Vampire Slayer", "Burt Brommer", "Demolition Bro" };
         public static List<string> allExpendabros = new List<string> {"Broney Ross", "Lee Broxmas", "Bronnar Jensen", "Bro Caesar", "Trent Broser", "Broctor Death", "Toll Broad"};
         public static List<string> allCustomBros = new List<string>();
+        public static List<string> actuallyAllCustomBros = new List<string>();
+        public static List<string> allBros = new List<string>();
         public static int numCustomBros = 0;
 
         public static List<string> currentBroList;
@@ -47,6 +49,11 @@ namespace Swap_Bros_Mod
         public static int maxBroNum = 40;
         public static int maxBroNumWithoutCustom = 40;
         public static bool isHardcore = false;
+
+        public static bool[] changingEnabledBros = new bool[] { false, false, false, false };
+        public static bool[] filteredBroList;
+        public static bool brosRemoved = false;
+        public static GUIStyle buttonStyle;
 
     static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -77,7 +84,7 @@ namespace Swap_Bros_Mod
                 {
                     LoadCustomBros();
                 }
-                catch (Exception ex)
+                catch
                 {
                     Main.Log("BroMaker is not installed.");
                     Main.settings.enableBromaker = false;
@@ -88,11 +95,30 @@ namespace Swap_Bros_Mod
             settings.selGridInt.CopyTo(previousSelGridInts, 0);
             CreateBroList();
             settings.selGridInt = previousSelGridInts;
+
+            // Initialize enabled bro list
+            if (settings.enabledBros == null || settings.enabledBros.Count() == 0)
+            {
+                settings.enabledBros = new List<string>(allBros);
+                filteredBroList = Enumerable.Repeat(true, allBros.Count()).ToArray();
+            }
             return true;
         }
 
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
+            if ( buttonStyle == null )
+            {
+                buttonStyle = new GUIStyle(GUI.skin.button);
+                buttonStyle.normal.textColor = Color.red;
+                buttonStyle.hover.textColor = Color.red;
+                buttonStyle.active.textColor = Color.red;
+
+                buttonStyle.onHover.textColor = Color.green;
+                buttonStyle.onNormal.textColor = Color.green;
+                buttonStyle.onActive.textColor = Color.green;
+            }
+
             if (isHardcore != GameModeController.IsHardcoreMode)
             {
                 isHardcore = GameModeController.IsHardcoreMode;
@@ -118,6 +144,12 @@ namespace Swap_Bros_Mod
 
             settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix mod window disappearing",
                 "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
+
+            if ( settings.filterBros != (settings.filterBros = GUILayout.Toggle(settings.filterBros, new GUIContent("Filter Bros",
+                "Only spawn as enabled characters"), GUILayout.ExpandWidth(false))) )
+            {
+                CreateBroList();
+            }
 
             // Display the tooltip from the element that has mouseover or keyboard focus
             Rect lastRect = GUILayoutUtility.GetLastRect();
@@ -172,7 +204,7 @@ namespace Swap_Bros_Mod
                         LoadCustomBros();
                         CreateBroList();
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         Main.Log("BroMaker is not installed.");
                         Main.settings.enableBromaker = false;
@@ -222,14 +254,6 @@ namespace Swap_Bros_Mod
                         settings.swapLeftKeys[i].waitingForInput = true;
                         UnityModManager.UI.Instance.StartCoroutine(BindKey(settings.swapLeftKeys[i], i));
                     }
-                    lastRect = GUILayoutUtility.GetLastRect();
-                    lastRect.y += 20;
-                    lastRect.width += 300;
-                    if (!GUI.tooltip.Equals(previousToolTip))
-                    {
-                        GUI.Label(lastRect, GUI.tooltip);
-                    }
-                    previousToolTip = GUI.tooltip;
 
                     if (GUILayout.Button(
                         new GUIContent("Swap Bro Right: " + (settings.swapRightKeys[i].waitingForInput ? "Press Any Key/Button" : (settings.swapRightKeys[i].DPADKey == DPAD.NONE ? settings.swapRightKeys[i].kc.ToString() : "DPAD " + settings.swapRightKeys[i].DPADString)),
@@ -239,39 +263,108 @@ namespace Swap_Bros_Mod
                         settings.swapRightKeys[i].waitingForInput = true;
                         UnityModManager.UI.Instance.StartCoroutine(BindKey(settings.swapRightKeys[i], i));
                     }
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+
+                    if (GUILayout.Button(new GUIContent(changingEnabledBros[i] ? "Save Changes" : "Enter Filtering Mode",
+                                               "Enable or disable bros for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
+                    {
+                        changingEnabledBros[i] = !changingEnabledBros[i];
+                        if (changingEnabledBros[i] )
+                        {
+                            CreateFilteredBroList();
+                        }
+                        else
+                        {
+                            UpdateFilteredBroList();
+                            CreateBroList();
+                        }
+                    }
+
+                    lastRect = GUILayoutUtility.GetLastRect();
+                    lastRect.y += 20;
+                    lastRect.width += 300;
+                    if (!GUI.tooltip.Equals(previousToolTip))
+                    {
+                        GUI.Label(lastRect, GUI.tooltip);
+                    }
+                    previousToolTip = GUI.tooltip;
+
                     if (!GUI.tooltip.Equals(previousToolTip))
                     {
                         GUI.Label(lastRect, GUI.tooltip);
                     }
                     previousToolTip = GUI.tooltip;
                     GUILayout.EndHorizontal();
+
                     GUILayout.Space(25);
+
                     GUILayout.BeginHorizontal();
 
-                    if (!creatingBroList)
+                    if ( !creatingBroList )
                     {
-                        if (settings.selGridInt[i] < 0 || settings.selGridInt[i] >= broList.Length)
+                        // Display filtering menu
+                        if (changingEnabledBros[i])
                         {
-                            settings.selGridInt[i] = 0;
-                        }
-
-                        if (settings.selGridInt[i] <= maxBroNum)
-                        {
-                            if (settings.clickingEnabled)
+                            GUILayout.BeginVertical();
+                            GUILayout.BeginHorizontal();
+                            for ( int j = 0; j < allBros.Count(); ++j )
                             {
-                                if (settings.selGridInt[i] != (settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)))))
+                                if ( j % 5 == 0 )
                                 {
-                                    switched[i] = true;
+                                    GUILayout.EndHorizontal();
+                                    GUILayout.BeginHorizontal();
+                                }
+
+                                filteredBroList[j] = GUILayout.Toggle(filteredBroList[j], allBros[j], buttonStyle, GUILayout.Height(26), GUILayout.Width(180));
+                            }
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(20);
+                            GUILayout.BeginHorizontal();
+                            if (GUILayout.Button("Select All", GUILayout.Width(200)))
+                            {
+                                for (int j = 0; j < filteredBroList.Length; ++j)
+                                {
+                                    filteredBroList[j] = true;
+                                }
+                            }
+                            if (GUILayout.Button("Unselect All", GUILayout.Width(200)))
+                            {
+                                for (int j = 0; j < filteredBroList.Length; ++j)
+                                {
+                                    filteredBroList[j] = false;
+                                }
+                            }
+                            GUILayout.EndHorizontal();
+                            GUILayout.EndVertical();
+                        }
+                        // Display bro selection menu
+                        else
+                        {
+                            if (settings.selGridInt[i] < 0 || settings.selGridInt[i] >= broList.Length)
+                            {
+                                settings.selGridInt[i] = 0;
+                            }
+
+                            if (settings.selGridInt[i] <= maxBroNum)
+                            {
+                                if (settings.clickingEnabled)
+                                {
+                                    if (settings.selGridInt[i] != (settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)))))
+                                    {
+                                        switched[i] = true;
+                                    }
+                                }
+                                else
+                                {
+                                    settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)));
                                 }
                             }
                             else
                             {
-                                settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)));
+                                CreateBroList();
                             }
-                        }
-                        else
-                        {
-                            CreateBroList();
                         }
                     }
 
@@ -398,6 +491,7 @@ namespace Swap_Bros_Mod
         public static void CreateBroList()
         {
             creatingBroList = true;
+            brosRemoved = false;
             if ( currentBroList != null )
             {
                 for ( int i = 0; i < 4; ++i )
@@ -412,13 +506,13 @@ namespace Swap_Bros_Mod
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
                 currentBroList = new List<string>();
-                for ( int i = 0; i < GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.Count(); ++i )
+                for (int i = 0; i < GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.Count(); ++i)
                 {
                     currentBroList.Add(allNormal[HeroTypeToInt(GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i])]);
                 }
                 maxBroNumWithoutCustom = currentBroList.Count() - 1;
 
-                if ( settings.enableBromaker )
+                if (settings.enableBromaker)
                 {
                     LoadCustomBros();
                     currentBroList.AddRange(allCustomBros);
@@ -426,17 +520,65 @@ namespace Swap_Bros_Mod
             }
             else
             {
-                currentBroList = new List<string>();
-                currentBroList.AddRange(allNormal);
+                if ( settings.filterBros && settings.enabledBros.Count() > 0 )
+                {
+                    currentBroList = new List<string>();
+                    for ( int i = 0; i < allNormal.Count(); ++i )
+                    {
+                        if (settings.enabledBros.Contains(allNormal[i]) )
+                        {
+                            currentBroList.Add(allNormal[i]);
+                        }
+                        else
+                        {
+                            brosRemoved = true;
+                        }
+                    }
 
-                if (settings.includeUnfinishedCharacters)
-                {
-                    currentBroList.AddRange(allExpendabros);
+                    if (settings.includeUnfinishedCharacters)
+                    {
+                        for ( int i = 0; i < allExpendabros.Count(); ++i )
+                        {
+                            if (settings.enabledBros.Contains(allExpendabros[i]) )
+                            {
+                                currentBroList.Add(allExpendabros[i]);
+                            }
+                            else
+                            {
+                                brosRemoved = true;
+                            }
+                        }
+                    }
+                    maxBroNumWithoutCustom = currentBroList.Count() - 1;
+                    if (settings.enableBromaker)
+                    {
+                        for ( int i = 0; i < allCustomBros.Count(); ++i )
+                        {
+                            if (settings.enabledBros.Contains(allCustomBros[i]) )
+                            {
+                                currentBroList.Add(allCustomBros[i]);
+                            }
+                            else
+                            {
+                                brosRemoved = true;
+                            }
+                        }
+                    }
                 }
-                maxBroNumWithoutCustom = currentBroList.Count() - 1;
-                if (settings.enableBromaker)
+                else
                 {
-                    currentBroList.AddRange(allCustomBros);
+                    currentBroList = new List<string>();
+                    currentBroList.AddRange(allNormal);
+
+                    if (settings.includeUnfinishedCharacters)
+                    {
+                        currentBroList.AddRange(allExpendabros);
+                    }
+                    maxBroNumWithoutCustom = currentBroList.Count() - 1;
+                    if (settings.enableBromaker)
+                    {
+                        currentBroList.AddRange(allCustomBros);
+                    }
                 }
             }
 
@@ -451,6 +593,43 @@ namespace Swap_Bros_Mod
                 }
             }
             creatingBroList = false;
+        }
+
+        public static void CreateFilteredBroList()
+        {
+            allBros = new List<string>();
+            allBros.AddRange(allNormal);
+            if (settings.includeUnfinishedCharacters)
+            {
+                allBros.AddRange(allExpendabros);
+            }
+            if (settings.enableBromaker)
+            {
+                allBros.AddRange(allCustomBros);
+            }
+
+            filteredBroList = Enumerable.Repeat(false, allBros.Count()).ToArray();
+            // Find index of the enabled bro in allBros and set the corresponding index in filteredBroList to true
+            for (int i = 0; i < settings.enabledBros.Count(); ++i)
+            {
+                int index = allBros.IndexOf(settings.enabledBros[i]);
+                if (index != -1)
+                {
+                    filteredBroList[index] = true;
+                }
+            }
+        }
+
+        public static void UpdateFilteredBroList()
+        {
+            settings.enabledBros.Clear();
+            for ( int i = 0; i < filteredBroList.Length; ++i )
+            {
+                if (filteredBroList[i])
+                {
+                    settings.enabledBros.Add(allBros[i]);
+                }
+            }
         }
 
         public static bool CustomCountChanged()
@@ -468,6 +647,11 @@ namespace Swap_Bros_Mod
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
                 allCustomBros = BSett.instance.availableBros;
+                actuallyAllCustomBros = new List<string>();
+                for (int i = 0; i < MakerObjectStorage.Bros.Length; ++i)
+                {
+                    actuallyAllCustomBros.Add(MakerObjectStorage.Bros[i].name);
+                }
             }
             else
             {
@@ -476,14 +660,16 @@ namespace Swap_Bros_Mod
                 {
                     allCustomBros.Add(MakerObjectStorage.Bros[i].name);
                 }
+                actuallyAllCustomBros = allCustomBros;
             }
+            
         }
 
         public static string GetSelectedBro(int playerNum)
         {
             if (settings.selGridInt[playerNum] > Main.maxBroNumWithoutCustom)
             {
-                return allCustomBros[settings.selGridInt[playerNum] - Main.maxBroNumWithoutCustom - 1];
+                return currentBroList[settings.selGridInt[playerNum]];
             }
             return "";
         }
@@ -515,6 +701,16 @@ namespace Swap_Bros_Mod
         {
             BSett.instance.disableSpawning = true;
             LoadHero.willReplaceBro[curPlayer] = false;
+        }
+
+        public static bool IsCustomBroSpawning(int curPlayer)
+        {
+            return LoadHero.willReplaceBro[curPlayer];
+        }
+
+        public static bool IsCustcenePlaying()
+        {
+            return LoadHero.playCutscene;
         }
 
         public static int GetHardcoreCount()
@@ -793,6 +989,9 @@ namespace Swap_Bros_Mod
         public KeyBind[] swapLeftKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
         public KeyBind[] swapRightKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
 
+        public List<string> enabledBros = new List<string>();
+        public bool filterBros = false;
+
         public override void Save(UnityModManager.ModEntry modEntry)
         {
             Save(this, modEntry);
@@ -800,14 +999,7 @@ namespace Swap_Bros_Mod
 
         public HeroType getSelectedHero( int playerNum )
         {
-            if ( GameModeController.IsHardcoreMode && !this.ignoreCurrentUnlocked )
-            {
-                return Main.StringToHeroType(Main.currentBroList[this.selGridInt[playerNum]]);
-            }
-            else
-            {
-                return Main.IntToHeroType(this.selGridInt[playerNum]);
-            }
+            return Main.StringToHeroType(Main.currentBroList[this.selGridInt[playerNum]]);
         }
 
         public void setSelectedHero( int playerNum, HeroType nextHero )
@@ -842,17 +1034,42 @@ namespace Swap_Bros_Mod
                 return;
             }
 
+            int curPlayer = __instance.playerNum;
+
             if (!Main.settings.alwaysChosen)
             {
                 if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
                 {
                     Main.CreateBroList();
                 }
-                Main.settings.setSelectedHero( __instance.playerNum, nextHeroType);
+                
+                // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
+                if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
+                {
+                    int nextHero = UnityEngine.Random.Range(0, Main.currentBroList.Count());
+
+                    // Check if bro is custom or not
+                    if (nextHero > Main.maxBroNumWithoutCustom)
+                    {
+                        Main.MakeCustomBroSpawn(curPlayer, Main.currentBroList[nextHero]);
+                        nextHeroType = HeroType.Rambro;
+                    }
+                    else
+                    {
+                        if (Main.settings.enableBromaker)
+                            Main.DisableCustomBroSpawning(curPlayer);
+
+                        nextHeroType = Main.StringToHeroType(Main.currentBroList[nextHero]);
+                    }
+
+                    Main.settings.selGridInt[curPlayer] = nextHero;
+                }
+                else
+                {
+                    Main.settings.setSelectedHero(__instance.playerNum, nextHeroType);
+                }
                 return;
             }
-
-            int curPlayer = __instance.playerNum;
 
             // If we're in IronBro and don't want to force spawn a bro we haven't unlocked
             if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
@@ -1009,6 +1226,7 @@ namespace Swap_Bros_Mod
                     }
                         
                     __instance.SpawnHero(Main.settings.getSelectedHero(curPlayer));
+                    
                     if (Main.settings.enableBromaker)
                         Main.EnableCustomBroSpawning();
 

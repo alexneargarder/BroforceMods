@@ -1,3 +1,6 @@
+v2.1.0 (unreleased)
+Added option to filter bros
+
 v2.0.7
 Updated to work with latest BroMaker update.
 
