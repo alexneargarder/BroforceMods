@@ -8,6 +8,8 @@ using System.Reflection;
 using UnityEngine;
 using RocketLib;
 using Rogueforce;
+using JetBrains.Annotations;
+using RocketLib.Collections;
 
 namespace Furibrosa
 {
@@ -18,8 +20,20 @@ namespace Furibrosa
         public static KeyBindingForPlayers switchWeaponKey;
 
         // Primary
-        protected Bolt boltPrefab;
+        public enum PrimaryState
+        {
+            Crossbow = 0,
+            FlareGun = 1,
+            Switching = 2
+        }
+        PrimaryState currentState = PrimaryState.Crossbow;
+        PrimaryState nextState;
+        protected Bolt boltPrefab, explosiveBoltPrefab;
         protected bool releasedFire = false;
+        protected float chargeTime = 0f;
+        protected float crossbowDelay = 0f;
+        protected bool charged = false;
+        protected Material crossbowMat, crossbowHoldingMat, flareGunMat, flareGunHoldingMat;
 
         // Melee
 
@@ -43,6 +57,17 @@ namespace Furibrosa
         {
             base.Start();
 
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            
+            this.crossbowMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteCrossbow.png"), ResourcesController.Particle_AlphaBlend);
+            this.crossbowHoldingMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteCrossbowHolding.png"), ResourcesController.Particle_AlphaBlend);
+            this.flareGunMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteFlareGun.png"), ResourcesController.Particle_AlphaBlend);
+            this.flareGunHoldingMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteFlareGunHolding.png"), ResourcesController.Particle_AlphaBlend);
+
+            this.gunSprite.gameObject.layer = 28;
+            this.gunSprite.meshRender.material = this.crossbowMat;
+
+            
             boltPrefab = new GameObject("Bolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt)}).GetComponent<Bolt>();
             boltPrefab.enabled = false;
             boltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
@@ -53,8 +78,19 @@ namespace Furibrosa
 
             Transform transform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
             transform.parent = boltPrefab.transform;
+            boltPrefab.Setup(false);
 
-            boltPrefab.Setup();
+            explosiveBoltPrefab = new GameObject("ExplosiveBolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
+            explosiveBoltPrefab.enabled = false;
+            explosiveBoltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
+
+            BoxCollider explosiveCollider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
+            explosiveCollider.enabled = false;
+            explosiveCollider.transform.parent = explosiveBoltPrefab.transform;
+
+            Transform explosiveTransform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
+            explosiveTransform.parent = explosiveBoltPrefab.transform;
+            explosiveBoltPrefab.Setup(true);
         }
 
         protected override void Update()
@@ -76,6 +112,12 @@ namespace Furibrosa
             if (this.invulnerable)
             {
                 this.wasInvulnerable = true;
+            }
+
+            // Switch Weapon Pressed
+            if ( switchWeaponKey.IsDown(playerNum) )
+            {
+                StartSwitchingWeapon();
             }
 
             // Check if invulnerability ran out
@@ -108,6 +150,13 @@ namespace Furibrosa
         #endregion
 
         #region Primary
+        protected override void StartFiring()
+        {
+            this.chargeTime = 0f;
+            this.charged = false;
+            base.StartFiring();
+        }
+
         protected override void ReleaseFire()
         {
             this.releasedFire = true;
@@ -120,25 +169,29 @@ namespace Furibrosa
             {
                 return;
             }
-            if (this.fire)
+
+            if ( this.currentState == PrimaryState.Crossbow )
             {
-                this.StopRolling();
-            }
-            this.fireCounter += this.t;
-            if (this.releasedFire && this.fireCounter >= this.fireRate)
-            {
-                if (this.player != null && this.player.ValueOrchestrator != null)
+                if ( this.crossbowDelay > 0f )
                 {
-                    this.fireCounter -= this.player.ValueOrchestrator.GetModifiedFloatValue(ValueOrchestrator.ModifiableType.TimeBetweenShots, this.fireRate);
+                    this.crossbowDelay -= this.t;
                 }
-                else
+                if ( this.crossbowDelay <= 0f )
                 {
-                    this.fireCounter -= this.fireRate;
+                    if (this.fire)
+                    {
+                        this.StopRolling();
+                        this.chargeTime += this.t;
+                    }
+                    else if (this.releasedFire)
+                    {
+                        this.UseFire();
+                        this.FireFlashAvatar();
+                        this.SetGestureAnimation(GestureElement.Gestures.None);
+                    }
                 }
-                this.UseFire();
-                this.FireFlashAvatar();
-                this.SetGestureAnimation(GestureElement.Gestures.None);
             }
+            
         }
 
         protected override void UseFire()
@@ -157,33 +210,169 @@ namespace Furibrosa
             {
                 this.syncedDirection = (int)base.transform.localScale.x;
             }
-            this.FireWeapon(base.X + num * 10f, base.Y + 8f, num * 300f, 0);
-            //this.PlayAttackSound();
+            this.FireWeapon(base.X, base.Y, num * 300f, 0);
             Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
         }
 
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
         {
-            this.gunFrame = 3;
-            this.SetGunSprite(this.gunFrame, 0);
-            this.TriggerBroFireEvent();
-            EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed * 0.15f, base.transform);
-            Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
-            firedBolt.enabled = true;
+            // Fire crossbow
+            if ( this.currentState == PrimaryState.Crossbow )
+            {
+                // Fire explosive bolt
+                if ( this.charged )
+                {
+                    x = base.X + base.transform.localScale.x * 10f;
+                    y = base.Y + 8f;
+                    xSpeed = base.transform.localScale.x * 500;
+                    ySpeed = 0;
+                    this.gunFrame = 3;
+                    this.SetGunSprite(this.gunFrame, 0);
+                    this.TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally(explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
+                    BMLogger.Log("life: " + firedBolt.life);
+                    firedBolt.enabled = true;
+                }
+                // Fire normal bolt
+                else
+                {
+                    x = base.X + base.transform.localScale.x * 10f;
+                    y = base.Y + 8f;
+                    xSpeed = base.transform.localScale.x * 350;
+                    ySpeed = 0;
+                    this.gunFrame = 3;
+                    this.SetGunSprite(this.gunFrame, 0);
+                    this.TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
+                    firedBolt.enabled = true;
+                }
+                this.crossbowDelay = 0.3f;
+            }
         }
 
         protected override void RunGun()
         {
-            if (!this.WallDrag && this.gunFrame > 0)
+            if ( this.currentState == PrimaryState.Crossbow )
             {
-                this.gunCounter += this.t;
-                if (this.gunCounter > 0.0334f)
+                if ( this.fire )
                 {
-                    this.gunCounter -= 0.0334f;
-                    this.gunFrame--;
-                    this.SetGunSprite(this.gunFrame, 0);
+                    if ( this.chargeTime > 0.2f )
+                    {
+                        if ( !this.charged )
+                        {
+                            this.gunCounter += this.t;
+                            if (this.gunCounter < 1f && this.gunCounter > 0.09f)
+                            {
+                                this.gunCounter -= 0.09f;
+                                if ( this.gunFrame < 2 )
+                                {
+                                    ++this.gunFrame;
+                                    if (this.gunFrame == 2)
+                                    {
+                                        this.gunFrame = 7;
+                                    }
+                                }
+                                else
+                                {
+                                    --this.gunFrame;
+                                    if ( this.gunFrame == 3 )
+                                    {
+                                        this.gunFrame = 4;
+                                        this.charged = true;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            this.gunCounter += this.t;
+                            if (this.gunCounter > 0.06f)
+                            {
+                                this.gunCounter -= 0.06f;
+                                --this.gunFrame;
+                            }
+                            if (this.gunFrame < 2)
+                            {
+                                this.gunFrame = 3;
+                            }
+                            //this.gunFrame = 5;
+                        }
+                        this.SetGunSprite(this.gunFrame + 14, 0);
+                    }
+                }
+                else if (!this.WallDrag && this.gunFrame > 0)
+                {
+                    this.gunCounter += this.t;
+                    if (this.gunCounter > 0.0334f)
+                    {
+                        this.gunCounter -= 0.0334f;
+                        this.gunFrame--;
+                        this.SetGunSprite(this.gunFrame, 0);
+                    }
                 }
             }
+            // Animate flaregun
+            else if (this.currentState == PrimaryState.FlareGun)
+            {
+                this.SetGunSprite(0, 0);
+            }
+            // Animate switching
+            else
+            {
+                this.gunCounter += this.t;
+                if (this.gunCounter > 0.08f)
+                {
+                    this.gunCounter -= 0.08f;
+                    ++this.gunFrame;
+                }
+
+                if (this.gunFrame > 5)
+                {
+                    this.SwitchWeapon();
+                }
+                else
+                {
+                    this.SetGunSprite(22 + this.gunFrame, 0);
+                }
+            }
+
+        }
+
+        protected void StartSwitchingWeapon()
+        {
+            if ( !this.usingSpecial && this.currentState != PrimaryState.Switching )
+            {
+                this.CancelMelee();
+                this.SetGestureAnimation(GestureElement.Gestures.None);
+                if ( this.currentState == PrimaryState.Crossbow )
+                {
+                    this.nextState = PrimaryState.FlareGun;
+                }
+                else
+                {
+                    this.nextState = PrimaryState.Crossbow;
+                }
+                this.currentState = PrimaryState.Switching;
+                this.gunFrame = 0;
+                this.SetGunSprite(22 + this.gunFrame, 0);
+            } 
+        }
+
+        protected void SwitchWeapon()
+        {
+            this.gunFrame = 0;
+            this.currentState = this.nextState;
+            if ( this.currentState == PrimaryState.FlareGun )
+            {
+                this.gunSprite.meshRender.material = this.flareGunMat;
+            }
+            else
+            {
+                this.gunSprite.meshRender.material = this.crossbowMat;
+            }
+            this.SetGunSprite(0, 0);
         }
         #endregion
 
