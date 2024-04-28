@@ -15,7 +15,6 @@ namespace Furibrosa
 {
     public class Bolt : PredabroSpear
     {
-        public static Material storedMat;
         public SpriteSM sprite;
         public bool explosive = false;
         public float explosiveTimer = 0;
@@ -53,12 +52,17 @@ namespace Furibrosa
             MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
 
             string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            if (storedMat == null)
+            Material material;
+            if (isExplosive)
             {
-                storedMat = ResourcesController.GetMaterial(directoryPath, "bolt.png");
+                material = ResourcesController.GetMaterial(directoryPath, "boltExplosive.png");
+            }
+            else
+            {
+                material = ResourcesController.GetMaterial(directoryPath, "bolt.png");
             }
 
-            renderer.material = storedMat;
+            renderer.material = material;
 
             this.sprite = this.gameObject.GetComponent<SpriteSM>();
             sprite.lowerLeftPixel = new Vector2(-3, 16);
@@ -118,7 +122,7 @@ namespace Furibrosa
 
             // Setup foreground sprite
             GameObject foreground = this.FindChildOfName("BoltForeground").gameObject;
-            foreground.GetComponent<MeshRenderer>().material = storedMat;
+            foreground.GetComponent<MeshRenderer>().material = material;
             SpriteSM foregroundSprite = foreground.GetComponent<SpriteSM>();
             foregroundSprite.lowerLeftPixel = new Vector2(14, 16);
             foregroundSprite.pixelDimensions = new Vector2(14, 16);
