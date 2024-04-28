@@ -331,7 +331,7 @@ namespace Furibrosa
                 {
                     x = base.X + base.transform.localScale.x * 10f;
                     y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 500;
+                    xSpeed = base.transform.localScale.x * 500 + (this.xI / 2);
                     ySpeed = 0;
                     this.gunFrame = 3;
                     this.SetGunSprite(this.gunFrame, 0);
@@ -346,7 +346,7 @@ namespace Furibrosa
                 {
                     x = base.X + base.transform.localScale.x * 10f;
                     y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 350;
+                    xSpeed = base.transform.localScale.x * 400 + (this.xI / 2);
                     ySpeed = 0;
                     this.gunFrame = 3;
                     this.SetGunSprite(this.gunFrame, 0);
@@ -362,7 +362,7 @@ namespace Furibrosa
                 x = base.X + base.transform.localScale.x * 12f;
                 y = base.Y + 8f;
                 xSpeed = base.transform.localScale.x * 450;
-                ySpeed = UnityEngine.Random.Range(15, 25);
+                ySpeed = UnityEngine.Random.Range(15, 50);
                 EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                 ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
                 this.gunFrame = 3;

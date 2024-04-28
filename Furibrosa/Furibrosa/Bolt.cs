@@ -44,7 +44,10 @@ namespace Furibrosa
 
         private void OnDisable()
         {
-            // Do nothing
+            if ( this.stuckInPlace )
+            {
+                this.Death();
+            }
         }
 
         public void Setup(bool isExplosive)
@@ -90,7 +93,7 @@ namespace Furibrosa
             {
                 this.groundLayersCrushLeft = 1;
                 this.maxPenetrations = 2;
-                this.life = 0.5f;
+                this.life = 0.44f;
             }
             this.unimpalementDamage = 8;
             this.trailDist = 12;
@@ -98,9 +101,9 @@ namespace Furibrosa
             this.rotationSpeed = 0;
             this.dragUnitsSpeedM = 0.9f;
             this.projectileSize = 8;
-            this.damage = 5;
-            this.damageInternal = 5;
-            this.fullDamage = 5;
+            this.damage = 8;
+            this.damageInternal = 8;
+            this.fullDamage = 8;
             this.fadeDamage = false;
             this.damageType = DamageType.Bullet;
             this.canHitGrenades = true;
@@ -151,6 +154,65 @@ namespace Furibrosa
             base.Update();
         }
 
+        protected override void HitUnits()
+        {
+            if (this.penetrationsCount < this.maxPenetrations)
+            {
+                Unit firstUnit = Map.GetFirstUnit(this.firedBy, this.playerNum, 5f, base.X, base.Y, true, true, this.hitUnits);
+                if (firstUnit != null)
+                {
+                    if (firstUnit.IsHeavy())
+                    {
+                        firstUnit.Damage(this.damageInternal, DamageType.Melee, this.xI, this.yI, (int)Mathf.Sign(this.xI), this.firedBy, base.X, base.Y);
+                        this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
+                        if (!(firstUnit is DolphLundrenSoldier))
+                        {
+                            this.Stick(firstUnit.transform, base.transform.position);
+                        }
+                        else
+                        {
+                            UnityEngine.Object.Destroy(base.gameObject);
+                        }
+                    }
+                    else
+                    {
+                        this.hitUnits.Add(firstUnit);
+                        if (this.stunOnHit)
+                        {
+                            firstUnit.Blind();
+                        }
+                        firstUnit.Impale(base.transform, Vector3.right * Mathf.Sign(this.xI), this.damageInternal, this.xI, this.yI, 0f, 0f);
+                        firstUnit.Y = base.Y - 8f;
+                        if (firstUnit is Mook)
+                        {
+                            firstUnit.useImpaledFrames = true;
+                        }
+                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.4f, base.transform.position, 1f, true, false, false, 0f);
+                        this.penetrationsCount++;
+                        // Only add life to non-explosive bolts
+                        if ( !this.explosive )
+                        {
+                            this.life += 0.15f;
+                        }
+                        SortOfFollow.Shake(0.3f);
+                        EffectsController.CreateBloodParticles(firstUnit.bloodColor, base.X, base.Y, 4, 4f, 5f, 60f, this.xI * 0.2f, this.yI * 0.5f + 40f);
+                        EffectsController.CreateMeleeStrikeEffect(base.X, base.Y, this.xI * 0.2f, this.yI * 0.5f + 24f);
+                        if (this.xI > 0f)
+                        {
+                            if (firstUnit.X < base.X + 3f)
+                            {
+                                firstUnit.X = base.X + 3f;
+                            }
+                        }
+                        else if (this.xI < 0f && firstUnit.X > base.X - 3f)
+                        {
+                            firstUnit.X = base.X - 3f;
+                        }
+                    }
+                }
+            }
+        }
+
         protected override void MakeEffects(bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint)
         {
             if ( this.explosive )
@@ -167,7 +229,7 @@ namespace Furibrosa
         {
             MapController.DamageGround(this.firedBy, ValueOrchestrator.GetModifiedDamage(this.damage, this.playerNum), this.damageType, this.range, base.X, base.Y, null, false);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
-            Map.ExplodeUnits(this.firedBy, this.damage, this.damageType, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
+            Map.ExplodeUnits(this.firedBy, this.damage * 3, this.damageType, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
             EffectsController.CreateExplosion(base.X, base.Y, this.range * 0.25f, this.range * 0.25f, 120f, 1f, this.range * 1.5f, 1f, 0f, true);
             if (this.sound == null)
