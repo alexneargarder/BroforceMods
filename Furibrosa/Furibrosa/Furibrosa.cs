@@ -13,6 +13,7 @@ using RocketLib.Collections;
 using Networking;
 using System.Linq;
 using HarmonyLib;
+using World.LevelEdit.Triggers;
 
 namespace Furibrosa
 {
@@ -33,7 +34,7 @@ namespace Furibrosa
         }
         PrimaryState currentState = PrimaryState.Crossbow;
         PrimaryState nextState;
-        protected Bolt boltPrefab, explosiveBoltPrefab;
+        static protected Bolt boltPrefab, explosiveBoltPrefab;
         protected bool releasedFire = false;
         protected float chargeTime = 0f;
         protected int chargeCounter = 0;
@@ -42,9 +43,7 @@ namespace Furibrosa
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
         protected MeshRenderer holdingArm;
-
-        // Flare Primary
-        Projectile flarePrefab;
+        static protected Projectile flarePrefab;
 
         // Melee
         public static List<Unit> grabbedUnits = new List<Unit> { null, null, null, null };
@@ -62,6 +61,7 @@ namespace Furibrosa
         protected bool throwingMook = false;
 
         // Special
+        static protected WarRig warRigPrefab;
 
         // DEBUG
         public static string offsetXstr = "12";
@@ -101,36 +101,43 @@ namespace Furibrosa
             this.gunSprite.gameObject.layer = 28;
             this.gunSprite.meshRender.material = this.crossbowMat;
 
+            if (boltPrefab == null)
+            {
+                boltPrefab = new GameObject("Bolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
+                boltPrefab.gameObject.SetActive(false);
+                boltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
+
+                BoxCollider collider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
+                collider.enabled = false;
+                collider.transform.parent = boltPrefab.transform;
+
+                Transform transform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
+                transform.parent = boltPrefab.transform;
+                boltPrefab.Setup(false);
+                UnityEngine.Object.DontDestroyOnLoad(boltPrefab);
+            }
             
-            boltPrefab = new GameObject("Bolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt)}).GetComponent<Bolt>();
-            boltPrefab.gameObject.SetActive(false);
-            boltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
+            if ( explosiveBoltPrefab == null )
+            {
+                explosiveBoltPrefab = new GameObject("ExplosiveBolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
+                explosiveBoltPrefab.gameObject.SetActive(false);
+                explosiveBoltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
 
-            BoxCollider collider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
-            collider.enabled = false;
-            collider.transform.parent = boltPrefab.transform;
+                BoxCollider explosiveCollider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
+                explosiveCollider.enabled = false;
+                explosiveCollider.transform.parent = explosiveBoltPrefab.transform;
 
-            Transform transform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
-            transform.parent = boltPrefab.transform;
-            boltPrefab.Setup(false);
-
-            explosiveBoltPrefab = new GameObject("ExplosiveBolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
-            explosiveBoltPrefab.gameObject.SetActive(false);
-            explosiveBoltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
-
-            BoxCollider explosiveCollider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
-            explosiveCollider.enabled = false;
-            explosiveCollider.transform.parent = explosiveBoltPrefab.transform;
-
-            Transform explosiveTransform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
-            explosiveTransform.parent = explosiveBoltPrefab.transform;
-            explosiveBoltPrefab.Setup(true);
-
+                Transform explosiveTransform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
+                explosiveTransform.parent = explosiveBoltPrefab.transform;
+                explosiveBoltPrefab.Setup(true);
+                UnityEngine.Object.DontDestroyOnLoad(explosiveBoltPrefab);
+            }
+            
             for (int i = 0; i < InstantiationController.PrefabList.Count; ++i)
             {
                 if (InstantiationController.PrefabList[i].name == "Bullet Flare")
                 {
-                    this.flarePrefab = (InstantiationController.PrefabList[i] as GameObject).GetComponent<Projectile>();
+                    flarePrefab = (InstantiationController.PrefabList[i] as GameObject).GetComponent<Projectile>();
                     break;
                 }
             }
@@ -151,6 +158,32 @@ namespace Furibrosa
             holdingArmSprite.CalcUVs();
             holdingArmSprite.UpdateUVs();
             holdingArmSprite.offset = new Vector3(0f, 15f, 0f);
+
+            // Create WarRig
+            try
+            {
+                if (warRigPrefab == null)
+                {
+                    GameObject warRig = null;
+                    for (int i = 0; i < InstantiationController.PrefabList.Count; ++i)
+                    {
+                        if (InstantiationController.PrefabList[i].name == "ZMookArmouredGuy")
+                        {
+                            warRig = UnityEngine.Object.Instantiate(InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity) as GameObject;
+                        }
+                    }
+
+                    if (warRig != null)
+                    {
+                        warRigPrefab = warRig.AddComponent<WarRig>();
+                        warRigPrefab.Setup();
+                    }
+                    UnityEngine.Object.DontDestroyOnLoad(warRigPrefab);
+                }
+            } catch( Exception ex )
+            {
+                BMLogger.Log("Exception creating WarRig: " + ex.ToString());
+            }
         }
 
         protected override void Update()
@@ -714,6 +747,26 @@ namespace Furibrosa
         #endregion
 
         #region Special
+        Vector3 DetermineWarRigSpawn()
+        {
+            return new Vector3(base.X, base.Y, 0f);
+        }
+        protected override void UseSpecial()
+        {
+            if (this.SpecialAmmo > 0 && this.specialGrenade != null)
+            {
+                this.SpecialAmmo--;
+
+                WarRig warRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
+                warRig.gameObject.SetActive(true);
+            }
+            else
+            {
+                HeroController.FlashSpecialAmmo(base.playerNum);
+                this.ActivateGun();
+            }
+            this.pressSpecialFacingDirection = 0;
+        }
         #endregion
     }
 }
