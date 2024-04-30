@@ -41,6 +41,7 @@ namespace Furibrosa
         protected Material crossbowMat, crossbowNormalMat, crossbowHoldingMat;
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
+        protected MeshRenderer holdingArm;
 
         // Flare Primary
         Projectile flarePrefab;
@@ -63,12 +64,10 @@ namespace Furibrosa
         // Special
 
         // DEBUG
-        public static string offsetXstr = "13";
-        public static float offsetXVal = 13f;
-        public static string offsetYstr = "3";
-        public static float offsetYVal = 3f;
-        public static string offsetZstr = "-5";
-        public static float offsetZVal = -5f;
+        public static string offsetXstr = "12";
+        public static float offsetXVal = 12f;
+        public static string offsetYstr = "4.5";
+        public static float offsetYVal = 4.5f;
 
         #region General
         protected override void Awake()
@@ -135,6 +134,23 @@ namespace Furibrosa
                     break;
                 }
             }
+
+            holdingArm = new GameObject("FuribrosaArm", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).GetComponent<MeshRenderer>();
+            holdingArm.transform.parent = this.transform;
+            holdingArm.gameObject.SetActive(false);
+            holdingArm.material = ResourcesController.GetMaterial(directoryPath, "gunSpriteHolding.png");
+            SpriteSM holdingArmSprite = holdingArm.gameObject.GetComponent<SpriteSM>();
+            holdingArmSprite.RecalcTexture();
+            holdingArmSprite.SetTextureDefaults();
+            holdingArmSprite.lowerLeftPixel = new Vector2(0, 32);
+            holdingArmSprite.pixelDimensions = new Vector2(32, 32);
+            holdingArmSprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            holdingArmSprite.width = 32;
+            holdingArmSprite.height = 32;
+            holdingArmSprite.transform.localPosition = new Vector3(0, 0, -0.9f);
+            holdingArmSprite.CalcUVs();
+            holdingArmSprite.UpdateUVs();
+            holdingArmSprite.offset = new Vector3(0f, 15f, 0f);
         }
 
         protected override void Update()
@@ -177,11 +193,18 @@ namespace Furibrosa
 
             if (this.grabbedUnit != null)
             {
-                if ( this.grabbedUnit.health > 0 )
+                if ( this.grabbedUnit.health > 0 && this.health > 0 )
                 {
                     this.grabbedUnit.X = base.X + base.transform.localScale.x * offsetXVal;
                     this.grabbedUnit.Y = base.Y + offsetYVal;
-                    this.grabbedUnit.zOffset = offsetZVal;
+                    if ( this.currentState == PrimaryState.Crossbow )
+                    {
+                        this.grabbedUnit.zOffset = -0.95f;
+                    }
+                    else if ( this.currentState == PrimaryState.FlareGun )
+                    {
+                        this.grabbedUnit.zOffset = -2;
+                    }
                     this.grabbedUnit.transform.localScale = base.transform.localScale;
                 }
                 else
@@ -226,7 +249,6 @@ namespace Furibrosa
             // DEBUG options
             makeTextBox("offsetX", ref offsetXstr, ref offsetXVal);
             makeTextBox("offsetY", ref offsetYstr, ref offsetYVal);
-            makeTextBox("offsetz", ref offsetZstr, ref offsetZVal);
         }
 
         public override void HarmonyPatches(Harmony harmony)
@@ -237,6 +259,16 @@ namespace Furibrosa
         #endregion
 
         #region Primary
+        protected override void SetGunPosition(float xOffset, float yOffset)
+        {
+            base.SetGunPosition(xOffset, yOffset);
+            if ( this.grabbedUnit != null )
+            {
+                this.holdingArm.transform.localPosition = this.gunSprite.transform.localPosition + new Vector3(0f, 0f, 0.1f);
+                this.holdingArm.transform.localScale = this.gunSprite.transform.localScale;
+            }
+        }
+
         protected override void StartFiring()
         {
             this.chargeTime = 0f;
@@ -481,7 +513,7 @@ namespace Furibrosa
                 }
                 this.currentState = PrimaryState.Switching;
                 this.gunFrame = 0;
-                this.SetGunSprite(22 + this.gunFrame, 0);
+                this.RunGun();
             } 
         }
 
@@ -491,10 +523,18 @@ namespace Furibrosa
             this.currentState = this.nextState;
             if ( this.currentState == PrimaryState.FlareGun )
             {
+                if ( this.grabbedUnit != null )
+                {
+                    this.holdingArm.gameObject.SetActive(false);
+                }
                 this.gunSprite.meshRender.material = this.flareGunMat;
             }
             else
             {
+                if ( this.grabbedUnit != null )
+                {
+                    this.holdingArm.gameObject.SetActive(true);
+                }
                 this.gunSprite.meshRender.material = this.crossbowMat;
             }
             this.SetGunSprite(0, 0);
@@ -648,6 +688,7 @@ namespace Furibrosa
             this.flareGunMat = this.flareGunHoldingMat;
             if (this.currentState == PrimaryState.Crossbow)
             {
+                this.holdingArm.gameObject.SetActive(true);
                 this.gunSprite.meshRender.material = this.crossbowMat;
             }
             else if (this.currentState == PrimaryState.FlareGun)
@@ -659,6 +700,7 @@ namespace Furibrosa
         protected void SwitchToNormalMaterials()
         {
             this.crossbowMat = this.crossbowNormalMat;
+            this.holdingArm.gameObject.SetActive(false);
             this.flareGunMat = this.flareGunNormalMat;
             if (this.currentState == PrimaryState.Crossbow)
             {
