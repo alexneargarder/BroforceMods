@@ -58,5 +58,18 @@ namespace Furibrosa
                 return true;
             }
         }
+
+        [HarmonyPatch(typeof(TestVanDammeAnim), "RunAvatarRunning")]
+        static class TestVanDammeAnim_RunAvatarRunning_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (Furibrosa.grabbedUnits.Contains(__instance))
+                {
+                    return false;
+                }
+                return true;
+            }
+        }
     }
 }
