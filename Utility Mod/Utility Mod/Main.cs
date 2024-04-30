@@ -1015,10 +1015,7 @@ namespace Utility_Mod
                         Utility.SceneLoader.LoadScene("WorldMap3D");
                         Utility.SceneLoader.LoadScene(settings.sceneToLoad);
                     }
-                    catch (Exception ex)
-                    {
-
-                    }
+                    catch { }
                     loadedScene = true;
                 }
             }
@@ -1036,7 +1033,7 @@ namespace Utility_Mod
                         HeroController.players[0].character.Y = newPos.y;
                     }
                 }
-                catch (Exception ex)
+                catch
                 {}
             }
 
@@ -1060,7 +1057,7 @@ namespace Utility_Mod
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             { }
             if ( Map.MapData != null && settings.suppressAnnouncer )
             {
@@ -1099,7 +1096,7 @@ namespace Utility_Mod
                         HeroController.players[0].character.xI = 0;
                     }
                 }
-                catch (Exception ex)
+                catch
                 {}
             }
         }
