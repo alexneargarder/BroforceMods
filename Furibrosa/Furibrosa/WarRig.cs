@@ -33,6 +33,8 @@ namespace Furibrosa
         protected float fallDamageDeathSpeedHero = -750;
         protected float pilotUnitDelay;
         protected bool fixedBubbles = false;
+        protected float frontHeadHeight;
+        protected float distanceToFront;
 
         #region General
         public void Setup()
@@ -104,18 +106,24 @@ namespace Furibrosa
             this.speed = 200f;
             this.originalSpeed = 200f;
             this.waistHeight = 10f;
-            this.height = 50f;
-            this.headHeight = 50f;
-            this.standingHeadHeight = 50f;
+            this.deadWaistHeight = 10f;
+            this.height = 52f;
+            this.headHeight = this.height;
+            this.standingHeadHeight = this.height;
+            this.deadHeadHeight = this.height;
+            this.frontHeadHeight = 30f;
             this.halfWidth = 63f;
             this.feetWidth = 58f;
             this.width = 62f;
+            this.distanceToFront = 30f;
             this.doRollOnLand = false;
             this.canChimneyFlip = false;
             this.canWallClimb = false;
             this.canTumble = false;
             this.canDuck = false;
+            this.canLedgeGrapple = false;
             this.isHero = true;
+            this.jumpForce = 340;
             this.DeactivateGun();
         }
 
@@ -422,7 +430,7 @@ namespace Furibrosa
                         }
                     }
                 }
-                if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? 20f : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? distanceToFront : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
                 {
                     result = true;
                     this.lastKnifeClimbStabY -= this.t * 16f;
@@ -432,7 +440,7 @@ namespace Furibrosa
                     }
                     this.HitCeiling(this.raycastHit);
                 }
-                if (Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? 20f : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                if (Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? distanceToFront : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
                 {
                     result = true;
                     this.lastKnifeClimbStabY -= this.t * 16f;
@@ -444,25 +452,71 @@ namespace Furibrosa
                 }
                 if ( !result )
                 {
-                    if (Physics.Raycast(new Vector3(base.X + (halfWidth), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight - 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                    if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
+                        BMLogger.Log("hit front front of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
                         {
                             this.chimneyFlipConstrained = true;
                         }
-                        this.HitCeiling(this.raycastHit);
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
                     }
-                    if (Physics.Raycast(new Vector3(base.X - (halfWidth), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight - 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                    if (!result && Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
+                        BMLogger.Log("hit back back of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
                         {
                             this.chimneyFlipConstrained = true;
                         }
-                        this.HitCeiling(this.raycastHit);
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
+                    }
+                    if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                    {
+                        BMLogger.Log("hit front of car");
+                        result = true;
+                        this.lastKnifeClimbStabY -= this.t * 16f;
+                        if (this.chimneyFlip)
+                        {
+                            this.chimneyFlipConstrained = true;
+                        }
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
+                    }
+                    if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                    {
+                        BMLogger.Log("hit back of car");
+                        result = true;
+                        this.lastKnifeClimbStabY -= this.t * 16f;
+                        if (this.chimneyFlip)
+                        {
+                            this.chimneyFlipConstrained = true;
+                        }
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
+                    }
+                    if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                    {
+                        BMLogger.Log("hit front of car");
+                        result = true;
+                        this.lastKnifeClimbStabY -= this.t * 16f;
+                        if (this.chimneyFlip)
+                        {
+                            this.chimneyFlipConstrained = true;
+                        }
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
+                    }
+                    if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                    {
+                        BMLogger.Log("hit back of car");
+                        result = true;
+                        this.lastKnifeClimbStabY -= this.t * 16f;
+                        if (this.chimneyFlip)
+                        {
+                            this.chimneyFlipConstrained = true;
+                        }
+                        this.HitCeiling(this.raycastHit, frontHeadHeight);
                     }
                 }
             }
@@ -476,6 +530,26 @@ namespace Furibrosa
                 }
             }
             return result;
+        }
+
+        protected void HitCeiling(RaycastHit ceilingHit, float customHeight)
+        {
+            if (this.up || this.buttonJump)
+            {
+                ceilingHit.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
+            }
+            this.yIT = ceilingHit.point.y - customHeight - base.Y;
+            if (!this.chimneyFlip && this.yI > 100f && ceilingHit.collider != null)
+            {
+                this.currentFootStepGroundType = ceilingHit.collider.tag;
+                this.PlayFootStepSound(0.2f, 0.6f);
+            }
+            this.yI = 0f;
+            this.jumpTime = 0f;
+            if ((this.canCeilingHang && this.CanCheckClimbAlongCeiling() && (this.up || this.buttonJump)) || this.hangGrace > 0f)
+            {
+                this.StartHanging();
+            }
         }
 
         protected override void HitCeiling(RaycastHit ceilingHit)
@@ -673,8 +747,9 @@ namespace Furibrosa
                     return true;
                 }
             }
-            if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.headHeight - 3f, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x > base.X - (this.halfWidth) + xIT)
+            if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.headHeight - 3f, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x > base.X - (this.halfWidth - distanceToFront) + xIT)
             {
+                BMLogger.Log("collided with top section");
                 this.constrainedLeft = true;
                 if (this.canDuck && Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
                 {
@@ -693,7 +768,7 @@ namespace Furibrosa
                 {
                     this.xIBlast = 0f;
                 }
-                xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth));
+                xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
                 this.WallDrag = flag;
                 return true;
             }
@@ -861,8 +936,9 @@ namespace Furibrosa
                     return true;
                 }
             }
-            if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.headHeight - 3f, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x < base.X + (this.halfWidth) + xIT)
+            if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.headHeight - 3f, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x < base.X + (this.halfWidth - distanceToFront) + xIT)
             {
+                BMLogger.Log("collided with top section");
                 this.constrainedRight = true;
                 if (this.canDuck && Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
                 {
@@ -885,7 +961,7 @@ namespace Furibrosa
                 {
                     this.xIBlast = 0f;
                 }
-                xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth));
+                xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
                 this.WallDrag = flag;
                 return true;
             }
@@ -1026,6 +1102,61 @@ namespace Furibrosa
             this.airDashJumpGrace = 0f;
         }
 
+        protected override bool CanJumpOffGround()
+        {
+            return this.CanTouchGround((float)((!this.right || this.canTouchLeftWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.left, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : -13) + (float)((!this.left || this.canTouchRightWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.right, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : 13) * ((!this.isInQuicksand) ? 1f : 0.4f));
+        }
+
+        protected new bool CanTouchGround(float xOffset)
+        {
+            LayerMask mask = this.GetGroundLayer();
+            RaycastHit raycastHit;
+            if (Physics.Raycast(new Vector3(base.X, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, mask))
+            {
+                this.SetCurrentFootstepSound(raycastHit.collider);
+                return true;
+            }
+            if (Physics.Raycast(new Vector3(base.X - feetWidth, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, mask))
+            {
+                this.SetCurrentFootstepSound(raycastHit.collider);
+                return true;
+            }
+            if (Physics.Raycast(new Vector3(base.X + feetWidth, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, mask))
+            {
+                this.SetCurrentFootstepSound(raycastHit.collider);
+                return true;
+            }
+            if (xOffset != 0f && Physics.Raycast(new Vector3(base.X + xOffset, base.Y + 12f, 0f), Vector3.down, out raycastHit, 15f, mask))
+            {
+                this.SetCurrentFootstepSound(raycastHit.collider);
+                return true;
+            }
+            if (!Map.IsBlockLadder(base.X, base.Y) && !this.down)
+            {
+                if (Physics.Raycast(new Vector3(base.X, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, this.ladderLayer))
+                {
+                    this.SetCurrentFootstepSound(raycastHit.collider);
+                    return true;
+                }
+                if (!Map.IsBlockLadder(base.X - 3f, base.Y) && !this.down && Physics.Raycast(new Vector3(base.X - 3f, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, this.ladderLayer))
+                {
+                    this.SetCurrentFootstepSound(raycastHit.collider);
+                    return true;
+                }
+                if (!Map.IsBlockLadder(base.X, base.Y) && !this.down && Physics.Raycast(new Vector3(base.X - 3f, base.Y + 14f, 0f), Vector3.down, out raycastHit, 16f, this.ladderLayer))
+                {
+                    this.SetCurrentFootstepSound(raycastHit.collider);
+                    return true;
+                }
+                if (xOffset != 0f && !Map.IsBlockLadder(base.X + xOffset, base.Y) && !this.down && Physics.Raycast(new Vector3(base.X + xOffset, base.Y + 12f, 0f), Vector3.down, out raycastHit, 15f, this.ladderLayer))
+                {
+                    this.SetCurrentFootstepSound(raycastHit.collider);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         protected override void Land()
         {
             if ((!this.isHero && this.yI < this.fallDamageHurtSpeed) || (this.isHero && this.yI < this.fallDamageHurtSpeedHero))
@@ -1085,7 +1216,119 @@ namespace Furibrosa
                 SortOfFollow.Shake(0.1f);
                 this.gunFrame = 0;
             }
-            base.Land();
+            this.jumpingMelee = false;
+            this.timesKickedByVanDammeSinceLanding = 0;
+            if (this.health > 0 && base.playerNum >= 0 && this.yI < -150f)
+            {
+                Map.BotherNearbyMooks(base.X, base.Y, 24f, 16f, base.playerNum);
+            }
+            this.FallDamage(this.yI);
+            this.StopAirDashing();
+            this.lastLandTime = Time.realtimeSinceStartup;
+            if (this.yI < 0f && this.health > 0 && this.groundHeight > base.Y - 2f + this.yIT && this.yI < -70f)
+            {
+                EffectsController.CreateLandPoofEffect(base.X, this.groundHeight, (Mathf.Abs(this.xI) >= 30f) ? (-(int)base.transform.localScale.x) : 0, this.GetFootPoofColor());
+            }
+            if (this.health > 0)
+            {
+                if ((this.left || this.right) && (!this.left || !this.right))
+                {
+                    if (this.xI > 0f)
+                    {
+                        this.xI += 100f;
+                    }
+                    if (this.xI < 0f)
+                    {
+                        this.xI -= 100f;
+                    }
+                    base.actionState = ActionState.Running;
+                    if (this.delayedDashing || (this.dashing && Time.time - this.leftTapTime > this.minDashTapTime && Time.time - this.rightTapTime > this.minDashTapTime))
+                    {
+                        this.StartDashing();
+                    }
+                    this.hasDashedInAir = false;
+                    if (this.useNewFrames)
+                    {
+                        if (this.CanDoRollOnLand())
+                        {
+                            this.RollOnLand();
+                        }
+                        this.counter = 0f;
+                        this.AnimateRunning();
+                        if (!FluidController.IsSubmerged(this) && this.groundHeight > base.Y - 8f)
+                        {
+                            EffectsController.CreateFootPoofEffect(base.X, this.groundHeight + 1f, 0f, Vector3.up * 1f, BloodColor.None);
+                        }
+                    }
+                }
+                else
+                {
+                    this.StopRolling();
+                    this.SetActionstateToIdle();
+                }
+            }
+            if (this.yI < -50f)
+            {
+                if (Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.down, out this.raycastHit, 12f, this.groundLayer | Map.platformLayer))
+                {
+                    this.raycastHit.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
+                }
+                if (Physics.Raycast(new Vector3(base.X + 6f, base.Y + 5f, 0f), Vector3.down, out this.raycastHit, 12f, this.groundLayer | Map.platformLayer))
+                {
+                    this.raycastHit.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
+                }
+                if (Physics.Raycast(new Vector3(base.X - 6f, base.Y + 5f, 0f), Vector3.down, out this.raycastHit, 12f, this.groundLayer | Map.platformLayer))
+                {
+                    this.raycastHit.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
+                }
+            }
+            bool flag = false;
+            if (base.playerNum >= 0 && this.yI < -100f)
+            {
+                flag = this.PushGrassAway();
+            }
+            if (this.health > 0 && !flag && this.yI < -100f)
+            {
+                this.PlayLandSound();
+            }
+            if (this.bossBlockPieceCurrentlyStandingOn != null)
+            {
+                this.bossBlockPieceCurrentlyStandingOn.LandOn(this.yI);
+            }
+            if (this.blockCurrentlyStandingOn != null)
+            {
+                this.blockCurrentlyStandingOn.LandOn(this.yI);
+            }
+            this.yI = 0f;
+            if (this.groundTransform != null)
+            {
+                this.lastParentedToTransform = this.groundTransform;
+            }
+            if (this.IsParachuteActive)
+            {
+                this.IsParachuteActive = false;
+            }
+        }
+
+        protected override void FallDamage(float yI)
+        {
+            if ((!this.isHero && yI < this.fallDamageHurtSpeed) || (this.isHero && yI < this.fallDamageHurtSpeedHero))
+            {
+                if (this.health > 0)
+                {
+                    this.crushingGroundLayers = Mathf.Max(this.crushingGroundLayers, 2);
+                }
+                if ((!this.isHero && yI < this.fallDamageDeathSpeed) || (this.isHero && yI < this.fallDamageDeathSpeedHero))
+                {
+                    Map.KnockAndDamageUnit(SingletonMono<MapController>.Instance, this, this.health + 40, DamageType.Crush, -1f, 450f, 0, false);
+                    Map.ExplodeUnits(this, 25, DamageType.Crush, 64f, 25f, base.X, base.Y, 200f, 170f, base.playerNum, false, false, true);
+                }
+                else
+                {
+                    Map.KnockAndDamageUnit(SingletonMono<MapController>.Instance, this, this.health - 10, DamageType.Crush, -1f, 450f, 0, false);
+                    Map.ExplodeUnits(this, 10, DamageType.Crush, 48f, 20f, base.X, base.Y, 150f, 120f, base.playerNum, false, false, true);
+                }
+            }
         }
 
         protected virtual void CrushGroundWhileMoving(int damageGroundAmount, int damageUnitsAmount, float xRange, float yRange, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
@@ -1120,6 +1363,9 @@ namespace Furibrosa
         #endregion
 
         #region Primary
+        protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
+        {
+        }
         #endregion
 
         #region Special
