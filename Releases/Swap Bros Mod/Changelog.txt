@@ -1,5 +1,6 @@
-v2.1.0 (unreleased)
+v2.1.0
 Added option to filter bros
+Fixed being able to swap bros while in mech, causing a duplicate character to spawn
 
 v2.0.7
 Updated to work with latest BroMaker update.

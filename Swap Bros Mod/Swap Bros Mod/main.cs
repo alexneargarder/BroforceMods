@@ -51,11 +51,13 @@ namespace Swap_Bros_Mod
         public static bool isHardcore = false;
 
         public static bool[] changingEnabledBros = new bool[] { false, false, false, false };
+        public static float displayWarningTime = 0f;
         public static bool[] filteredBroList;
         public static bool brosRemoved = false;
         public static GUIStyle buttonStyle;
+        public static GUIStyle warningStyle;
 
-    static bool Load(UnityModManager.ModEntry modEntry)
+        static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
@@ -99,6 +101,16 @@ namespace Swap_Bros_Mod
             // Initialize enabled bro list
             if (settings.enabledBros == null || settings.enabledBros.Count() == 0)
             {
+                allBros = new List<string>();
+                allBros.AddRange(allNormal);
+                if (settings.includeUnfinishedCharacters)
+                {
+                    allBros.AddRange(allExpendabros);
+                }
+                if (settings.enableBromaker)
+                {
+                    allBros.AddRange(allCustomBros);
+                }
                 settings.enabledBros = new List<string>(allBros);
                 filteredBroList = Enumerable.Repeat(true, allBros.Count()).ToArray();
             }
@@ -117,6 +129,18 @@ namespace Swap_Bros_Mod
                 buttonStyle.onHover.textColor = Color.green;
                 buttonStyle.onNormal.textColor = Color.green;
                 buttonStyle.onActive.textColor = Color.green;
+            }
+
+            if ( warningStyle == null )
+            {
+                warningStyle = new GUIStyle(GUI.skin.label);
+
+                warningStyle.normal.textColor = Color.red;
+                warningStyle.hover.textColor = Color.red;
+                warningStyle.active.textColor = Color.red;
+                warningStyle.onHover.textColor = Color.red;
+                warningStyle.onNormal.textColor = Color.red;
+                warningStyle.onActive.textColor = Color.red;
             }
 
             if (isHardcore != GameModeController.IsHardcoreMode)
@@ -192,6 +216,7 @@ namespace Swap_Bros_Mod
                 "Include bros from Expendabros"), GUILayout.ExpandWidth(false))))
             {
                 CreateBroList();
+                CreateFilteredBroList();
             }
 
             if (settings.enableBromaker != (settings.enableBromaker = GUILayout.Toggle(settings.enableBromaker, new GUIContent("Include BroMaker Bros",
@@ -203,6 +228,7 @@ namespace Swap_Bros_Mod
                     {
                         LoadCustomBros();
                         CreateBroList();
+                        CreateFilteredBroList();
                     }
                     catch
                     {
@@ -213,6 +239,7 @@ namespace Swap_Bros_Mod
                 else
                 {
                     CreateBroList();
+                    CreateFilteredBroList();
                 }
             }
 
@@ -271,31 +298,57 @@ namespace Swap_Bros_Mod
                                                "Enable or disable bros for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
                     {
                         changingEnabledBros[i] = !changingEnabledBros[i];
-                        if (changingEnabledBros[i] )
+                        if  (changingEnabledBros[i] )
                         {
+                            displayWarningTime = 0f;
+                            settings.filterBros = true;
                             CreateFilteredBroList();
                         }
                         else
                         {
-                            UpdateFilteredBroList();
-                            CreateBroList();
+                            bool atleastOne = false;
+                            for (int x = 0; x < filteredBroList.Length; ++x)
+                            {
+                                if (filteredBroList[x])
+                                {
+                                    atleastOne = true;
+                                    break;
+                                }
+                            }
+                            if ( atleastOne )
+                            {
+                                displayWarningTime = 0f;
+                                UpdateFilteredBroList();
+                                CreateBroList();
+                            }
+                            else
+                            {
+                                displayWarningTime = 10f;
+                                changingEnabledBros[i] = !changingEnabledBros[i];
+                            }
                         }
                     }
 
                     lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
                     lastRect.width += 300;
-                    if (!GUI.tooltip.Equals(previousToolTip))
-                    {
-                        GUI.Label(lastRect, GUI.tooltip);
-                    }
-                    previousToolTip = GUI.tooltip;
 
-                    if (!GUI.tooltip.Equals(previousToolTip))
+                    if (displayWarningTime <= 0f)
                     {
-                        GUI.Label(lastRect, GUI.tooltip);
+                        if (!GUI.tooltip.Equals(previousToolTip))
+                        {
+                            GUI.Label(lastRect, GUI.tooltip);
+                        }
+                        previousToolTip = GUI.tooltip;
                     }
-                    previousToolTip = GUI.tooltip;
+                    else
+                    {
+                        displayWarningTime -= Time.unscaledDeltaTime;
+                        GUI.Label(lastRect, "Must have at least one bro enabled", warningStyle);
+
+                        previousToolTip = GUI.tooltip;
+                    }
+
                     GUILayout.EndHorizontal();
 
                     GUILayout.Space(25);
@@ -1143,7 +1196,7 @@ namespace Swap_Bros_Mod
             bool leftPressed = Main.wasKeyPressed(Main.settings.swapLeftKeys[__instance.playerNum]);
             bool rightPressed = Main.wasKeyPressed(Main.settings.swapRightKeys[__instance.playerNum]);
 
-            if (((leftPressed || rightPressed) && Main.cooldown == 0f && __instance.IsAlive()) || (Main.settings.clickingEnabled && Main.switched[curPlayer]))
+            if ((((leftPressed || rightPressed) && Main.cooldown == 0f && __instance.IsAlive()) || (Main.settings.clickingEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
             {
                 float X, Y, XI, YI;
                 Vector3 vec = __instance.GetCharacterPosition();
