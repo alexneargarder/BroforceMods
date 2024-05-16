@@ -35,6 +35,16 @@ namespace Furibrosa
         protected bool fixedBubbles = false;
         protected float frontHeadHeight;
         protected float distanceToFront;
+        public BoxCollider platform;
+
+        protected int crushDamage = 5;
+        protected float crushXRange = 40f;
+        protected float crushYRange = 50f;
+        protected float crushXOffset = 53f;
+        protected float crushYOffset = 30f;
+        protected float unitXRange = 50f;
+        protected float unitYRange = 20f;
+        protected float crushDamageCooldown = 0f;
 
         #region General
         public void Setup()
@@ -86,7 +96,7 @@ namespace Furibrosa
             sprite.height = 64;
             this.spritePixelWidth = 128;
             this.spritePixelHeight = 64;
-            sprite.offset = new Vector3(0f, 30f, 0f);
+            sprite.offset = new Vector3(0f, 31f, 0f);
 
             this.gameObject.SetActive(false);
         }
@@ -103,6 +113,9 @@ namespace Furibrosa
         protected override void Start()
         {
             base.Start();
+            // Prevent tank from standing on platforms and ladders
+            this.platformLayer = this.groundLayer;
+            this.ladderLayer = this.groundLayer;
             this.speed = 200f;
             this.originalSpeed = 200f;
             this.waistHeight = 10f;
@@ -123,16 +136,17 @@ namespace Furibrosa
             this.canDuck = false;
             this.canLedgeGrapple = false;
             this.isHero = true;
-            this.jumpForce = 340;
+            this.jumpForce = 360;
             this.DeactivateGun();
-        }
 
-        protected float crushXRange = 40f;
-        protected float crushYRange = 30f;
-        protected float crushXOffset = 50f;
-        protected float crushYOffset = 20f;
-        protected float unitXRange = 50f;
-        protected float unitYRange = 20f;
+            GameObject platformObject = this.gameObject.FindChildOfName("Platform");
+            if ( platformObject != null )
+            {
+                this.platform = platformObject.GetComponent<BoxCollider>();
+                this.platform.center = new Vector3(-9f, 44f, -4.5f);
+                this.platform.size = new Vector3(80f, 12f, 64f);
+            }
+        }
 
         protected override void Update()
         {
@@ -158,11 +172,21 @@ namespace Furibrosa
                 this.pilotSwitch = SwitchesController.CreatePilotMookSwitch(this, new Vector3(0f, 40f, 0f));
             }
 
-            //this.CrushGroundWhileMoving(15, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
-
-            if (this.constrainedLeft || this.constrainedRight)
+            if ( crushDamageCooldown <= 0f )
             {
-                BMLogger.Log("hit wall");
+                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * crushDamage), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                {
+                    BMLogger.Log("hit ground");
+                    if ( Mathf.Abs(xI) < 150f )
+                    {
+                        BMLogger.Log("setting cooldown");
+                        crushDamageCooldown = 0.2f;
+                    }
+                }
+            }
+            else
+            {
+                crushDamageCooldown -= this.t;
             }
         }
 
@@ -359,6 +383,10 @@ namespace Furibrosa
         protected override void CheckForTraps(ref float yIT)
         {
         }
+
+        protected override void CheckRescues()
+        {
+        }
         #endregion
 
         #region Animation
@@ -454,7 +482,6 @@ namespace Furibrosa
                 {
                     if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit front front of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -465,7 +492,6 @@ namespace Furibrosa
                     }
                     if (!result && Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit back back of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -476,7 +502,6 @@ namespace Furibrosa
                     }
                     if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit front of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -487,7 +512,6 @@ namespace Furibrosa
                     }
                     if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit back of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -498,7 +522,6 @@ namespace Furibrosa
                     }
                     if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit front of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -509,7 +532,6 @@ namespace Furibrosa
                     }
                     if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                     {
-                        BMLogger.Log("hit back of car");
                         result = true;
                         this.lastKnifeClimbStabY -= this.t * 16f;
                         if (this.chimneyFlip)
@@ -550,12 +572,6 @@ namespace Furibrosa
             {
                 this.StartHanging();
             }
-        }
-
-        protected override void HitCeiling(RaycastHit ceilingHit)
-        {
-            base.HitCeiling(ceilingHit);
-            BMLogger.Log("hit ceiling");
         }
 
         // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
@@ -749,7 +765,6 @@ namespace Furibrosa
             }
             if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.headHeight - 3f, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x > base.X - (this.halfWidth - distanceToFront) + xIT)
             {
-                BMLogger.Log("collided with top section");
                 this.constrainedLeft = true;
                 if (this.canDuck && Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
                 {
@@ -938,7 +953,6 @@ namespace Furibrosa
             }
             if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.headHeight - 3f, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x < base.X + (this.halfWidth - distanceToFront) + xIT)
             {
-                BMLogger.Log("collided with top section");
                 this.constrainedRight = true;
                 if (this.canDuck && Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
                 {
@@ -1331,19 +1345,21 @@ namespace Furibrosa
             }
         }
 
-        protected virtual void CrushGroundWhileMoving(int damageGroundAmount, int damageUnitsAmount, float xRange, float yRange, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
+        protected virtual bool CrushGroundWhileMoving(int damageGroundAmount, int damageUnitsAmount, float xRange, float yRange, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
         {
+            bool hitGround = false;
             if (this.left)
             {
                 if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
                 {
                     this.PlaySpecial2Sound(0.33f);
                 }
-                
-                MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X - xOffset, base.Y + yOffset, false);
+
+                hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X - xOffset, base.Y + yOffset, true);
                 if (Physics.Raycast(new Vector3(base.X - xOffset, base.Y + yOffset, 0f), Vector3.left, out this.raycastHit, xRange, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
                 {
                     this.raycastHit.collider.gameObject.SendMessage("Damage", new DamageObject(1, DamageType.Crush, this.xI, this.yI, this.raycastHit.point.x, this.raycastHit.point.y, this));
+                    hitGround = true;
                 }
             }
             else if (this.right || (this.boostingForward && base.transform.localScale.x > 0))
@@ -1353,12 +1369,17 @@ namespace Furibrosa
                     this.PlaySpecial2Sound(0.33f);
                 }
 
-                MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X + xOffset, base.Y + yOffset, false);
+                hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X + xOffset, base.Y + yOffset, true);
                 if (Physics.Raycast(new Vector3(base.X + xOffset, base.Y + yOffset, 0f), Vector3.right, out this.raycastHit, xRange, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
                 {
                     this.raycastHit.collider.gameObject.SendMessage("Damage", new DamageObject(1, DamageType.Crush, this.xI, this.yI, this.raycastHit.point.x, this.raycastHit.point.y, this));
+                    hitGround = true;
                 }
             }
+            // DEBUG
+            RocketLib.Utils.DrawDebug.DrawRectangle("ground", new Vector3(base.X + xOffset - xRange / 2f, base.Y + yOffset - yRange / 2f, 0f), new Vector3(base.X + xOffset + xRange / 2f, base.Y + yOffset + yRange / 2f, 0f), Color.red);
+
+            return hitGround;
         }
         #endregion
 
