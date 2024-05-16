@@ -35,6 +35,7 @@ namespace Furibrosa
         protected bool fixedBubbles = false;
         protected float frontHeadHeight;
         protected float distanceToFront;
+        protected float distanceToBack;
         public BoxCollider platform;
 
         protected int crushDamage = 5;
@@ -124,18 +125,18 @@ namespace Furibrosa
             this.headHeight = this.height;
             this.standingHeadHeight = this.height;
             this.deadHeadHeight = this.height;
-            this.frontHeadHeight = 30f;
+            this.frontHeadHeight = 32f;
             this.halfWidth = 63f;
             this.feetWidth = 58f;
             this.width = 62f;
-            this.distanceToFront = 30f;
+            this.distanceToFront = 32f;
+            this.distanceToBack = 49f;
             this.doRollOnLand = false;
             this.canChimneyFlip = false;
             this.canWallClimb = false;
             this.canTumble = false;
             this.canDuck = false;
             this.canLedgeGrapple = false;
-            this.isHero = true;
             this.jumpForce = 360;
             this.DeactivateGun();
 
@@ -172,15 +173,14 @@ namespace Furibrosa
                 this.pilotSwitch = SwitchesController.CreatePilotMookSwitch(this, new Vector3(0f, 40f, 0f));
             }
 
+            return;
             if ( crushDamageCooldown <= 0f )
             {
                 if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * crushDamage), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
                 {
-                    BMLogger.Log("hit ground");
                     if ( Mathf.Abs(xI) < 150f )
                     {
-                        BMLogger.Log("setting cooldown");
-                        crushDamageCooldown = 0.2f;
+                        crushDamageCooldown = 0.1f;
                     }
                 }
             }
@@ -438,117 +438,103 @@ namespace Furibrosa
             this.chimneyFlipConstrained = false;
             if (this.yI >= 0f || this.WallDrag)
             {
-                if (((!this.right && base.transform.localScale.x < 0f && Physics.Raycast(new Vector3(base.X + 4f, base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer)) || (!this.left && base.transform.localScale.x > 0f && Physics.Raycast(new Vector3(base.X + -4f, base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer))) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                if ( base.transform.localScale.x > 0 )
                 {
-                    result = true;
-                    this.lastKnifeClimbStabY -= this.t * 16f;
-                    if ((this.up || this.buttonJump) && this.chimneyFlip)
+                    // Check top middle of vehicle left to right
+                    Vector3 topLeft = new Vector3(base.X - distanceToBack, base.Y + this.headHeight, 0f);
+                    Vector3 topRight = new Vector3(base.X + distanceToFront, base.Y + this.headHeight, 0f);
+                    //RocketLib.Utils.DrawDebug.DrawLine("ceiling", topLeft, topRight, Color.red);
+                    if ( Physics.Raycast(topLeft, Vector3.right, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT )
                     {
-                        this.yI = 100f;
-                        this.jumpTime = 0.03f;
-                        yIT = this.raycastHit.point.y - this.headHeight - base.Y;
-                        this.chimneyFlipConstrained = true;
-                        if (this.chimneyFlipFrames > 8 && !Physics.Raycast(new Vector3(base.X + (float)this.chimneyFlipDirection, base.Y + 3f, 0f), Vector3.up, out this.newRaycastHit, this.headHeight + 16f + yIT, this.groundLayer))
+                        result = true;
+                        this.HitCeiling(this.raycastHit);
+                    }
+
+                    if ( !result )
+                    {
+                        // Check top middle of vehicle right to left
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling", topLeft, topRight, Color.red);
+                        if (Physics.Raycast(topRight, Vector3.left, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
                         {
-                            this.xI = (float)(this.chimneyFlipDirection * 0);
+                            result = true;
+                            this.HitCeiling(this.raycastHit);
                         }
-                        else
+                    }
+                    
+                    // Check front of vehicle left to right
+                    if ( !result )
+                    {
+                        topLeft = new Vector3(base.X + distanceToFront, base.Y + frontHeadHeight, 0f);
+                        topRight = new Vector3(base.X + halfWidth - 1f, base.Y + frontHeadHeight, 0f);
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling3", topLeft, topRight, Color.red);
+
+                        if (Physics.Raycast(topLeft, Vector3.right, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                         {
-                            this.xI = (float)(this.chimneyFlipDirection * 100);
+                            result = true;
+                            this.HitCeiling(this.raycastHit, frontHeadHeight);
+                        }
+                    }
+
+                    // Check front of vehicle right to left
+                    if (!result)
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling3", topLeft, topRight, Color.red);
+
+                        if (Physics.Raycast(topRight, Vector3.left, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                        {
+                            result = true;
+                            this.HitCeiling(this.raycastHit, frontHeadHeight);
                         }
                     }
                 }
-                if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? distanceToFront : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
+                else
                 {
-                    result = true;
-                    this.lastKnifeClimbStabY -= this.t * 16f;
-                    if (this.chimneyFlip)
-                    {
-                        this.chimneyFlipConstrained = true;
-                    }
-                    this.HitCeiling(this.raycastHit);
-                }
-                if (Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? distanceToFront : 10f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.headHeight + 15f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
-                {
-                    result = true;
-                    this.lastKnifeClimbStabY -= this.t * 16f;
-                    if (this.chimneyFlip)
-                    {
-                        this.chimneyFlipConstrained = true;
-                    }
-                    this.HitCeiling(this.raycastHit);
-                }
-                if ( !result )
-                {
-                    if (Physics.Raycast(new Vector3(base.X + (halfWidth - (base.transform.localScale.x > 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+                    // Check top middle of vehicle left to right
+                    Vector3 topLeft = new Vector3(base.X - distanceToFront, base.Y + this.headHeight, 0f);
+                    Vector3 topRight = new Vector3(base.X + distanceToBack, base.Y + this.headHeight, 0f);
+                    //RocketLib.Utils.DrawDebug.DrawLine("ceiling", topLeft, topRight, Color.red);
+                    if (Physics.Raycast(topLeft, Vector3.right, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
                     {
                         result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
-                        {
-                            this.chimneyFlipConstrained = true;
-                        }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
+                        this.HitCeiling(this.raycastHit);
                     }
-                    if (!result && Physics.Raycast(new Vector3(base.X - (halfWidth - (base.transform.localScale.x < 0 ? 0.1f : 5f)), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+
+                    if (!result)
                     {
-                        result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
+                        // Check top middle of vehicle right to left
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling", topLeft, topRight, Color.red);
+                        if (Physics.Raycast(topRight, Vector3.left, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.headHeight + yIT)
                         {
-                            this.chimneyFlipConstrained = true;
+                            result = true;
+                            this.HitCeiling(this.raycastHit);
                         }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
                     }
-                    if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+
+                    // Check front of vehicle left to right
+                    if (!result)
                     {
-                        result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
+                        topLeft = new Vector3(base.X - halfWidth + 1f, base.Y + frontHeadHeight, 0f);
+                        topRight = new Vector3(base.X - distanceToFront, base.Y + frontHeadHeight, 0f);
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling3", topLeft, topRight, Color.red);
+
+                        if (Physics.Raycast(topLeft, Vector3.right, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                         {
-                            this.chimneyFlipConstrained = true;
+                            result = true;
+                            this.HitCeiling(this.raycastHit, frontHeadHeight);
                         }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
                     }
-                    if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 10f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
+
+                    // Check front of vehicle right to left
+                    if (!result)
                     {
-                        result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
+                        //RocketLib.Utils.DrawDebug.DrawLine("ceiling3", topLeft, topRight, Color.red);
+
+                        if (Physics.Raycast(topRight, Vector3.left, out this.raycastHit, Mathf.Abs(topRight.x - topLeft.x), this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
                         {
-                            this.chimneyFlipConstrained = true;
+                            result = true;
+                            this.HitCeiling(this.raycastHit, frontHeadHeight);
                         }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
                     }
-                    if (!result && Physics.Raycast(new Vector3(base.X + (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
-                    {
-                        result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
-                        {
-                            this.chimneyFlipConstrained = true;
-                        }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
-                    }
-                    if (!result && Physics.Raycast(new Vector3(base.X - (distanceToFront + 20f), base.Y + 1f, 0f), Vector3.up, out this.raycastHit, this.frontHeadHeight + 10f, this.groundLayer) && this.raycastHit.point.y < base.Y + this.frontHeadHeight + yIT)
-                    {
-                        result = true;
-                        this.lastKnifeClimbStabY -= this.t * 16f;
-                        if (this.chimneyFlip)
-                        {
-                            this.chimneyFlipConstrained = true;
-                        }
-                        this.HitCeiling(this.raycastHit, frontHeadHeight);
-                    }
-                }
-            }
-            if ((!this.chimneyFlipConstrained || this.up || this.buttonJump) && this.chimneyFlip && this.chimneyFlipFrames > 5)
-            {
-                this.xI = (float)(this.chimneyFlipDirection * 100);
-                if (this.up || this.buttonJump)
-                {
-                    this.jumpTime = this.t + 0.001f;
-                    this.yI = 100f;
                 }
             }
             return result;
@@ -572,6 +558,15 @@ namespace Furibrosa
             {
                 this.StartHanging();
             }
+
+            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(5f, 0f, 0f), Color.green);
+        }
+
+        protected override void HitCeiling(RaycastHit ceilingHit)
+        {
+            base.HitCeiling(ceilingHit);
+
+            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
         }
 
         // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
@@ -582,11 +577,8 @@ namespace Furibrosa
                 this.xIBlast *= 1f - this.t * 4f;
             }
             this.pushingTime -= this.t;
-            this.wasWallDragging = this.wallDrag;
-            bool flag = false;
             this.canTouchRightWalls = false;
             this.canTouchLeftWalls = false;
-            this.wallDragTime -= this.t;
             this.wasConstrainedLeft = this.constrainedLeft;
             this.wasConstrainedRight = this.constrainedRight;
             this.constrainedLeft = false;
@@ -597,389 +589,117 @@ namespace Furibrosa
             this.collumn = (int)((base.X + 8f) / 16f);
             this.wasLedgeGrapple = this.ledgeGrapple;
             this.ledgeGrapple = false;
-            float collisionDistance = 68f;
-            if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.waistHeight, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer))
+
+            if (base.transform.localScale.x > 0)
             {
-                if (this.raycastHitWalls.point.x > base.X - this.halfWidth - 4f + xIT)
+                // Check front of vehicle
+                Vector3 bottomRight = new Vector3(base.X + this.halfWidth, base.Y, 0);
+                Vector3 topRight = new Vector3(base.X + this.halfWidth, base.Y + this.frontHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT)
                 {
-                    this.canTouchLeftWalls = true;
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
+                        return true;
+                    }
                 }
-                if (this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT)
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y) - 0.5f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT)
                 {
-                    this.constrainedLeft = true;
-                    this.HitLeftWall();
-                    if (this.airdashDirection == DirectionEnum.Left)
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT))
                     {
-                        this.StopAirDashing();
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
+                        return true;
                     }
-                    if (base.actionState == ActionState.Jumping && this.left && !Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.headHeight - 6f, 0f), Vector3.left, 31f, this.groundLayer))
+                }
+
+                // Check top front of vehicle
+                bottomRight = new Vector3(base.X + this.distanceToFront, base.Y + this.headHeight, 0);
+                topRight = new Vector3(base.X + this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall2", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT))
                     {
-                        if (!this.down && this.canLedgeGrapple)
-                        {
-                            this.LedgeGrapple(this.left, this.right, this.halfWidth, this.headHeight);
-                        }
-                        if (Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
-                        {
-                            this.StartDucking();
-                        }
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
+                        return true;
                     }
-                    else if (base.actionState == ActionState.Jumping && this.left && (this.yI <= this.maxWallClimbYI || this.wallClimbing) && this.canWallClimb && base.Y - this.groundHeight > 6f)
+                }
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT))
                     {
-                        this.AssignWallTransform(this.raycastHitWalls.collider.transform);
-                        flag = true;
-                        this.SetAirdashAvailable();
-                        if (!this.wasWallDragging)
-                        {
-                            if (this.yI < 0f)
-                            {
-                                this.yI = 0f;
-                                yIT = 0f;
-                            }
-                            this.raycastHitWalls.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
-                            this.SetCurrentFootstepSound(this.raycastHitWalls.collider);
-                            if (!this.wallClimbAnticipation && !this.usingSpecial)
-                            {
-                                base.frame = 0;
-                            }
-                            if (!this.useNewKnifeClimbingFrames)
-                            {
-                                this.knifeHand++;
-                            }
-                            this.ChangeFrame();
-                        }
-                        this.DeactivateGun();
-                        if (!this.wasWallDragging || this.up || this.buttonJump)
-                        {
-                            this.wallDragTime = 0.2f;
-                        }
-                        this.StopRolling();
-                        this.doubleJumpsLeft = 0;
-                        this.ClampWallDragYI(ref yIT);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
+                        return true;
                     }
-                    if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder))
-                    {
-                        if (base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                        {
-                            this.PlayPushBlockSound();
-                        }
-                        this.AssignPushingTime();
-                    }
-                    this.xI = 0f;
-                    if (!this.left)
-                    {
-                        this.xIBlast = Mathf.Abs(this.xIBlast * 0.4f);
-                    }
-                    else
-                    {
-                        this.xIBlast = 0f;
-                    }
-                    xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
-                    this.WallDrag = flag;
-                    return true;
                 }
             }
-            if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.toeHeight, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer))
+            else
             {
-                if (this.raycastHitWalls.point.x > base.X - this.halfWidth - 4f + xIT)
+                // Check front of vehicle
+                Vector3 bottomRight = new Vector3(base.X - this.halfWidth, base.Y, 0);
+                Vector3 topRight = new Vector3(base.X - this.halfWidth, base.Y + this.frontHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT)
                 {
-                    this.canTouchLeftWalls = true;
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
+                        return true;
+                    }
                 }
-                if (this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT)
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y) - 0.5f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT)
                 {
-                    this.constrainedLeft = true;
-                    this.HitLeftWall();
-                    if (this.airdashDirection == DirectionEnum.Left)
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT))
                     {
-                        this.StopAirDashing();
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
+                        return true;
                     }
-                    xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
-                    if (base.actionState == ActionState.Jumping && this.left)
+                }
+
+                // Check top front of vehicle
+                bottomRight = new Vector3(base.X - this.distanceToFront, base.Y + this.headHeight, 0);
+                topRight = new Vector3(base.X - this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall2", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT))
                     {
-                        if (!this.down && this.canLedgeGrapple)
-                        {
-                            this.LedgeGrapple(this.left, this.right, this.halfWidth, this.headHeight);
-                        }
-                        if (Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
-                        {
-                            this.StartDucking();
-                        }
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
+                        return true;
                     }
-                    else if (this.canDuck && base.actionState == ActionState.Running && this.left && !Map.IsBlockSolid(this.collumn - 1, this.row) && Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
+                }
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT))
                     {
-                        this.StartDucking();
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
+                        return true;
                     }
-                    else if (base.actionState == ActionState.Jumping && this.left && (this.yI <= this.maxWallClimbYI || this.wallClimbing) && this.canWallClimb && base.Y - this.groundHeight > 6f)
-                    {
-                        this.AssignWallTransform(this.raycastHitWalls.collider.transform);
-                        flag = true;
-                        this.SetAirdashAvailable();
-                        if (!this.wasWallDragging)
-                        {
-                            if (this.yI < 0f)
-                            {
-                                this.yI = 0f;
-                                yIT = 0f;
-                            }
-                            this.raycastHitWalls.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
-                            this.SetCurrentFootstepSound(this.raycastHitWalls.collider);
-                            if (!this.wallClimbAnticipation && !this.usingSpecial)
-                            {
-                                base.frame = 0;
-                            }
-                            if (!this.useNewKnifeClimbingFrames)
-                            {
-                                this.knifeHand++;
-                            }
-                            this.ChangeFrame();
-                        }
-                        this.DeactivateGun();
-                        if (!this.wasWallDragging || this.up || this.buttonJump)
-                        {
-                            this.wallDragTime = 0.2f;
-                        }
-                        this.StopRolling();
-                        this.doubleJumpsLeft = 0;
-                        this.ClampWallDragYI(ref yIT);
-                    }
-                    if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder))
-                    {
-                        if (base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                        {
-                            this.PlayPushBlockSound();
-                        }
-                        this.AssignPushingTime();
-                    }
-                    this.xI = 0f;
-                    if (!this.left)
-                    {
-                        this.xIBlast = Mathf.Abs(this.xIBlast * 0.4f);
-                    }
-                    else
-                    {
-                        this.xIBlast = 0f;
-                    }
-                    xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
-                    this.WallDrag = flag;
-                    return true;
                 }
             }
-            if (Physics.Raycast(new Vector3(base.X + 2f, base.Y + this.headHeight - 3f, 0f), Vector3.left, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x > base.X - (this.halfWidth - distanceToFront) + xIT)
-            {
-                this.constrainedLeft = true;
-                if (this.canDuck && Map.IsBlockSolid(this.collumn - 1, this.row - 1) && Map.IsBlockSolid(this.collumn - 1, this.row + 1))
-                {
-                    this.StartDucking();
-                }
-                if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder) && base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                {
-                    this.PlayPushBlockSound();
-                }
-                this.xI = 0f;
-                if (!this.left)
-                {
-                    this.xIBlast = Mathf.Abs(this.xIBlast * 0.4f);
-                }
-                else
-                {
-                    this.xIBlast = 0f;
-                }
-                xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
-                this.WallDrag = flag;
-                return true;
-            }
-            if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.waistHeight, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer))
-            {
-                if (this.raycastHitWalls.point.x < base.X + this.halfWidth + 4f + xIT)
-                {
-                    this.canTouchRightWalls = true;
-                }
-                if (this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT)
-                {
-                    this.constrainedRight = true;
-                    this.HitRightWall();
-                    if (this.airdashDirection == DirectionEnum.Right)
-                    {
-                        this.StopAirDashing();
-                    }
-                    if (base.actionState == ActionState.Jumping && this.right && !Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.headHeight - 6f, 0f), Vector3.right, 23f, this.groundLayer))
-                    {
-                        if (!this.down && this.canLedgeGrapple)
-                        {
-                            this.LedgeGrapple(this.left, this.right, this.halfWidth, this.headHeight);
-                        }
-                        if (Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
-                        {
-                            this.StartDucking();
-                        }
-                    }
-                    else if (base.actionState == ActionState.Jumping && (this.yI <= this.maxWallClimbYI || this.wallClimbing) && this.right && this.canWallClimb && base.Y - this.groundHeight > 6f)
-                    {
-                        this.AssignWallTransform(this.raycastHitWalls.collider.transform);
-                        flag = true;
-                        this.SetAirdashAvailable();
-                        if (!this.wasWallDragging)
-                        {
-                            if (this.yI < 0f)
-                            {
-                                this.yI = 0f;
-                                yIT = 0f;
-                            }
-                            this.raycastHitWalls.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
-                            this.SetCurrentFootstepSound(this.raycastHitWalls.collider);
-                            if (!this.wallClimbAnticipation && !this.usingSpecial)
-                            {
-                                base.frame = 0;
-                            }
-                            if (!this.useNewKnifeClimbingFrames)
-                            {
-                                this.knifeHand++;
-                            }
-                            this.ChangeFrame();
-                        }
-                        this.DeactivateGun();
-                        if (!this.wasWallDragging || this.up || this.buttonJump)
-                        {
-                            this.wallDragTime = 0.2f;
-                        }
-                        this.StopRolling();
-                        this.doubleJumpsLeft = 0;
-                        this.ClampWallDragYI(ref yIT);
-                    }
-                    if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder))
-                    {
-                        if (base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                        {
-                            this.PlayPushBlockSound();
-                        }
-                        this.AssignPushingTime();
-                    }
-                    this.xI = 0f;
-                    if (!this.right)
-                    {
-                        this.xIBlast = -Mathf.Abs(this.xIBlast * 0.4f);
-                    }
-                    else
-                    {
-                        this.xIBlast = 0f;
-                    }
-                    xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
-                    this.WallDrag = flag;
-                    return true;
-                }
-            }
-            if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.toeHeight, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer))
-            {
-                if (this.raycastHitWalls.point.x < base.X + this.halfWidth + 4f + xIT)
-                {
-                    this.canTouchRightWalls = true;
-                }
-                if (this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT)
-                {
-                    this.constrainedRight = true;
-                    this.HitRightWall();
-                    if (this.airdashDirection == DirectionEnum.Right)
-                    {
-                        this.StopAirDashing();
-                    }
-                    if (base.actionState == ActionState.Jumping && this.right)
-                    {
-                        if (!this.down && this.canLedgeGrapple)
-                        {
-                            this.LedgeGrapple(this.left, this.right, this.halfWidth, this.headHeight);
-                        }
-                        if (Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
-                        {
-                            this.StartDucking();
-                        }
-                    }
-                    else if (this.canDuck && base.actionState == ActionState.Running && this.right && !Map.IsBlockSolid(this.collumn + 1, this.row) && Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
-                    {
-                        this.StartDucking();
-                    }
-                    else if (base.actionState == ActionState.Jumping && this.right && (this.yI <= this.maxWallClimbYI || this.wallClimbing) && this.canWallClimb && base.Y - this.groundHeight > 6f)
-                    {
-                        this.AssignWallTransform(this.raycastHitWalls.collider.transform);
-                        flag = true;
-                        this.SetAirdashAvailable();
-                        if (!this.wasWallDragging)
-                        {
-                            if (this.yI < 0f)
-                            {
-                                this.yI = 0f;
-                                yIT = 0f;
-                            }
-                            this.raycastHitWalls.collider.SendMessage("StepOn", this, SendMessageOptions.DontRequireReceiver);
-                            this.SetCurrentFootstepSound(this.raycastHitWalls.collider);
-                            if (!this.wallClimbAnticipation && !this.usingSpecial)
-                            {
-                                base.frame = 0;
-                            }
-                            if (!this.useNewKnifeClimbingFrames)
-                            {
-                                this.knifeHand++;
-                            }
-                            this.ChangeFrame();
-                        }
-                        this.DeactivateGun();
-                        if (!this.wasWallDragging || this.up || this.buttonJump)
-                        {
-                            this.wallDragTime = 0.2f;
-                        }
-                        this.StopRolling();
-                        this.doubleJumpsLeft = 0;
-                        this.ClampWallDragYI(ref yIT);
-                    }
-                    xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
-                    if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder))
-                    {
-                        if (base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                        {
-                            this.PlayPushBlockSound();
-                        }
-                        this.AssignPushingTime();
-                    }
-                    this.xI = 0f;
-                    if (!this.right)
-                    {
-                        this.xIBlast = -Mathf.Abs(this.xIBlast * 0.4f);
-                    }
-                    else
-                    {
-                        this.xIBlast = 0f;
-                    }
-                    this.WallDrag = flag;
-                    return true;
-                }
-            }
-            if (Physics.Raycast(new Vector3(base.X - 2f, base.Y + this.headHeight - 3f, 0f), Vector3.right, out this.raycastHitWalls, collisionDistance, this.groundLayer) && this.raycastHitWalls.point.x < base.X + (this.halfWidth - distanceToFront) + xIT)
-            {
-                this.constrainedRight = true;
-                if (this.canDuck && Map.IsBlockSolid(this.collumn + 1, this.row - 1) && Map.IsBlockSolid(this.collumn + 1, this.row + 1))
-                {
-                    this.StartDucking();
-                }
-                if (this.canPushBlocks && (base.actionState == ActionState.Running || base.actionState == ActionState.ClimbingLadder))
-                {
-                    if (base.IsMine && Map.PushBlock(base.X, base.Y + this.waistHeight, Mathf.Sign(this.xI), this.width + 1f))
-                    {
-                        this.PlayPushBlockSound();
-                    }
-                    this.AssignPushingTime();
-                }
-                this.xI = 0f;
-                if (!this.right)
-                {
-                    this.xIBlast = -Mathf.Abs(this.xIBlast * 0.4f);
-                }
-                else
-                {
-                    this.xIBlast = 0f;
-                }
-                xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
-                this.WallDrag = flag;
-                return true;
-            }
-            this.WallDrag = flag;
+
+
             return false;
         }
 
@@ -1178,7 +898,6 @@ namespace Furibrosa
                 if ((!this.isHero && this.yI < this.fallDamageDeathSpeed) || (this.isHero && this.yI < this.fallDamageDeathSpeedHero))
                 {
                     this.crushingGroundLayers = 2;
-                    //MapController.DamageGround(this, 10, DamageType.Crush, 32f, base.X, base.Y + 8f, null, false);
                     SortOfFollow.Shake(0.3f);
                     EffectsController.CreateGroundWave(base.X, base.Y, 96f);
                     Map.ShakeTrees(base.X, base.Y, 144f, 64f, 128f);
@@ -1204,7 +923,6 @@ namespace Furibrosa
                     {
                         this.crushingGroundLayers = 2;
                     }
-                    //MapController.DamageGround(this, 10, DamageType.Crush, 32f, base.X, base.Y + 8f, null, false);
                     SortOfFollow.Shake(0.3f);
                     EffectsController.CreateGroundWave(base.X, base.Y, 80f);
                     Map.ShakeTrees(base.X, base.Y, 144f, 64f, 128f);
@@ -1213,7 +931,6 @@ namespace Furibrosa
             else if (this.crushingGroundLayers > 0)
             {
                 this.crushingGroundLayers--;
-                //MapController.DamageGround(this, 10, DamageType.Crush, 32f, base.X, base.Y + 8f, null, false);
                 SortOfFollow.Shake(0.3f);
                 Map.ShakeTrees(base.X, base.Y, 80f, 48f, 100f);
             }
@@ -1377,7 +1094,7 @@ namespace Furibrosa
                 }
             }
             // DEBUG
-            RocketLib.Utils.DrawDebug.DrawRectangle("ground", new Vector3(base.X + xOffset - xRange / 2f, base.Y + yOffset - yRange / 2f, 0f), new Vector3(base.X + xOffset + xRange / 2f, base.Y + yOffset + yRange / 2f, 0f), Color.red);
+            //RocketLib.Utils.DrawDebug.DrawRectangle("ground", new Vector3(base.X + xOffset - xRange / 2f, base.Y + yOffset - yRange / 2f, 0f), new Vector3(base.X + xOffset + xRange / 2f, base.Y + yOffset + yRange / 2f, 0f), Color.red);
 
             return hitGround;
         }
