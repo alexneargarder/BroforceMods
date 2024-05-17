@@ -173,14 +173,13 @@ namespace Furibrosa
                 this.pilotSwitch = SwitchesController.CreatePilotMookSwitch(this, new Vector3(0f, 40f, 0f));
             }
 
-            return;
             if ( crushDamageCooldown <= 0f )
             {
-                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * crushDamage), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * (crushDamage + (this.xI > 150f ? 5f : 0f))), 1f), 25, crushXRange + (this.xI > 150f ? 10f : 0f), crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
                 {
                     if ( Mathf.Abs(xI) < 150f )
                     {
-                        crushDamageCooldown = 0.1f;
+                        crushDamageCooldown = 0.05f;
                     }
                 }
             }
@@ -559,14 +558,14 @@ namespace Furibrosa
                 this.StartHanging();
             }
 
-            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(5f, 0f, 0f), Color.green);
+            RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(5f, 0f, 0f), Color.green);
         }
 
         protected override void HitCeiling(RaycastHit ceilingHit)
         {
             base.HitCeiling(ceilingHit);
 
-            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
+            RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
         }
 
         // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
@@ -600,7 +599,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
                         return true;
@@ -611,7 +610,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.halfWidth + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X + this.halfWidth);
                         return true;
@@ -619,14 +618,14 @@ namespace Furibrosa
                 }
 
                 // Check top front of vehicle
-                bottomRight = new Vector3(base.X + this.distanceToFront, base.Y + this.headHeight, 0);
-                topRight = new Vector3(base.X + this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                bottomRight = new Vector3(base.X + this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                topRight = new Vector3(base.X + this.distanceToFront, base.Y + this.headHeight, 0);
                 //RocketLib.Utils.DrawDebug.DrawLine("wall2", bottomRight, topRight, Color.red);
                 if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT)
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
                         return true;
@@ -637,7 +636,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + this.distanceToFront + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X + (this.halfWidth - distanceToFront));
                         return true;
@@ -654,7 +653,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
                         return true;
@@ -665,7 +664,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.halfWidth + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X - this.halfWidth);
                         return true;
@@ -673,14 +672,14 @@ namespace Furibrosa
                 }
 
                 // Check top front of vehicle
-                bottomRight = new Vector3(base.X - this.distanceToFront, base.Y + this.headHeight, 0);
-                topRight = new Vector3(base.X - this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                bottomRight = new Vector3(base.X - this.distanceToFront, base.Y + this.frontHeadHeight, 0);
+                topRight = new Vector3(base.X - this.distanceToFront, base.Y + this.headHeight, 0);
                 //RocketLib.Utils.DrawDebug.DrawLine("wall2", bottomRight, topRight, Color.red);
                 if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT)
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
                         return true;
@@ -691,7 +690,7 @@ namespace Furibrosa
                 {
                     if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - this.distanceToFront + xIT))
                     {
-                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.green);
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
                         this.xI = 0f;
                         xIT = this.raycastHitWalls.point.x - (base.X - (this.halfWidth - distanceToFront));
                         return true;
