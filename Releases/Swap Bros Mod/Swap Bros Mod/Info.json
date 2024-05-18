@@ -2,7 +2,7 @@
 	"Id": "Swap Bros Mod",
 	"DisplayName": "Swap Bros",
 	"Author": "AlexN",
-	"Version": "2.1.0",
+	"Version": "2.1.1",
 	"LoadAfter": [ "BroMaker" ],
 	"AssemblyName": "Swap Bros Mod.dll",
 	"EntryMethod": "Swap_Bros_Mod.Main.Load",

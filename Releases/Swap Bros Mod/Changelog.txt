@@ -1,3 +1,8 @@
+v2.1.1
+Added option to sort bro list.
+Added option to use vanilla randomization.
+Added option to ignore forced bros on certain levels.
+
 v2.1.0
 Added option to filter bros
 Fixed being able to swap bros while in mech, causing a duplicate character to spawn

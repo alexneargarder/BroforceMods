@@ -22,6 +22,16 @@ namespace Swap_Bros_Mod
         DOWN,
         NONE
     }
+
+    public class KeyBind
+    {
+        public KeyCode kc;
+        public bool waitingForInput = false;
+        public string DPADString = "NONE";
+        public DPAD DPADKey = DPAD.NONE;
+        public string joystick = "NONE";
+    }
+
     static class Main
     {
         public static UnityModManager.ModEntry mod;
@@ -43,14 +53,14 @@ namespace Swap_Bros_Mod
         public static List<string> allBros = new List<string>();
         public static int numCustomBros = 0;
 
-        public static List<string> currentBroList;
+        public static List<string> currentBroList = new List<string>();
+        public static List<string> currentBroListUnseen = new List<string>();
         public static string[] broList;
         public static string[] previousSelection = new string[] { "", "", "", "" };
         public static int maxBroNum = 40;
-        public static int maxBroNumWithoutCustom = 40;
         public static bool isHardcore = false;
 
-        public static bool[] changingEnabledBros = new bool[] { false, false, false, false };
+        public static bool changingEnabledBros = false;
         public static float displayWarningTime = 0f;
         public static bool[] filteredBroList;
         public static bool brosRemoved = false;
@@ -205,6 +215,9 @@ namespace Swap_Bros_Mod
                 CreateBroList();
             }
 
+            settings.useVanillaBroSelection = GUILayout.Toggle(settings.useVanillaBroSelection, new GUIContent("Use Vanilla Randomization", settings.useVanillaBroSelection ? "Enabled: When filtering bros, prioritize bros that " +
+                "you haven't played yet on this level" : "Disabled: When filtering bros, choose completely randomly from the enabled bros"), GUILayout.ExpandWidth(false));
+
             GUI.Label(lastRect, GUI.tooltip);
 
             GUILayout.EndVertical();
@@ -212,7 +225,7 @@ namespace Swap_Bros_Mod
 
             GUILayout.BeginVertical();
 
-            if (settings.includeUnfinishedCharacters != (settings.includeUnfinishedCharacters = GUILayout.Toggle(settings.includeUnfinishedCharacters, new GUIContent("Include Exependabro bros",
+            if (settings.includeUnfinishedCharacters != (settings.includeUnfinishedCharacters = GUILayout.Toggle(settings.includeUnfinishedCharacters, new GUIContent("Include Expendabro bros",
                 "Include bros from Expendabros"), GUILayout.ExpandWidth(false))))
             {
                 CreateBroList();
@@ -242,6 +255,9 @@ namespace Swap_Bros_Mod
                     CreateFilteredBroList();
                 }
             }
+
+            settings.ignoreForcedBros = GUILayout.Toggle(settings.ignoreForcedBros, new GUIContent("Ignore Forced Bros",
+                "Controls whether filtering will prevent you from spawning as certain bros on levels which force you to use specific bros"), GUILayout.ExpandWidth(false));
 
             GUI.Label(lastRect, GUI.tooltip);
             string previousToolTip = GUI.tooltip;
@@ -294,11 +310,11 @@ namespace Swap_Bros_Mod
 
                     GUILayout.BeginHorizontal();
 
-                    if (GUILayout.Button(new GUIContent(changingEnabledBros[i] ? "Save Changes" : "Enter Filtering Mode",
+                    if (GUILayout.Button(new GUIContent(changingEnabledBros ? "Save Changes" : "Enter Filtering Mode",
                                                "Enable or disable bros for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
                     {
-                        changingEnabledBros[i] = !changingEnabledBros[i];
-                        if  (changingEnabledBros[i] )
+                        changingEnabledBros = !changingEnabledBros;
+                        if  (changingEnabledBros )
                         {
                             displayWarningTime = 0f;
                             settings.filterBros = true;
@@ -306,6 +322,7 @@ namespace Swap_Bros_Mod
                         }
                         else
                         {
+                            // Check that at least one bro is enabled
                             bool atleastOne = false;
                             for (int x = 0; x < filteredBroList.Length; ++x)
                             {
@@ -324,7 +341,7 @@ namespace Swap_Bros_Mod
                             else
                             {
                                 displayWarningTime = 10f;
-                                changingEnabledBros[i] = !changingEnabledBros[i];
+                                changingEnabledBros = !changingEnabledBros;
                             }
                         }
                     }
@@ -332,6 +349,32 @@ namespace Swap_Bros_Mod
                     lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
                     lastRect.width += 300;
+
+                    // Don't allow sorting method to change while filtering bros
+                    if ( !changingEnabledBros )
+                    {
+                        GUILayout.FlexibleSpace();
+                        // Display option to change sorting method
+                        if ( GUILayout.Button(new GUIContent(settings.sortingMethodName, "Change the sorting used for displaying the bro list"), GUILayout.Width(300)) )
+                        {
+                            switch (settings.sorting)
+                            {
+                                case SortingMethod.UnlockOrder:
+                                    settings.sorting = SortingMethod.AlphabeticalAZ;
+                                    settings.sortingMethodName = "Sorting Method: Alphabetical A-Z";
+                                    break;
+                                case SortingMethod.AlphabeticalAZ:
+                                    settings.sorting = SortingMethod.AlphabeticalZA;
+                                    settings.sortingMethodName = "Sorting Method: Alphabetical Z-A";
+                                    break;
+                                case SortingMethod.AlphabeticalZA:
+                                    settings.sorting = SortingMethod.UnlockOrder;
+                                    settings.sortingMethodName = "Sorting Method: Unlock Order";
+                                    break;
+                            }
+                            CreateBroList();
+                        }
+                    }
 
                     if (displayWarningTime <= 0f)
                     {
@@ -358,7 +401,7 @@ namespace Swap_Bros_Mod
                     if ( !creatingBroList )
                     {
                         // Display filtering menu
-                        if (changingEnabledBros[i])
+                        if (changingEnabledBros)
                         {
                             GUILayout.BeginVertical();
                             GUILayout.BeginHorizontal();
@@ -404,7 +447,8 @@ namespace Swap_Bros_Mod
                             {
                                 if (settings.clickingEnabled)
                                 {
-                                    if (settings.selGridInt[i] != (settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)))))
+                                    if (settings.selGridInt[i] != (settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], broList, 5, GUILayout.Height(30 * Mathf.Ceil(broList.Length / 5.0f)))) 
+                                        && (Map.Instance != null) )
                                     {
                                         switched[i] = true;
                                     }
@@ -563,7 +607,6 @@ namespace Swap_Bros_Mod
                 {
                     currentBroList.Add(allNormal[HeroTypeToInt(GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i])]);
                 }
-                maxBroNumWithoutCustom = currentBroList.Count() - 1;
 
                 if (settings.enableBromaker)
                 {
@@ -602,7 +645,6 @@ namespace Swap_Bros_Mod
                             }
                         }
                     }
-                    maxBroNumWithoutCustom = currentBroList.Count() - 1;
                     if (settings.enableBromaker)
                     {
                         for ( int i = 0; i < allCustomBros.Count(); ++i )
@@ -627,7 +669,6 @@ namespace Swap_Bros_Mod
                     {
                         currentBroList.AddRange(allExpendabros);
                     }
-                    maxBroNumWithoutCustom = currentBroList.Count() - 1;
                     if (settings.enableBromaker)
                     {
                         currentBroList.AddRange(allCustomBros);
@@ -636,6 +677,17 @@ namespace Swap_Bros_Mod
             }
 
             maxBroNum = currentBroList.Count() - 1;
+
+            if (settings.sorting == SortingMethod.AlphabeticalAZ)
+            {
+                currentBroList.Sort();
+            }
+            else if (settings.sorting == SortingMethod.AlphabeticalZA)
+            {
+                currentBroList.Sort();
+                currentBroList.Reverse();
+            }
+
             broList = currentBroList.ToArray();
             for (int i = 0; i < 4; ++i)
             {
@@ -645,6 +697,9 @@ namespace Swap_Bros_Mod
                     settings.selGridInt[i] = 0;
                 }
             }
+
+            currentBroListUnseen.Clear();
+            currentBroListUnseen.AddRange(currentBroList);
             creatingBroList = false;
         }
 
@@ -659,6 +714,16 @@ namespace Swap_Bros_Mod
             if (settings.enableBromaker)
             {
                 allBros.AddRange(allCustomBros);
+            }
+
+            if (settings.sorting == SortingMethod.AlphabeticalAZ)
+            {
+                allBros.Sort();
+            }
+            else if (settings.sorting == SortingMethod.AlphabeticalZA)
+            {
+                allBros.Sort();
+                allBros.Reverse();
             }
 
             filteredBroList = Enumerable.Repeat(false, allBros.Count()).ToArray();
@@ -718,13 +783,35 @@ namespace Swap_Bros_Mod
             
         }
 
-        public static string GetSelectedBro(int playerNum)
+        public static bool IsBroCustom(int index)
         {
-            if (settings.selGridInt[playerNum] > Main.maxBroNumWithoutCustom)
+            return actuallyAllCustomBros.Contains(currentBroList[index]);
+        }
+
+        public static string GetSelectedBroName(int playerNum)
+        {
+            return currentBroList[settings.selGridInt[playerNum]];
+        }
+
+        public static HeroType GetSelectedBroHeroType(int playerNum)
+        {
+            return StringToHeroType(currentBroList[settings.selGridInt[playerNum]]);
+        }
+
+        public static void SetSelectedBro(int playerNum, HeroType nextHero)
+        {
+            if (GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked)
             {
-                return currentBroList[settings.selGridInt[playerNum]];
+                settings.selGridInt[playerNum] = currentBroList.IndexOf(HeroTypeToString(nextHero));
+                if ( settings.selGridInt[playerNum] == -1)
+                {
+                    settings.selGridInt[playerNum] = 0;
+                }
             }
-            return "";
+            else
+            {
+                settings.selGridInt[playerNum] = currentBroList.IndexOf( allNormal[HeroTypeToInt(nextHero)] );
+            }
         }
 
         public static bool CheckIfCustomBro(TestVanDammeAnim character, ref string name)
@@ -1017,393 +1104,6 @@ namespace Swap_Bros_Mod
             return HeroType.None;
         }
     }
-
-    public class KeyBind
-    {
-        public KeyCode kc;
-        public bool waitingForInput = false;
-        public string DPADString = "NONE";
-        public DPAD DPADKey = DPAD.NONE;
-        public string joystick = "NONE";
-    }
-
-    public class Settings : UnityModManager.ModSettings
-    { 
-        public bool alwaysChosen = false;
-        public bool ignoreCurrentUnlocked = false;
-        public bool includeUnfinishedCharacters = false;
-        public bool clickingEnabled = true;
-        public bool disableConfirm = true;
-        public bool enableBromaker = false;
-        public float swapCoolDown = 0.5f;
-
-        public int[] selGridInt = { 0, 0, 0, 0 };
-        public bool[] showSettings = { true, false, false, false };
-        public KeyBind[] swapLeftKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
-        public KeyBind[] swapRightKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
-
-        public List<string> enabledBros = new List<string>();
-        public bool filterBros = false;
-
-        public override void Save(UnityModManager.ModEntry modEntry)
-        {
-            Save(this, modEntry);
-        }
-
-        public HeroType getSelectedHero( int playerNum )
-        {
-            return Main.StringToHeroType(Main.currentBroList[this.selGridInt[playerNum]]);
-        }
-
-        public void setSelectedHero( int playerNum, HeroType nextHero )
-        {
-            if (GameModeController.IsHardcoreMode && !this.ignoreCurrentUnlocked)
-            {
-                selGridInt[playerNum] = Main.currentBroList.IndexOf(Main.HeroTypeToString(nextHero));
-                if ( selGridInt[playerNum] == -1 )
-                {
-                    selGridInt[playerNum] = 0;
-                }
-            }
-            else
-            {
-                selGridInt[playerNum] = Main.HeroTypeToInt(nextHero);
-            }
-            
-        }
-    }
-
-    [HarmonyPatch(typeof(Player), "SpawnHero")]
-    static class Player_SpawnHero_Patch
-    {
-        static void Prefix(Player __instance, ref HeroType nextHeroType)
-        {
-            if (!Main.enabled)
-                return;
-
-            if (Main.manualSpawn)
-            {
-                Main.manualSpawn = false;
-                return;
-            }
-
-            int curPlayer = __instance.playerNum;
-
-            if (!Main.settings.alwaysChosen)
-            {
-                if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
-                {
-                    Main.CreateBroList();
-                }
-                
-                // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
-                if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
-                {
-                    int nextHero = UnityEngine.Random.Range(0, Main.currentBroList.Count());
-
-                    // Check if bro is custom or not
-                    if (nextHero > Main.maxBroNumWithoutCustom)
-                    {
-                        Main.MakeCustomBroSpawn(curPlayer, Main.currentBroList[nextHero]);
-                        nextHeroType = HeroType.Rambro;
-                    }
-                    else
-                    {
-                        if (Main.settings.enableBromaker)
-                            Main.DisableCustomBroSpawning(curPlayer);
-
-                        nextHeroType = Main.StringToHeroType(Main.currentBroList[nextHero]);
-                    }
-
-                    Main.settings.selGridInt[curPlayer] = nextHero;
-                }
-                else
-                {
-                    Main.settings.setSelectedHero(__instance.playerNum, nextHeroType);
-                }
-                return;
-            }
-
-            // If we're in IronBro and don't want to force spawn a bro we haven't unlocked
-            if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
-            {
-                // Make sure list of available hardcore bros is up-to-date
-                Main.CreateBroList();
-                // If Bromaker is enabled and selected character is custom
-                if (Main.settings.enableBromaker && (Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom))
-                {
-                    Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
-                    // Ensure we don't spawn boondock bros because one gets left over
-                    nextHeroType = HeroType.Rambro;
-                }
-                else
-                {
-                    if (Main.settings.enableBromaker)
-                        Main.DisableCustomBroSpawning(curPlayer);
-                    nextHeroType = Main.settings.getSelectedHero(curPlayer);
-                }
-            }
-            // If bro spawning is a custom bro
-            else if ( Main.settings.enableBromaker && Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom)
-            {
-                Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
-                // Ensure we don't spawn boondock bros because one gets left over
-                nextHeroType = HeroType.Rambro;
-            }
-            // If we're just spawning a normal character
-            else
-            {
-                if (Main.settings.enableBromaker)
-                    Main.DisableCustomBroSpawning(curPlayer);
-                nextHeroType = Main.settings.getSelectedHero(curPlayer);
-            }
-
-        }
-        static void Postfix(Player __instance, ref HeroType nextHeroType)
-        {
-            if (!Main.enabled)
-                return;
-
-            if (Main.settings.enableBromaker)
-            {
-                Main.EnableCustomBroSpawning();
-                string name = "";
-                if (Main.CheckIfCustomBro(__instance.character, ref name) && name != Main.GetSelectedBro(__instance.playerNum) )
-                {
-                    Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf(name);
-                    if ( Main.settings.selGridInt[__instance.playerNum] == -1 )
-                    {
-                        Main.CreateBroList();
-                        Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf(name);
-                    }
-                }
-            }
-        }
-    }
-
-
-    [HarmonyPatch(typeof(Player), "GetInput")]
-    static class Player_GetInput_Patch
-    {
-        public static void Postfix(Player __instance)
-        {
-            if (!Main.enabled)
-            {
-                return;
-            }
-
-            int curPlayer = __instance.playerNum;
-            bool leftPressed = Main.wasKeyPressed(Main.settings.swapLeftKeys[__instance.playerNum]);
-            bool rightPressed = Main.wasKeyPressed(Main.settings.swapRightKeys[__instance.playerNum]);
-
-            if ((((leftPressed || rightPressed) && Main.cooldown == 0f && __instance.IsAlive()) || (Main.settings.clickingEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
-            {
-                float X, Y, XI, YI;
-                Vector3 vec = __instance.GetCharacterPosition();
-                X = vec.x;
-                Y = vec.y;
-                XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
-                YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
-                Main.manualSpawn = true;
-
-                if (Main.settings.clickingEnabled && Main.switched[curPlayer])
-                {
-                    if (Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom)
-                    {
-                        Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
-
-                        __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                        __instance.SpawnHero(HeroType.Rambro);
-
-                        __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                        __instance.character.SetInvulnerable(0f, false);
-                    }
-                    else
-                    {
-                        __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                        if (Main.settings.enableBromaker)
-                            Main.DisableCustomBroSpawning(curPlayer);
-                        __instance.SpawnHero(Main.settings.getSelectedHero(curPlayer));
-                        if (Main.settings.enableBromaker)
-                            Main.EnableCustomBroSpawning();
-
-                        __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
-                        __instance.character.SetInvulnerable(0f, false);
-                    }
-                    Main.switched[curPlayer] = false;
-                    return;
-                }
-
-                // If our list of IronBro characters is out of date, update it
-                if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked && Main.currentBroList.Count() != Main.GetHardcoreCount())
-                {
-                    Main.CreateBroList();
-                }
-
-                if ( leftPressed )
-                {
-                    --Main.settings.selGridInt[curPlayer];
-                    if ( Main.settings.selGridInt[curPlayer] < 0 )
-                    {
-                        Main.settings.selGridInt[curPlayer] = Main.maxBroNum;
-                    }
-                }
-                else if ( rightPressed )
-                {
-                    ++Main.settings.selGridInt[curPlayer];
-                    if (Main.settings.selGridInt[curPlayer] > Main.maxBroNum)
-                    {
-                        Main.settings.selGridInt[curPlayer] = 0;
-                    }
-                }
-
-                // If character spawning is custom 
-                if (Main.settings.enableBromaker && Main.settings.selGridInt[curPlayer] > Main.maxBroNumWithoutCustom)
-                {
-                    Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBro(curPlayer));
-
-                    __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                    __instance.SpawnHero(HeroType.Rambro);
-
-                    __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                    __instance.character.SetInvulnerable(0f, false);
-
-                    Main.cooldown = Main.settings.swapCoolDown;
-                }
-                else 
-                {
-                    __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                    if (Main.settings.enableBromaker)
-                    {
-                        Main.DisableCustomBroSpawning(curPlayer);
-                    }
-                        
-                    __instance.SpawnHero(Main.settings.getSelectedHero(curPlayer));
-                    
-                    if (Main.settings.enableBromaker)
-                        Main.EnableCustomBroSpawning();
-
-                    __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                    __instance.character.SetInvulnerable(0f, false);
-
-                    Main.cooldown = Main.settings.swapCoolDown;
-
-                }
-            }
-            return;
-        }
-    }
-
-    [HarmonyPatch(typeof(Player), "Update")]
-    static class Player_Update_Patch
-    {
-        static void Prefix(Player __instance)
-        {
-            if (!Main.enabled)
-            {
-                return;
-            }
-            if (Main.cooldown > 0f)
-            {
-                __instance.character.SetInvulnerable(0f, false);
-                Main.cooldown -= Time.unscaledDeltaTime;
-                if (Main.cooldown < 0f)
-                {
-                    Main.cooldown = 0f;
-                }
-            }
-
-
-        }
-    }
-
-    [HarmonyPatch(typeof(TestVanDammeAnim), "SetInvulnerable")]
-    static class TestVanDammeAnim_SetInvulnerable_Patch
-    {
-        static bool Prefix(TestVanDammeAnim __instance, float time, bool restartBubble = true)
-        {
-            if (!Main.enabled)
-            {
-                return true;
-            }
-            if (time == 0f && !restartBubble)
-            {
-                Traverse.Create(typeof(TestVanDammeAnim)).Field("invulnerableTime").SetValue(0);
-                __instance.invulnerable = false;
-                return false;
-            }
-
-            return true;
-
-
-        }
-    }
-
-    [HarmonyPatch(typeof(PauseMenu), "ReturnToMenu")]
-    static class PauseMenu_ReturnToMenu_Patch
-    {
-        static bool Prefix(PauseMenu __instance)
-        {
-            if (!Main.enabled || !Main.settings.disableConfirm)
-            {
-                return true;
-            }
-
-            PauseGameConfirmationPopup m_ConfirmationPopup = (Traverse.Create(__instance).Field("m_ConfirmationPopup").GetValue() as PauseGameConfirmationPopup);
-
-            MethodInfo dynMethod = m_ConfirmationPopup.GetType().GetMethod("ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-            dynMethod.Invoke(m_ConfirmationPopup, null);
-
-            return false;
-        }
-
-    }
-
-    [HarmonyPatch(typeof(PauseMenu), "ReturnToMap")]
-    static class PauseMenu_ReturnToMap_Patch
-    {
-        static bool Prefix(PauseMenu __instance)
-        {
-            if (!Main.enabled || !Main.settings.disableConfirm)
-            {
-                return true;
-            }
-
-            __instance.CloseMenu();
-            GameModeController.Instance.ReturnToWorldMap();
-            return false;
-        }
-
-    }
-
-
-
-    [HarmonyPatch(typeof(PauseMenu), "RestartLevel")]
-    static class PauseMenu_RestartLevel_Patch
-    {
-        static bool Prefix(PauseMenu __instance)
-        {
-            if (!Main.enabled || !Main.settings.disableConfirm)
-            {
-                return true;
-            }
-
-            Map.ClearSuperCheckpointStatus();
-
-            (Traverse.Create(typeof(TriggerManager)).Field("alreadyTriggeredTriggerOnceTriggers").GetValue() as List<string>).Clear();
-
-            if (GameModeController.publishRun)
-            {
-                GameModeController.publishRun = false;
-                LevelEditorGUI.levelEditorActive = true;
-            }
-            PauseController.SetPause(PauseStatus.UnPaused);
-            GameModeController.RestartLevel();
-
-            return false;
-        }
-    }
-
 }
 
     
