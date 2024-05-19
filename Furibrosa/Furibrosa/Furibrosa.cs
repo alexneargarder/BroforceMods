@@ -701,9 +701,41 @@ namespace Furibrosa
             this.ChangeFrame();
         }
 
+        public static Unit GetNextClosestUnit(int playerNum, DirectionEnum direction, float xRange, float yRange, float x, float y, List<Unit> alreadyFoundUnits)
+        {
+            if (Map.units == null)
+            {
+                return null;
+            }
+            float num = xRange;
+            Unit unit = null;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                Unit unit2 = Map.units[i];
+                if (unit2 != null && !unit2.invulnerable && unit2.health > 0 && GameModeController.DoesPlayerNumDamage(playerNum, unit2.playerNum) && !alreadyFoundUnits.Contains(unit2) && !unit2.IsHeavy() )
+                {
+                    float num2 = unit2.Y + unit2.height / 2f + 3f - y;
+                    if (Mathf.Abs(num2) - yRange < unit2.height)
+                    {
+                        float num3 = unit2.X - x;
+                        if (Mathf.Abs(num3) - num < unit2.width && ((direction == DirectionEnum.Down && num2 < 0f) || (direction == DirectionEnum.Up && num2 > 0f) || (direction == DirectionEnum.Right && num3 > 0f) || (direction == DirectionEnum.Left && num3 < 0f) || direction == DirectionEnum.Any))
+                        {
+                            unit = unit2;
+                            num = Mathf.Abs(num2);
+                        }
+                    }
+                }
+            }
+            if (unit != null)
+            {
+                return unit;
+            }
+            return null;
+        }
+
         protected void GrabUnit()
         {
-            Unit unit = Map.GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 6f, base.X, base.Y, new List<Unit>());
+            Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 6f, base.X, base.Y, new List<Unit>());
             if ( unit != null)
             {
                 this.meleeHasHit = true;
