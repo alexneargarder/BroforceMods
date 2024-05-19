@@ -16,9 +16,8 @@ namespace Furibrosa
 {
     public class WarRig : Mook
     {
-        protected float originalSpeed = 200f;
+        // General Variables
         public Unit pilotUnit = null;
-        protected bool boostingForward = false;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
         protected int shieldDamage;
@@ -26,18 +25,26 @@ namespace Furibrosa
         protected int fireAmount;
         protected int knockCount;
         public bool alwaysKnockOnExplosions = false;
+        protected float pilotUnitDelay;
+        protected bool fixedBubbles = false;
+        public Material originalSpecialSprite;
+        public Material specialSprite;
+        protected PlayerHUD hud;
+
+        // Movement variables
+        protected float originalSpeed = 200f;
         protected int crushingGroundLayers;
         protected float fallDamageHurtSpeed = -450;
         protected float fallDamageHurtSpeedHero = -550;
         protected float fallDamageDeathSpeed = -600;
         protected float fallDamageDeathSpeedHero = -750;
-        protected float pilotUnitDelay;
-        protected bool fixedBubbles = false;
+        protected float boostFuel = 1f;
+        
+        // Collision Variables
         protected float frontHeadHeight;
         protected float distanceToFront;
         protected float distanceToBack;
         public BoxCollider platform;
-
         protected int crushDamage = 5;
         protected float crushXRange = 40f;
         protected float crushYRange = 50f;
@@ -99,6 +106,10 @@ namespace Furibrosa
             this.spritePixelHeight = 64;
             sprite.offset = new Vector3(0f, 31f, 0f);
 
+            // Load special icon sprite
+            this.originalSpecialSprite = ResourcesController.GetMaterial(directoryPath, "special.png");
+            this.specialSprite = ResourcesController.GetMaterial(directoryPath, "vehicleSpecial.png");
+
             this.gameObject.SetActive(false);
         }
 
@@ -138,8 +149,9 @@ namespace Furibrosa
             this.canDuck = false;
             this.canLedgeGrapple = false;
             this.jumpForce = 360;
+            // Default to playerNum 0 so that the vehicle doesn't kill the player before they start riding it
+            this.playerNum = 0;
             this.DeactivateGun();
-
             GameObject platformObject = this.gameObject.FindChildOfName("Platform");
             if ( platformObject != null )
             {
@@ -186,6 +198,28 @@ namespace Furibrosa
             else
             {
                 crushDamageCooldown -= this.t;
+            }
+
+            if ( this.dashing )
+            {
+                this.boostFuel -= this.t * 0.2f;
+
+                // Ran out of fuel
+                if ( this.boostFuel <= 0f )
+                {
+                    this.boostFuel = 0f;
+                    this.canDash = false;
+                }
+            }
+        }
+
+        protected override void LateUpdate()
+        {
+            base.LateUpdate();
+
+            if ( this.pilotUnit != null )
+            {
+                this.UpdateSpecialIcon();
             }
         }
 
@@ -264,7 +298,7 @@ namespace Furibrosa
 
         public override bool CanPilotUnit(int newPlayerNum)
         {
-            return this.health <= 0 || this.pilotUnit != null;
+            return (this.health <= 0 || this.pilotUnit != null) && HeroController.players[playerNum].character is Furibrosa;
         }
 
         public override void PilotUnitRPC(Unit newPilotUnit)
@@ -309,6 +343,11 @@ namespace Furibrosa
             base.GetComponent<Collider>().enabled = true;
             base.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
             base.SetOwner(PilotUnit.Owner);
+            this.originalSpecialAmmo = 2;
+            this.SpecialAmmo = 2;
+            this.hud = HeroController.players[PilotUnit.playerNum].hud;
+            BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(50f, 0f), 10f);
+            this.UpdateSpecialIcon();
         }
 
         protected virtual void DisChargePilot(float disChargeYI, bool stunPilot, Unit dischargedBy)
@@ -323,10 +362,9 @@ namespace Furibrosa
                 this.pilotUnit.GetComponent<Renderer>().enabled = true;
                 this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
                 base.StopPlayerBubbles();
+                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(0f, 0f), 0f);
                 this.pilotUnit = null;
-                base.playerNum = -1;
                 this.isHero = false;
-                this.firingPlayerNum = -1;
                 this.fire = false;
                 this.hasBeenPiloted = true;
                 this.DeactivateGun();
@@ -379,12 +417,28 @@ namespace Furibrosa
             return false;
         }
 
+        public override bool IsHeavy()
+        {
+            return true;
+        }
+
         protected override void CheckForTraps(ref float yIT)
         {
         }
 
         protected override void CheckRescues()
         {
+        }
+
+        protected void UpdateSpecialIcon()
+        {
+            this.hud.SetFuel(this.boostFuel, this.boostFuel <= 0.2f);
+
+            // Re-enable grenade icons
+            for ( int i = 0; i < this.SpecialAmmo; ++i )
+            {
+                this.hud.grenadeIcons[i].gameObject.SetActive(true);
+            }
         }
         #endregion
 
@@ -1068,7 +1122,7 @@ namespace Furibrosa
             {
                 if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
                 {
-                    this.PlaySpecial2Sound(0.33f);
+                    // Play sound effect for hitting unit
                 }
 
                 hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X - xOffset, base.Y + yOffset, true);
@@ -1078,11 +1132,11 @@ namespace Furibrosa
                     hitGround = true;
                 }
             }
-            else if (this.right || (this.boostingForward && base.transform.localScale.x > 0))
+            else if (this.right || (this.dashing && base.transform.localScale.x > 0))
             {
                 if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
                 {
-                    this.PlaySpecial2Sound(0.33f);
+                    // Play sound effect for hitting unit
                 }
 
                 hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X + xOffset, base.Y + yOffset, true);
