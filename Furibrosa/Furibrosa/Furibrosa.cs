@@ -62,6 +62,9 @@ namespace Furibrosa
 
         // Special
         static protected WarRig warRigPrefab;
+        protected WarRig currentWarRig;
+        protected bool holdingSpecial = false;
+        protected float holdingSpecialTime = 0f;
 
         // DEBUG
         public static string offsetXstr = "12";
@@ -218,6 +221,24 @@ namespace Furibrosa
             {
                 // Fix any not currently displayed textures
             }
+
+            if ( this.holdingSpecial )
+            {
+                if ( this.special )
+                {
+                    this.holdingSpecialTime += this.t;
+                    if ( this.holdingSpecialTime > 0.5f )
+                    {
+                        this.currentWarRig.keepGoingBeyondTarget = true;
+                        this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
+                        this.holdingSpecial = false;
+                    }
+                }
+                else
+                {
+                    this.holdingSpecial = false;
+                }
+            }
         }
 
         protected override void LateUpdate()
@@ -276,8 +297,6 @@ namespace Furibrosa
             GUILayout.Space(10);
             switchWeaponKey.OnGUI(out player, true);
             GUILayout.Space(10);
-
-
 
             // DEBUG options
             makeTextBox("offsetX", ref offsetXstr, ref offsetXVal);
@@ -779,18 +798,35 @@ namespace Furibrosa
         #endregion
 
         #region Special
+        // Make War Rig blow up
+        protected void DestroyCurrentWarRig()
+        {
+            if (currentWarRig != null)
+            {
+                this.currentWarRig.Death();
+                this.currentWarRig = null;
+            }
+        }
+
         Vector3 DetermineWarRigSpawn()
         {
-            return new Vector3(base.X, base.Y, 0f);
+            return new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.Y, 0f);
         }
+
         protected override void UseSpecial()
         {
             if (this.SpecialAmmo > 0 && this.specialGrenade != null)
             {
                 this.SpecialAmmo--;
-
-                WarRig warRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
-                warRig.gameObject.SetActive(true);
+                this.DestroyCurrentWarRig();
+                this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
+                this.currentWarRig.targetX = base.X + 10f;
+                this.currentWarRig.gameObject.SetActive(true);
+                if ( this.special )
+                {
+                    this.holdingSpecial = true;
+                    this.holdingSpecialTime = 0f;
+                }
             }
             else
             {
