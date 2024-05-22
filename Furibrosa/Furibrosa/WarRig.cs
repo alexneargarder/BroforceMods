@@ -32,13 +32,14 @@ namespace Furibrosa
         protected PlayerHUD hud;
 
         // Movement variables
-        protected float originalSpeed = 200f;
         protected int crushingGroundLayers;
         protected float fallDamageHurtSpeed = -450;
         protected float fallDamageHurtSpeedHero = -550;
         protected float fallDamageDeathSpeed = -600;
         protected float fallDamageDeathSpeedHero = -750;
         protected float boostFuel = 1f;
+        protected const float originalGroundFriction = 0.75f;
+        protected float groundFriction = 0.75f;
         
         // Collision Variables
         protected float frontHeadHeight;
@@ -53,6 +54,12 @@ namespace Furibrosa
         protected float unitXRange = 50f;
         protected float unitYRange = 20f;
         protected float crushDamageCooldown = 0f;
+
+        // Startup Variables
+        protected bool reachedStartingPoint = false;
+        public float targetX = 0f;
+        public bool keepGoingBeyondTarget = false;
+        public float secondTargetX = 0f;
 
         #region General
         public void Setup()
@@ -129,7 +136,6 @@ namespace Furibrosa
             this.platformLayer = this.groundLayer;
             this.ladderLayer = this.groundLayer;
             this.speed = 200f;
-            this.originalSpeed = 200f;
             this.waistHeight = 10f;
             this.deadWaistHeight = 10f;
             this.height = 52f;
@@ -185,7 +191,13 @@ namespace Furibrosa
                 this.pilotSwitch = SwitchesController.CreatePilotMookSwitch(this, new Vector3(0f, 40f, 0f));
             }
 
-            if ( crushDamageCooldown <= 0f )
+            if ( !this.reachedStartingPoint || this.keepGoingBeyondTarget )
+            {
+                this.right = true;
+                this.CrushGroundWhileMoving(50, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
+                this.right = false;
+            }
+            else if ( crushDamageCooldown <= 0f )
             {
                 if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * (crushDamage + (this.xI > 150f ? 5f : 0f))), 1f), 25, crushXRange + (this.xI > 150f ? 10f : 0f), crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
                 {
@@ -209,6 +221,44 @@ namespace Furibrosa
                 {
                     this.boostFuel = 0f;
                     this.canDash = false;
+                }
+            }
+
+            if ( !this.reachedStartingPoint )
+            {
+                if ( Tools.FastAbsWithinRange(this.X - this.targetX, 5) )
+                {
+                    if ( !this.keepGoingBeyondTarget )
+                    {
+                        this.xI = 0f;
+                    }
+                    this.reachedStartingPoint = true;
+                    this.groundFriction = originalGroundFriction;
+                }
+                else if ( Tools.FastAbsWithinRange(this.X - this.targetX, 75f) && !this.keepGoingBeyondTarget )
+                {
+                    this.groundFriction = 5f;
+                }
+                else
+                {
+                    this.xI = this.speed * 2f;
+                }
+            }
+            else if ( this.keepGoingBeyondTarget )
+            {
+                if (Tools.FastAbsWithinRange(this.X - this.secondTargetX, 5))
+                {
+                    this.xI = 0f;
+                    this.keepGoingBeyondTarget = false;
+                    this.groundFriction = originalGroundFriction;
+                }
+                else if (Tools.FastAbsWithinRange(this.X - this.secondTargetX, 75f))
+                {
+                    this.groundFriction = 5f;
+                }
+                else
+                {
+                    this.xI = this.speed * 2f;
                 }
             }
         }
@@ -325,6 +375,9 @@ namespace Furibrosa
             {
                 base.UnFreeze();
             }
+            this.keepGoingBeyondTarget = false;
+            this.reachedStartingPoint = true;
+            this.groundFriction = originalGroundFriction;
             this.pilotUnit = PilotUnit;
             base.playerNum = this.pilotUnit.playerNum;
             this.health = this.maxHealth;
@@ -405,6 +458,10 @@ namespace Furibrosa
             {
                 this.DisChargePilot(150f, false, null);
             }
+        }
+
+        protected override void Gib(DamageType damageType, float xI, float yI)
+        {
         }
 
         public override bool CanBeThrown()
@@ -612,7 +669,7 @@ namespace Furibrosa
                 this.StartHanging();
             }
 
-            RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(5f, 0f, 0f), Color.green);
+            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(5f, 0f, 0f), Color.green);
         }
 
         protected override void HitCeiling(RaycastHit ceilingHit)
@@ -1150,6 +1207,33 @@ namespace Furibrosa
             //RocketLib.Utils.DrawDebug.DrawRectangle("ground", new Vector3(base.X + xOffset - xRange / 2f, base.Y + yOffset - yRange / 2f, 0f), new Vector3(base.X + xOffset + xRange / 2f, base.Y + yOffset + yRange / 2f, 0f), Color.red);
 
             return hitGround;
+        }
+
+        protected override void ApplyFallingGravity()
+        {
+            if ( this.reachedStartingPoint )
+            {
+                base.ApplyFallingGravity();
+            }
+        }
+
+        protected override void RunGroundFriction()
+        {
+            if ( base.actionState == ActionState.Idle )
+            {
+                if ( Mathf.Abs(this.xI) < 50f )
+                {
+                    this.xI *= 1f - this.t * (5 * this.groundFriction);
+                }
+                else
+                {
+                    this.xI *= 1f - this.t * this.groundFriction;
+                }
+            }
+        }
+
+        protected override void DontSlipOverEdges()
+        {
         }
         #endregion
 
