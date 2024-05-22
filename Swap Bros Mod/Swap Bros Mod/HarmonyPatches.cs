@@ -37,7 +37,7 @@ namespace Swap_Bros_Mod
                     if (Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode)
                     {
                         // Check if map has a forced bro
-                        if (!Main.settings.ignoreCurrentUnlocked && Map.MapData.forcedBro != HeroType.Random)
+                        if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random)
                         {
                             nextHeroType = Map.MapData.forcedBro;
 
@@ -48,10 +48,15 @@ namespace Swap_Bros_Mod
                                 nextHero = 0;
                             }
 
+                            if ( Main.settings.enableBromaker )
+                            {
+                                Main.DisableCustomBroSpawning(curPlayer);
+                            }
+
                             Main.settings.selGridInt[curPlayer] = nextHero;
                         }
                         // Check if map has multiple forced bros
-                        else if (Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0)
+                        else if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0)
                         {
                             string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())];
 
@@ -62,6 +67,11 @@ namespace Swap_Bros_Mod
                             if (nextHero == -1)
                             {
                                 nextHero = 0;
+                            }
+
+                            if ( Main.settings.enableBromaker )
+                            {
+                                Main.DisableCustomBroSpawning(curPlayer);
                             }
 
                             Main.settings.selGridInt[curPlayer] = nextHero;

@@ -1,3 +1,6 @@
+v2.1.2
+Fixed issue with Ignore Forced Bros option
+
 v2.1.1
 Added option to sort bro list.
 Added option to use vanilla randomization.
