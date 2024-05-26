@@ -48,6 +48,7 @@ namespace Swap_Bros_Mod
                 "Colonel James Broddock", "Cherry Broling", "Bro Max", "The Brode", "Double Bro Seven", "The Brodator", "The Brocketeer", "Broheart", "The Brofessional", "Broden",
                 "The Brolander", "Dirty Brory", "Tank Bro", "Bro Lee", "Seth Brondle", "Xebro", "Desperabro", "Broffy the Vampire Slayer", "Burt Brommer", "Demolition Bro" };
         public static List<string> allExpendabros = new List<string> {"Broney Ross", "Lee Broxmas", "Bronnar Jensen", "Bro Caesar", "Trent Broser", "Broctor Death", "Toll Broad"};
+        public static List<string> allUnfinished = new List<string> { "Chev Brolios", "Casey Broback", "The Scorpion Bro" };
         public static List<string> allCustomBros = new List<string>();
         public static List<string> actuallyAllCustomBros = new List<string>();
         public static List<string> allBros = new List<string>();
@@ -113,9 +114,13 @@ namespace Swap_Bros_Mod
             {
                 allBros = new List<string>();
                 allBros.AddRange(allNormal);
-                if (settings.includeUnfinishedCharacters)
+                if (settings.includeExpendabros)
                 {
                     allBros.AddRange(allExpendabros);
+                }
+                if (settings.includeUnfinishedCharacters)
+                {
+                    allBros.AddRange(allUnfinished);
                 }
                 if (settings.enableBromaker)
                 {
@@ -185,6 +190,9 @@ namespace Swap_Bros_Mod
                 CreateBroList();
             }
 
+            settings.ignoreForcedBros = GUILayout.Toggle(settings.ignoreForcedBros, new GUIContent("Ignore Forced Bros",
+                "Controls whether filtering will prevent you from spawning as certain bros on levels which force you to use specific bros"), GUILayout.ExpandWidth(false));
+
             // Display the tooltip from the element that has mouseover or keyboard focus
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
@@ -225,7 +233,7 @@ namespace Swap_Bros_Mod
 
             GUILayout.BeginVertical();
 
-            if (settings.includeUnfinishedCharacters != (settings.includeUnfinishedCharacters = GUILayout.Toggle(settings.includeUnfinishedCharacters, new GUIContent("Include Expendabro bros",
+            if (settings.includeExpendabros != (settings.includeExpendabros = GUILayout.Toggle(settings.includeExpendabros, new GUIContent("Include Expendabro Bros",
                 "Include bros from Expendabros"), GUILayout.ExpandWidth(false))))
             {
                 CreateBroList();
@@ -256,8 +264,12 @@ namespace Swap_Bros_Mod
                 }
             }
 
-            settings.ignoreForcedBros = GUILayout.Toggle(settings.ignoreForcedBros, new GUIContent("Ignore Forced Bros",
-                "Controls whether filtering will prevent you from spawning as certain bros on levels which force you to use specific bros"), GUILayout.ExpandWidth(false));
+            if (settings.includeUnfinishedCharacters != (settings.includeUnfinishedCharacters = GUILayout.Toggle(settings.includeUnfinishedCharacters, new GUIContent("Include Unfinished Bros",
+                "Include bros the developers didn't finish"), GUILayout.ExpandWidth(false))))
+            {
+                CreateBroList();
+                CreateFilteredBroList();
+            }
 
             GUI.Label(lastRect, GUI.tooltip);
             string previousToolTip = GUI.tooltip;
@@ -605,7 +617,7 @@ namespace Swap_Bros_Mod
                 currentBroList = new List<string>();
                 for (int i = 0; i < GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.Count(); ++i)
                 {
-                    currentBroList.Add(allNormal[HeroTypeToInt(GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i])]);
+                    currentBroList.Add(HeroTypeToString(GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i]));
                 }
 
                 if (settings.enableBromaker)
@@ -631,13 +643,27 @@ namespace Swap_Bros_Mod
                         }
                     }
 
-                    if (settings.includeUnfinishedCharacters)
+                    if (settings.includeExpendabros)
                     {
                         for ( int i = 0; i < allExpendabros.Count(); ++i )
                         {
                             if (settings.enabledBros.Contains(allExpendabros[i]) )
                             {
                                 currentBroList.Add(allExpendabros[i]);
+                            }
+                            else
+                            {
+                                brosRemoved = true;
+                            }
+                        }
+                    }
+                    if (settings.includeUnfinishedCharacters)
+                    {
+                        for (int i = 0; i < allUnfinished.Count(); ++i)
+                        {
+                            if (settings.enabledBros.Contains(allUnfinished[i]))
+                            {
+                                currentBroList.Add(allUnfinished[i]);
                             }
                             else
                             {
@@ -665,9 +691,13 @@ namespace Swap_Bros_Mod
                     currentBroList = new List<string>();
                     currentBroList.AddRange(allNormal);
 
-                    if (settings.includeUnfinishedCharacters)
+                    if (settings.includeExpendabros)
                     {
                         currentBroList.AddRange(allExpendabros);
+                    }
+                    if (settings.includeUnfinishedCharacters)
+                    {
+                        currentBroList.AddRange(allUnfinished);
                     }
                     if (settings.enableBromaker)
                     {
@@ -707,9 +737,13 @@ namespace Swap_Bros_Mod
         {
             allBros = new List<string>();
             allBros.AddRange(allNormal);
-            if (settings.includeUnfinishedCharacters)
+            if (settings.includeExpendabros)
             {
                 allBros.AddRange(allExpendabros);
+            }
+            if (settings.includeUnfinishedCharacters)
+            {
+                allBros.AddRange(allUnfinished);
             }
             if (settings.enableBromaker)
             {
@@ -810,7 +844,7 @@ namespace Swap_Bros_Mod
             }
             else
             {
-                settings.selGridInt[playerNum] = currentBroList.IndexOf( allNormal[HeroTypeToInt(nextHero)] );
+                settings.selGridInt[playerNum] = currentBroList.IndexOf( HeroTypeToString(nextHero) );
             }
         }
 
@@ -870,124 +904,6 @@ namespace Swap_Bros_Mod
             return BSett.instance.availableBros.Count();
         }
 
-        public static int HeroTypeToInt(HeroType nextHero)
-        {
-            int chosen = 0;
-            switch (nextHero)
-            {
-                case HeroType.Rambro: chosen = 0; break;
-                case HeroType.Brommando: chosen = 1; break;
-                case HeroType.BaBroracus: chosen = 2; break;
-                case HeroType.BrodellWalker: chosen = 3; break;
-                case HeroType.BroHard: chosen = 4; break;
-                case HeroType.McBrover: chosen = 5; break;
-                case HeroType.Blade: chosen = 6; break;
-                case HeroType.BroDredd: chosen = 7; break;
-                case HeroType.Brononymous: chosen = 8; break;
-                case HeroType.SnakeBroSkin: chosen = 9; break;
-                case HeroType.Brominator: chosen = 10; break;
-                case HeroType.Brobocop: chosen = 11; break;
-                case HeroType.IndianaBrones: chosen = 12; break;
-                case HeroType.AshBrolliams: chosen = 13; break;
-                case HeroType.Nebro: chosen = 14; break;
-                case HeroType.BoondockBros: chosen = 15; break;
-                case HeroType.Brochete: chosen = 16; break;
-                case HeroType.BronanTheBrobarian: chosen = 17; break;
-                case HeroType.EllenRipbro: chosen = 18; break;
-                case HeroType.TimeBroVanDamme: chosen = 19; break;
-                case HeroType.BroniversalSoldier: chosen = 20; break;
-                case HeroType.ColJamesBroddock: chosen = 21; break;
-                case HeroType.CherryBroling: chosen = 22; break;
-                case HeroType.BroMax: chosen = 23; break;
-                case HeroType.TheBrode: chosen = 24; break;
-                case HeroType.DoubleBroSeven: chosen = 25; break;
-                case HeroType.Predabro: chosen = 26; break;
-                case HeroType.TheBrocketeer: chosen = 27; break;
-                case HeroType.BroveHeart: chosen = 28; break;
-                case HeroType.TheBrofessional: chosen = 29; break;
-                case HeroType.Broden: chosen = 30; break;
-                case HeroType.TheBrolander: chosen = 31; break;
-                case HeroType.DirtyHarry: chosen = 32; break;
-                case HeroType.TankBro: chosen = 33; break;
-                case HeroType.BroLee: chosen = 34; break;
-                case HeroType.BrondleFly: chosen = 35; break;
-                case HeroType.Xebro: chosen = 36; break;
-                case HeroType.Desperabro: chosen = 37; break;
-                case HeroType.Broffy: chosen = 38; break;
-                case HeroType.BroGummer: chosen = 39; break;
-                case HeroType.DemolitionBro: chosen = 40; break;
-
-                // extra characters
-                case HeroType.BroneyRoss: chosen = 41; break;
-                case HeroType.LeeBroxmas: chosen = 42; break;
-                case HeroType.BronnarJensen: chosen = 43; break;
-                case HeroType.HaleTheBro: chosen = 44; break;
-                case HeroType.TrentBroser: chosen = 45; break;
-                case HeroType.Broc: chosen = 46; break;
-                case HeroType.TollBroad: chosen = 47; break;
-            }
-
-            return chosen;
-        }
-
-        public static HeroType IntToHeroType(int hero)
-        {
-            switch (hero)
-            {
-                case 0: return HeroType.Rambro;
-                case 1: return HeroType.Brommando;
-                case 2: return HeroType.BaBroracus;
-                case 3: return HeroType.BrodellWalker;
-                case 4: return HeroType.BroHard;
-                case 5: return HeroType.McBrover;
-                case 6: return HeroType.Blade;
-                case 7: return HeroType.BroDredd;
-                case 8: return HeroType.Brononymous; // bro in black
-                case 9: return HeroType.SnakeBroSkin;
-                case 10: return HeroType.Brominator;
-                case 11: return HeroType.Brobocop;
-                case 12: return HeroType.IndianaBrones;
-                case 13: return HeroType.AshBrolliams;
-                case 14: return HeroType.Nebro;
-                case 15: return HeroType.BoondockBros;
-                case 16: return HeroType.Brochete;
-                case 17: return HeroType.BronanTheBrobarian;
-                case 18: return HeroType.EllenRipbro;
-                case 19: return HeroType.TimeBroVanDamme;
-                case 20: return HeroType.BroniversalSoldier;
-                case 21: return HeroType.ColJamesBroddock;
-                case 22: return HeroType.CherryBroling;
-                case 23: return HeroType.BroMax;
-                case 24: return HeroType.TheBrode;
-                case 25: return HeroType.DoubleBroSeven;
-                case 26: return HeroType.Predabro;
-                case 27: return HeroType.TheBrocketeer;
-                case 28: return HeroType.BroveHeart;
-                case 29: return HeroType.TheBrofessional;
-                case 30: return HeroType.Broden;
-                case 31: return HeroType.TheBrolander;
-                case 32: return HeroType.DirtyHarry;
-                case 33: return HeroType.TankBro;
-                case 34: return HeroType.BroLee;
-                case 35: return HeroType.BrondleFly;
-                case 36: return HeroType.Xebro;
-                case 37: return HeroType.Desperabro;
-                case 38: return HeroType.Broffy;
-                case 39: return HeroType.BroGummer;
-                case 40: return HeroType.DemolitionBro;
-
-                // extra characters
-                case 41: return HeroType.BroneyRoss;
-                case 42: return HeroType.LeeBroxmas;
-                case 43: return HeroType.BronnarJensen;
-                case 44: return HeroType.HaleTheBro;
-                case 45: return HeroType.TrentBroser;
-                case 46: return HeroType.Broc;
-                case 47: return HeroType.TollBroad;
-            }
-            return HeroType.None;
-        }
-
         public static string HeroTypeToString(HeroType hero)
         {
             switch (hero)
@@ -1034,7 +950,7 @@ namespace Swap_Bros_Mod
                 case HeroType.BroGummer: return "Burt Brommer";
                 case HeroType.DemolitionBro: return "Demolition Bro";
 
-                // extra characters
+                // Expendabros
                 case HeroType.BroneyRoss: return "Broney Ross";
                 case HeroType.LeeBroxmas: return "Lee Broxmas";
                 case HeroType.BronnarJensen: return "Bronnar Jensen";
@@ -1042,6 +958,11 @@ namespace Swap_Bros_Mod
                 case HeroType.TrentBroser: return "Trent Broser";
                 case HeroType.Broc: return "Broctor Death";
                 case HeroType.TollBroad: return "Toll Broad";
+
+                // Unfinished
+                case HeroType.ChevBrolios: return "Chev Brolios";
+                case HeroType.CaseyBroback: return "Casey Broback";
+                case HeroType.ScorpionBro: return "The Scorpion Bro";
             }
             return "";
         }
@@ -1092,7 +1013,7 @@ namespace Swap_Bros_Mod
                 case "Burt Brommer": return HeroType.BroGummer;
                 case "Demolition Bro": return HeroType.DemolitionBro;
                 
-                // extra characters
+                // Expendabros
                 case "Broney Ross": return HeroType.BroneyRoss;
                 case "Lee Broxmas": return HeroType.LeeBroxmas;
                 case "Bronnar Jensen": return HeroType.BronnarJensen;
@@ -1100,6 +1021,11 @@ namespace Swap_Bros_Mod
                 case "Trent Broser": return HeroType.TrentBroser;
                 case "Broctor Death": return HeroType.Broc;
                 case "Toll Broad": return HeroType.TollBroad;
+
+                // Unfinished
+                case "Chev Brolios": return HeroType.ChevBrolios;
+                case "Casey Broback": return HeroType.CaseyBroback;
+                case "The Scorpion Bro": return HeroType.ScorpionBro;
             }
             return HeroType.None;
         }

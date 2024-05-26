@@ -17,6 +17,7 @@ namespace Swap_Bros_Mod
     {
         public bool alwaysChosen = false;
         public bool ignoreCurrentUnlocked = false;
+        public bool includeExpendabros = false;
         public bool includeUnfinishedCharacters = false;
         public bool clickingEnabled = true;
         public bool disableConfirm = true;
