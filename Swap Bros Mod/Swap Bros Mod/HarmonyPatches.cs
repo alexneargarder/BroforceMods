@@ -93,7 +93,7 @@ namespace Swap_Bros_Mod
                                     }
 
                                     // Don't remove bro unless this is a new list
-                                    if (Main.currentBroListUnseen.Contains(previousCharacter))
+                                    if (Main.currentBroListUnseen.Contains(previousCharacter) && Main.currentBroListUnseen.Count() > 1)
                                     {
                                         Main.currentBroListUnseen.Remove(previousCharacter);
                                     }
