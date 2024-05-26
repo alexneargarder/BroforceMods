@@ -14,6 +14,7 @@ using Networking;
 using System.Linq;
 using HarmonyLib;
 using World.LevelEdit.Triggers;
+using Newtonsoft.Json;
 
 namespace Furibrosa
 {
@@ -24,6 +25,7 @@ namespace Furibrosa
         public static KeyBindingForPlayers switchWeaponKey;
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
+        public static bool jsonLoaded = false;
 
         // Primary
         public enum PrimaryState
@@ -44,6 +46,8 @@ namespace Furibrosa
         protected float gunFramerate = 0f;
         protected MeshRenderer holdingArm;
         static protected Projectile flarePrefab;
+        public static bool doubleTapSwitch = true;
+        protected float lastDownPressTime = -1f;
 
         // Melee
         public static List<Unit> grabbedUnits = new List<Unit> { null, null, null, null };
@@ -58,19 +62,16 @@ namespace Furibrosa
                 grabbedUnits[this.playerNum] = value;
             }
         }
+        protected bool unitWasGrabbed = false;
         protected bool throwingMook = false;
+        protected float holdingXOffset = 0f;
+        protected float holdingYOffset = 0f;
 
         // Special
         static protected WarRig warRigPrefab;
         protected WarRig currentWarRig;
         protected bool holdingSpecial = false;
         protected float holdingSpecialTime = 0f;
-
-        // DEBUG
-        public static string offsetXstr = "12";
-        public static float offsetXVal = 12f;
-        public static string offsetYstr = "4.5";
-        public static float offsetYVal = 4.5f;
 
         #region General
         protected override void Awake()
@@ -79,8 +80,36 @@ namespace Furibrosa
             {
                 LoadKeyBinding();
             }
+            LoadJson();
 
             base.Awake();
+        }
+
+        public static void LoadJson()
+        {
+            if (!jsonLoaded)
+            {
+                string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string jsonPath = Path.Combine(directoryPath, "FuribrosaSettings.json");
+
+                if (File.Exists(jsonPath))
+                {
+                    string json = File.ReadAllText(jsonPath);
+                    doubleTapSwitch = JsonConvert.DeserializeObject<bool>(json);
+                }
+
+                jsonLoaded = true;
+            }
+        }
+
+        public static void WriteJson()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string jsonPath = Path.Combine(directoryPath, "FuribrosaSettings.json");
+
+            // Write previouslyDiedInIronBro to json
+            string json = JsonConvert.SerializeObject(doubleTapSwitch, Formatting.Indented);
+            File.WriteAllText(jsonPath, json);
         }
 
         protected override void Start()
@@ -211,7 +240,7 @@ namespace Furibrosa
             }
 
             // Switch Weapon Pressed
-            if ( switchWeaponKey.IsDown(playerNum) )
+            if (switchWeaponKey.IsDown(playerNum))
             {
                 StartSwitchingWeapon();
             }
@@ -222,12 +251,12 @@ namespace Furibrosa
                 // Fix any not currently displayed textures
             }
 
-            if ( this.holdingSpecial )
+            if (this.holdingSpecial)
             {
-                if ( this.special )
+                if (this.special)
                 {
                     this.holdingSpecialTime += this.t;
-                    if ( this.holdingSpecialTime > 0.5f )
+                    if (this.holdingSpecialTime > 0.5f)
                     {
                         this.currentWarRig.keepGoingBeyondTarget = true;
                         this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
@@ -249,8 +278,8 @@ namespace Furibrosa
             {
                 if ( this.grabbedUnit.health > 0 && this.health > 0 )
                 {
-                    this.grabbedUnit.X = base.X + base.transform.localScale.x * offsetXVal;
-                    this.grabbedUnit.Y = base.Y + offsetYVal;
+                    this.grabbedUnit.X = base.X + base.transform.localScale.x * this.holdingXOffset;
+                    this.grabbedUnit.Y = base.Y + this.holdingYOffset;
                     if ( this.currentState == PrimaryState.Crossbow )
                     {
                         this.grabbedUnit.zOffset = -0.95f;
@@ -260,11 +289,20 @@ namespace Furibrosa
                         this.grabbedUnit.zOffset = -2;
                     }
                     this.grabbedUnit.transform.localScale = base.transform.localScale;
+                    this.unitWasGrabbed = true;
                 }
                 else
                 {
                     this.ReleaseUnit(false);
                 }
+            }
+            // Unit was grabbed but no longer exists, switch to normal materials
+            else if ( this.unitWasGrabbed )
+            {
+                this.unitWasGrabbed = false;
+                this.grabbedUnit = null;
+                this.SwitchToNormalMaterials();
+                this.ChangeFrame();
             }
         }
 
@@ -298,9 +336,7 @@ namespace Furibrosa
             switchWeaponKey.OnGUI(out player, true);
             GUILayout.Space(10);
 
-            // DEBUG options
-            makeTextBox("offsetX", ref offsetXstr, ref offsetXVal);
-            makeTextBox("offsetY", ref offsetYstr, ref offsetYVal);
+            doubleTapSwitch = GUILayout.Toggle(doubleTapSwitch, "Double Tap Down to Switch Weapons");
         }
 
         public override void HarmonyPatches(Harmony harmony)
@@ -591,13 +627,26 @@ namespace Furibrosa
             }
             this.SetGunSprite(0, 0);
         }
+
+        protected override void CheckInput()
+        {
+            base.CheckInput();
+            if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
+            {
+                if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
+                {
+                    this.StartSwitchingWeapon();
+                }
+                this.lastDownPressTime = Time.realtimeSinceStartup;
+            }
+        }
         #endregion
 
         #region Melee
         protected override void StartCustomMelee()
         {
             // Throwback mook instead of doing melee
-            if ( this.grabbedUnit != null )
+            if (this.grabbedUnit != null)
             {
                 this.ReleaseUnit(true);
                 return;
@@ -627,9 +676,9 @@ namespace Furibrosa
         protected override void AnimateCustomMelee()
         {
             this.AnimateMeleeCommon();
-            if ( !this.throwingMook )
+            if (!this.throwingMook)
             {
-                base.frameRate = 0.08f;
+                base.frameRate = 0.07f;
             }
             this.sprite.SetLowerLeftPixel((25 + base.frame) * this.spritePixelWidth, 9 * this.spritePixelHeight);
             if (base.frame == 3)
@@ -641,7 +690,31 @@ namespace Furibrosa
             {
                 this.GrabUnit();
             }
-            if (base.frame >= 6)
+
+            if (this.meleeHasHit && this.grabbedUnit != null)
+            {
+                switch (base.frame)
+                {
+                    case 3:
+                        this.holdingXOffset = 5f;
+                        this.holdingYOffset = 1f;
+                        break;
+                    case 4:
+                        this.holdingXOffset = 7f;
+                        this.holdingYOffset = 2f;
+                        break;
+                    case 5:
+                        this.holdingXOffset = 9f;
+                        this.holdingYOffset = 3f;
+                        break;
+                    case 6:
+                        this.holdingXOffset = 11f;
+                        this.holdingYOffset = 4.5f;
+                        break;
+
+                }
+            }
+            if (base.frame >= 7)
             {
                 base.frame = 0;
                 this.CancelMelee();
@@ -684,7 +757,7 @@ namespace Furibrosa
                     }
                     else if (!this.isInQuicksand)
                     {
-                        this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
+                        this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 2f;
                     }
                 }
                 else if (base.frame <= 5)
@@ -705,9 +778,21 @@ namespace Furibrosa
                 this.CancelMelee();
             }
         }
-        
+
+        protected override void CancelMelee()
+        {
+            this.holdingXOffset = 11f;
+            this.holdingYOffset = 4.5f;
+            if (this.grabbedUnit != null)
+            {
+                this.SwitchToHoldingMaterials();
+            }
+            base.CancelMelee();
+        }
+
         protected void ReleaseUnit(bool throwUnit)
         {
+            this.unitWasGrabbed = false;
             this.grabbedUnit.playerNum = -1;
             (this.grabbedUnit as Mook).blindTime = 0;
             if ( throwUnit )
@@ -731,7 +816,7 @@ namespace Furibrosa
             for (int i = Map.units.Count - 1; i >= 0; i--)
             {
                 Unit unit2 = Map.units[i];
-                if (unit2 != null && !unit2.invulnerable && unit2.health > 0 && GameModeController.DoesPlayerNumDamage(playerNum, unit2.playerNum) && !alreadyFoundUnits.Contains(unit2) && !unit2.IsHeavy() )
+                if (unit2 != null && !unit2.invulnerable && unit2.health > 0 && GameModeController.DoesPlayerNumDamage(playerNum, unit2.playerNum) && !alreadyFoundUnits.Contains(unit2) )
                 {
                     float num2 = unit2.Y + unit2.height / 2f + 3f - y;
                     if (Mathf.Abs(num2) - yRange < unit2.height)
@@ -755,14 +840,23 @@ namespace Furibrosa
         protected void GrabUnit()
         {
             Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 6f, base.X, base.Y, new List<Unit>());
-            if ( unit != null)
+            if ( unit != null )
             {
-                this.meleeHasHit = true;
-                this.grabbedUnit = unit;
-                unit.Panic(1000f, true);
-                unit.playerNum = this.playerNum;
-                unit.gameObject.layer = 28;
-                this.SwitchToHoldingMaterials();
+                // Pickup unit if not heavy and not a dog or hell dog
+                if ( !unit.IsHeavy() && !(unit is MookDog || unit is HellDog) )
+                {
+                    this.meleeHasHit = true;
+                    this.grabbedUnit = unit;
+                    unit.Panic(1000f, true);
+                    unit.playerNum = this.playerNum;
+                    unit.gameObject.layer = 28;
+                }
+                // Punch unit
+                else
+                {
+                    this.meleeHasHit = true;
+                    Map.KnockAndDamageUnit(this, unit, 5, DamageType.Knock, 200f, 100f, (int)Mathf.Sign(base.transform.localScale.x), true, base.X, base.Y, false);
+                }
             }
         }
 

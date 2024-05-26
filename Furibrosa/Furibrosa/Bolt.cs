@@ -122,6 +122,7 @@ namespace Furibrosa
             this.platformCollider.material.frictionCombine = PhysicMaterialCombine.Average;
             this.platformCollider.material.bounceCombine = PhysicMaterialCombine.Average;
             this.platformCollider.gameObject.layer = 15;
+            (this.platformCollider as BoxCollider).size = new Vector3(11f, 1f, 1f);
 
             // Setup foreground sprite
             GameObject foreground = this.FindChildOfName("BoltForeground").gameObject;

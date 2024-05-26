@@ -71,5 +71,19 @@ namespace Furibrosa
                 return true;
             }
         }
+
+        [HarmonyPatch(typeof(Mook), "IsOnGround")]
+        static class Mook_IsOnGround_Patch
+        {
+            public static bool Prefix(Mook __instance, ref bool __result)
+            {
+                if (Furibrosa.grabbedUnits.Contains(__instance))
+                {
+                    __result = true;
+                    return false;
+                }
+                return true;
+            }
+        }
     }
 }
