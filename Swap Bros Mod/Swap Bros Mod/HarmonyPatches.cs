@@ -18,164 +18,171 @@ namespace Swap_Bros_Mod
                 if (!Main.enabled)
                     return;
 
-                if (Main.manualSpawn)
+                try
                 {
-                    Main.manualSpawn = false;
-                    return;
-                }
-
-                int curPlayer = __instance.playerNum;
-
-                if (!Main.settings.alwaysChosen)
-                {
-                    if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
+                    if (Main.manualSpawn)
                     {
-                        Main.CreateBroList();
+                        Main.manualSpawn = false;
+                        return;
                     }
 
-                    // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
-                    if (Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode)
+                    int curPlayer = __instance.playerNum;
+
+                    if (!Main.settings.alwaysChosen)
                     {
-                        // Check if map has a forced bro
-                        if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random)
+                        if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
                         {
-                            nextHeroType = Map.MapData.forcedBro;
-
-                            int nextHero = Main.currentBroList.IndexOf(Main.HeroTypeToString(nextHeroType));
-
-                            if ( nextHero == -1 )
-                            {
-                                nextHero = 0;
-                            }
-
-                            if ( Main.settings.enableBromaker )
-                            {
-                                Main.DisableCustomBroSpawning(curPlayer);
-                            }
-
-                            Main.settings.selGridInt[curPlayer] = nextHero;
+                            Main.CreateBroList();
                         }
-                        // Check if map has multiple forced bros
-                        else if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0)
+
+                        // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
+                        if (Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode)
                         {
-                            string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())];
-
-                            nextHeroType = Main.StringToHeroType(nextHeroName);
-
-                            int nextHero = Main.currentBroList.IndexOf(nextHeroName);
-
-                            if (nextHero == -1)
+                            // Check if map has a forced bro
+                            if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random)
                             {
-                                nextHero = 0;
-                            }
+                                nextHeroType = Map.MapData.forcedBro;
 
-                            if ( Main.settings.enableBromaker )
-                            {
-                                Main.DisableCustomBroSpawning(curPlayer);
-                            }
-
-                            Main.settings.selGridInt[curPlayer] = nextHero;
-                        }
-                        else
-                        {
-                            int nextHero = 0;
-
-                            // If we're using vanilla bro selection and there are still bros that we haven't spawned as, prioritize those first
-                            if (Main.settings.useVanillaBroSelection && Main.currentBroListUnseen.Count() > 0)
-                            {
-                                // Check if a previous character exists and ensure we don't spawn as them if possible
-                                string previousCharacter = string.Empty;
-                                if (__instance.character != null)
-                                {
-                                    if (!(Main.settings.enableBromaker && Main.CheckIfCustomBro(__instance.character, ref previousCharacter)))
-                                    {
-                                        previousCharacter = Main.HeroTypeToString(__instance.character.heroType);
-                                    }
-
-                                    // Don't remove bro unless this is a new list
-                                    if (Main.currentBroListUnseen.Contains(previousCharacter) && Main.currentBroListUnseen.Count() > 1)
-                                    {
-                                        Main.currentBroListUnseen.Remove(previousCharacter);
-                                    }
-                                    else
-                                    {
-                                        previousCharacter = string.Empty;
-                                    }
-                                }
-                                nextHero = Main.currentBroList.IndexOf(Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())]);
-                                if (previousCharacter != string.Empty)
-                                {
-                                    Main.currentBroListUnseen.Add(previousCharacter);
-                                }
+                                int nextHero = Main.currentBroList.IndexOf(Main.HeroTypeToString(nextHeroType));
 
                                 if (nextHero == -1)
                                 {
                                     nextHero = 0;
                                 }
-                            }
-                            else
-                            {
-                                nextHero = UnityEngine.Random.Range(0, Main.currentBroList.Count());
-                            }
 
-                            // Check if bro is custom or not
-                            if (Main.IsBroCustom(nextHero))
-                            {
-                                Main.MakeCustomBroSpawn(curPlayer, Main.currentBroList[nextHero]);
-                                nextHeroType = HeroType.Rambro;
-                            }
-                            else
-                            {
                                 if (Main.settings.enableBromaker)
+                                {
                                     Main.DisableCustomBroSpawning(curPlayer);
+                                }
 
-                                nextHeroType = Main.StringToHeroType(Main.currentBroList[nextHero]);
+                                Main.settings.selGridInt[curPlayer] = nextHero;
                             }
+                            // Check if map has multiple forced bros
+                            else if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0)
+                            {
+                                string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())];
 
-                            Main.settings.selGridInt[curPlayer] = nextHero;
+                                nextHeroType = Main.StringToHeroType(nextHeroName);
+
+                                int nextHero = Main.currentBroList.IndexOf(nextHeroName);
+
+                                if (nextHero == -1)
+                                {
+                                    nextHero = 0;
+                                }
+
+                                if (Main.settings.enableBromaker)
+                                {
+                                    Main.DisableCustomBroSpawning(curPlayer);
+                                }
+
+                                Main.settings.selGridInt[curPlayer] = nextHero;
+                            }
+                            else
+                            {
+                                int nextHero = 0;
+
+                                // If we're using vanilla bro selection and there are still bros that we haven't spawned as, prioritize those first
+                                if (Main.settings.useVanillaBroSelection && Main.currentBroListUnseen.Count() > 0)
+                                {
+                                    // Check if a previous character exists and ensure we don't spawn as them if possible
+                                    string previousCharacter = string.Empty;
+                                    if (__instance.character != null)
+                                    {
+                                        if (!(Main.settings.enableBromaker && Main.CheckIfCustomBro(__instance.character, ref previousCharacter)))
+                                        {
+                                            previousCharacter = Main.HeroTypeToString(__instance.character.heroType);
+                                        }
+
+                                        // Don't remove bro unless this is a new list
+                                        if (Main.currentBroListUnseen.Contains(previousCharacter) && Main.currentBroListUnseen.Count() > 1)
+                                        {
+                                            Main.currentBroListUnseen.Remove(previousCharacter);
+                                        }
+                                        else
+                                        {
+                                            previousCharacter = string.Empty;
+                                        }
+                                    }
+                                    nextHero = Main.currentBroList.IndexOf(Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())]);
+                                    if (previousCharacter != string.Empty)
+                                    {
+                                        Main.currentBroListUnseen.Add(previousCharacter);
+                                    }
+
+                                    if (nextHero == -1)
+                                    {
+                                        nextHero = 0;
+                                    }
+                                }
+                                else
+                                {
+                                    nextHero = UnityEngine.Random.Range(0, Main.currentBroList.Count());
+                                }
+
+                                // Check if bro is custom or not
+                                if (Main.IsBroCustom(nextHero))
+                                {
+                                    Main.MakeCustomBroSpawn(curPlayer, Main.currentBroList[nextHero]);
+                                    nextHeroType = HeroType.Rambro;
+                                }
+                                else
+                                {
+                                    if (Main.settings.enableBromaker)
+                                        Main.DisableCustomBroSpawning(curPlayer);
+
+                                    nextHeroType = Main.StringToHeroType(Main.currentBroList[nextHero]);
+                                }
+
+                                Main.settings.selGridInt[curPlayer] = nextHero;
+                            }
+                        }
+                        else
+                        {
+                            Main.SetSelectedBro(__instance.playerNum, nextHeroType);
+                        }
+                        return;
+                    }
+
+                    // If we're in IronBro and don't want to force spawn a bro we haven't unlocked
+                    if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
+                    {
+                        // Make sure list of available hardcore bros is up-to-date
+                        Main.CreateBroList();
+                        // If Bromaker is enabled and selected character is custom
+                        if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
+                        {
+                            Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
+                            // Ensure we don't spawn boondock bros because one gets left over
+                            nextHeroType = HeroType.Rambro;
+                        }
+                        else
+                        {
+                            if (Main.settings.enableBromaker)
+                                Main.DisableCustomBroSpawning(curPlayer);
+                            nextHeroType = Main.GetSelectedBroHeroType(curPlayer);
                         }
                     }
-                    else
-                    {
-                        Main.SetSelectedBro(__instance.playerNum, nextHeroType);
-                    }
-                    return;
-                }
-
-                // If we're in IronBro and don't want to force spawn a bro we haven't unlocked
-                if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
-                {
-                    // Make sure list of available hardcore bros is up-to-date
-                    Main.CreateBroList();
-                    // If Bromaker is enabled and selected character is custom
-                    if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
+                    // If bro spawning is a custom bro
+                    else if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
                     {
                         Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
                         // Ensure we don't spawn boondock bros because one gets left over
                         nextHeroType = HeroType.Rambro;
                     }
+                    // If we're just spawning a normal character
                     else
                     {
                         if (Main.settings.enableBromaker)
                             Main.DisableCustomBroSpawning(curPlayer);
                         nextHeroType = Main.GetSelectedBroHeroType(curPlayer);
                     }
-                }
-                // If bro spawning is a custom bro
-                else if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]) )
-                {
-                    Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
-                    // Ensure we don't spawn boondock bros because one gets left over
-                    nextHeroType = HeroType.Rambro;
-                }
-                // If we're just spawning a normal character
-                else
-                {
-                    if (Main.settings.enableBromaker)
-                        Main.DisableCustomBroSpawning(curPlayer);
-                    nextHeroType = Main.GetSelectedBroHeroType(curPlayer);
-                }
 
+                }
+                catch (Exception ex)
+                {
+                    Main.Log("Exception occurred while spawning bro: " + ex.ToString());
+                }
             }
             static void Postfix(Player __instance, ref HeroType nextHeroType)
             {
