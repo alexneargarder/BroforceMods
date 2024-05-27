@@ -30,6 +30,13 @@ namespace Furibrosa
         public Material originalSpecialSprite;
         public Material specialSprite;
         protected PlayerHUD hud;
+        public const int maxDamageBeforeExploding = 50;
+        protected int deathCount = 0;
+        protected float smokeCounter = 0f;
+        protected float deathCountdownCounter = 0f;
+        protected float deathCountdown = 0f;
+        protected int deathCountdownExplodeThreshold = 20;
+
 
         // Movement variables
         protected int crushingGroundLayers;
@@ -75,7 +82,6 @@ namespace Furibrosa
             this.gunSprite = mookArmouredGuy.gunSprite;
             this.soundHolder = mookArmouredGuy.soundHolder;
             this.soundHolderFootSteps = mookArmouredGuy.soundHolderFootSteps;
-            this.gibs = mookArmouredGuy.gibs;
             this.player1Bubble = mookArmouredGuy.player1Bubble;
             this.player2Bubble = mookArmouredGuy.player2Bubble;
             this.player3Bubble = mookArmouredGuy.player3Bubble;
@@ -117,6 +123,9 @@ namespace Furibrosa
             this.originalSpecialSprite = ResourcesController.GetMaterial(directoryPath, "special.png");
             this.specialSprite = ResourcesController.GetMaterial(directoryPath, "vehicleSpecial.png");
 
+            // Clear blood shrapnel
+            this.blood = new Shrapnel[] { };
+
             this.gameObject.SetActive(false);
         }
 
@@ -155,6 +164,10 @@ namespace Furibrosa
             this.canDuck = false;
             this.canLedgeGrapple = false;
             this.jumpForce = 360;
+            // Setup gibs
+            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
+            this.gibs.gameObject.SetActive(false);
+            BroMakerUtilities.CreateGibPrefab("Wheel", new Vector2(133, 62), new Vector2(16, 14), 8f, 8f, new Vector3(0f, 0f, 0f), new Vector3(0f, 10f, 0f), false, DoodadGibsType.Metal, 6, false).transform.parent = this.gibs.transform;
             // Default to playerNum 0 so that the vehicle doesn't kill the player before they start riding it
             this.playerNum = 0;
             this.DeactivateGun();
@@ -261,6 +274,42 @@ namespace Furibrosa
                     this.xI = this.speed * 2f;
                 }
             }
+
+            if (this.health > 0 && this.deathCount >= 2)
+            {
+                this.smokeCounter += this.t;
+                if (this.smokeCounter >= 0.1334f)
+                {
+                    this.smokeCounter -= 0.1334f;
+                    EffectsController.CreateBlackPlumeParticle(base.X - 8f + UnityEngine.Random.value * 16f, base.Y + 11f + UnityEngine.Random.value * 2f, 3f, 20f, 0f, 60f, 2f, 1f);
+                    EffectsController.CreateSparkShower(base.X - 6f + UnityEngine.Random.value * 12f, base.Y + 11f + UnityEngine.Random.value * 4f, 1, 2f, 100f, this.xI - 20f + UnityEngine.Random.value * 40f, 100f, 0.5f, 1f);
+                }
+            }
+            if (this.deathCount > 2)
+            {
+                this.deathCountdownCounter += this.t * (1f + Mathf.Clamp(this.deathCountdown / (float)this.deathCountdownExplodeThreshold * 4f, 0f, 4f));
+                if (this.deathCountdownCounter >= 0.4667f)
+                {
+                    this.deathCountdownCounter -= 0.2667f;
+                    this.deathCountdown += 1f;
+                    EffectsController.CreateBlackPlumeParticle(base.X - 8f + UnityEngine.Random.value * 16f, base.Y + 4f + UnityEngine.Random.value * 2f, 3f, 20f, 0f, 60f, 2f, 1f);
+                    if (this.deathCountdown % 2f == 1f)
+                    {
+                        this.SetHurtMaterial();
+                        float num = this.deathCountdown / (float)this.deathCountdownExplodeThreshold * 1f;
+                        this.PlaySpecial3Sound(0.2f + 0.2f * num, 0.8f + 2f * num);
+                    }
+                    else
+                    {
+                        this.SetUnhurtMaterial();
+                    }
+                    if (this.deathCountdown >= (float)this.deathCountdownExplodeThreshold)
+                    {
+                        this.SetUnhurtMaterial();
+                        this.Gib(DamageType.OutOfBounds, this.xI, this.yI + 150f);
+                    }
+                }
+            }
         }
 
         protected override void LateUpdate()
@@ -285,6 +334,11 @@ namespace Furibrosa
         }
         public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
         {
+            if (this.sprint && damageType != DamageType.SelfEsteem)
+            {
+                damage = 0;
+            }
+
             if (damageType == DamageType.Acid)
             {
                 damageType = DamageType.Fire;
@@ -297,11 +351,7 @@ namespace Furibrosa
             {
                 this.shieldDamage += damage;
             }
-            if ((damageType == DamageType.Crush || base.actionState == ActionState.Panicking || this.fireAmount > 35 || this.shieldDamage > 60) && this.health > 0)
-            {
-                base.Damage(damage, damageType, xI, yI, direction, damageSender, hitX, hitY);
-            }
-            else if (this.health <= 0)
+            if (this.health <= 0)
             {
                 this.knockCount++;
                 if (this.knockCount % 4 == 0 || (this.alwaysKnockOnExplosions && damageType == DamageType.Explosion))
@@ -322,6 +372,20 @@ namespace Furibrosa
             if (damageType == DamageType.SelfEsteem && damage >= this.health && this.health > 0)
             {
                 this.Death(0f, 0f, new DamageObject(damage, damageType, 0f, 0f, base.X, base.Y, this));
+            }
+
+            if (this.shieldDamage + this.fireAmount > maxDamageBeforeExploding && this.pilotUnit != null)
+            {
+                if (damageType == DamageType.Crush && this.shieldDamage > 50)
+                {
+                    this.DisChargePilot(150f, false, null);
+                    this.Gib(DamageType.OutOfBounds, xI, yI + 150f);
+                }
+                else
+                {
+                    this.deathCount = 9001;
+                    this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                }
             }
         }
 
@@ -344,6 +408,18 @@ namespace Furibrosa
             {
                 base.Knock(damageType, xI, yI, forceTumble);
             }
+        }
+
+        // Set materials to default colors
+        protected virtual void SetUnhurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.gray);
+        }
+
+        // Set materials to red tint
+        protected virtual void SetHurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.red);
         }
 
         public override bool CanPilotUnit(int newPlayerNum)
@@ -462,6 +538,25 @@ namespace Furibrosa
 
         protected override void Gib(DamageType damageType, float xI, float yI)
         {
+            if (this.deathCount > 9000)
+            {
+                EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+                MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
+                SortOfFollow.Shake(1f, 2f);
+            }
+            else
+            {
+                EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
+                EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
+                Map.ExplodeUnits(this, 20, DamageType.Explosion, 48f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+            }
+            base.Gib(damageType, xI, yI);
+            if (this.pilotUnit)
+            {
+                this.DisChargePilot(180f, false, null);
+            }
         }
 
         public override bool CanBeThrown()

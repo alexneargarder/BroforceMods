@@ -73,6 +73,10 @@ namespace Furibrosa
         protected bool holdingSpecial = false;
         protected float holdingSpecialTime = 0f;
 
+        // Debug
+        public static Furibrosa currentChar;
+        public Gib lastGib;
+
         #region General
         protected override void Awake()
         {
@@ -212,10 +216,14 @@ namespace Furibrosa
                     }
                     UnityEngine.Object.DontDestroyOnLoad(warRigPrefab);
                 }
-            } catch( Exception ex )
+            } 
+            catch( Exception ex )
             {
                 BMLogger.Log("Exception creating WarRig: " + ex.ToString());
             }
+
+            // Debug
+            currentChar = this;
         }
 
         protected override void Update()
@@ -248,7 +256,13 @@ namespace Furibrosa
             // Check if invulnerability ran out
             if (this.wasInvulnerable && !this.invulnerable)
             {
-                // Fix any not currently displayed textures
+                // Fix any not currently displayed textures\
+                base.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
+                this.crossbowNormalMat.SetColor("_TintColor", Color.gray);
+                this.crossbowHoldingMat.SetColor("_TintColor", Color.gray);
+                this.flareGunNormalMat.SetColor("_TintColor", Color.gray);
+                this.flareGunHoldingMat.SetColor("_TintColor", Color.gray);
+                this.holdingArm.material.SetColor("_TintColor", Color.gray);
             }
 
             if (this.holdingSpecial)
@@ -336,7 +350,33 @@ namespace Furibrosa
             switchWeaponKey.OnGUI(out player, true);
             GUILayout.Space(10);
 
-            doubleTapSwitch = GUILayout.Toggle(doubleTapSwitch, "Double Tap Down to Switch Weapons");
+            if ( doubleTapSwitch != (doubleTapSwitch = GUILayout.Toggle(doubleTapSwitch, "Double Tap Down to Switch Weapons")) )
+            {
+                // Settings changed, update json
+                WriteJson();
+            }
+
+            // DEBUG
+            if ( GUILayout.Button("create gibs") )
+            {
+                if (currentChar.currentWarRig != null )
+                {
+                    Gib gibPrefab = currentChar.currentWarRig.gibs.transform.GetChild(0).GetComponent<Gib>();
+                    try
+                    {
+                        Gib gib = EffectsController.InstantiateEffect(gibPrefab) as Gib;
+                        gib.GetComponent<Renderer>().sharedMaterial = currentChar.currentWarRig.GetComponent<MeshRenderer>().material;
+                        gib.SetupSprite(gibPrefab.doesRotate, gibPrefab.GetLowerLeftPixel(), gibPrefab.GetPixelDimensions(), gibPrefab.GetSpriteOffset(), gibPrefab.rotateFrames);
+                        float xI2 = gibPrefab.transform.localPosition.x * (float)1 / 16f * 1 + xI;
+                        gib.Launch(currentChar.currentWarRig.X + gibPrefab.transform.localPosition.x * (float)1, currentChar.currentWarRig.Y + gibPrefab.transform.localPosition.y + 50f, xI2, gibPrefab.transform.localPosition.y / 16f * 1 + yI);
+                        currentChar.lastGib = gib;
+                    }
+                    catch (Exception ex)
+                    {
+                        BMLogger.Log("failed launching gib: " + ex.ToString());
+                    }
+                }
+            }
         }
 
         public override void HarmonyPatches(Harmony harmony)
@@ -643,6 +683,16 @@ namespace Furibrosa
         #endregion
 
         #region Melee
+        protected override void SetMeleeType()
+        {
+            base.SetMeleeType();
+            // Set dashing melee to true if we're jumping and dashing so that we can transition to dashing on landing
+            if (this.jumpingMelee && (this.right || this.left))
+            {
+                this.dashingMelee = true;
+            }
+        }
+
         protected override void StartCustomMelee()
         {
             // Throwback mook instead of doing melee
@@ -670,7 +720,10 @@ namespace Furibrosa
 
             this.throwingMook = (this.nearbyMook != null && this.nearbyMook.CanBeThrown());
 
-            this.StartMeleeCommon();
+            if ( !this.doingMelee )
+            {
+                this.StartMeleeCommon();
+            }
         }
 
         protected override void AnimateCustomMelee()
@@ -711,9 +764,15 @@ namespace Furibrosa
                         this.holdingXOffset = 11f;
                         this.holdingYOffset = 4.5f;
                         break;
-
                 }
             }
+            // Cancel melee early when punching
+            else if (base.frame == 5)
+            {
+                base.frame = 0;
+                this.CancelMelee();
+            }
+
             if (base.frame >= 7)
             {
                 base.frame = 0;
@@ -723,14 +782,7 @@ namespace Furibrosa
 
         protected override void RunCustomMeleeMovement()
         {
-            if (!this.useNewKnifingFrames)
-            {
-                if (base.Y > this.groundHeight + 1f)
-                {
-                    this.ApplyFallingGravity();
-                }
-            }
-            else if (this.jumpingMelee)
+            if (this.jumpingMelee)
             {
                 this.ApplyFallingGravity();
                 if (this.yI < this.maxFallSpeed)
@@ -790,6 +842,24 @@ namespace Furibrosa
             base.CancelMelee();
         }
 
+        public override void Death(float xI, float yI, DamageObject damage)
+        {
+            if ( this.grabbedUnit != null )
+            {
+                this.ReleaseUnit(false);
+            }
+            base.Death(xI, yI, damage);
+        }
+
+        protected override void OnDestroy()
+        {
+            if (this.grabbedUnit != null)
+            {
+                this.ReleaseUnit(false);
+            }
+            base.OnDestroy();
+        }
+
         protected void ReleaseUnit(bool throwUnit)
         {
             this.unitWasGrabbed = false;
@@ -839,11 +909,14 @@ namespace Furibrosa
 
         protected void GrabUnit()
         {
-            Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 6f, base.X, base.Y, new List<Unit>());
+            bool flag;
+            Map.DamageDoodads(3, DamageType.Knock, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
+            this.KickDoors(24f);
+            Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 12f, base.X, base.Y + base.height / 2f, new List<Unit>());
             if ( unit != null )
             {
-                // Pickup unit if not heavy and not a dog or hell dog
-                if ( !unit.IsHeavy() && !(unit is MookDog || unit is HellDog) )
+                // Pickup unit if not heavy and not a dog
+                if ( !unit.IsHeavy() && !(unit is MookDog || (unit is AlienMosquito && !(unit is HellLostSoul))) )
                 {
                     this.meleeHasHit = true;
                     this.grabbedUnit = unit;
@@ -856,7 +929,14 @@ namespace Furibrosa
                 {
                     this.meleeHasHit = true;
                     Map.KnockAndDamageUnit(this, unit, 5, DamageType.Knock, 200f, 100f, (int)Mathf.Sign(base.transform.localScale.x), true, base.X, base.Y, false);
+                    this.sound.PlaySoundEffectAt(this.soundHolder.alternateMeleeHitSound, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+                    EffectsController.CreateProjectilePopWhiteEffect(base.X + (this.width + 4f) * base.transform.localScale.x, base.Y + this.height + 4f);
                 }
+            }
+            // Try hit terrain
+            else
+            {
+               this.meleeHasHit = this.TryMeleeTerrain(0, 4);
             }
         }
 
@@ -887,6 +967,22 @@ namespace Furibrosa
             else if (this.currentState == PrimaryState.FlareGun)
             {
                 this.gunSprite.meshRender.material = this.flareGunMat;
+            }
+        }
+
+        public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
+        {
+            // Check if we're holding a unit as a shield and facing the explosion
+            if ( (damageType == DamageType.Explosion || damageType == DamageType.Fire || damageType == DamageType.Acid) && this.grabbedUnit != null && direction != base.transform.localScale.x )
+            {
+                Unit previousUnit = this.grabbedUnit;
+                this.ReleaseUnit(false);
+                previousUnit.Damage(damage * 2, damageType, xI, yI, direction, damageSender, hitX, hitY);
+                this.Knock(damageType, xI, yI, false);
+            }
+            else
+            {
+                base.Damage(damage, damageType, xI, yI, direction, damageSender, hitX, hitY);
             }
         }
         #endregion
