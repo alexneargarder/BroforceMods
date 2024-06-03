@@ -11,12 +11,14 @@ using System.IO;
 using System.Reflection;
 using BroMakerLib.Loggers;
 using RocketLib.Collections;
+using static Furibrosa.Furibrosa;
 
 namespace Furibrosa
 {
     public class WarRig : Mook
     {
         // General Variables
+        string directoryPath;
         public Unit pilotUnit = null;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
@@ -37,8 +39,9 @@ namespace Furibrosa
         protected float deathCountdown = 0f;
         protected int deathCountdownExplodeThreshold = 20;
 
-
         // Movement variables
+        protected float wheelsCounter = 0f;
+        protected int wheelsFrame = 0;
         protected int crushingGroundLayers;
         protected float fallDamageHurtSpeed = -450;
         protected float fallDamageHurtSpeedHero = -550;
@@ -54,13 +57,24 @@ namespace Furibrosa
         protected float distanceToBack;
         public BoxCollider platform;
         protected int crushDamage = 5;
-        protected float crushXRange = 40f;
+        protected float crushXRange = 30f;
         protected float crushYRange = 50f;
         protected float crushXOffset = 53f;
         protected float crushYOffset = 30f;
         protected float unitXRange = 50f;
         protected float unitYRange = 20f;
         protected float crushDamageCooldown = 0f;
+
+        // Primary Variables
+        PrimaryState currentState = PrimaryState.Crossbow;
+        PrimaryState nextState;
+
+        // Sprite Variables
+        public Material crossbowMat, flareGunMat;
+        public SpriteSM wheelsSprite, bumperSprite, longSmokestacksSprite, shortSmokestacksSprite;
+        protected float smokestackCooldown = 0f;
+        protected float smokestackCounter = 0f;
+        protected int smokestackFrame = 0;
 
         // Startup Variables
         protected bool reachedStartingPoint = false;
@@ -69,8 +83,30 @@ namespace Furibrosa
         public float secondTargetX = 0f;
 
         #region General
+        public SpriteSM LoadSprite(GameObject gameObject, string spritePath, Vector3 offset)
+        {
+            MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
+
+            //Material material = ResourcesController.GetMaterial(directoryPath, spritePath);
+            Material material = ResourcesController.CreateMaterial(Path.Combine(directoryPath, spritePath), ResourcesController.Particle_AlphaBlend);
+            renderer.material = material;
+
+            SpriteSM sprite = gameObject.GetComponent<SpriteSM>();
+            sprite.lowerLeftPixel = new Vector2(0, 64);
+            sprite.pixelDimensions = new Vector2(128, 64);
+            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            sprite.width = 128;
+            sprite.height = 64;
+            sprite.offset = offset;
+
+            gameObject.layer = 19;
+
+            return sprite;
+        }
+
         public void Setup()
         {
+            directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             this.gameObject.name = "WarRig";
             UnityEngine.Object.Destroy(this.gameObject.FindChildOfName("ZMook"));
             UnityEngine.Object.Destroy(this.GetComponent<BigGuyAI>());
@@ -102,22 +138,34 @@ namespace Furibrosa
 
             UnityEngine.Object.Destroy(mookArmouredGuy);
 
-            // Load sprite
-            MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            // Load all sprites
+            // Ensure main sprite is behind all other sprites
+            LoadSprite(this.gameObject, "vehicleSprite.png", new Vector3(0f, 31f, 0.2f));
 
-            Material material = ResourcesController.GetMaterial(directoryPath, "vehicleSprite.png");
-            renderer.material = material;
+            this.crossbowMat = ResourcesController.GetMaterial(directoryPath, "vehicleCrossbow.png");
+            this.flareGunMat = ResourcesController.GetMaterial(directoryPath, "vehicleFlareGun.png");
+            LoadSprite(this.gunSprite.gameObject, "vehicleCrossbow.png", new Vector3(0f, 31f, 0.1f));
 
-            this.sprite = this.gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2(0, 64);
-            sprite.pixelDimensions = new Vector2(128, 64);
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 128;
-            sprite.height = 64;
+            GameObject wheelsObject = new GameObject("WarRigWheels", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            wheelsObject.transform.parent = this.transform;
+            this.wheelsSprite = LoadSprite(wheelsObject, "vehicleWheels.png", new Vector3(0f, 31f, 0.1f));
+
+            GameObject bumperObject = new GameObject("WarRigBumper", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM)} );
+            bumperObject.transform.parent = this.transform;
+            this.bumperSprite = LoadSprite(bumperObject, "vehicleBumper.png", new Vector3(0f, 31f, 0.1f));
+
+            GameObject longSmokestacksObject = new GameObject("WarRigLongSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            longSmokestacksObject.transform.parent = this.transform;
+            this.longSmokestacksSprite = LoadSprite(longSmokestacksObject, "vehicleLongSmokestacks.png", new Vector3(0f, 56f, 0.1f));
+            this.longSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
+
+            GameObject shortSmokestacksObject = new GameObject("WarRigShortSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            shortSmokestacksObject.transform.parent = this.transform;
+            this.shortSmokestacksSprite = LoadSprite(shortSmokestacksObject, "vehicleShortSmokestacks.png", new Vector3(0f, 56f, 0.1f));
+            this.shortSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
+
             this.spritePixelWidth = 128;
             this.spritePixelHeight = 64;
-            sprite.offset = new Vector3(0f, 31f, 0f);
 
             // Load special icon sprite
             this.originalSpecialSprite = ResourcesController.GetMaterial(directoryPath, "special.png");
@@ -204,15 +252,17 @@ namespace Furibrosa
                 this.pilotSwitch = SwitchesController.CreatePilotMookSwitch(this, new Vector3(0f, 40f, 0f));
             }
 
+            // Crush ground when moving towards player who summoned this vehicle
             if ( !this.reachedStartingPoint || this.keepGoingBeyondTarget )
             {
                 this.right = true;
                 this.CrushGroundWhileMoving(50, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
                 this.right = false;
             }
+            // Crush ground while moving forward
             else if ( crushDamageCooldown <= 0f )
             {
-                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * (crushDamage + (this.xI > 150f ? 5f : 0f))), 1f), 25, crushXRange + (this.xI > 150f ? 10f : 0f), crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * (crushDamage + (this.xI > 150f ? 5f : 0f))), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
                 {
                     if ( Mathf.Abs(xI) < 150f )
                     {
@@ -225,6 +275,7 @@ namespace Furibrosa
                 crushDamageCooldown -= this.t;
             }
 
+            // Reduce fuel when dashing
             if ( this.dashing )
             {
                 this.boostFuel -= this.t * 0.2f;
@@ -237,6 +288,7 @@ namespace Furibrosa
                 }
             }
 
+            // Move towards wherever player was when they summoned the war rig
             if ( !this.reachedStartingPoint )
             {
                 if ( Tools.FastAbsWithinRange(this.X - this.targetX, 5) )
@@ -275,6 +327,7 @@ namespace Furibrosa
                 }
             }
 
+            // Handle spawning smoke and flashing red when close to death
             if (this.health > 0 && this.deathCount >= 2)
             {
                 this.smokeCounter += this.t;
@@ -310,6 +363,9 @@ namespace Furibrosa
                     }
                 }
             }
+
+            // Run animation loops for all other sprites
+            AnimateWarRig();
         }
 
         protected override void LateUpdate()
@@ -319,243 +375,6 @@ namespace Furibrosa
             if ( this.pilotUnit != null )
             {
                 this.UpdateSpecialIcon();
-            }
-        }
-
-        protected virtual void ResetDamageAmounts()
-        {
-            this.health = this.maxHealth;
-            if (!this.hasResetDamage)
-            {
-                this.hasResetDamage = true;
-                this.burnDamage = 0;
-                this.shieldDamage = 0;
-            }
-        }
-        public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
-        {
-            if (this.sprint && damageType != DamageType.SelfEsteem)
-            {
-                damage = 0;
-            }
-
-            if (damageType == DamageType.Acid)
-            {
-                damageType = DamageType.Fire;
-            }
-            if (damageType == DamageType.Fire)
-            {
-                this.fireAmount += damage;
-            }
-            else if (damageType != DamageType.SelfEsteem)
-            {
-                this.shieldDamage += damage;
-            }
-            if (this.health <= 0)
-            {
-                this.knockCount++;
-                if (this.knockCount % 4 == 0 || (this.alwaysKnockOnExplosions && damageType == DamageType.Explosion))
-                {
-                    yI = Mathf.Min(yI + 20f, 20f);
-                    base.Y += 2f;
-                    this.Knock(damageType, xI, 0f, false);
-                }
-                else
-                {
-                    this.Knock(damageType, xI, 0f, false);
-                }
-            }
-            else if (damageType != DamageType.SelfEsteem)
-            {
-                this.PlayDefendSound();
-            }
-            if (damageType == DamageType.SelfEsteem && damage >= this.health && this.health > 0)
-            {
-                this.Death(0f, 0f, new DamageObject(damage, damageType, 0f, 0f, base.X, base.Y, this));
-            }
-
-            if (this.shieldDamage + this.fireAmount > maxDamageBeforeExploding && this.pilotUnit != null)
-            {
-                if (damageType == DamageType.Crush && this.shieldDamage > 50)
-                {
-                    this.DisChargePilot(150f, false, null);
-                    this.Gib(DamageType.OutOfBounds, xI, yI + 150f);
-                }
-                else
-                {
-                    this.deathCount = 9001;
-                    this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
-                }
-            }
-        }
-
-        protected virtual void PlayDefendSound()
-        {
-            Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.defendSounds, 0.7f + UnityEngine.Random.value * 0.4f, base.transform.position, 0.8f + 0.34f * UnityEngine.Random.value, true, false, false, 0f);
-        }
-
-        public override void Knock(DamageType damageType, float xI, float yI, bool forceTumble)
-        {
-            if (this.health > 0)
-            {
-                this.knockCount++;
-                if (this.knockCount % 8 == 0 || (this.alwaysKnockOnExplosions && damageType == DamageType.Explosion))
-                {
-                    this.KnockSimple(new DamageObject(0, DamageType.Bullet, xI * 0.5f, yI * 0.3f, base.X, base.Y, null));
-                }
-            }
-            else
-            {
-                base.Knock(damageType, xI, yI, forceTumble);
-            }
-        }
-
-        // Set materials to default colors
-        protected virtual void SetUnhurtMaterial()
-        {
-            this.sprite.meshRender.material.SetColor("_TintColor", Color.gray);
-        }
-
-        // Set materials to red tint
-        protected virtual void SetHurtMaterial()
-        {
-            this.sprite.meshRender.material.SetColor("_TintColor", Color.red);
-        }
-
-        public override bool CanPilotUnit(int newPlayerNum)
-        {
-            return (this.health <= 0 || this.pilotUnit != null) && HeroController.players[playerNum].character is Furibrosa;
-        }
-
-        public override void PilotUnitRPC(Unit newPilotUnit)
-        {
-            if ( !this.fixedBubbles )
-            {
-                FixPlayerBubble(this.player1Bubble);
-                FixPlayerBubble(this.player2Bubble);
-                FixPlayerBubble(this.player3Bubble);
-                FixPlayerBubble(this.player4Bubble);
-                this.fixedBubbles = true;
-            }
-            this.pilotUnitDelay = 0.2f;
-            if (this.pilotUnit != null && this.pilotUnit != newPilotUnit)
-            {
-                this.DisChargePilot(150f, true, newPilotUnit);
-            }
-            this.ActuallyPilot(newPilotUnit);
-        }
-
-        protected virtual void ActuallyPilot(Unit PilotUnit)
-        {
-            if (base.IsFrozen)
-            {
-                base.UnFreeze();
-            }
-            this.keepGoingBeyondTarget = false;
-            this.reachedStartingPoint = true;
-            this.groundFriction = originalGroundFriction;
-            this.pilotUnit = PilotUnit;
-            base.playerNum = this.pilotUnit.playerNum;
-            this.health = this.maxHealth;
-            this.deathNotificationSent = false;
-            this.isHero = true;
-            this.firingPlayerNum = PilotUnit.playerNum;
-            this.pilotUnit.StartPilotingUnit(this);
-            if (this.pilotSwitch != null)
-            {
-            }
-            this.RestartBubble();
-            this.blindTime = 0f;
-            this.stunTime = 0f;
-            this.burnTime = 0f;
-            this.ResetDamageAmounts();
-            base.GetComponent<Collider>().enabled = true;
-            base.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
-            base.SetOwner(PilotUnit.Owner);
-            this.originalSpecialAmmo = 2;
-            this.SpecialAmmo = 2;
-            this.hud = HeroController.players[PilotUnit.playerNum].hud;
-            BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(50f, 0f), 10f);
-            this.UpdateSpecialIcon();
-        }
-
-        protected virtual void DisChargePilot(float disChargeYI, bool stunPilot, Unit dischargedBy)
-        {
-            DisChargePilotRPC(disChargeYI, stunPilot, dischargedBy);
-        }
-
-        protected virtual void DisChargePilotRPC(float disChargeYI, bool stunPilot, Unit dischargedBy)
-        {
-            if (this.pilotUnit != dischargedBy)
-            {
-                this.pilotUnit.GetComponent<Renderer>().enabled = true;
-                this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
-                base.StopPlayerBubbles();
-                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(0f, 0f), 0f);
-                this.pilotUnit = null;
-                this.isHero = false;
-                this.fire = false;
-                this.hasBeenPiloted = true;
-                this.DeactivateGun();
-                if (this.health > 0)
-                {
-                    this.Damage(this.health + 1, DamageType.SelfEsteem, 0f, 0f, 0, this, base.X, base.Y);
-                }
-                base.SetSyncingInternal(false);
-            }
-        }
-
-        protected override void PressHighFiveMelee(bool forceHighFive = false)
-        {
-            if (this.pilotUnitDelay <= 0f && this.pilotUnit && this.pilotUnit.IsMine)
-            {
-                this.DisChargePilot(130f, false, null);
-            }
-        }
-
-        public override void Death(float xI, float yI, DamageObject damage)
-        {
-            if (damage == null || damage.damageType != DamageType.SelfEsteem)
-            {
-            }
-            if (base.GetComponent<Collider>() != null)
-            {
-                base.GetComponent<Collider>().enabled = false;
-            }
-            if (this.enemyAI != null)
-            {
-                this.enemyAI.HideSpeachBubbles();
-                this.OnlyDestroyScriptOnSync = true;
-                UnityEngine.Object.Destroy(this.enemyAI);
-            }
-            this.DeactivateGun();
-            base.Death(xI, yI, damage);
-            if (this.pilotUnit)
-            {
-                this.DisChargePilot(150f, false, null);
-            }
-        }
-
-        protected override void Gib(DamageType damageType, float xI, float yI)
-        {
-            if (this.deathCount > 9000)
-            {
-                EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
-                Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
-                MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
-                SortOfFollow.Shake(1f, 2f);
-            }
-            else
-            {
-                EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
-                EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
-                MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
-                Map.ExplodeUnits(this, 20, DamageType.Explosion, 48f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
-            }
-            base.Gib(damageType, xI, yI);
-            if (this.pilotUnit)
-            {
-                this.DisChargePilot(180f, false, null);
             }
         }
 
@@ -597,20 +416,80 @@ namespace Furibrosa
         #region Animation
         protected override void ChangeFrame()
         {
-            // Animate moving
-            if ( Mathf.Abs(this.xI) > 5f )
+            // Animate furiosa in vehicle
+            if ( this.pilotUnit != null )
             {
-                AnimateRunning();
+                this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
             }
+            // Animate empty vehicle
             else
             {
                 this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
             }
         }
 
+        protected void AnimateWarRig()
+        {
+            // Animate wheels
+            float currentSpeed = Mathf.Abs(this.xI);
+            if (currentSpeed > 1f)
+            {
+                this.wheelsCounter += (currentSpeed * this.t / 66f) * 0.175f * 1.25f;
+                if (this.wheelsCounter > 0.03f)
+                {
+                    this.wheelsCounter -= 0.03f;
+                    ++this.wheelsFrame;
+
+                    if (this.wheelsFrame > 6)
+                    {
+                        this.wheelsFrame = 0;
+                    }
+                }
+            }
+            AnimateRunning();
+
+            if (this.smokestackFrame == 0 && currentSpeed > 50f)
+            {
+                if ( this.smokestackCooldown > 0f )
+                {
+                    this.smokestackCooldown -= (currentSpeed > 100f ? 2 : 1) * this.t;
+                }
+                
+                if ( this.smokestackCooldown <= 0f )
+                {
+                    // Start smoke puff
+                    this.smokestackCooldown = UnityEngine.Random.Range(0.5f, 1.5f);
+                    this.smokestackFrame = 1;
+                    this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                    this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                }
+            }
+            else if ( this.smokestackFrame > 0 )
+            {
+                this.smokestackCounter += this.t;
+                if (this.smokestackCounter > 0.08f)
+                {
+                    this.smokestackCounter -= 0.08f;
+                    ++this.smokestackFrame;
+
+                    if (this.smokestackFrame > 7)
+                    {
+                        this.smokestackFrame = 0;
+                    }
+                    this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                    this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                }
+            }
+            else
+            {
+                this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+            }
+        }
+
         protected override void AnimateRunning()
         {
-            this.sprite.SetLowerLeftPixel(1 * this.spritePixelWidth, this.spritePixelHeight);
+            this.wheelsSprite.SetLowerLeftPixel(wheelsFrame * this.spritePixelWidth, this.spritePixelHeight * 2);
         }
 
         protected override void AnimateWallAnticipation()
@@ -771,7 +650,7 @@ namespace Furibrosa
         {
             base.HitCeiling(ceilingHit);
 
-            RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
+            //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
         }
 
         // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
@@ -1270,7 +1149,7 @@ namespace Furibrosa
         protected virtual bool CrushGroundWhileMoving(int damageGroundAmount, int damageUnitsAmount, float xRange, float yRange, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
         {
             bool hitGround = false;
-            if (this.left)
+            if (this.xI < 0)
             {
                 if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
                 {
@@ -1284,7 +1163,7 @@ namespace Furibrosa
                     hitGround = true;
                 }
             }
-            else if (this.right || (this.dashing && base.transform.localScale.x > 0))
+            else if (this.xI > 0 || (this.dashing && base.transform.localScale.x > 0))
             {
                 if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
                 {
@@ -1329,6 +1208,247 @@ namespace Furibrosa
 
         protected override void DontSlipOverEdges()
         {
+        }
+        #endregion
+
+        #region BeingDamaged
+        protected virtual void ResetDamageAmounts()
+        {
+            this.health = this.maxHealth;
+            if (!this.hasResetDamage)
+            {
+                this.hasResetDamage = true;
+                this.burnDamage = 0;
+                this.shieldDamage = 0;
+            }
+        }
+        public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
+        {
+            if (this.sprint && damageType != DamageType.SelfEsteem)
+            {
+                damage = 0;
+            }
+
+            if (damageType == DamageType.Acid)
+            {
+                damageType = DamageType.Fire;
+            }
+            if (damageType == DamageType.Fire)
+            {
+                this.fireAmount += damage;
+            }
+            else if (damageType != DamageType.SelfEsteem)
+            {
+                this.shieldDamage += damage;
+            }
+            if (this.health <= 0)
+            {
+                this.knockCount++;
+                if (this.knockCount % 4 == 0 || (this.alwaysKnockOnExplosions && damageType == DamageType.Explosion))
+                {
+                    yI = Mathf.Min(yI + 20f, 20f);
+                    base.Y += 2f;
+                    this.Knock(damageType, xI, 0f, false);
+                }
+                else
+                {
+                    this.Knock(damageType, xI, 0f, false);
+                }
+            }
+            else if (damageType != DamageType.SelfEsteem)
+            {
+                this.PlayDefendSound();
+            }
+            if (damageType == DamageType.SelfEsteem && damage >= this.health && this.health > 0)
+            {
+                this.Death(0f, 0f, new DamageObject(damage, damageType, 0f, 0f, base.X, base.Y, this));
+            }
+
+            if (this.shieldDamage + this.fireAmount > maxDamageBeforeExploding && this.pilotUnit != null)
+            {
+                if (damageType == DamageType.Crush && this.shieldDamage > 50)
+                {
+                    this.DisChargePilot(150f, false, null);
+                    this.Gib(DamageType.OutOfBounds, xI, yI + 150f);
+                }
+                else
+                {
+                    this.deathCount = 9001;
+                    this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                }
+            }
+        }
+
+        protected virtual void PlayDefendSound()
+        {
+            Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.defendSounds, 0.7f + UnityEngine.Random.value * 0.4f, base.transform.position, 0.8f + 0.34f * UnityEngine.Random.value, true, false, false, 0f);
+        }
+
+        public override void Knock(DamageType damageType, float xI, float yI, bool forceTumble)
+        {
+            if (this.health > 0)
+            {
+                this.knockCount++;
+                if (this.knockCount % 8 == 0 || (this.alwaysKnockOnExplosions && damageType == DamageType.Explosion))
+                {
+                    this.KnockSimple(new DamageObject(0, DamageType.Bullet, xI * 0.5f, yI * 0.3f, base.X, base.Y, null));
+                }
+            }
+            else
+            {
+                base.Knock(damageType, xI, yI, forceTumble);
+            }
+        }
+
+        // Set materials to default colors
+        protected virtual void SetUnhurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.gray);
+        }
+
+        // Set materials to red tint
+        protected virtual void SetHurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.red);
+        }
+
+        public override void Death(float xI, float yI, DamageObject damage)
+        {
+            if (damage == null || damage.damageType != DamageType.SelfEsteem)
+            {
+            }
+            if (base.GetComponent<Collider>() != null)
+            {
+                base.GetComponent<Collider>().enabled = false;
+            }
+            if (this.enemyAI != null)
+            {
+                this.enemyAI.HideSpeachBubbles();
+                this.OnlyDestroyScriptOnSync = true;
+                UnityEngine.Object.Destroy(this.enemyAI);
+            }
+            this.DeactivateGun();
+            base.Death(xI, yI, damage);
+            if (this.pilotUnit)
+            {
+                this.DisChargePilot(150f, false, null);
+            }
+        }
+
+        protected override void Gib(DamageType damageType, float xI, float yI)
+        {
+            if (this.deathCount > 9000)
+            {
+                EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+                MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
+                SortOfFollow.Shake(1f, 2f);
+            }
+            else
+            {
+                EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
+                EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
+                Map.ExplodeUnits(this, 20, DamageType.Explosion, 48f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+            }
+            base.Gib(damageType, xI, yI);
+            if (this.pilotUnit)
+            {
+                this.DisChargePilot(180f, false, null);
+            }
+        }
+        #endregion
+
+        #region Piloting
+        public override bool CanPilotUnit(int newPlayerNum)
+        {
+            return (this.health <= 0 || this.pilotUnit != null) && HeroController.players[playerNum].character is Furibrosa;
+        }
+
+        public override void PilotUnitRPC(Unit newPilotUnit)
+        {
+            if (!this.fixedBubbles)
+            {
+                FixPlayerBubble(this.player1Bubble);
+                FixPlayerBubble(this.player2Bubble);
+                FixPlayerBubble(this.player3Bubble);
+                FixPlayerBubble(this.player4Bubble);
+                this.fixedBubbles = true;
+            }
+            this.pilotUnitDelay = 0.2f;
+            if (this.pilotUnit != null && this.pilotUnit != newPilotUnit)
+            {
+                this.DisChargePilot(150f, true, newPilotUnit);
+            }
+            this.ActuallyPilot(newPilotUnit);
+        }
+
+        protected virtual void ActuallyPilot(Unit PilotUnit)
+        {
+            if (base.IsFrozen)
+            {
+                base.UnFreeze();
+            }
+            this.keepGoingBeyondTarget = false;
+            this.reachedStartingPoint = true;
+            this.groundFriction = originalGroundFriction;
+            this.pilotUnit = PilotUnit;
+            base.playerNum = this.pilotUnit.playerNum;
+            this.health = this.maxHealth;
+            this.deathNotificationSent = false;
+            this.isHero = true;
+            this.firingPlayerNum = PilotUnit.playerNum;
+            this.pilotUnit.StartPilotingUnit(this);
+            if (this.pilotSwitch != null)
+            {
+            }
+            this.RestartBubble();
+            this.blindTime = 0f;
+            this.stunTime = 0f;
+            this.burnTime = 0f;
+            this.ResetDamageAmounts();
+            base.GetComponent<Collider>().enabled = true;
+            //base.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
+            base.SetOwner(PilotUnit.Owner);
+            this.originalSpecialAmmo = 2;
+            this.SpecialAmmo = 2;
+            this.hud = HeroController.players[PilotUnit.playerNum].hud;
+            BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(50f, 0f), 10f);
+            this.UpdateSpecialIcon();
+        }
+
+        protected virtual void DisChargePilot(float disChargeYI, bool stunPilot, Unit dischargedBy)
+        {
+            DisChargePilotRPC(disChargeYI, stunPilot, dischargedBy);
+        }
+
+        protected virtual void DisChargePilotRPC(float disChargeYI, bool stunPilot, Unit dischargedBy)
+        {
+            if (this.pilotUnit != dischargedBy)
+            {
+                this.pilotUnit.GetComponent<Renderer>().enabled = true;
+                this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
+                base.StopPlayerBubbles();
+                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(0f, 0f), 0f);
+                this.pilotUnit = null;
+                this.isHero = false;
+                this.fire = false;
+                this.hasBeenPiloted = true;
+                this.DeactivateGun();
+                if (this.health > 0)
+                {
+                    this.Damage(this.health + 1, DamageType.SelfEsteem, 0f, 0f, 0, this, base.X, base.Y);
+                }
+                base.SetSyncingInternal(false);
+            }
+        }
+
+        protected override void PressHighFiveMelee(bool forceHighFive = false)
+        {
+            if (this.pilotUnitDelay <= 0f && this.pilotUnit && this.pilotUnit.IsMine)
+            {
+                this.DisChargePilot(130f, false, null);
+            }
         }
         #endregion
 
