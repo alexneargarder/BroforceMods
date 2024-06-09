@@ -1,3 +1,6 @@
+v1.0.3
+Fixed issues with gunsprite on ziplines.
+
 v1.0.2
 Added explosive gum melee.
 Added balaclava to avatar when using special.

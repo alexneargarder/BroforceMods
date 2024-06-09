@@ -361,7 +361,18 @@ namespace Mission_Impossibro
         {
             if (!(this.grappleAttached || this.exitingGrapple ))
             {
+                ZipLine tempZipline = null;
+                // Make sure zipline doesn't interfere with explosive detonation animation
+                if ( this.triggeringExplosives && this.attachedToZipline != null )
+                {
+                    tempZipline = this.attachedToZipline;
+                    this.attachedToZipline = null;
+                }
                 base.ChangeFrame();
+                if ( tempZipline != null )
+                {
+                    this.attachedToZipline = tempZipline;
+                }
             }
             else
             {
@@ -538,8 +549,13 @@ namespace Mission_Impossibro
                 this.syncedDirection = (int)base.transform.localScale.x;
             }
 
+            // Fire while on zipline
+            if ( this.attachedToZipline != null && base.actionState == ActionState.Jumping )
+            {
+                this.FireWeapon(base.X + num * 4f, base.Y + 5f, num * bulletSpeed, 0);
+            }
             // Fire while on grapple
-            if (this.grappleAttached || this.exitingGrapple)
+            else if (this.grappleAttached || this.exitingGrapple)
             {
                 this.FireWeapon(base.X + num * 14f, base.Y + 10f, num * bulletSpeed, 0);
             }
@@ -675,7 +691,8 @@ namespace Mission_Impossibro
                         ++this.gunFrame;
                         if (this.gunFrame < 4)
                         {
-                            this.SetGunSprite(17 + this.gunFrame, 0);
+                            // Use lowerleftpixel function to ignore hanging frames
+                            this.gunSprite.SetLowerLeftPixel((17 + this.gunFrame) * this.gunSpritePixelWidth, 32f);
                         }
                         else
                         {
@@ -684,7 +701,8 @@ namespace Mission_Impossibro
                                 this.StopSpecial();
                             }
                             this.gunFrame = 3;
-                            this.SetGunSprite(17 + this.gunFrame, 0);
+                            // Use lowerleftpixel function to ignore hanging frames
+                            this.gunSprite.SetLowerLeftPixel((17 + this.gunFrame) * this.gunSpritePixelWidth, 32f);
                         }
                     }
                 }
