@@ -34,9 +34,9 @@ namespace Furibrosa
             FlareGun = 1,
             Switching = 2
         }
-        PrimaryState currentState = PrimaryState.Crossbow;
-        PrimaryState nextState;
-        static protected Bolt boltPrefab, explosiveBoltPrefab;
+        public PrimaryState currentState = PrimaryState.Crossbow;
+        public PrimaryState nextState;
+        public static Bolt boltPrefab, explosiveBoltPrefab;
         protected bool releasedFire = false;
         protected float chargeTime = 0f;
         protected int chargeCounter = 0;
@@ -44,12 +44,12 @@ namespace Furibrosa
         protected Material crossbowMat, crossbowNormalMat, crossbowHoldingMat;
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
-        protected MeshRenderer holdingArm;
-        static protected Projectile flarePrefab;
+        public static Projectile flarePrefab;
         public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
 
         // Melee
+        protected MeshRenderer holdingArm;
         public static List<Unit> grabbedUnits = new List<Unit> { null, null, null, null };
         Unit grabbedUnit
         {
@@ -625,6 +625,22 @@ namespace Furibrosa
             }
         }
 
+        public override void StartPilotingUnit(Unit pilottedUnit)
+        {
+            // Finish switching weapon
+            if ( this.currentState == PrimaryState.Switching )
+            {
+                this.SwitchWeapon();
+            }
+
+            // Make sure to release any held units
+            if (this.grabbedUnit != null)
+            {
+                this.ReleaseUnit(false);
+            }
+            base.StartPilotingUnit(pilottedUnit);
+        }
+
         protected void StartSwitchingWeapon()
         {
             if ( !this.usingSpecial && this.currentState != PrimaryState.Switching )
@@ -641,13 +657,15 @@ namespace Furibrosa
                 }
                 this.currentState = PrimaryState.Switching;
                 this.gunFrame = 0;
+                this.gunCounter = 0f;
                 this.RunGun();
             } 
         }
 
-        protected void SwitchWeapon()
+        public void SwitchWeapon()
         {
             this.gunFrame = 0;
+            this.gunCounter = 0f;
             this.currentState = this.nextState;
             if ( this.currentState == PrimaryState.FlareGun )
             {

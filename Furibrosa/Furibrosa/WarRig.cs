@@ -66,11 +66,26 @@ namespace Furibrosa
         protected float crushDamageCooldown = 0f;
 
         // Primary Variables
-        PrimaryState currentState = PrimaryState.Crossbow;
-        PrimaryState nextState;
+        public enum FuriosaState
+        {
+            InVehicle = 0,
+            GoingOut = 1,
+            HangingOut = 2,
+            GoingIn = 3,
+        }
+        FuriosaState currentFuriosaState = FuriosaState.InVehicle;
+        protected float hangingOutTimer = 0f;
+        PrimaryState currentPrimaryState = PrimaryState.Crossbow;
+        PrimaryState nextPrimaryState;
+        protected bool releasedFire = false;
+        protected float chargeTime = 0f;
+        protected bool charged = false;
+        public Material crossbowMat, flareGunMat;
+        protected float chargeFramerate = 0.09f;
+        public static bool doubleTapSwitch = true;
+        protected float lastDownPressTime = -1f;
 
         // Sprite Variables
-        public Material crossbowMat, flareGunMat;
         public SpriteSM wheelsSprite, bumperSprite, longSmokestacksSprite, shortSmokestacksSprite;
         protected float smokestackCooldown = 0f;
         protected float smokestackCounter = 0f;
@@ -142,8 +157,8 @@ namespace Furibrosa
             // Ensure main sprite is behind all other sprites
             LoadSprite(this.gameObject, "vehicleSprite.png", new Vector3(0f, 31f, 0.2f));
 
-            this.crossbowMat = ResourcesController.GetMaterial(directoryPath, "vehicleCrossbow.png");
-            this.flareGunMat = ResourcesController.GetMaterial(directoryPath, "vehicleFlareGun.png");
+            this.crossbowMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleCrossbow.png"), ResourcesController.Particle_AlphaBlend);
+            this.flareGunMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleFlareGun.png"), ResourcesController.Particle_AlphaBlend);
             LoadSprite(this.gunSprite.gameObject, "vehicleCrossbow.png", new Vector3(0f, 31f, 0.1f));
 
             GameObject wheelsObject = new GameObject("WarRigWheels", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
@@ -212,6 +227,7 @@ namespace Furibrosa
             this.canDuck = false;
             this.canLedgeGrapple = false;
             this.jumpForce = 360;
+            this.gunSprite.gameObject.layer = 19;
             // Setup gibs
             this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
             this.gibs.gameObject.SetActive(false);
@@ -366,6 +382,23 @@ namespace Furibrosa
 
             // Run animation loops for all other sprites
             AnimateWarRig();
+
+            // Count down timer for Furiosa hanging out of the window
+            if ( this.hangingOutTimer > 0f )
+            {
+                this.hangingOutTimer -= this.t;
+                if ( this.hangingOutTimer <= 0f )
+                {
+                    this.currentFuriosaState = FuriosaState.GoingIn;
+                    this.gunFrame = 4;
+                }
+            }
+
+            // Switch Weapon Pressed
+            if (switchWeaponKey.IsDown(playerNum))
+            {
+                StartSwitchingWeapon();
+            }
         }
 
         protected override void LateUpdate()
@@ -416,15 +449,19 @@ namespace Furibrosa
         #region Animation
         protected override void ChangeFrame()
         {
-            // Animate furiosa in vehicle
-            if ( this.pilotUnit != null )
+            // Don't mess with animations if furiosa is leaning out
+            if ( currentFuriosaState == FuriosaState.InVehicle )
             {
-                this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
-            }
-            // Animate empty vehicle
-            else
-            {
-                this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
+                // Animate furiosa in vehicle
+                if (this.pilotUnit != null)
+                {
+                    this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
+                }
+                // Animate empty vehicle
+                else
+                {
+                    this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
+                }
             }
         }
 
@@ -1022,6 +1059,7 @@ namespace Furibrosa
             {
                 this.PlayFootStepSound(this.soundHolderFootSteps.landMetalSounds, 0.55f, 0.9f);
                 this.gunFrame = 0;
+                this.gunCounter = 0f;
                 EffectsController.CreateGroundWave(base.X, base.Y + 10f, 64f);
                 SortOfFollow.Shake(0.2f);
             }
@@ -1030,6 +1068,7 @@ namespace Furibrosa
                 this.PlayFootStepSound(this.soundHolderFootSteps.landMetalSounds, 0.35f, 0.9f);
                 SortOfFollow.Shake(0.1f);
                 this.gunFrame = 0;
+                this.gunCounter = 0f;
             }
             this.jumpingMelee = false;
             this.timesKickedByVanDammeSinceLanding = 0;
@@ -1399,9 +1438,6 @@ namespace Furibrosa
             this.isHero = true;
             this.firingPlayerNum = PilotUnit.playerNum;
             this.pilotUnit.StartPilotingUnit(this);
-            if (this.pilotSwitch != null)
-            {
-            }
             this.RestartBubble();
             this.blindTime = 0f;
             this.stunTime = 0f;
@@ -1415,6 +1451,27 @@ namespace Furibrosa
             this.hud = HeroController.players[PilotUnit.playerNum].hud;
             BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(50f, 0f), 10f);
             this.UpdateSpecialIcon();
+
+            // Get info from Furiosa;
+            Furibrosa furibrosa = PilotUnit as Furibrosa;
+            if ( furibrosa.currentState == PrimaryState.Switching )
+            {
+                this.currentPrimaryState = furibrosa.nextState;
+            }
+            else
+            {
+                this.currentPrimaryState = furibrosa.currentState;
+            }
+
+            if (this.currentPrimaryState == PrimaryState.FlareGun)
+            {
+                this.gunSprite.meshRender.material = this.flareGunMat;
+            }
+            else
+            {
+                this.gunSprite.meshRender.material = this.crossbowMat;
+            }
+            this.SetGunSprite(0, 0);
         }
 
         protected virtual void DisChargePilot(float disChargeYI, bool stunPilot, Unit dischargedBy)
@@ -1426,13 +1483,29 @@ namespace Furibrosa
         {
             if (this.pilotUnit != dischargedBy)
             {
+                this.currentFuriosaState = FuriosaState.InVehicle;
+                this.gunFrame = 0;
+                this.gunCounter = 0f;
+                this.hangingOutTimer = 0f;
+                this.charged = false;
+                this.chargeTime = 0f;
+                this.chargeFramerate = 0.09f;
+
+                // Make sure furiosa is holding the same weapon she was holding in the vehicle
+                Furibrosa furibrosa = this.pilotUnit as Furibrosa;
+                if ( this.currentPrimaryState != furibrosa.currentState )
+                {
+                    furibrosa.nextState = this.currentPrimaryState;
+                    furibrosa.SwitchWeapon();
+                }    
+
                 this.pilotUnit.GetComponent<Renderer>().enabled = true;
                 this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
                 base.StopPlayerBubbles();
                 BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(0f, 0f), 0f);
                 this.pilotUnit = null;
                 this.isHero = false;
-                this.fire = false;
+                this.fire = this.wasFire = false;
                 this.hasBeenPiloted = true;
                 this.DeactivateGun();
                 if (this.health > 0)
@@ -1453,8 +1526,393 @@ namespace Furibrosa
         #endregion
 
         #region Primary
+        protected override void StartFiring()
+        {
+            this.charged = false;
+            this.chargeTime = 0f;
+            this.chargeFramerate = 0.09f;
+
+            if ( this.currentPrimaryState != PrimaryState.Switching )
+            {
+                if ( this.currentFuriosaState == FuriosaState.InVehicle || this.currentFuriosaState == FuriosaState.GoingIn )
+                {
+                    if (this.currentFuriosaState == FuriosaState.InVehicle)
+                    {
+                        this.gunFrame = 0;
+                        this.gunCounter = 0f;
+                    }
+                    this.currentFuriosaState = FuriosaState.GoingOut;
+                    this.hangingOutTimer = 8f;
+                }
+                
+                base.StartFiring();
+            }
+        }
+
+        protected override void ReleaseFire()
+        {
+            if (this.fireDelay < 0.1f)
+            {
+                this.releasedFire = true;
+            }
+            base.ReleaseFire();
+        }
+
+        protected override void RunFiring()
+        {
+            if (this.health <= 0)
+            {
+                return;
+            }
+
+            // Reset timer whenever we press fire
+            if ( this.fire )
+            {
+                this.hangingOutTimer = 8f;
+            }
+            // Don't fire unless furiosa is fully out the window
+            if ( this.currentFuriosaState != FuriosaState.HangingOut )
+            {
+                return;
+            }
+            if (this.currentPrimaryState == PrimaryState.Crossbow)
+            {
+                if (this.fireDelay > 0f)
+                {
+                    this.fireDelay -= this.t;
+                }
+                if (this.fireDelay <= 0f)
+                {
+                    if (this.fire)
+                    {
+                        this.StopRolling();
+                        this.chargeTime += this.t;
+                    }
+                    else if (this.releasedFire)
+                    {
+                        this.UseFire();
+                        this.FireFlashAvatar();
+                        this.SetGestureAnimation(GestureElement.Gestures.None);
+                    }
+                }
+            }
+            else if (this.currentPrimaryState == PrimaryState.FlareGun)
+            {
+                if (this.fireDelay > 0f)
+                {
+                    this.fireDelay -= this.t;
+                }
+                if (this.fireDelay <= 0f)
+                {
+                    if (this.fire || this.releasedFire)
+                    {
+                        this.UseFire();
+                        this.FireFlashAvatar();
+                        this.SetGestureAnimation(GestureElement.Gestures.None);
+                        this.releasedFire = false;
+                    }
+                }
+            }
+        }
+
+        protected override void UseFire()
+        {
+            if (this.doingMelee)
+            {
+                this.CancelMelee();
+            }
+            this.releasedFire = false;
+            float num = base.transform.localScale.x;
+            if (!base.IsMine && base.Syncronize)
+            {
+                num = (float)this.syncedDirection;
+            }
+            if (Connect.IsOffline)
+            {
+                this.syncedDirection = (int)base.transform.localScale.x;
+            }
+            this.FireWeapon(0f, 0f, 0f, 0);
+            Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+        }
+
+        // DEBUG
+        protected float debugOffsetXBolt = 7f;
+        protected float debugOffsetYBolt = 35f;
+        protected float debugOffsetXFlare = 7f;
+        protected float debugOffsetYFlare = 35f;
+
         protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
         {
+            // Fire crossbow
+            if (this.currentPrimaryState == PrimaryState.Crossbow)
+            {
+                // Fire explosive bolt
+                if (this.charged)
+                {
+                    x = base.X + base.transform.localScale.x * debugOffsetXBolt;
+                    y = base.Y + debugOffsetYBolt;
+                    xSpeed = base.transform.localScale.x * 500 + (this.xI / 2);
+                    ySpeed = 0;
+                    this.gunFrame = 1;
+                    this.SetGunSprite(this.gunFrame, 0);
+                    this.TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally(explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
+                    firedBolt.gameObject.SetActive(true);
+
+                }
+                // Fire normal bolt
+                else
+                {
+                    x = base.X + base.transform.localScale.x * debugOffsetXBolt;
+                    y = base.Y + debugOffsetYBolt;
+                    xSpeed = base.transform.localScale.x * 400 + (this.xI / 2);
+                    ySpeed = 0;
+                    this.gunFrame = 1;
+                    this.SetGunSprite(this.gunFrame, 0);
+                    this.TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
+                    firedBolt.gameObject.SetActive(true);
+                }
+                this.fireDelay = 0.5f;
+            }
+            else if (this.currentPrimaryState == PrimaryState.FlareGun)
+            {
+                x = base.X + base.transform.localScale.x * debugOffsetXFlare;
+                y = base.Y + debugOffsetYFlare;
+                xSpeed = base.transform.localScale.x * 450;
+                ySpeed = UnityEngine.Random.Range(15, 50);
+                EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
+                this.gunFrame = 3;
+                this.fireDelay = 0.8f;
+            }
+        }
+
+        protected override void RunGun()
+        {
+            if ( this.currentFuriosaState == FuriosaState.InVehicle && this.currentPrimaryState != PrimaryState.Switching )
+            {
+                this.DeactivateGun();
+                if (this.pilotUnit != null)
+                {
+                    this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
+                }
+            }
+            else if ( this.currentFuriosaState == FuriosaState.GoingOut )
+            {
+                this.DeactivateGun();
+                this.gunCounter += this.t;
+                if (this.gunCounter > 0.11f)
+                {
+                    this.gunCounter -= 0.11f;
+                    ++this.gunFrame;
+                    // Skip second frame
+                    if (this.gunFrame == 1)
+                    {
+                        ++this.gunFrame;
+                    }
+                }
+
+                this.sprite.SetLowerLeftPixel( this.spritePixelWidth * (this.gunFrame + 3), (this.currentPrimaryState == PrimaryState.FlareGun ? 2 : 3) * this.spritePixelHeight );
+
+                // Finished going out
+                if ( this.gunFrame == 4 )
+                {
+                    this.currentFuriosaState = FuriosaState.HangingOut;
+                    this.gunFrame = 0;
+                }
+            }
+            else if ( this.currentFuriosaState == FuriosaState.GoingIn )
+            {
+                this.DeactivateGun();
+                this.gunCounter += this.t;
+                if (this.gunCounter > 0.11f)
+                {
+                    this.gunCounter -= 0.11f;
+                    --this.gunFrame;
+                }
+
+                this.sprite.SetLowerLeftPixel(this.spritePixelWidth * (4 - this.gunFrame), (this.currentPrimaryState == PrimaryState.FlareGun ? 3 : 2) * this.spritePixelHeight);
+
+                // Finished going out
+                if (this.gunFrame == 0)
+                {
+                    this.currentFuriosaState = FuriosaState.InVehicle;
+                }
+            }
+            // Animate crossbow
+            else if (this.currentPrimaryState == PrimaryState.Crossbow)
+            {
+                this.sprite.SetLowerLeftPixel(1 * this.spritePixelWidth, this.spritePixelHeight);
+                this.gunSprite.gameObject.SetActive(true);
+                if (this.fire)
+                {
+                    if (this.chargeTime > 0.2f)
+                    {
+                        this.gunCounter += this.t;
+                        if (this.gunCounter > this.chargeFramerate)
+                        {
+                            this.gunCounter -= this.chargeFramerate;
+                            ++this.gunFrame;
+                            if (this.gunFrame > 3)
+                            {
+                                this.gunFrame = 0;
+                                if (!this.charged)
+                                {
+                                    this.charged = true;
+                                    this.chargeFramerate = 0.04f;
+                                }
+                            }
+                        }
+                        this.SetGunSprite(this.gunFrame + 4, 0);
+                    }
+                }
+                else if (!this.WallDrag && this.gunFrame > 0)
+                {
+                    this.gunCounter += this.t;
+                    if (this.gunCounter > 0.045f)
+                    {
+                        this.gunCounter -= 0.045f;
+                        ++this.gunFrame;
+                        if ( this.gunFrame > 3 )
+                        {
+                            this.gunFrame = 0;
+                        }
+                        this.SetGunSprite(this.gunFrame, 0);
+                    }
+                }
+                else
+                {
+                    this.SetGunSprite(this.gunFrame, 0);
+                }
+            }
+            // Animate flaregun
+            else if (this.currentPrimaryState == PrimaryState.FlareGun)
+            {
+                this.sprite.SetLowerLeftPixel(1 * this.spritePixelWidth, this.spritePixelHeight);
+                this.gunSprite.gameObject.SetActive(true);
+                if (this.gunFrame > 0)
+                {
+                    this.gunCounter += this.t;
+                    if (this.gunCounter > 0.0334f)
+                    {
+                        this.gunCounter -= 0.0334f;
+                        --this.gunFrame;
+                    }
+                }
+                this.SetGunSprite(this.gunFrame, 0);
+            }
+            // Animate switching
+            else if (this.currentPrimaryState == PrimaryState.Switching)
+            {
+                this.DeactivateGun();
+                this.gunCounter += this.t;
+
+                // Animate leaning down to switch weapon
+                if ( this.currentFuriosaState == FuriosaState.InVehicle )
+                {
+                    if ( this.gunCounter > 0.2f )
+                    {
+                        this.gunCounter -= 0.2f;
+                        ++this.gunFrame;
+                    }
+
+                    this.sprite.SetLowerLeftPixel((4 - this.gunFrame) * this.spritePixelWidth, 2 * this.spritePixelHeight);
+
+                    if ( this.gunFrame == 1 )
+                    {
+                        this.SwitchWeapon();
+                    }
+                }
+                // Animate full lean back in and lean back out
+                else
+                {
+                    // Ensure we don't start retracting while switching
+                    this.hangingOutTimer = 8f;
+
+                    if ( this.gunFrame != 3 && this.gunFrame != 4 )
+                    {
+                        if (this.gunCounter > 0.10f)
+                        {
+                            this.gunCounter -= 0.10f;
+                            ++this.gunFrame;
+                        }
+                    }
+                    else
+                    {
+                        if (this.gunCounter > 0.15f)
+                        {
+                            this.gunCounter -= 0.15f;
+                            ++this.gunFrame;
+                        }
+                    }
+
+                    if (this.gunFrame > 7)
+                    {
+                        this.SwitchWeapon();
+                    }
+                    else
+                    {
+                        this.sprite.SetLowerLeftPixel(this.gunFrame * this.spritePixelWidth, (this.nextPrimaryState == PrimaryState.FlareGun ? 2 : 3) * this.spritePixelHeight);
+                    }
+                }
+            }
+        }
+
+        protected void StartSwitchingWeapon()
+        {
+            if (!this.usingSpecial && this.currentPrimaryState != PrimaryState.Switching)
+            {
+                this.CancelMelee();
+                this.SetGestureAnimation(GestureElement.Gestures.None);
+                if (this.currentPrimaryState == PrimaryState.Crossbow)
+                {
+                    this.nextPrimaryState = PrimaryState.FlareGun;
+                }
+                else
+                {
+                    this.nextPrimaryState = PrimaryState.Crossbow;
+                }
+                this.currentPrimaryState = PrimaryState.Switching;
+                // Don't change frame if we're currently in the middle of another animation
+                if ( this.currentFuriosaState != FuriosaState.GoingIn || this.currentFuriosaState != FuriosaState.GoingOut )
+                {
+                    this.gunFrame = 0;
+                    this.gunCounter = 0f;
+                    this.RunGun();
+                }
+            }
+        }
+
+        protected void SwitchWeapon()
+        {
+            this.gunFrame = 0;
+            this.gunCounter = 0f;
+            this.currentPrimaryState = this.nextPrimaryState;
+            if (this.currentPrimaryState == PrimaryState.FlareGun)
+            {
+                this.gunSprite.meshRender.material = this.flareGunMat;
+            }
+            else
+            {
+                this.gunSprite.meshRender.material = this.crossbowMat;
+            }
+            this.SetGunSprite(0, 0);
+        }
+
+        protected override void CheckInput()
+        {
+            base.CheckInput();
+            if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
+            {
+                if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
+                {
+                    this.StartSwitchingWeapon();
+                }
+                this.lastDownPressTime = Time.realtimeSinceStartup;
+            }
         }
         #endregion
 
