@@ -70,8 +70,8 @@ namespace Furibrosa
         // Special
         static protected WarRig warRigPrefab;
         protected WarRig currentWarRig;
-        protected bool holdingSpecial = false;
-        protected float holdingSpecialTime = 0f;
+        public bool holdingSpecial = false;
+        public float holdingSpecialTime = 0f;
 
         // Debug
         public static Furibrosa currentChar;
@@ -142,13 +142,6 @@ namespace Furibrosa
                 boltPrefab = new GameObject("Bolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
                 boltPrefab.gameObject.SetActive(false);
                 boltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
-
-                BoxCollider collider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
-                collider.enabled = false;
-                collider.transform.parent = boltPrefab.transform;
-
-                Transform transform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
-                transform.parent = boltPrefab.transform;
                 boltPrefab.Setup(false);
                 UnityEngine.Object.DontDestroyOnLoad(boltPrefab);
             }
@@ -158,13 +151,6 @@ namespace Furibrosa
                 explosiveBoltPrefab = new GameObject("ExplosiveBolt", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Bolt) }).GetComponent<Bolt>();
                 explosiveBoltPrefab.gameObject.SetActive(false);
                 explosiveBoltPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
-
-                BoxCollider explosiveCollider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
-                explosiveCollider.enabled = false;
-                explosiveCollider.transform.parent = explosiveBoltPrefab.transform;
-
-                Transform explosiveTransform = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).transform;
-                explosiveTransform.parent = explosiveBoltPrefab.transform;
                 explosiveBoltPrefab.Setup(true);
                 UnityEngine.Object.DontDestroyOnLoad(explosiveBoltPrefab);
             }
@@ -270,11 +256,9 @@ namespace Furibrosa
                 if (this.special)
                 {
                     this.holdingSpecialTime += this.t;
-                    if (this.holdingSpecialTime > 0.5f)
+                    if (this.holdingSpecialTime > 0.2f)
                     {
-                        this.currentWarRig.keepGoingBeyondTarget = true;
-                        this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
-                        this.holdingSpecial = false;
+                        GoPastFuriosa();
                     }
                 }
                 else
@@ -638,6 +622,9 @@ namespace Furibrosa
             {
                 this.ReleaseUnit(false);
             }
+
+            // Ensure we don't double fire when exiting units
+            this.fire = this.wasFire = false;
             base.StartPilotingUnit(pilottedUnit);
         }
 
@@ -1028,6 +1015,7 @@ namespace Furibrosa
                 this.SpecialAmmo--;
                 this.DestroyCurrentWarRig();
                 this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
+                this.currentWarRig.summoner = this;
                 this.currentWarRig.targetX = base.X + 10f;
                 this.currentWarRig.gameObject.SetActive(true);
                 if ( this.special )
@@ -1042,6 +1030,14 @@ namespace Furibrosa
                 this.ActivateGun();
             }
             this.pressSpecialFacingDirection = 0;
+        }
+
+        // Makes the War Rig continue moving past where Furiosa summoned it to
+        public void GoPastFuriosa()
+        {
+            this.currentWarRig.keepGoingBeyondTarget = true;
+            this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
+            this.holdingSpecial = false;
         }
         #endregion
     }

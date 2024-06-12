@@ -20,6 +20,7 @@ namespace Furibrosa
         // General Variables
         string directoryPath;
         public Unit pilotUnit = null;
+        public Furibrosa summoner = null;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
         protected int shieldDamage;
@@ -50,6 +51,7 @@ namespace Furibrosa
         protected float boostFuel = 1f;
         protected const float originalGroundFriction = 0.75f;
         protected float groundFriction = 0.75f;
+        protected float lastDashTime = -5f;
         
         // Collision Variables
         protected float frontHeadHeight;
@@ -61,9 +63,25 @@ namespace Furibrosa
         protected float crushYRange = 50f;
         protected float crushXOffset = 53f;
         protected float crushYOffset = 30f;
-        protected float unitXRange = 50f;
-        protected float unitYRange = 20f;
+        protected float unitXRange = 6f;
+        protected float unitYRange = 30f;
         protected float crushDamageCooldown = 0f;
+
+        // Sprite Variables
+        public SpriteSM wheelsSprite, bumperSprite, longSmokestacksSprite, shortSmokestacksSprite, frontSmokestacksSprite;
+        protected float smokestackCooldown = 0f;
+        protected float smokestackCounter = 0f;
+        protected int smokestackFrame = 0;
+        protected float blueSmokeCooldown = 0f;
+        protected float blueSmokeCounter = 0f;
+        protected int blueSmokeFrame = 0;
+        protected bool usingBlueFlame = false;
+
+        // Startup Variables
+        protected bool reachedStartingPoint = false;
+        public float targetX = 0f;
+        public bool keepGoingBeyondTarget = false;
+        public float secondTargetX = 0f;
 
         // Primary Variables
         public enum FuriosaState
@@ -85,17 +103,10 @@ namespace Furibrosa
         public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
 
-        // Sprite Variables
-        public SpriteSM wheelsSprite, bumperSprite, longSmokestacksSprite, shortSmokestacksSprite;
-        protected float smokestackCooldown = 0f;
-        protected float smokestackCounter = 0f;
-        protected int smokestackFrame = 0;
-
-        // Startup Variables
-        protected bool reachedStartingPoint = false;
-        public float targetX = 0f;
-        public bool keepGoingBeyondTarget = false;
-        public float secondTargetX = 0f;
+        // Special Variables
+        protected int specialFrame = 0;
+        protected float specialFrameCounter = 0f;
+        public static Harpoon harpoonPrefab;
 
         #region General
         public SpriteSM LoadSprite(GameObject gameObject, string spritePath, Vector3 offset)
@@ -157,27 +168,38 @@ namespace Furibrosa
             // Ensure main sprite is behind all other sprites
             LoadSprite(this.gameObject, "vehicleSprite.png", new Vector3(0f, 31f, 0.2f));
 
+            // Load weapon sprites
             this.crossbowMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleCrossbow.png"), ResourcesController.Particle_AlphaBlend);
             this.flareGunMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleFlareGun.png"), ResourcesController.Particle_AlphaBlend);
             LoadSprite(this.gunSprite.gameObject, "vehicleCrossbow.png", new Vector3(0f, 31f, 0.1f));
 
+            // Load wheel sprites
             GameObject wheelsObject = new GameObject("WarRigWheels", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             wheelsObject.transform.parent = this.transform;
             this.wheelsSprite = LoadSprite(wheelsObject, "vehicleWheels.png", new Vector3(0f, 31f, 0.1f));
 
+            // Load bumper sprites
             GameObject bumperObject = new GameObject("WarRigBumper", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM)} );
             bumperObject.transform.parent = this.transform;
             this.bumperSprite = LoadSprite(bumperObject, "vehicleBumper.png", new Vector3(0f, 31f, 0.1f));
 
+            // Load long smokestack sprites
             GameObject longSmokestacksObject = new GameObject("WarRigLongSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             longSmokestacksObject.transform.parent = this.transform;
             this.longSmokestacksSprite = LoadSprite(longSmokestacksObject, "vehicleLongSmokestacks.png", new Vector3(0f, 56f, 0.1f));
             this.longSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
 
+            // Load short smokestack sprites
             GameObject shortSmokestacksObject = new GameObject("WarRigShortSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             shortSmokestacksObject.transform.parent = this.transform;
             this.shortSmokestacksSprite = LoadSprite(shortSmokestacksObject, "vehicleShortSmokestacks.png", new Vector3(0f, 56f, 0.1f));
             this.shortSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
+
+            // Load front smokestack sprites
+            GameObject frontSmokestacksObject = new GameObject("WarRigFrontSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            frontSmokestacksObject.transform.parent = this.transform;
+            this.frontSmokestacksSprite = LoadSprite(frontSmokestacksObject, "vehicleFrontSmokestacks.png", new Vector3(0f, 31f, 0.1f));
+            this.frontSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
 
             this.spritePixelWidth = 128;
             this.spritePixelHeight = 64;
@@ -188,6 +210,16 @@ namespace Furibrosa
 
             // Clear blood shrapnel
             this.blood = new Shrapnel[] { };
+
+            // Create Harpoon prefab if not yet created
+            if (harpoonPrefab == null)
+            {
+                harpoonPrefab = new GameObject("Harpoon", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Harpoon) }).GetComponent<Harpoon>();
+                harpoonPrefab.gameObject.SetActive(false);
+                harpoonPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
+                harpoonPrefab.Setup();
+                UnityEngine.Object.DontDestroyOnLoad(harpoonPrefab);
+            }
 
             this.gameObject.SetActive(false);
         }
@@ -228,12 +260,17 @@ namespace Furibrosa
             this.canLedgeGrapple = false;
             this.jumpForce = 360;
             this.gunSprite.gameObject.layer = 19;
+            this.originalSpecialAmmo = 3;
+            this.SpecialAmmo = 3;
+
             // Setup gibs
             this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
             this.gibs.gameObject.SetActive(false);
             BroMakerUtilities.CreateGibPrefab("Wheel", new Vector2(133, 62), new Vector2(16, 14), 8f, 8f, new Vector3(0f, 0f, 0f), new Vector3(0f, 10f, 0f), false, DoodadGibsType.Metal, 6, false).transform.parent = this.gibs.transform;
+
             // Default to playerNum 0 so that the vehicle doesn't kill the player before they start riding it
             this.playerNum = 0;
+
             this.DeactivateGun();
             GameObject platformObject = this.gameObject.FindChildOfName("Platform");
             if ( platformObject != null )
@@ -278,9 +315,10 @@ namespace Furibrosa
             // Crush ground while moving forward
             else if ( crushDamageCooldown <= 0f )
             {
-                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round(Mathf.Abs(this.xI / 200f) * (crushDamage + (this.xI > 150f ? 5f : 0f))), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                float currentSpeed = Mathf.Abs(xI);
+                if( this.CrushGroundWhileMoving((int)Mathf.Max(Mathf.Round( currentSpeed / 200f * (crushDamage + ((currentSpeed > 150f ||( this.dashing && currentSpeed > 30f)) ? 5f : 0f))), 1f), 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset) )
                 {
-                    if ( Mathf.Abs(xI) < 150f )
+                    if ( currentSpeed < 150f && !(this.dashing && currentSpeed > 30f) )
                     {
                         crushDamageCooldown = 0.05f;
                     }
@@ -294,13 +332,22 @@ namespace Furibrosa
             // Reduce fuel when dashing
             if ( this.dashing )
             {
-                this.boostFuel -= this.t * 0.2f;
+                // Apply initial boost if enough time has passed since previous dash
+                if ( !this.wasdashButton && Time.time - lastDashTime > 1f )
+                {
+                    this.xI += base.transform.localScale.x * 100f;
+                    this.lastDashTime = Time.time;
+                }
+
+                this.boostFuel -= this.t * 0.1f;
 
                 // Ran out of fuel
                 if ( this.boostFuel <= 0f )
                 {
                     this.boostFuel = 0f;
                     this.canDash = false;
+                    this.dashing = false;
+                    this.wasdashButton = false;
                 }
             }
 
@@ -309,6 +356,10 @@ namespace Furibrosa
             {
                 if ( Tools.FastAbsWithinRange(this.X - this.targetX, 5) )
                 {
+                    if ( summoner.holdingSpecial )
+                    {
+                        summoner.GoPastFuriosa();
+                    }
                     if ( !this.keepGoingBeyondTarget )
                     {
                         this.xI = 0f;
@@ -316,7 +367,7 @@ namespace Furibrosa
                     this.reachedStartingPoint = true;
                     this.groundFriction = originalGroundFriction;
                 }
-                else if ( Tools.FastAbsWithinRange(this.X - this.targetX, 75f) && !this.keepGoingBeyondTarget )
+                else if ( Tools.FastAbsWithinRange(this.X - this.targetX, 75f) && !(this.keepGoingBeyondTarget || summoner.holdingSpecial) )
                 {
                     this.groundFriction = 5f;
                 }
@@ -395,7 +446,7 @@ namespace Furibrosa
             }
 
             // Switch Weapon Pressed
-            if (switchWeaponKey.IsDown(playerNum))
+            if (this.pilotUnit != null && switchWeaponKey.IsDown(playerNum))
             {
                 StartSwitchingWeapon();
             }
@@ -485,6 +536,7 @@ namespace Furibrosa
             }
             AnimateRunning();
 
+            // Animate long and short smokestacks
             if (this.smokestackFrame == 0 && currentSpeed > 50f)
             {
                 if ( this.smokestackCooldown > 0f )
@@ -497,8 +549,9 @@ namespace Furibrosa
                     // Start smoke puff
                     this.smokestackCooldown = UnityEngine.Random.Range(0.5f, 1.5f);
                     this.smokestackFrame = 1;
-                    this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
-                    this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                    this.usingBlueFlame = this.dashing;
+                    this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, this.dashing ? 256f : 128f);
+                    this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, this.dashing ? 256f : 128f);
                 }
             }
             else if ( this.smokestackFrame > 0 )
@@ -512,15 +565,118 @@ namespace Furibrosa
                     if (this.smokestackFrame > 7)
                     {
                         this.smokestackFrame = 0;
+                        this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                        this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
                     }
-                    this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
-                    this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+                    else
+                    {
+                        this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, this.dashing ? 256f : 128f);
+                        this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, this.dashing ? 256f : 128f);
+                    }
+                    
                 }
             }
             else
             {
                 this.longSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
                 this.shortSmokestacksSprite.SetLowerLeftPixel(this.smokestackFrame * this.spritePixelWidth, 128f);
+            }
+
+            // Animate front smokestacks
+            if (this.blueSmokeFrame == 0 && this.dashing)
+            {
+                if (this.blueSmokeCooldown > 0f)
+                {
+                    this.blueSmokeCooldown -= this.t;
+                }
+
+                if (this.blueSmokeCooldown <= 0f)
+                {
+                    // Start smoke puff
+                    this.blueSmokeCooldown = UnityEngine.Random.Range(0.25f, 0.6f);
+                    this.blueSmokeFrame = 1;
+                    this.frontSmokestacksSprite.SetLowerLeftPixel(this.blueSmokeFrame * this.spritePixelWidth, 256f);
+                }
+            }
+            else if (this.blueSmokeFrame > 0)
+            {
+                this.blueSmokeCounter += this.t;
+                if (this.blueSmokeCounter > 0.08f)
+                {
+                    this.blueSmokeCounter -= 0.08f;
+                    ++this.blueSmokeFrame;
+
+                    if (this.blueSmokeFrame > 3)
+                    {
+                        this.blueSmokeFrame = 0;
+                        this.frontSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
+                    }
+                    else
+                    {
+                        this.frontSmokestacksSprite.SetLowerLeftPixel(this.blueSmokeFrame * this.spritePixelWidth, 256f);
+                    }
+                }
+            }
+            else
+            {
+                if (this.blueSmokeCooldown > 0f)
+                {
+                    this.blueSmokeCooldown -= this.t;
+                }
+
+                this.frontSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
+            }
+
+            // Animate special
+            if ( this.usingSpecial )
+            {
+                this.specialCounter += this.t;
+                if ( this.specialCounter > 0.12f )
+                {
+                    this.specialCounter -= 0.12f;
+                    ++this.specialFrame;
+
+                    if ( this.specialFrame < 3 )
+                    {
+                        this.bumperSprite.SetLowerLeftPixel(this.specialFrame * this.spritePixelWidth, 2 * this.spritePixelHeight);
+                    }
+                    else
+                    {
+                        if ( this.specialFrame == 6 )
+                        {
+                            this.UseSpecial();
+                        }
+                        else if ( this.specialFrame == 7)
+                        {
+                            this.usingSpecial = false;
+                            this.specialFrame = 3;
+                        }
+                        // Pause for a few frames before firing
+                        else
+                        {
+                            this.bumperSprite.SetLowerLeftPixel(3 * this.spritePixelWidth, 2 * this.spritePixelHeight);
+                        }
+                    }
+                }
+            }
+            // Close bumper after firing
+            else if ( this.specialFrame > 0 )
+            {
+                this.specialCounter += this.t;
+                if (this.specialCounter > 0.13f)
+                {
+                    this.specialCounter -= 0.13f;
+                    --this.specialFrame;
+
+                    if ( specialFrame != 0 )
+                    {
+                        this.bumperSprite.SetLowerLeftPixel(this.specialFrame * this.spritePixelWidth, 2 * this.spritePixelHeight);
+                    }
+                    else
+                    {
+                        this.bumperSprite.SetLowerLeftPixel(0f, this.spritePixelHeight);
+                    }
+                }
             }
         }
 
@@ -1188,9 +1344,10 @@ namespace Furibrosa
         protected virtual bool CrushGroundWhileMoving(int damageGroundAmount, int damageUnitsAmount, float xRange, float yRange, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
         {
             bool hitGround = false;
-            if (this.xI < 0)
+            if (this.xI < 0 || this.left)
             {
-                if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
+                
+                if (Map.HitUnits(this, this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
                 {
                     // Play sound effect for hitting unit
                 }
@@ -1202,9 +1359,9 @@ namespace Furibrosa
                     hitGround = true;
                 }
             }
-            else if (this.xI > 0 || (this.dashing && base.transform.localScale.x > 0))
+            else if (this.xI > 0 || this.right)
             {
-                if (Map.HitLivingUnits(this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, false, true))
+                if (Map.HitUnits(this, this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
                 {
                     // Play sound effect for hitting unit
                 }
@@ -1446,10 +1603,8 @@ namespace Furibrosa
             base.GetComponent<Collider>().enabled = true;
             //base.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
             base.SetOwner(PilotUnit.Owner);
-            this.originalSpecialAmmo = 2;
-            this.SpecialAmmo = 2;
             this.hud = HeroController.players[PilotUnit.playerNum].hud;
-            BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(50f, 0f), 10f);
+            BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(46f, 0f), 5f);
             this.UpdateSpecialIcon();
 
             // Get info from Furiosa;
@@ -1495,24 +1650,43 @@ namespace Furibrosa
                 Furibrosa furibrosa = this.pilotUnit as Furibrosa;
                 if ( this.currentPrimaryState != furibrosa.currentState )
                 {
-                    furibrosa.nextState = this.currentPrimaryState;
-                    furibrosa.SwitchWeapon();
+                    if ( this.currentPrimaryState == PrimaryState.Switching )
+                    {
+                        // We don't need to change Furiosa's state unless it's a different one than the one we're switching to
+                        if (this.nextPrimaryState != furibrosa.currentState)
+                        {
+                            furibrosa.nextState = this.nextPrimaryState;
+                            furibrosa.SwitchWeapon();
+                        }
+                    }
+                    else
+                    {
+                        furibrosa.nextState = this.currentPrimaryState;
+                        furibrosa.SwitchWeapon();
+                    }
                 }    
 
                 this.pilotUnit.GetComponent<Renderer>().enabled = true;
                 this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
                 base.StopPlayerBubbles();
-                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(0f, 0f), 0f);
+                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(5f, 0f), 0f);
                 this.pilotUnit = null;
                 this.isHero = false;
                 this.fire = this.wasFire = false;
                 this.hasBeenPiloted = true;
+                this.releasedFire = false;
+                this.fireDelay = 0f;
+                this.dashing = false;
                 this.DeactivateGun();
                 if (this.health > 0)
                 {
                     this.Damage(this.health + 1, DamageType.SelfEsteem, 0f, 0f, 0, this, base.X, base.Y);
                 }
                 base.SetSyncingInternal(false);
+
+                this.currentPrimaryState = PrimaryState.Crossbow;
+                this.ChangeFrame();
+                this.RunGun();
             }
         }
 
@@ -1652,7 +1826,7 @@ namespace Furibrosa
                     x = base.X + base.transform.localScale.x * debugOffsetXBolt;
                     y = base.Y + debugOffsetYBolt;
                     xSpeed = base.transform.localScale.x * 500 + (this.xI / 2);
-                    ySpeed = 0;
+                    ySpeed = -50f;
                     this.gunFrame = 1;
                     this.SetGunSprite(this.gunFrame, 0);
                     this.TriggerBroFireEvent();
@@ -1667,7 +1841,7 @@ namespace Furibrosa
                     x = base.X + base.transform.localScale.x * debugOffsetXBolt;
                     y = base.Y + debugOffsetYBolt;
                     xSpeed = base.transform.localScale.x * 400 + (this.xI / 2);
-                    ySpeed = 0;
+                    ySpeed = -50f;
                     this.gunFrame = 1;
                     this.SetGunSprite(this.gunFrame, 0);
                     this.TriggerBroFireEvent();
@@ -1682,7 +1856,7 @@ namespace Furibrosa
                 x = base.X + base.transform.localScale.x * debugOffsetXFlare;
                 y = base.Y + debugOffsetYFlare;
                 xSpeed = base.transform.localScale.x * 450;
-                ySpeed = UnityEngine.Random.Range(15, 50);
+                ySpeed = UnityEngine.Random.Range(-25, 0);
                 EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                 ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
                 this.gunFrame = 3;
@@ -1919,6 +2093,37 @@ namespace Furibrosa
         #region Special
         protected override void PressSpecial()
         {
+            if ( this.SpecialAmmo > 0 )
+            {
+                this.usingSpecial = true;
+                --this.SpecialAmmo;
+                this.specialFrame = 0;
+                this.specialFrameCounter = 0f;
+            }
+            else
+            {
+                HeroController.FlashSpecialAmmo(base.playerNum);
+            }
+        }
+
+        public void CreateMuzzleFlashBigEffect(float x, float y, float z, float xI, float yI, Transform parent)
+        {
+            if (EffectsController.instance != null)
+            {
+                EffectsController.CreateEffect(EffectsController.instance.muzzleFlashBigPrefab, x, y, z, 0f, new Vector3(xI, yI, 0f), parent);
+                EffectsController.CreateEffect(EffectsController.instance.muzzleFlashBigGlowPrefab, x, y, z, 0f);
+            }
+        }
+
+        protected override void UseSpecial()
+        {
+            float x = base.X + base.transform.localScale.x * 54f;
+            float y = base.Y + 10f;
+            float xSpeed = base.transform.localScale.x * 500 + (this.xI / 2);
+            float ySpeed = 0;
+            CreateMuzzleFlashBigEffect(base.X + base.transform.localScale.x * 46f, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+            Harpoon firedHarpoon = ProjectileController.SpawnProjectileLocally(harpoonPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Harpoon;
+            firedHarpoon.gameObject.SetActive(true);
         }
         #endregion
     }

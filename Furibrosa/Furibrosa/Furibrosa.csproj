@@ -82,6 +82,7 @@
     <Compile Include="Bolt.cs" />
     <Compile Include="Furibrosa.cs" />
     <Compile Include="HarmonyPatches.cs" />
+    <Compile Include="Harpoon.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WarRig.cs" />
   </ItemGroup>

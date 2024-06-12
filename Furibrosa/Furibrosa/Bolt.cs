@@ -114,6 +114,9 @@ namespace Furibrosa
             this.canMakeEffectsMoreThanOnce = true;
 
             // Setup platform collider
+            this.platformCollider = new GameObject("BoltCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
+            this.platformCollider.enabled = false;
+            this.platformCollider.transform.parent = this.transform;
             this.platformCollider = this.FindChildOfName("BoltCollider").gameObject.GetComponent<BoxCollider>();
             this.platformCollider.material = new PhysicMaterial();
             this.platformCollider.material.dynamicFriction = 0.6f;
@@ -125,7 +128,8 @@ namespace Furibrosa
             (this.platformCollider as BoxCollider).size = new Vector3(11f, 1f, 1f);
 
             // Setup foreground sprite
-            GameObject foreground = this.FindChildOfName("BoltForeground").gameObject;
+            GameObject foreground = new GameObject("BoltForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            foreground.transform.parent = this.transform;
             foreground.GetComponent<MeshRenderer>().material = material;
             SpriteSM foregroundSprite = foreground.GetComponent<SpriteSM>();
             foregroundSprite.lowerLeftPixel = new Vector2(14, 16);
@@ -159,7 +163,7 @@ namespace Furibrosa
         {
             if (this.penetrationsCount < this.maxPenetrations)
             {
-                Unit firstUnit = Map.GetFirstUnit(this.firedBy, this.playerNum, 5f, base.X, base.Y, true, true, this.hitUnits);
+                Unit firstUnit = Map.GetFirstUnit(this.firedBy, this.playerNum, 6f, base.X, base.Y, true, true, this.hitUnits);
                 if (firstUnit != null)
                 {
                     if (firstUnit.IsHeavy())
