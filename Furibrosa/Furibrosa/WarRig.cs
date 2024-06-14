@@ -20,6 +20,7 @@ namespace Furibrosa
         // General Variables
         string directoryPath;
         public Unit pilotUnit = null;
+        public bool pilotted = false;
         public Furibrosa summoner = null;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
@@ -82,6 +83,7 @@ namespace Furibrosa
         public float targetX = 0f;
         public bool keepGoingBeyondTarget = false;
         public float secondTargetX = 0f;
+        public float summonedDirection = 1f;
 
         // Primary Variables
         public enum FuriosaState
@@ -333,12 +335,6 @@ namespace Furibrosa
             }
         }
 
-        // DEBUG
-        public void GIBDEBUG()
-        {
-            this.CreateGibs(0f, 0f);
-        }
-
         protected override void Update()
         {
             base.Update();
@@ -346,7 +342,7 @@ namespace Furibrosa
             {
                 this.pilotUnitDelay -= this.t;
             }
-            if (this.pilotUnit != null)
+            if (pilotted)
             {
                 // Controls where camera is
                 this.pilotUnit.SetXY(base.X, base.Y + 25f);
@@ -366,9 +362,18 @@ namespace Furibrosa
             // Crush ground when moving towards player who summoned this vehicle
             if ( !this.reachedStartingPoint || this.keepGoingBeyondTarget )
             {
-                this.right = true;
-                this.CrushGroundWhileMoving(50, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
-                this.right = false;
+                if ( this.summonedDirection > 0 )
+                {
+                    this.right = true;
+                    this.CrushGroundWhileMoving(50, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
+                    this.right = false;
+                }
+                else
+                {
+                    this.left = true;
+                    this.CrushGroundWhileMoving(50, 25, crushXRange, crushYRange, unitXRange, unitYRange, crushXOffset, crushYOffset);
+                    this.left = false;
+                }
             }
             // Crush ground while moving forward
             else if ( crushDamageCooldown <= 0f )
@@ -431,7 +436,7 @@ namespace Furibrosa
                 }
                 else
                 {
-                    this.xI = this.speed * 2f;
+                    this.xI = this.summonedDirection * this.speed * 2f;
                 }
             }
             else if ( this.keepGoingBeyondTarget )
@@ -448,7 +453,7 @@ namespace Furibrosa
                 }
                 else
                 {
-                    this.xI = this.speed * 2f;
+                    this.xI = this.summonedDirection * this.speed * 2f;
                 }
             }
 
@@ -504,7 +509,7 @@ namespace Furibrosa
             }
 
             // Switch Weapon Pressed
-            if (this.pilotUnit != null && switchWeaponKey.IsDown(playerNum))
+            if (this.pilotted && switchWeaponKey.IsDown(playerNum))
             {
                 StartSwitchingWeapon();
             }
@@ -514,7 +519,7 @@ namespace Furibrosa
         {
             base.LateUpdate();
 
-            if ( this.pilotUnit != null )
+            if ( this.pilotted )
             {
                 this.UpdateSpecialIcon();
             }
@@ -543,14 +548,32 @@ namespace Furibrosa
         {
         }
 
-        protected void UpdateSpecialIcon()
+        protected override void CheckDashing()
         {
-            this.hud.SetFuel(this.boostFuel, this.boostFuel <= 0.2f);
-
-            // Re-enable grenade icons
-            for ( int i = 0; i < this.SpecialAmmo; ++i )
+            if ( this.pilotted )
             {
-                this.hud.grenadeIcons[i].gameObject.SetActive(true);
+                base.CheckDashing();
+            }
+        }
+
+        protected override void CheckInput()
+        {
+            // Don't accept input unless pilot is present
+            if (this.pilotted)
+            {
+                base.CheckInput();
+                if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
+                {
+                    if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
+                    {
+                        this.StartSwitchingWeapon();
+                    }
+                    this.lastDownPressTime = Time.realtimeSinceStartup;
+                }
+            }
+            else
+            {
+                this.ClearAllInput();
             }
         }
         #endregion
@@ -562,7 +585,7 @@ namespace Furibrosa
             if ( currentFuriosaState == FuriosaState.InVehicle )
             {
                 // Animate furiosa in vehicle
-                if (this.pilotUnit != null)
+                if (this.pilotted)
                 {
                     this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
                 }
@@ -781,9 +804,302 @@ namespace Furibrosa
         #endregion
 
         #region Movement
-        // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
+        // Overridden to prevent vehicle from being teleported around like a player
+        protected override void RunMovement()
+        {
+            this.CalculateGroundHeight();
+            this.CheckForQuicksand();
+            if (base.actionState == ActionState.Dead)
+            {
+                if (this.isInQuicksand)
+                {
+                    this.xI *= 1f - this.t * 20f;
+                    this.xI = Mathf.Clamp(this.xI, -16f, 16f);
+                    this.xIBlast *= 1f - this.t * 20f;
+                }
+                this.RunDeadGravity();
+                if (!(this.impaledByTransform == null))
+                {
+                    this.RunImpaledBlood();
+                    this.xI = 0f;
+                    this.xIBlast = 0f;
+                    this.yIBlast = 0f;
+                    if (!this.impaledByTransform.gameObject.activeSelf)
+                    {
+                        this.impaledByTransform = null;
+                    }
+                }
+            }
+            else if (this.IsOverFinish(ref this.ladderX))
+            {
+                base.actionState = ActionState.ClimbingLadder;
+                this.yI = 0f;
+                this.StopAirDashing();
+            }
+            else if (this.attachedToZipline != null)
+            {
+                if (this.down && !this.wasDown)
+                {
+                    this.attachedToZipline.DetachUnit(this);
+                }
+                if (this.buttonJump && !this.wasButtonJump)
+                {
+                    this.attachedToZipline.DetachUnit(this);
+                    this.yI = this.jumpForce;
+                }
+            }
+            else if (base.actionState != ActionState.ClimbingLadder && (this.up || (this.down && !this.IsGroundBelow())) && (!this.canDash || this.airdashTime <= 0f) && this.IsOverLadder(ref this.ladderX))
+            {
+                base.actionState = ActionState.ClimbingLadder;
+                this.yI = 0f;
+                this.StopAirDashing();
+            }
+            else if (base.actionState == ActionState.ClimbingLadder)
+            {
+                this.RunClimbingLadder();
+            }
+            else if (this.doingMelee)
+            {
+                if (this.isInQuicksand)
+                {
+                    this.xI *= 1f - this.t * 20f;
+                    this.xI = Mathf.Clamp(this.xI, -2f, 2f);
+                    this.xIBlast *= 1f - this.t * 20f;
+                }
+                this.RunMelee();
+            }
+            else if (base.actionState == ActionState.Hanging)
+            {
+                this.RunHanging();
+            }
+            else if (this.canAirdash && this.airdashTime > 0f)
+            {
+                this.RunAirDashing();
+            }
+            else if (base.actionState == ActionState.Jumping)
+            {
+                if (this.isInQuicksand)
+                {
+                    this.xI *= 1f - this.t * 20f;
+                    this.xI = Mathf.Clamp(this.xI, -16f, 16f);
+                    this.xIBlast *= 1f - this.t * 20f;
+                }
+                if (this.jumpTime > 0f)
+                {
+                    this.jumpTime -= this.t;
+                    if (!this.buttonJump)
+                    {
+                        this.jumpTime = 0f;
+                    }
+                }
+                if (!(this.impaledByTransform != null))
+                {
+                    if (this.wallClimbing)
+                    {
+                        this.ApplyWallClimbingGravity();
+                    }
+                    else if (this.yI > 40f)
+                    {
+                        this.ApplyFallingGravity();
+                    }
+                    else
+                    {
+                        this.ApplyFallingGravity();
+                    }
+                }
+                if (this.yI < this.maxFallSpeed)
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+                if (this.yI < -50f)
+                {
+                    this.RunFalling();
+                }
+                if (this.canCeilingHang && this.hangGrace > 0f)
+                {
+                    this.RunCheckHanging();
+                }
+            }
+            else
+            {
+                if (base.actionState == ActionState.Fallen)
+                {
+                    this.RunFallen();
+                }
+                this.EvaluateIsJumping();
+            }
+            this.yIT = (this.yI + this.specialAttackYIBoost) * this.t;
+            if (FluidController.IsSubmerged(base.X, base.Y))
+            {
+                this.yIT *= 0.65f;
+            }
+            if (base.actionState != ActionState.Recalling)
+            {
+                if (this.health > 0 && base.playerNum >= 0 && base.playerNum <= 3)
+                {
+                    this.ConstrainSpeedToSidesOfScreen();
+                }
+                this.canTouchCeiling = this.ConstrainToCeiling(ref this.yIT);
+                if (FluidController.IsSubmerged(base.X, base.Y))
+                {
+                    this.xI *= 0.95f;
+                    this.xIBlast *= 0.95f;
+                }
+                this.xIT = (this.xI + this.xIBlast + this.xIAttackExtra + this.specialAttackXIBoost) * this.t;
+                this.ConstrainToWalls(ref this.yIT, ref this.xIT);
+                if (this.skinnedMookOnMyBack)
+                {
+                    this.xIT *= 0.95f;
+                }
+                base.X += this.xIT;
+                this.CheckClimbAlongCeiling();
+                this.CheckForTraps(ref this.yIT);
+                if (this.yI <= 0f)
+                {
+                    this.ConstrainToFloor(ref this.yIT);
+                }
+            }
+            else
+            {
+                this.invulnerable = true;
+                this.yI = 0f;
+                this.yIT = this.yI * this.t;
+                this.xI = 0f;
+            }
+            if (this.WallDrag && (this.parentHasMovedTime > 0f || this.fire))
+            {
+                this.wallDragTime = 0.25f;
+            }
+            base.Y += this.yIT;
+            if (!this.immuneToOutOfBounds)
+            {
+                bool flag = GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.BroDown;
+                bool flag2 = flag && base.IsHero && (SortOfFollow.IsZooming || !HeroController.isCountdownFinished);
+                bool flag3 = flag && base.Y < this.screenMinY - 55f && base.playerNum >= 0;
+                if (!flag2 && (base.Y < -44f || flag3))
+                {
+                    if (Map.isEditing)
+                    {
+                        base.Y = -20f;
+                        this.yI = -this.yI * 1.5f;
+                    }
+                    else
+                    {
+                        float x = base.X;
+                        float y = base.Y;
+                        if (base.IsHero && Map.lastYLoadOffset > 0 && Map.FindLadderNearPosition((this.screenMaxX + this.screenMinX) / 2f, this.screenMinY, 16, ref x, ref y))
+                        {
+                            this.SetXY(x, y);
+                            this.holdUpTime = 0.3f;
+                            this.yI = 150f;
+                            this.xI = 0f;
+                            this.ShowStartBubble();
+                        }
+                        else if (!base.IsHero || base.IsMine)
+                        {
+                            if (HeroControllerTestInfo.HerosAreInvulnerable && base.IsHero)
+                            {
+                                this.yI += 1000f;
+                            }
+                            else
+                            {
+                                this.Gib(DamageType.OutOfBounds, this.xI, 840f);
+                            }
+                        }
+                    }
+                }
+            }
+            this.RunGroundFriction();
+            if (base.Y > this.groundHeight)
+            {
+                this.RunAirFriction();
+            }
+            if (float.IsNaN(base.X))
+            {
+            }
+            this.SetPosition();
+        }
+
+        // Overridden to prevent vehicle from being teleported around like a player
+        protected new void ConstrainSpeedToSidesOfScreen()
+        {
+            if (base.X >= this.screenMaxX - 8f && (this.xI > 0f || this.xIBlast > 0f))
+            {
+                this.xI = (this.xIBlast = 0f);
+            }
+            if (base.X <= this.screenMinX + 8f && (this.xI < 0f || this.xIBlast < 0f))
+            {
+                this.xI = (this.xIBlast = 0f);
+            }
+            if (base.X < this.screenMinX - 30f && TriggerManager.DestroyOffscreenPlayers && base.IsMine)
+            {
+                this.Gib(DamageType.OutOfBounds, 840f, this.yI + 50f);
+            }
+            if (SortOfFollow.GetFollowMode() == CameraFollowMode.MapExtents && base.Y >= this.screenMaxY - this.headHeight && this.yI > 0f)
+            {
+                base.Y = this.screenMaxY - this.headHeight;
+                this.yI = 0f;
+            }
+            if (base.Y < this.screenMinY - 30f)
+            {
+                if (TriggerManager.DestroyOffscreenPlayers && base.IsMine)
+                {
+                    this.Gib(DamageType.OutOfBounds, this.xI, 840f);
+                }
+                this.belowScreenCounter += this.t;
+                if (this.isHero && this.belowScreenCounter > 2f && HeroController.CanLookForReposition())
+                {
+                    float x = base.X;
+                    float y = base.Y;
+                    if (Map.FindLadderNearPosition((this.screenMaxX + this.screenMinX) / 2f, this.screenMinY, ref x, ref y))
+                    {
+                        this.SetXY(x, y);
+                        this.holdUpTime = 0.3f;
+                        this.yI = 150f;
+                        this.xI = 0f;
+                        this.ShowStartBubble();
+                        if (!GameModeController.IsDeathMatchMode && GameModeController.GameMode != GameMode.BroDown)
+                        {
+                            this.SetInvulnerable(2f, false, false);
+                        }
+                    }
+                    int num = 1;
+                    if (Map.FindHoleToJumpThroughAndAppear((this.screenMaxX + this.screenMinX) / 2f, this.screenMinY, ref x, ref y, ref num))
+                    {
+                        this.SetXY(x, y);
+                        if (num > 0)
+                        {
+                            this.holdRightTime = 0.3f;
+                        }
+                        else
+                        {
+                            this.holdLeftTime = 0.3f;
+                        }
+                        this.yI = 240f;
+                        this.xI = (float)(num * 70);
+                        this.ShowStartBubble();
+                        if (!GameModeController.IsDeathMatchMode && GameModeController.GameMode != GameMode.BroDown)
+                        {
+                            this.SetInvulnerable(2f, false, false);
+                        }
+                    }
+                    this.belowScreenCounter -= 0.5f;
+                }
+            }
+            else
+            {
+                this.belowScreenCounter = 0f;
+            }
+        }
+
+        // Rewritten completely to support larger hitboxes
         protected override bool ConstrainToCeiling(ref float yIT)
         {
+            // Disable collision until we've reached start
+            if ( !this.reachedStartingPoint )
+            {
+                return false;
+            }
             if (base.actionState == ActionState.Dead)
             {
                 this.headHeight = this.deadHeadHeight;
@@ -924,9 +1240,14 @@ namespace Furibrosa
             //RocketLib.Utils.DrawDebug.DrawLine("ceillingHit", ceilingHit.point, ceilingHit.point + new Vector3(3f, 0f, 0f), Color.green);
         }
 
-        // Overridden to change distance the raycasts are using to collision detect, the default distance didn't cover the size of the vehicle, which caused teleporting issues
+        // Rewritten completely to support larger hitboxes
         protected override bool ConstrainToWalls(ref float yIT, ref float xIT)
         {
+            // Disable collision until we've reached start
+            if (!this.reachedStartingPoint)
+            {
+                return false;
+            }
             if (!this.dashing || (this.left && this.xIBlast > 0f) || (this.right && this.xIBlast < 0f) || (!this.left && !this.right && Mathf.Abs(this.xIBlast) > 0f))
             {
                 this.xIBlast *= 1f - this.t * 4f;
@@ -1425,7 +1746,7 @@ namespace Furibrosa
             if (this.xI < 0 || this.left)
             {
                 
-                if (Map.HitUnits(this, this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
+                if (Map.HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
                 {
                     // Play sound effect for hitting unit
                 }
@@ -1439,7 +1760,7 @@ namespace Furibrosa
             }
             else if (this.xI > 0 || this.right)
             {
-                if (Map.HitUnits(this, this, playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
+                if (Map.HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.Crush, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, this.xI, 40f, true, true, true, false))
                 {
                     // Play sound effect for hitting unit
                 }
@@ -1498,22 +1819,31 @@ namespace Furibrosa
         }
         public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
         {
-            if (this.sprint && damageType != DamageType.SelfEsteem)
+            if (this.dashing && damageType != DamageType.SelfEsteem)
             {
                 damage = 0;
             }
 
-            if (damageType == DamageType.Acid)
+            switch (damageType)
             {
-                damageType = DamageType.Fire;
-            }
-            if (damageType == DamageType.Fire)
-            {
-                this.fireAmount += damage;
-            }
-            else if (damageType != DamageType.SelfEsteem)
-            {
-                this.shieldDamage += damage;
+                case DamageType.Acid:
+                    damageType = DamageType.Fire;
+                    goto case DamageType.Fire;
+                case DamageType.Fire:
+                    this.fireAmount += damage;
+                    break;
+                case DamageType.GibOnImpact:
+                case DamageType.Crush:
+                    this.shieldDamage += Mathf.Max(damage, 10);
+                    damageType = DamageType.Normal;
+                    break;
+                case DamageType.SelfEsteem:
+                    break;
+                case DamageType.Bounce:
+                    return;
+                default:
+                    this.shieldDamage += damage;
+                    break;
             }
             if (this.health <= 0)
             {
@@ -1531,14 +1861,14 @@ namespace Furibrosa
             }
             else if (damageType != DamageType.SelfEsteem)
             {
-                this.PlayDefendSound();
+                this.PlayDefendSound(damageType);
             }
             if (damageType == DamageType.SelfEsteem && damage >= this.health && this.health > 0)
             {
                 this.Death(0f, 0f, new DamageObject(damage, damageType, 0f, 0f, base.X, base.Y, this));
             }
 
-            if (this.shieldDamage + this.fireAmount > maxDamageBeforeExploding && this.pilotUnit != null)
+            if (this.shieldDamage + this.fireAmount > maxDamageBeforeExploding && this.pilotted)
             {
                 if (damageType == DamageType.Crush && this.shieldDamage > 50)
                 {
@@ -1553,9 +1883,17 @@ namespace Furibrosa
             }
         }
 
-        protected virtual void PlayDefendSound()
+        protected virtual void PlayDefendSound( DamageType damageType )
         {
-            Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.defendSounds, 0.7f + UnityEngine.Random.value * 0.4f, base.transform.position, 0.8f + 0.34f * UnityEngine.Random.value, true, false, false, 0f);
+            if ( damageType == DamageType.Bullet )
+            {
+                Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.defendSounds, 0.7f + UnityEngine.Random.value * 0.4f, base.transform.position, 0.8f + 0.34f * UnityEngine.Random.value, true, false, false, 0f);
+            }
+            // Add other damage sound
+            else
+            {
+
+            }
         }
 
         public override void Knock(DamageType damageType, float xI, float yI, bool forceTumble)
@@ -1631,7 +1969,7 @@ namespace Furibrosa
         #region Piloting
         public override bool CanPilotUnit(int newPlayerNum)
         {
-            return (this.health <= 0 || this.pilotUnit != null) && HeroController.players[playerNum].character is Furibrosa;
+            return HeroController.players[playerNum].character is Furibrosa;
         }
 
         public override void PilotUnitRPC(Unit newPilotUnit)
@@ -1645,7 +1983,7 @@ namespace Furibrosa
                 this.fixedBubbles = true;
             }
             this.pilotUnitDelay = 0.2f;
-            if (this.pilotUnit != null && this.pilotUnit != newPilotUnit)
+            if (this.pilotted && this.pilotUnit != newPilotUnit)
             {
                 this.DisChargePilot(150f, true, newPilotUnit);
             }
@@ -1662,6 +2000,7 @@ namespace Furibrosa
             this.reachedStartingPoint = true;
             this.groundFriction = originalGroundFriction;
             this.pilotUnit = PilotUnit;
+            this.pilotted = true;
             base.playerNum = this.pilotUnit.playerNum;
             this.health = this.maxHealth;
             this.deathNotificationSent = false;
@@ -1744,6 +2083,7 @@ namespace Furibrosa
                 base.StopPlayerBubbles();
                 BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(5f, 0f), 0f);
                 this.pilotUnit = null;
+                this.pilotted = false;
                 this.isHero = false;
                 this.fire = this.wasFire = false;
                 this.hasBeenPiloted = true;
@@ -1938,7 +2278,7 @@ namespace Furibrosa
             if ( this.currentFuriosaState == FuriosaState.InVehicle && this.currentPrimaryState != PrimaryState.Switching )
             {
                 this.DeactivateGun();
-                if (this.pilotUnit != null)
+                if (this.pilotted)
                 {
                     this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
                 }
@@ -2144,22 +2484,20 @@ namespace Furibrosa
             }
             this.SetGunSprite(0, 0);
         }
-
-        protected override void CheckInput()
-        {
-            base.CheckInput();
-            if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
-            {
-                if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
-                {
-                    this.StartSwitchingWeapon();
-                }
-                this.lastDownPressTime = Time.realtimeSinceStartup;
-            }
-        }
         #endregion
 
         #region Special
+        protected void UpdateSpecialIcon()
+        {
+            this.hud.SetFuel(this.boostFuel, this.boostFuel <= 0.2f);
+
+            // Re-enable grenade icons
+            for (int i = 0; i < this.SpecialAmmo; ++i)
+            {
+                this.hud.grenadeIcons[i].gameObject.SetActive(true);
+            }
+        }
+
         protected override void PressSpecial()
         {
             if ( this.SpecialAmmo > 0 )
