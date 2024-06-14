@@ -55,13 +55,21 @@ namespace Furibrosa
         {
             get
             {
-                return grabbedUnits[this.playerNum];
+                if ( this.previousPlayerNum < 0 || this.previousPlayerNum > 3 )
+                {
+                    return null;
+                }
+                else
+                {
+                    return grabbedUnits[this.previousPlayerNum];
+                }
             }
             set
             {
-                grabbedUnits[this.playerNum] = value;
+                grabbedUnits[this.previousPlayerNum] = value;
             }
         }
+        protected int previousPlayerNum = -1;
         protected bool unitWasGrabbed = false;
         protected bool throwingMook = false;
         protected float holdingXOffset = 0f;
@@ -118,6 +126,8 @@ namespace Furibrosa
         protected override void Start()
         {
             base.Start();
+
+            this.previousPlayerNum = this.playerNum;
 
             this.soundHolderVoice = (HeroController.GetHeroPrefab(HeroType.Xebro) as Xebro).soundHolderVoice;
 
@@ -358,6 +368,33 @@ namespace Furibrosa
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll(assembly);
+        }
+
+        public override void Death(float xI, float yI, DamageObject damage)
+        {
+            this.ReleaseUnit(false);
+            this.DestroyCurrentWarRig();
+            base.Death(xI, yI, damage);
+        }
+
+        protected override void OnDestroy()
+        {
+            this.ReleaseUnit(false);
+            this.DestroyCurrentWarRig();
+            base.OnDestroy();
+        }
+
+        protected override void CheckRescues()
+        {
+            if (HeroController.CheckRescueBros(base.playerNum, base.X, base.Y, 12f))
+            {
+                this.ReleaseUnit(false);
+                this.DestroyCurrentWarRig();
+
+                this.ShowStartBubble();
+                this.SetInvulnerable(2f, false, false);
+                StatisticsController.AddBrotalityGrace(3f);
+            }
         }
         #endregion
 
@@ -609,10 +646,7 @@ namespace Furibrosa
             }
 
             // Make sure to release any held units
-            if (this.grabbedUnit != null)
-            {
-                this.ReleaseUnit(false);
-            }
+            this.ReleaseUnit(false);
 
             // Ensure we don't double fire when exiting units
             this.fire = this.wasFire = false;
@@ -838,45 +872,22 @@ namespace Furibrosa
             base.CancelMelee();
         }
 
-        public override void Death(float xI, float yI, DamageObject damage)
+        protected void ReleaseUnit(bool throwUnit)
         {
             if ( this.grabbedUnit != null )
             {
-                this.ReleaseUnit(false);
+                this.unitWasGrabbed = false;
+                this.grabbedUnit.playerNum = -1;
+                (this.grabbedUnit as Mook).blindTime = 0;
+                if (throwUnit)
+                {
+                    this.ThrowBackMook(this.grabbedUnit as Mook);
+                }
+                this.grabbedUnit.gameObject.layer = 25;
+                this.grabbedUnit = null;
+                this.SwitchToNormalMaterials();
+                this.ChangeFrame();
             }
-            if ( this.currentWarRig != null )
-            {
-                this.DestroyCurrentWarRig();
-            }
-            base.Death(xI, yI, damage);
-        }
-
-        protected override void OnDestroy()
-        {
-            if (this.grabbedUnit != null)
-            {
-                this.ReleaseUnit(false);
-            }
-            if (this.currentWarRig != null)
-            {
-                this.DestroyCurrentWarRig();
-            }
-            base.OnDestroy();
-        }
-
-        protected void ReleaseUnit(bool throwUnit)
-        {
-            this.unitWasGrabbed = false;
-            this.grabbedUnit.playerNum = -1;
-            (this.grabbedUnit as Mook).blindTime = 0;
-            if ( throwUnit )
-            {
-                this.ThrowBackMook(this.grabbedUnit as Mook);
-            }
-            this.grabbedUnit.gameObject.layer = 25;
-            this.grabbedUnit = null;
-            this.SwitchToNormalMaterials();
-            this.ChangeFrame();
         }
 
         public static Unit GetNextClosestUnit(int playerNum, DirectionEnum direction, float xRange, float yRange, float x, float y, List<Unit> alreadyFoundUnits)
@@ -1004,7 +1015,16 @@ namespace Furibrosa
 
         Vector3 DetermineWarRigSpawn()
         {
-            return new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.Y, 0f);
+            // Facing right
+            if ( base.transform.localScale.x > 0 )
+            {
+                return new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.Y, 0f);
+            }
+            // Facing left
+            else
+            {
+                return new Vector3(SortOfFollow.GetScreenMaxX() + 65f, base.Y, 0f);
+            }
         }
 
         protected override void UseSpecial()
@@ -1015,7 +1035,9 @@ namespace Furibrosa
                 this.DestroyCurrentWarRig();
                 this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
                 this.currentWarRig.summoner = this;
-                this.currentWarRig.targetX = base.X + 10f;
+                this.currentWarRig.targetX = base.X + base.transform.localScale.x * 10f;
+                this.currentWarRig.transform.localScale = new Vector3( base.transform.localScale.x, this.currentWarRig.transform.localScale.y, this.currentWarRig.transform.localScale.z);
+                this.currentWarRig.summonedDirection = base.transform.localScale.x;
                 this.currentWarRig.gameObject.SetActive(true);
                 if ( this.special )
                 {
@@ -1035,7 +1057,15 @@ namespace Furibrosa
         public void GoPastFuriosa()
         {
             this.currentWarRig.keepGoingBeyondTarget = true;
-            this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
+
+            if ( this.currentWarRig.summonedDirection == 1 )
+            {
+                this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
+            }
+            else
+            {
+                this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMinX() + 20f;
+            }
             this.holdingSpecial = false;
         }
         #endregion
