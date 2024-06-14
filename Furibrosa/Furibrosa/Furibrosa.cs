@@ -75,7 +75,6 @@ namespace Furibrosa
 
         // Debug
         public static Furibrosa currentChar;
-        public Gib lastGib;
 
         #region General
         protected override void Awake()
@@ -189,7 +188,7 @@ namespace Furibrosa
                     GameObject warRig = null;
                     for (int i = 0; i < InstantiationController.PrefabList.Count; ++i)
                     {
-                        if (InstantiationController.PrefabList[i].name == "ZMookArmouredGuy")
+                        if ( InstantiationController.PrefabList[i] != null && InstantiationController.PrefabList[i].name == "ZMookArmouredGuy")
                         {
                             warRig = UnityEngine.Object.Instantiate(InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity) as GameObject;
                         }
@@ -199,6 +198,10 @@ namespace Furibrosa
                     {
                         warRigPrefab = warRig.AddComponent<WarRig>();
                         warRigPrefab.Setup();
+                    }
+                    else
+                    {
+                        throw new Exception("Mech Prefab not found");
                     }
                     UnityEngine.Object.DontDestroyOnLoad(warRigPrefab);
                 }
@@ -322,6 +325,16 @@ namespace Furibrosa
             float.TryParse(text, out val);
         }
 
+        public void makeTextBox(string label, ref string text, ref int val)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label);
+            text = GUILayout.TextField(text);
+            GUILayout.EndHorizontal();
+
+            int.TryParse(text, out val);
+        }
+
         public override void UIOptions()
         {
             if (switchWeaponKey == null)
@@ -338,28 +351,6 @@ namespace Furibrosa
             {
                 // Settings changed, update json
                 WriteJson();
-            }
-
-            // DEBUG
-            if ( GUILayout.Button("create gibs") )
-            {
-                if (currentChar.currentWarRig != null )
-                {
-                    Gib gibPrefab = currentChar.currentWarRig.gibs.transform.GetChild(0).GetComponent<Gib>();
-                    try
-                    {
-                        Gib gib = EffectsController.InstantiateEffect(gibPrefab) as Gib;
-                        gib.GetComponent<Renderer>().sharedMaterial = currentChar.currentWarRig.GetComponent<MeshRenderer>().material;
-                        gib.SetupSprite(gibPrefab.doesRotate, gibPrefab.GetLowerLeftPixel(), gibPrefab.GetPixelDimensions(), gibPrefab.GetSpriteOffset(), gibPrefab.rotateFrames);
-                        float xI2 = gibPrefab.transform.localPosition.x * (float)1 / 16f * 1 + xI;
-                        gib.Launch(currentChar.currentWarRig.X + gibPrefab.transform.localPosition.x * (float)1, currentChar.currentWarRig.Y + gibPrefab.transform.localPosition.y + 50f, xI2, gibPrefab.transform.localPosition.y / 16f * 1 + yI);
-                        currentChar.lastGib = gib;
-                    }
-                    catch (Exception ex)
-                    {
-                        BMLogger.Log("failed launching gib: " + ex.ToString());
-                    }
-                }
             }
         }
 
@@ -853,6 +844,10 @@ namespace Furibrosa
             {
                 this.ReleaseUnit(false);
             }
+            if ( this.currentWarRig != null )
+            {
+                this.DestroyCurrentWarRig();
+            }
             base.Death(xI, yI, damage);
         }
 
@@ -861,6 +856,10 @@ namespace Furibrosa
             if (this.grabbedUnit != null)
             {
                 this.ReleaseUnit(false);
+            }
+            if (this.currentWarRig != null)
+            {
+                this.DestroyCurrentWarRig();
             }
             base.OnDestroy();
         }
