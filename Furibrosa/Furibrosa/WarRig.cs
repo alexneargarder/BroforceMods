@@ -221,16 +221,66 @@ namespace Furibrosa
                 UnityEngine.Object.DontDestroyOnLoad(harpoonPrefab);
             }
 
+            // Create gibs
+            InitializeGibs();
+
             this.gameObject.SetActive(false);
         }
 
-        void FixPlayerBubble(ReactionBubble bubble)
+        protected void FixPlayerBubble(ReactionBubble bubble)
         {
             bubble.transform.localPosition = new Vector3(0f, 53f, 0f);
             bubble.SetPosition(bubble.transform.localPosition);
             Traverse bubbleTrav = Traverse.Create(bubble);
             bubble.RestartBubble();
             bubbleTrav.Field("yStart").SetValue(bubble.transform.localPosition.y + 5);
+        }
+
+        protected void InitializeGibs()
+        {
+            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
+            this.gibs.gameObject.SetActive(false);
+            UnityEngine.Object.DontDestroyOnLoad(this.gibs);
+            CreateGib("Scrap", new Vector2(397, 8), new Vector2(10, 4), 10f, 4f, new Vector3(-25f, 30f, 0f));
+            CreateGib("Scrap2", new Vector2(413, 12), new Vector2(6, 6), 6f, 6f, new Vector3(-14f, 20f, 0f));
+            CreateGib("Wheel", new Vector2(427, 13), new Vector2(11, 10), 13.75f, 12.5f, new Vector3(36f, 8f, 0f));
+            CreateGib("Scrap3", new Vector2(443, 14), new Vector2(15, 10), 15f, 10f, new Vector3(30f, 28f, 0f));
+            CreateGib("Scrap4", new Vector2(462, 8), new Vector2(5, 5), 5f, 5f, new Vector3(-17f, 44f, 0f));
+            CreateGib("Scrap5", new Vector2(462, 18), new Vector2(4, 6), 4f, 6f, new Vector3(-40f, 40f, 0f));
+            CreateGib("SmokestackScrap", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-48f, 55f, 0f));
+            CreateGib("SmokestackScrap2", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-42f, 55f, 0f));
+            CreateGib("BackSmokestackScrap", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(-1f, 57f, 0f));
+            CreateGib("BackSmokestackScrap2", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(4.5f, 57f, 0f));
+            CreateGib("Scrap6", new Vector2(401, 21), new Vector2(4, 4), 4f, 4f, new Vector3(-34f, 32f, 0f));
+            CreateGib("Scrap7", new Vector2(398, 31), new Vector2(12, 5), 12f, 5f, new Vector3(25f, 27f, 0f));
+            CreateGib("Scrap8", new Vector2(414, 25), new Vector2(6, 6), 6f, 6f, new Vector3(6f, 47f, 0f));
+            CreateGib("Scrap9", new Vector2(414, 31), new Vector2(5, 4), 5f, 4f, new Vector3(22f, 47f, 0f));
+            CreateGib("Scrap10", new Vector2(428, 34), new Vector2(11, 16), 11f, 16f, new Vector3(-16f, 34f, 0f));
+            CreateGib("Scrap11", new Vector2(447, 27), new Vector2(7, 5), 7f, 5f, new Vector3(39f, 28f, 0f));
+            CreateGib("Scrap12", new Vector2(462, 28), new Vector2(5, 6), 5f, 6f, new Vector3(22f, 29f, 0f));
+            CreateGib("ExhaustScrap", new Vector2(396, 42), new Vector2(13, 6), 13f, 6f, new Vector3(-8f, 49f, 0f));
+            CreateGib("Wheel", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-50f, 8f, 0f));
+            CreateGib("Wheel2", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-32f, 8f, 0f));
+            CreateGib("Wheel3", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(1f, 8f, 0f));
+            CreateGib("ExhaustScrap2", new Vector2(431, 54), new Vector2(4, 12), 4f, 12f, new Vector3(31f, 38f, 0f));
+            CreateGib("BumperScrap", new Vector2(448, 53), new Vector2(10, 22), 10f, 22f, new Vector3(12f, 13f, 0f));
+            CreateGib("Scrap13", new Vector2(459, 42), new Vector2(15, 9), 15f, 9f, new Vector3(-15f, 10f, 0f));
+            CreateGib("Skull", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(24f, 15f, 0f));
+            CreateGib("Skull2", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(30f, 16f, 0f));
+            CreateGib("Skull3", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(36f, 20f, 0f));
+            CreateGib("Skull4", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(41f, 16f, 0f));
+            CreateGib("Skull5", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(47f, 14f, 0f));
+
+            // Make sure gibs are on layer 19 since the texture they're using is transparent
+            for (int i = 0; i < this.gibs.transform.childCount; ++i)
+            {
+                gibs.transform.GetChild(i).gameObject.layer = 19;
+            }
+        }
+
+        protected void CreateGib(string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
+        {
+            BroMakerUtilities.CreateGibPrefab(name, lowerLeftPixel, pixelDimensions, width, height, new Vector3(0f, 0f, 0f), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 5, 1).transform.parent = this.gibs.transform;
         }
 
         protected override void Start()
@@ -262,11 +312,13 @@ namespace Furibrosa
             this.gunSprite.gameObject.layer = 19;
             this.originalSpecialAmmo = 3;
             this.SpecialAmmo = 3;
+            this.bloodColor = BloodColor.None;
 
-            // Setup gibs
-            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
-            this.gibs.gameObject.SetActive(false);
-            BroMakerUtilities.CreateGibPrefab("Wheel", new Vector2(133, 62), new Vector2(16, 14), 8f, 8f, new Vector3(0f, 0f, 0f), new Vector3(0f, 10f, 0f), false, DoodadGibsType.Metal, 6, false).transform.parent = this.gibs.transform;
+            // Make sure gib holder exists
+            if ( this.gibs == null )
+            {
+                InitializeGibs();
+            }
 
             // Default to playerNum 0 so that the vehicle doesn't kill the player before they start riding it
             this.playerNum = 0;
@@ -279,6 +331,12 @@ namespace Furibrosa
                 this.platform.center = new Vector3(-9f, 44f, -4.5f);
                 this.platform.size = new Vector3(80f, 12f, 64f);
             }
+        }
+
+        // DEBUG
+        public void GIBDEBUG()
+        {
+            this.CreateGibs(0f, 0f);
         }
 
         protected override void Update()
@@ -699,6 +757,26 @@ namespace Furibrosa
 
         protected override void ActivateGun()
         {
+        }
+
+        protected override void CreateGibs(float xI, float yI)
+        {
+            xI = xI * 0.25f;
+            yI = yI * 0.25f + 60f;
+            float xForce = 10f;
+            float yForce = 10f;
+            if (gibs == null || gibs.transform == null)
+            {
+                return;
+            }
+            for (int i = 0; i < gibs.transform.childCount; i++)
+            {
+                Transform child = gibs.transform.GetChild(i);
+                if (child != null)
+                {
+                    EffectsController.CreateGib(child.GetComponent<Gib>(), base.GetComponent<Renderer>().sharedMaterial, base.X, base.Y, xForce * (0.8f + UnityEngine.Random.value * 0.4f), yForce * (0.8f + UnityEngine.Random.value * 0.4f), xI, yI, (int)base.transform.localScale.x);
+                }
+            }
         }
         #endregion
 
@@ -1510,21 +1588,13 @@ namespace Furibrosa
 
         public override void Death(float xI, float yI, DamageObject damage)
         {
-            if (damage == null || damage.damageType != DamageType.SelfEsteem)
-            {
-            }
             if (base.GetComponent<Collider>() != null)
             {
                 base.GetComponent<Collider>().enabled = false;
             }
-            if (this.enemyAI != null)
-            {
-                this.enemyAI.HideSpeachBubbles();
-                this.OnlyDestroyScriptOnSync = true;
-                UnityEngine.Object.Destroy(this.enemyAI);
-            }
             this.DeactivateGun();
             base.Death(xI, yI, damage);
+            this.Gib(DamageType.InstaGib, xI, yI);
             if (this.pilotUnit)
             {
                 this.DisChargePilot(150f, false, null);
@@ -1533,21 +1603,24 @@ namespace Furibrosa
 
         protected override void Gib(DamageType damageType, float xI, float yI)
         {
-            if (this.deathCount > 9000)
+            if ( !this.destroyed )
             {
-                EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
-                Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
-                MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
-                SortOfFollow.Shake(1f, 2f);
+                if (this.deathCount > 9000)
+                {
+                    EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                    Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+                    MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
+                    SortOfFollow.Shake(1f, 2f);
+                }
+                else
+                {
+                    EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
+                    EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
+                    MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
+                    Map.ExplodeUnits(this, 20, DamageType.Explosion, 48f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
+                }
+                base.Gib(damageType, xI, yI);
             }
-            else
-            {
-                EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
-                EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
-                MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
-                Map.ExplodeUnits(this, 20, DamageType.Explosion, 48f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
-            }
-            base.Gib(damageType, xI, yI);
             if (this.pilotUnit)
             {
                 this.DisChargePilot(180f, false, null);
@@ -1678,10 +1751,6 @@ namespace Furibrosa
                 this.fireDelay = 0f;
                 this.dashing = false;
                 this.DeactivateGun();
-                if (this.health > 0)
-                {
-                    this.Damage(this.health + 1, DamageType.SelfEsteem, 0f, 0f, 0, this, base.X, base.Y);
-                }
                 base.SetSyncingInternal(false);
 
                 this.currentPrimaryState = PrimaryState.Crossbow;
