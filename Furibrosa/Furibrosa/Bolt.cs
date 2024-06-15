@@ -20,6 +20,8 @@ namespace Furibrosa
         public float explosiveTimer = 0;
         public float range = 48;
         public AudioClip[] explosionSounds;
+        protected bool isStuckToUnit = false;
+        protected Unit stuckToUnit = null;
 
         protected override void Awake()
         {
@@ -93,7 +95,7 @@ namespace Furibrosa
             {
                 this.groundLayersCrushLeft = 1;
                 this.maxPenetrations = 2;
-                this.life = 0.44f;
+                this.life = 0.46f;
             }
             this.unimpalementDamage = 8;
             this.trailDist = 12;
@@ -101,9 +103,7 @@ namespace Furibrosa
             this.rotationSpeed = 0;
             this.dragUnitsSpeedM = 0.9f;
             this.projectileSize = 8;
-            this.damage = 8;
-            this.damageInternal = 8;
-            this.fullDamage = 8;
+            this.damage = this.damageInternal = this.fullDamage = Furibrosa.crossbowDamage;
             this.fadeDamage = false;
             this.damageType = DamageType.Bullet;
             this.canHitGrenades = true;
@@ -148,6 +148,7 @@ namespace Furibrosa
 
         protected override void Update()
         {
+            // Count down to explosion
             if ( this.stuckInPlace && this.explosive )
             {
                 this.explosiveTimer += this.t;
@@ -156,23 +157,62 @@ namespace Furibrosa
                     this.Death();
                 }
             }
+
+            // Destroy bolt if it was stuck to a now dead or destroyed unit
+            if ( this.isStuckToUnit && (this.stuckToUnit == null || this.stuckToUnit.health <= 0))
+            {
+                this.Death();
+            }
             base.Update();
+        }
+
+        public void DestroyNearBySpears(Vector3 around)
+        {
+            Collider[] array = Physics.OverlapSphere(around, 9f, Map.unitLayer);
+            foreach (Collider collider in array)
+            {
+                PredabroSpear componentInChildren = collider.GetComponentInChildren<PredabroSpear>();
+                if (componentInChildren != null && componentInChildren != this)
+                {
+                    componentInChildren.Death();
+                }
+            }
+        }
+
+        public void StickToUnit(Transform trans, Vector3 point, Unit stuckUnit)
+        {
+            foreach (Unit unit in this.hitUnits)
+            {
+                unit.Damage(unit.health, DamageType.Spikes, this.xI, this.yI, (int)Mathf.Sign(this.xI), this.firedBy, base.X, base.Y);
+            }
+            this.stuckInPlace = true;
+            this.superMachete = false;
+            this.isStuckToUnit = true;
+            this.stuckToUnit = stuckUnit;
+            base.transform.parent = trans;
+            base.X = point.x - Mathf.Sign(this.xI) * this.hitGroundOffset;
+            this.SetPosition();
+            this.life = float.PositiveInfinity;
+            trans.SendMessage("AttachMe", base.transform);
+            this.platformCollider.enabled = true;
+            this.DestroyNearBySpears(point);
         }
 
         protected override void HitUnits()
         {
             if (this.penetrationsCount < this.maxPenetrations)
             {
-                Unit firstUnit = Map.GetFirstUnit(this.firedBy, this.playerNum, 6f, base.X, base.Y, true, true, this.hitUnits);
+                Unit firstUnit = Map.GetFirstUnit(this.firedBy, this.playerNum, 5f, base.X, base.Y, true, true, this.hitUnits);
                 if (firstUnit != null)
                 {
                     if (firstUnit.IsHeavy())
                     {
                         firstUnit.Damage(this.damageInternal, DamageType.Melee, this.xI, this.yI, (int)Mathf.Sign(this.xI), this.firedBy, base.X, base.Y);
                         this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
+                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.4f, base.transform.position, 1f, true, false, false, 0f);
                         if (!(firstUnit is DolphLundrenSoldier))
                         {
-                            this.Stick(firstUnit.transform, base.transform.position);
+                            this.StickToUnit(firstUnit.transform, base.transform.position - new Vector3(7f * base.transform.localScale.x, 0f, 0f), firstUnit);
                         }
                         else
                         {
@@ -192,7 +232,7 @@ namespace Furibrosa
                         {
                             firstUnit.useImpaledFrames = true;
                         }
-                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.4f, base.transform.position, 1f, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.5f, base.transform.position, 1f, true, false, false, 0f);
                         this.penetrationsCount++;
                         // Only add life to non-explosive bolts
                         if ( !this.explosive )
@@ -232,9 +272,9 @@ namespace Furibrosa
 
         protected void Explode()
         {
-            MapController.DamageGround(this.firedBy, ValueOrchestrator.GetModifiedDamage(this.damage, this.playerNum), this.damageType, this.range, base.X, base.Y, null, false);
+            MapController.DamageGround(this.firedBy, ValueOrchestrator.GetModifiedDamage(this.damage, this.playerNum), DamageType.Explosion, this.range, base.X, base.Y, null, false);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
-            Map.ExplodeUnits(this.firedBy, this.damage * 3, this.damageType, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
+            Map.ExplodeUnits(this.firedBy, this.damage * 2, DamageType.Explosion, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
             EffectsController.CreateExplosion(base.X, base.Y, this.range * 0.25f, this.range * 0.25f, 120f, 1f, this.range * 1.5f, 1f, 0f, true);
             if (this.sound == null)
