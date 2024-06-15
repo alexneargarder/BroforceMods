@@ -44,9 +44,14 @@ namespace Furibrosa
         protected Material crossbowMat, crossbowNormalMat, crossbowHoldingMat;
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
-        public static Projectile flarePrefab;
+        public static Flare flarePrefab;
         public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
+        protected bool randomizedWeapon = false;
+        public const float crossbowDelay = 0.6f;
+        public const float flaregunDelay = 0.8f;
+        public const int crossbowDamage = 13;
+        public const int flaregunDamage = 11;
 
         // Melee
         protected MeshRenderer holdingArm;
@@ -82,7 +87,7 @@ namespace Furibrosa
         public float holdingSpecialTime = 0f;
 
         // Debug
-        public static Furibrosa currentChar;
+        public Flare originalFlare = null;
 
         #region General
         protected override void Awake()
@@ -164,14 +169,24 @@ namespace Furibrosa
                 UnityEngine.Object.DontDestroyOnLoad(explosiveBoltPrefab);
             }
             
-            for (int i = 0; i < InstantiationController.PrefabList.Count; ++i)
+            if ( flarePrefab == null )
             {
-                if (InstantiationController.PrefabList[i].name == "Bullet Flare")
+                for (int i = 0; i < InstantiationController.PrefabList.Count; ++i)
                 {
-                    flarePrefab = (InstantiationController.PrefabList[i] as GameObject).GetComponent<Projectile>();
-                    break;
+                    if (InstantiationController.PrefabList[i] != null &&  InstantiationController.PrefabList[i].name == "Bullet Flare")
+                    {
+                        flarePrefab = (UnityEngine.Object.Instantiate(InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity) as GameObject).GetComponent<Flare>();
+                        flarePrefab.gameObject.SetActive(false);
+                        flarePrefab.damage = flarePrefab.damageInternal = flaregunDamage;
+                        Traverse.Create(flarePrefab).SetFieldValue("fullDamage", flarePrefab.damage);
+                        flarePrefab.range = 9f;
+                        UnityEngine.Object.DontDestroyOnLoad(flarePrefab);
+                        originalFlare = (InstantiationController.PrefabList[i] as GameObject).GetComponent<Flare>();
+                        break;
+                    }
                 }
             }
+            
 
             holdingArm = new GameObject("FuribrosaArm", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).GetComponent<MeshRenderer>();
             holdingArm.transform.parent = this.transform;
@@ -221,8 +236,16 @@ namespace Furibrosa
                 BMLogger.Log("Exception creating WarRig: " + ex.ToString());
             }
 
-            // Debug
-            currentChar = this;
+            // Randomize starting weapon
+            if ( !randomizedWeapon )
+            {
+                if (UnityEngine.Random.value >= 0.5f)
+                {
+                    this.nextState = PrimaryState.FlareGun;
+                    this.SwitchWeapon();
+                }
+                randomizedWeapon = true;
+            }
         }
 
         protected override void Update()
@@ -396,6 +419,15 @@ namespace Furibrosa
                 StatisticsController.AddBrotalityGrace(3f);
             }
         }
+
+        protected override void ChangeFrame()
+        {
+            if (!this.randomizedWeapon && this.isOnHelicopter)
+            {
+                this.randomizedWeapon = true;
+            }
+            base.ChangeFrame();
+        }
         #endregion
 
         #region Primary
@@ -527,7 +559,7 @@ namespace Furibrosa
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
                     firedBolt.gameObject.SetActive(true);
                 }
-                this.fireDelay = 0.5f;
+                this.fireDelay = crossbowDelay;
             }
             else if ( this.currentState == PrimaryState.FlareGun )
             {
@@ -536,9 +568,10 @@ namespace Furibrosa
                 xSpeed = base.transform.localScale.x * 450;
                 ySpeed = UnityEngine.Random.Range(15, 50);
                 EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
-                ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
+                Projectile flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
+                flare.gameObject.SetActive(true);
                 this.gunFrame = 3;
-                this.fireDelay = 0.8f;
+                this.fireDelay = flaregunDelay;
             }
         }
 
@@ -620,9 +653,9 @@ namespace Furibrosa
             else
             {
                 this.gunCounter += this.t;
-                if (this.gunCounter > 0.08f)
+                if (this.gunCounter > 0.07f)
                 {
-                    this.gunCounter -= 0.08f;
+                    this.gunCounter -= 0.07f;
                     ++this.gunFrame;
                 }
 
@@ -670,6 +703,7 @@ namespace Furibrosa
                 this.currentState = PrimaryState.Switching;
                 this.gunFrame = 0;
                 this.gunCounter = 0f;
+                this.fireDelay = 0f;
                 this.RunGun();
             } 
         }
@@ -872,24 +906,6 @@ namespace Furibrosa
             base.CancelMelee();
         }
 
-        protected void ReleaseUnit(bool throwUnit)
-        {
-            if ( this.grabbedUnit != null )
-            {
-                this.unitWasGrabbed = false;
-                this.grabbedUnit.playerNum = -1;
-                (this.grabbedUnit as Mook).blindTime = 0;
-                if (throwUnit)
-                {
-                    this.ThrowBackMook(this.grabbedUnit as Mook);
-                }
-                this.grabbedUnit.gameObject.layer = 25;
-                this.grabbedUnit = null;
-                this.SwitchToNormalMaterials();
-                this.ChangeFrame();
-            }
-        }
-
         public static Unit GetNextClosestUnit(int playerNum, DirectionEnum direction, float xRange, float yRange, float x, float y, List<Unit> alreadyFoundUnits)
         {
             if (Map.units == null)
@@ -930,14 +946,15 @@ namespace Furibrosa
             Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 12f, base.X, base.Y + base.height / 2f, new List<Unit>());
             if ( unit != null )
             {
-                // Pickup unit if not heavy and not a dog
-                if ( !unit.IsHeavy() && !(unit is MookDog || (unit is AlienMosquito && !(unit is HellLostSoul))) )
+                // Pickup unit if not heavy and not a dog and not on the ground
+                if ( !unit.IsHeavy() && unit.actionState != ActionState.Fallen && !(unit is MookDog || (unit is AlienMosquito && !(unit is HellLostSoul))) )
                 {
                     this.meleeHasHit = true;
                     this.grabbedUnit = unit;
                     unit.Panic(1000f, true);
                     unit.playerNum = this.playerNum;
                     unit.gameObject.layer = 28;
+                    this.doRollOnLand = false;
                 }
                 // Punch unit
                 else
@@ -951,8 +968,27 @@ namespace Furibrosa
             // Try hit terrain
             else
             {
-               this.meleeHasHit = this.TryMeleeTerrain(0, 4);
+               this.meleeHasHit = this.TryMeleeTerrain(4, 4);
             }
+        }
+
+        protected void ReleaseUnit(bool throwUnit)
+        {
+            if (this.grabbedUnit != null)
+            {
+                this.unitWasGrabbed = false;
+                this.grabbedUnit.playerNum = -1;
+                (this.grabbedUnit as Mook).blindTime = 0;
+                if (throwUnit)
+                {
+                    this.ThrowBackMook(this.grabbedUnit as Mook);
+                }
+                this.grabbedUnit.gameObject.layer = 25;
+                this.grabbedUnit = null;
+                this.SwitchToNormalMaterials();
+                this.ChangeFrame();
+            }
+            this.doRollOnLand = true;
         }
 
         protected void SwitchToHoldingMaterials()
@@ -999,6 +1035,15 @@ namespace Furibrosa
             {
                 base.Damage(damage, damageType, xI, yI, direction, damageSender, hitX, hitY);
             }
+        }
+
+        public override void SetGestureAnimation(GestureElement.Gestures gesture)
+        {
+            if ( gesture == GestureElement.Gestures.Flex )
+            {
+                this.ReleaseUnit(false);
+            }
+            base.SetGestureAnimation(gesture);
         }
         #endregion
 

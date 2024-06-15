@@ -131,6 +131,7 @@ namespace Furibrosa
                     {
                         firstUnit.Damage(this.damageInternal, DamageType.Melee, this.xI, this.yI, (int)Mathf.Sign(this.xI), this.firedBy, base.X, base.Y);
                         this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
+                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.4f, base.transform.position, 1f, true, false, false, 0f);
                     }
                     else
                     {
@@ -145,7 +146,7 @@ namespace Furibrosa
                         {
                             firstUnit.useImpaledFrames = true;
                         }
-                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.4f, base.transform.position, 1f, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.specialSounds, 0.5f, base.transform.position, 1f, true, false, false, 0f);
                         this.penetrationsCount++;
                         SortOfFollow.Shake(0.3f);
                         EffectsController.CreateBloodParticles(firstUnit.bloodColor, base.X, base.Y, 4, 4f, 5f, 60f, this.xI * 0.2f, this.yI * 0.5f + 40f);
