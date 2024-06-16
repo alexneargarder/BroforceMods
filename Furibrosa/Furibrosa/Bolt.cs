@@ -1,15 +1,10 @@
 ﻿using BroMakerLib;
-using BroMakerLib.Loggers;
 using RocketLib;
 using Rogueforce;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
-using Utility;
 
 namespace Furibrosa
 {
@@ -39,8 +34,8 @@ namespace Furibrosa
             if ( this.explosive )
             {
                 this.explosionSounds = new AudioClip[2];
-                this.explosionSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "Explo_Grenade1.wav");
-                this.explosionSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "Explo_Grenade2.wav");
+                this.explosionSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "explosion1.wav");
+                this.explosionSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "explosion2.wav");
             }
         }
 

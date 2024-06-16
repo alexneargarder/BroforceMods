@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-using BroMakerLib.CustomObjects.Bros;
 using RocketLib;
 using HarmonyLib;
 using BroMakerLib;
 using System.IO;
 using System.Reflection;
 using BroMakerLib.Loggers;
-using RocketLib.Collections;
 using static Furibrosa.Furibrosa;
 using Effects;
 using Rogueforce;
@@ -26,7 +22,7 @@ namespace Furibrosa
         public Furibrosa summoner = null;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
-        protected int shieldDamage;
+        protected float shieldDamage;
         public bool hasBeenPiloted;
         protected int fireAmount;
         protected int knockCount;
@@ -85,6 +81,19 @@ namespace Furibrosa
         protected int blueSmokeFrame = 0;
         protected bool usingBlueFlame = false;
 
+        // Audio Variables
+        AudioSource vehicleEngineAudio;
+        protected const float vehicleEngineVolume = 0.2f;
+        AudioSource vehicleHornAudio;
+        AudioClip vehicleIdleLoop, vehicleRev, vehicleHorn, vehicleHornLong;
+        AudioClip[] vehicleHit;
+        AudioClip harpoonFire;
+        protected bool playedHornStart = false;
+        protected bool playedRevStart = false;
+        protected float startupTimer = 1.9f;
+        protected bool releasedHorn = false;
+        protected float hornTimer = 0f;
+
         // Startup Variables
         protected bool reachedStartingPoint = false;
         public float targetX = 0f;
@@ -118,27 +127,6 @@ namespace Furibrosa
         public static Harpoon harpoonPrefab;
 
         #region Setup
-        public SpriteSM LoadSprite(GameObject gameObject, string spritePath, Vector3 offset)
-        {
-            MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
-
-            //Material material = ResourcesController.GetMaterial(directoryPath, spritePath);
-            Material material = ResourcesController.CreateMaterial(Path.Combine(directoryPath, spritePath), ResourcesController.Particle_AlphaBlend);
-            renderer.material = material;
-
-            SpriteSM sprite = gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2(0, 64);
-            sprite.pixelDimensions = new Vector2(128, 64);
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 128;
-            sprite.height = 64;
-            sprite.offset = offset;
-
-            gameObject.layer = 19;
-
-            return sprite;
-        }
-
         public void Setup()
         {
             directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -236,60 +224,43 @@ namespace Furibrosa
             this.gameObject.SetActive(false);
         }
 
-        protected void FixPlayerBubble(ReactionBubble bubble)
+        protected override void Awake()
         {
-            bubble.transform.localPosition = new Vector3(0f, 53f, 0f);
-            bubble.SetPosition(bubble.transform.localPosition);
-            Traverse bubbleTrav = Traverse.Create(bubble);
-            bubble.RestartBubble();
-            bubbleTrav.Field("yStart").SetValue(bubble.transform.localPosition.y + 5);
-        }
+            base.Awake();
 
-        protected void CreateGib(string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset)
-        {
-            BroMakerUtilities.CreateGibPrefab(name, lowerLeftPixel, pixelDimensions, width, height, new Vector3(0f, 0f, 0f), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 1, 7f).transform.parent = this.gibs.transform;
-        }
-
-        protected void InitializeGibs()
-        {
-            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
-            this.gibs.gameObject.SetActive(false);
-            UnityEngine.Object.DontDestroyOnLoad(this.gibs);
-            CreateGib("Scrap", new Vector2(397, 8), new Vector2(10, 4), 10f, 4f, new Vector3(-25f, 30f, 0f));
-            CreateGib("Scrap2", new Vector2(413, 12), new Vector2(6, 6), 6f, 6f, new Vector3(-14f, 20f, 0f));
-            CreateGib("Wheel", new Vector2(427, 13), new Vector2(11, 10), 13.75f, 12.5f, new Vector3(36f, 8f, 0f));
-            CreateGib("Scrap3", new Vector2(443, 14), new Vector2(15, 10), 15f, 10f, new Vector3(30f, 28f, 0f));
-            CreateGib("Scrap4", new Vector2(462, 8), new Vector2(5, 5), 5f, 5f, new Vector3(-17f, 44f, 0f));
-            CreateGib("Scrap5", new Vector2(462, 18), new Vector2(4, 6), 4f, 6f, new Vector3(-40f, 40f, 0f));
-            CreateGib("SmokestackScrap", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-48f, 55f, 0f));
-            CreateGib("SmokestackScrap2", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-42f, 55f, 0f));
-            CreateGib("BackSmokestackScrap", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(-1f, 57f, 0f));
-            CreateGib("BackSmokestackScrap2", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(4.5f, 57f, 0f));
-            CreateGib("Scrap6", new Vector2(401, 21), new Vector2(4, 4), 4f, 4f, new Vector3(-34f, 32f, 0f));
-            CreateGib("Scrap7", new Vector2(398, 31), new Vector2(12, 5), 12f, 5f, new Vector3(25f, 27f, 0f));
-            CreateGib("Scrap8", new Vector2(414, 25), new Vector2(6, 6), 6f, 6f, new Vector3(6f, 47f, 0f));
-            CreateGib("Scrap9", new Vector2(414, 31), new Vector2(5, 4), 5f, 4f, new Vector3(22f, 47f, 0f));
-            CreateGib("Scrap10", new Vector2(428, 34), new Vector2(11, 16), 11f, 16f, new Vector3(-16f, 34f, 0f));
-            CreateGib("Scrap11", new Vector2(447, 27), new Vector2(7, 5), 7f, 5f, new Vector3(39f, 28f, 0f));
-            CreateGib("Scrap12", new Vector2(462, 28), new Vector2(5, 6), 5f, 6f, new Vector3(22f, 29f, 0f));
-            CreateGib("ExhaustScrap", new Vector2(396, 42), new Vector2(13, 6), 13f, 6f, new Vector3(-8f, 49f, 0f));
-            CreateGib("Wheel", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-50f, 8f, 0f));
-            CreateGib("Wheel2", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-32f, 8f, 0f));
-            CreateGib("Wheel3", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(1f, 8f, 0f));
-            CreateGib("ExhaustScrap2", new Vector2(431, 54), new Vector2(4, 12), 4f, 12f, new Vector3(31f, 38f, 0f));
-            CreateGib("BumperScrap", new Vector2(448, 53), new Vector2(10, 22), 10f, 22f, new Vector3(12f, 13f, 0f));
-            CreateGib("Scrap13", new Vector2(459, 42), new Vector2(15, 9), 15f, 9f, new Vector3(-15f, 10f, 0f));
-            CreateGib("Skull", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(24f, 15f, 0f));
-            CreateGib("Skull2", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(30f, 16f, 0f));
-            CreateGib("Skull3", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(36f, 20f, 0f));
-            CreateGib("Skull4", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(41f, 16f, 0f));
-            CreateGib("Skull5", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(47f, 14f, 0f));
-
-            // Make sure gibs are on layer 19 since the texture they're using is transparent
-            for (int i = 0; i < this.gibs.transform.childCount; ++i)
+            // Make sure this component isn't being added from the mook class
+            if ( this.GetComponent<DisableWhenOffCamera>() != null )
             {
-                gibs.transform.GetChild(i).gameObject.layer = 19;
+                UnityEngine.Object.Destroy(this.GetComponent<DisableWhenOffCamera>());
             }
+
+            if (this.vehicleEngineAudio == null)
+            {
+                if (base.gameObject.GetComponent<AudioSource>() == null)
+                {
+                    this.vehicleEngineAudio = base.gameObject.AddComponent<AudioSource>();
+                    this.vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
+                    this.vehicleEngineAudio.dopplerLevel = 0f;
+                    this.vehicleEngineAudio.minDistance = 100f;
+                    this.vehicleEngineAudio.maxDistance = 750f;
+                    this.vehicleEngineAudio.spatialBlend = 1f;
+                    this.vehicleEngineAudio.spatialize = false;
+                    this.vehicleEngineAudio.volume = vehicleEngineVolume;
+                }
+                else
+                {
+                    this.vehicleEngineAudio = this.GetComponent<AudioSource>();
+                }
+            }
+
+            this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
+            this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
+            this.vehicleHornAudio.dopplerLevel = 0f;
+            this.vehicleHornAudio.minDistance = 100f;
+            this.vehicleHornAudio.maxDistance = 750f;
+            this.vehicleHornAudio.spatialBlend = 1f;
+            this.vehicleEngineAudio.spatialize = true;
+            this.vehicleHornAudio.volume = 1f;
         }
 
         protected override void Start()
@@ -353,6 +324,115 @@ namespace Furibrosa
                 this.platform.center = new Vector3(-9f, 44f, -4.5f);
                 this.platform.size = new Vector3(80f, 12f, 64f);
             }
+
+            // Load Audio
+            try
+            {
+                directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                directoryPath = Path.Combine(directoryPath, "sounds");
+                this.vehicleIdleLoop = ResourcesController.CreateAudioClip(directoryPath, "vehicleIdleLoop.wav");
+                this.vehicleRev = ResourcesController.CreateAudioClip(directoryPath, "vehicleBoost.wav");
+                this.vehicleHorn = ResourcesController.CreateAudioClip(directoryPath, "vehicleHornMedium.wav");
+                this.vehicleHornLong = ResourcesController.CreateAudioClip(directoryPath, "vehicleHornLong.wav");
+
+                this.vehicleHit = new AudioClip[3];
+                this.vehicleHit[0] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit1.wav");
+                this.vehicleHit[1] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit2.wav");
+                this.vehicleHit[2] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit3.wav");
+
+                this.harpoonFire = ResourcesController.CreateAudioClip(directoryPath, "harpoon.wav");
+            }
+            catch (Exception ex)
+            {
+                BMLogger.Log("Exception Loading Audio: " + ex.ToString());
+            }
+
+            this.DisableSprites();
+        }
+
+        public SpriteSM LoadSprite(GameObject gameObject, string spritePath, Vector3 offset)
+        {
+            MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
+
+            //Material material = ResourcesController.GetMaterial(directoryPath, spritePath);
+            Material material = ResourcesController.CreateMaterial(Path.Combine(directoryPath, spritePath), ResourcesController.Particle_AlphaBlend);
+            renderer.material = material;
+
+            SpriteSM sprite = gameObject.GetComponent<SpriteSM>();
+            sprite.lowerLeftPixel = new Vector2(0, 64);
+            sprite.pixelDimensions = new Vector2(128, 64);
+            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            sprite.width = 128;
+            sprite.height = 64;
+            sprite.offset = offset;
+
+            gameObject.layer = 19;
+
+            return sprite;
+        }
+
+        protected void FixPlayerBubble(ReactionBubble bubble)
+        {
+            bubble.transform.localPosition = new Vector3(0f, 53f, 0f);
+            bubble.SetPosition(bubble.transform.localPosition);
+            Traverse bubbleTrav = Traverse.Create(bubble);
+            bubble.RestartBubble();
+            bubbleTrav.Field("yStart").SetValue(bubble.transform.localPosition.y + 5);
+        }
+
+        protected void CreateGib(string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset)
+        {
+            BroMakerUtilities.CreateGibPrefab(name, lowerLeftPixel, pixelDimensions, width, height, new Vector3(0f, 0f, 0f), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 1, 7f).transform.parent = this.gibs.transform;
+        }
+
+        protected void InitializeGibs()
+        {
+            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
+            this.gibs.gameObject.SetActive(false);
+            UnityEngine.Object.DontDestroyOnLoad(this.gibs);
+            CreateGib("Scrap", new Vector2(397, 8), new Vector2(10, 4), 10f, 4f, new Vector3(-25f, 30f, 0f));
+            CreateGib("Scrap2", new Vector2(413, 12), new Vector2(6, 6), 6f, 6f, new Vector3(-14f, 20f, 0f));
+            CreateGib("Wheel", new Vector2(427, 13), new Vector2(11, 10), 13.75f, 12.5f, new Vector3(36f, 8f, 0f));
+            CreateGib("Scrap3", new Vector2(443, 14), new Vector2(15, 10), 15f, 10f, new Vector3(30f, 28f, 0f));
+            CreateGib("Scrap4", new Vector2(462, 8), new Vector2(5, 5), 5f, 5f, new Vector3(-17f, 44f, 0f));
+            CreateGib("Scrap5", new Vector2(462, 18), new Vector2(4, 6), 4f, 6f, new Vector3(-40f, 40f, 0f));
+            CreateGib("SmokestackScrap", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-48f, 55f, 0f));
+            CreateGib("SmokestackScrap2", new Vector2(477, 21), new Vector2(5, 16), 5f, 16f, new Vector3(-42f, 55f, 0f));
+            CreateGib("BackSmokestackScrap", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(-1f, 57f, 0f));
+            CreateGib("BackSmokestackScrap2", new Vector2(484, 17), new Vector2(5, 12), 5f, 12f, new Vector3(4.5f, 57f, 0f));
+            CreateGib("Scrap6", new Vector2(401, 21), new Vector2(4, 4), 4f, 4f, new Vector3(-34f, 32f, 0f));
+            CreateGib("Scrap7", new Vector2(398, 31), new Vector2(12, 5), 12f, 5f, new Vector3(25f, 27f, 0f));
+            CreateGib("Scrap8", new Vector2(414, 25), new Vector2(6, 6), 6f, 6f, new Vector3(6f, 47f, 0f));
+            CreateGib("Scrap9", new Vector2(414, 31), new Vector2(5, 4), 5f, 4f, new Vector3(22f, 47f, 0f));
+            CreateGib("Scrap10", new Vector2(428, 34), new Vector2(11, 16), 11f, 16f, new Vector3(-16f, 34f, 0f));
+            CreateGib("Scrap11", new Vector2(447, 27), new Vector2(7, 5), 7f, 5f, new Vector3(39f, 28f, 0f));
+            CreateGib("Scrap12", new Vector2(462, 28), new Vector2(5, 6), 5f, 6f, new Vector3(22f, 29f, 0f));
+            CreateGib("ExhaustScrap", new Vector2(396, 42), new Vector2(13, 6), 13f, 6f, new Vector3(-8f, 49f, 0f));
+            CreateGib("Wheel", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-50f, 8f, 0f));
+            CreateGib("Wheel2", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(-32f, 8f, 0f));
+            CreateGib("Wheel3", new Vector2(411, 54), new Vector2(13, 13), 17.5f, 17.5f, new Vector3(1f, 8f, 0f));
+            CreateGib("ExhaustScrap2", new Vector2(431, 54), new Vector2(4, 12), 4f, 12f, new Vector3(31f, 38f, 0f));
+            CreateGib("BumperScrap", new Vector2(448, 53), new Vector2(10, 22), 10f, 22f, new Vector3(12f, 13f, 0f));
+            CreateGib("Scrap13", new Vector2(459, 42), new Vector2(15, 9), 15f, 9f, new Vector3(-15f, 10f, 0f));
+            CreateGib("Skull", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(24f, 15f, 0f));
+            CreateGib("Skull2", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(30f, 16f, 0f));
+            CreateGib("Skull3", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(36f, 20f, 0f));
+            CreateGib("Skull4", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(41f, 16f, 0f));
+            CreateGib("Skull5", new Vector2(477, 41), new Vector2(5, 7), 5f, 7f, new Vector3(47f, 14f, 0f));
+
+            // Make sure gibs are on layer 19 since the texture they're using is transparent
+            for (int i = 0; i < this.gibs.transform.childCount; ++i)
+            {
+                gibs.transform.GetChild(i).gameObject.layer = 19;
+            }
+        }
+
+        public void SetTarget( Furibrosa summoner, float targetX, Vector3 localScale, float summonedDirection )
+        {
+            this.summoner = summoner;
+            this.targetX = targetX;
+            base.transform.localScale = localScale;
+            this.summonedDirection = summonedDirection;
         }
 
         protected void MoveTowardsStart()
@@ -404,6 +484,12 @@ namespace Furibrosa
         #region General
         protected override void Update()
         {
+            if ( startupTimer > 0f )
+            {
+                this.RunStartup();
+                return;
+            }
+
             base.Update();
 
             // Set camera position
@@ -430,7 +516,10 @@ namespace Furibrosa
             this.MoveTowardsStart();
 
             // Run animation loops for all other sprites
-            AnimateWarRig();
+            this.AnimateWarRig();
+
+            // Run Audio
+            this.RunAudio();
 
             // Create pilot switch
             if (this.pilotSwitch == null)
@@ -455,6 +544,59 @@ namespace Furibrosa
             }
         }
 
+        protected void RunStartup()
+        {
+            this.SetDeltaTime();
+
+            // Stay near Furiosa
+            if (this.summonedDirection > 0)
+            {
+                base.transform.position = new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.transform.position.y, 0f);
+            }
+            else
+            {
+                base.transform.position = new Vector3(SortOfFollow.GetScreenMaxX() + 65f, base.transform.position.y, 0f);
+            }
+
+            // Start horn audio
+            if (!this.playedHornStart)
+            {
+                this.vehicleHornAudio.clip = this.vehicleHorn;
+                this.vehicleHornAudio.Play();
+                this.playedHornStart = true;
+            }
+
+            this.startupTimer -= this.t;
+
+            if (this.startupTimer < 0.8 && !this.playedRevStart)
+            {
+                // Play inbetween vehicle and player
+                Sound.GetInstance().PlaySoundEffectAt(this.vehicleRev, 0.7f, (base.transform.position + summoner.transform.position) / 2f, 1f, true, false, false, 0f);
+                this.playedRevStart = true;
+            }
+
+            if (this.startupTimer < 0.6)
+            {
+                // Start engine audio
+                if (!this.vehicleEngineAudio.isPlaying)
+                {
+                    this.vehicleEngineAudio.clip = this.vehicleIdleLoop;
+                    this.vehicleEngineAudio.pitch = 1.3f;
+                    this.vehicleEngineAudio.volume = 0;
+                    this.vehicleEngineAudio.loop = true;
+                    this.vehicleEngineAudio.Play();
+                }
+
+                this.vehicleEngineAudio.volume = (0.6f - this.startupTimer) / 3f;
+            }
+
+            if (this.startupTimer <= 0f)
+            {
+                this.vehicleEngineAudio.volume = vehicleEngineVolume;
+                this.EnableSprites();
+            }
+        }
+
         public override bool CanBeThrown()
         {
             return false;
@@ -472,8 +614,57 @@ namespace Furibrosa
 
         protected override void CheckForTraps(ref float yIT)
         {
+            float num = base.Y + yIT;
+            if (num <= this.groundHeight + 1f)
+            {
+                num = this.groundHeight + 1f;
+            }
+            if (Map.isEditing || this.invulnerable)
+            {
+                return;
+            }
+            if (!base.IsEnemy && !base.IsMine)
+            {
+                return;
+            }
+            RaycastHit raycastHit;
+            if (this.impaledByTransform == null && Physics.Raycast(new Vector3(base.X, num, 0f), Vector3.down, out raycastHit, 25f, this.groundLayer))
+            {
+                Block component = raycastHit.collider.GetComponent<Block>();
+                if (component != null)
+                {
+                    if (raycastHit.distance < 10f && (base.IsMine || base.IsEnemy))
+                    {
+                        component.CheckForMine();
+                    }
+                }
+            }
+            RaycastHit raycastHit2;
+            if (this.impaledByTransform == null && Physics.Raycast(new Vector3(base.X - 3f, num, 0f), Vector3.down, out raycastHit2, 25f, this.groundLayer))
+            {
+                Block component2 = raycastHit2.collider.GetComponent<Block>();
+                if (component2 != null)
+                {
+                    if (raycastHit2.distance < 10f && (base.IsMine || base.IsEnemy))
+                    {
+                        component2.CheckForMine();
+                    }
+                }
+            }
+            RaycastHit raycastHit3;
+            if (this.impaledByTransform == null && Physics.Raycast(new Vector3(base.X + 3f, num, 0f), Vector3.down, out raycastHit3, 25f, this.groundLayer))
+            {
+                Block component3 = raycastHit3.collider.GetComponent<Block>();
+                if (component3 != null)
+                {
+                    if (raycastHit3.distance < 10f && (base.IsMine || base.IsEnemy))
+                    {
+                        component3.CheckForMine();
+                    }
+                }
+            }
         }
-
+        
         protected override void CheckRescues()
         {
         }
@@ -500,6 +691,19 @@ namespace Furibrosa
                     }
                     this.lastDownPressTime = Time.realtimeSinceStartup;
                 }
+
+                // Honk if flexing
+                if (this.isHero && this.buttonGesture)
+                {
+                    if (!this.vehicleHornAudio.isPlaying)
+                    {
+                        this.vehicleHornAudio.volume = 1f;
+                        this.vehicleHornAudio.clip = this.vehicleHornLong;
+                        this.vehicleHornAudio.Play();
+
+                        this.hornTimer = 1f;
+                    }
+                }
             }
             else
             {
@@ -525,6 +729,26 @@ namespace Furibrosa
                     this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
                 }
             }
+        }
+
+        protected void EnableSprites()
+        {
+            this.sprite.meshRender.enabled = true;
+            this.wheelsSprite.meshRender.enabled = true;
+            this.bumperSprite.meshRender.enabled = true;
+            this.longSmokestacksSprite.meshRender.enabled = true;
+            this.shortSmokestacksSprite.meshRender.enabled = true;
+            this.frontSmokestacksSprite.meshRender.enabled = true;
+        }
+
+        protected void DisableSprites()
+        {
+            this.sprite.meshRender.enabled = false;
+            this.wheelsSprite.meshRender.enabled = false;
+            this.bumperSprite.meshRender.enabled = false;
+            this.longSmokestacksSprite.meshRender.enabled = false;
+            this.shortSmokestacksSprite.meshRender.enabled = false;
+            this.frontSmokestacksSprite.meshRender.enabled = false;
         }
 
         protected void AnimateWarRig()
@@ -673,7 +897,11 @@ namespace Furibrosa
                     }
                     else
                     {
-                        if (this.specialFrame == 6)
+                        if ( this.specialFrame == 4 )
+                        {
+                            this.PlayHarpoonFireSound();
+                        }
+                        else if (this.specialFrame == 6)
                         {
                             this.UseSpecial();
                         }
@@ -751,6 +979,28 @@ namespace Furibrosa
             }
         }
 
+        // Set materials to default colors
+        protected virtual void SetUnhurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            this.wheelsSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            this.bumperSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            this.longSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            this.shortSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+            this.frontSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+        }
+
+        // Set materials to red tint
+        protected virtual void SetHurtMaterial()
+        {
+            this.sprite.meshRender.material.SetColor("_TintColor", Color.red);
+            this.wheelsSprite.meshRender.material.SetColor("_TintColor", Color.red);
+            this.bumperSprite.meshRender.material.SetColor("_TintColor", Color.red);
+            this.longSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
+            this.shortSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
+            this.frontSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
+        }
+
         protected override void AnimateRunning()
         {
             this.wheelsSprite.SetLowerLeftPixel(wheelsFrame * this.spritePixelWidth, this.spritePixelHeight * 2);
@@ -794,9 +1044,67 @@ namespace Furibrosa
         #endregion
 
         #region SoundEffects
+        // DEBUG
+        protected bool debugPitch;
+        public static string pitchStr = "1";
+        public static float pitchFloat = 1f;
+
+        public void RunAudio()
+        {
+            float currentSpeed = Mathf.Abs(this.xI);
+            
+            // Play engine idle
+            if ( !this.vehicleEngineAudio.isPlaying )
+            {
+                this.vehicleEngineAudio.volume = vehicleEngineVolume;
+                this.vehicleEngineAudio.clip = this.vehicleIdleLoop;
+                this.vehicleEngineAudio.loop = true;
+                this.vehicleEngineAudio.Play();
+            }
+
+            // Control engine pitch
+            if ( !this.reachedStartingPoint || this.keepGoingBeyondTarget )
+            {
+                this.vehicleEngineAudio.pitch = 1.3f;
+            }
+            else
+            {
+                this.vehicleEngineAudio.pitch = Mathf.Lerp(this.vehicleEngineAudio.pitch, currentSpeed / 250f + 1f, this.t * 2);
+            }
+
+            // Control vehicle horn
+            if ( this.hornTimer > 0f && (!this.buttonGesture || this.releasedHorn) )
+            {
+                if ( !this.buttonGesture )
+                {
+                    this.releasedHorn = true;
+                }
+
+                this.hornTimer -= this.t;
+
+                this.vehicleHornAudio.volume = this.hornTimer;
+
+                if ( this.hornTimer <= 0 )
+                {
+                    this.releasedHorn = false;
+                    this.vehicleHornAudio.Stop();
+                }
+            }
+        }
+
+        public void PlayRevSound()
+        {
+            Sound.GetInstance().PlaySoundEffectAt(this.vehicleRev, 0.6f, base.transform.position, 1f, true, false, true, 0f);
+        }
+
         public void PlayRunOverUnitSound()
         {
+            Sound.GetInstance().PlaySoundEffectAt(this.vehicleHit, 0.55f, base.transform.position, 1f, true, false, false, 0f);
+        }
 
+        public void PlayHarpoonFireSound()
+        {
+            Sound.GetInstance().PlaySoundEffectAt(this.harpoonFire, 0.65f, base.transform.position, 1f, true, false, true, 0f);
         }
         #endregion
 
@@ -804,6 +1112,10 @@ namespace Furibrosa
         // Overridden to prevent vehicle from being teleported around like a player
         protected new void ConstrainSpeedToSidesOfScreen()
         {
+            if ( !this.IsHero || !this.reachedStartingPoint || this.keepGoingBeyondTarget )
+            {
+                return;
+            }
             if (base.X >= this.screenMaxX - 8f && (this.xI > 0f || this.xIBlast > 0f))
             {
                 this.xI = (this.xIBlast = 0f);
@@ -896,7 +1208,7 @@ namespace Furibrosa
         protected override bool ConstrainToCeiling(ref float yIT)
         {
             // Disable collision until we've reached start
-            if (!this.reachedStartingPoint)
+            if (!this.reachedStartingPoint || this.keepGoingBeyondTarget)
             {
                 return false;
             }
@@ -1047,7 +1359,7 @@ namespace Furibrosa
         protected override bool ConstrainToWalls(ref float yIT, ref float xIT)
         {
             // Disable collision until we've reached start
-            if (!this.reachedStartingPoint)
+            if (!this.reachedStartingPoint || this.keepGoingBeyondTarget)
             {
                 return false;
             }
@@ -1456,6 +1768,7 @@ namespace Furibrosa
                 if (this.CrushGroundWhileMoving(currentGroundDamage, crushXRange, crushYRange, crushXOffset, crushYOffset))
                 {
                     this.crushMomentum -= ((this.crushMomentum > 150 ? 6.5f : 5.5f) * Mathf.Sign(this.crushMomentum));
+                    this.shieldDamage += 0.7f;
                     if (!crushSpeedReached)
                     {
                         crushDamageCooldown = 0.04f;
@@ -1483,7 +1796,10 @@ namespace Furibrosa
                 float currentSpeed = Mathf.Abs(this.xI);
                 bool crushSpeedReached = (this.dashing && currentSpeed > 100f);
                 int currentUnitDamage = crushSpeedReached ? 30 : (int)Mathf.Max(Mathf.Round(currentSpeed / this.speed * 20), 1);
-                this.CrushUnitsWhileMoving(currentUnitDamage, unitXRange, unitYRange, crushXOffset, crushYOffset);
+                if (this.CrushUnitsWhileMoving(currentUnitDamage, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                {
+                    this.shieldDamage += 3f;
+                }
             }
         }
 
@@ -1523,7 +1839,7 @@ namespace Furibrosa
             return hitGround;
         }
 
-        protected virtual void CrushUnitsWhileMoving(int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
+        protected virtual bool CrushUnitsWhileMoving(int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
         {
             float knockback = Mathf.Max(Mathf.Min( Mathf.Abs(this.xI), 75f), 225);
             if (this.xI < 0 || this.left)
@@ -1532,6 +1848,7 @@ namespace Furibrosa
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
+                    return true;
                 }
             }
             else if (this.xI > 0 || this.right)
@@ -1540,8 +1857,10 @@ namespace Furibrosa
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
+                    return true;
                 }
             }
+            return false;
         }
 
         public bool HitUnits(MonoBehaviour damageSender, MonoBehaviour avoidID, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib)
@@ -1556,7 +1875,8 @@ namespace Furibrosa
             for (int i = Map.units.Count - 1; i >= 0; i--)
             {
                 Unit unit = Map.units[i];
-                if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health <= num && !this.recentlyHitUnits.Contains(unit) )
+                if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health <= num
+                    && !this.recentlyHitUnits.Contains(unit) && !BroMakerUtilities.IsBoss(unit) )
                 {
                     float num2 = unit.X - x;
                     if (Mathf.Abs(num2) - xRange < unit.width)
@@ -1602,6 +1922,19 @@ namespace Furibrosa
         #endregion
 
         #region Movement
+        // Overridden to ignore barbed wire
+        protected override float GetSpeed
+        {
+            get
+            {
+                if (this.player == null)
+                {
+                    return this.speed * 1;
+                }
+                return this.player.ValueOrchestrator.GetModifiedFloatValue(ValueOrchestrator.ModifiableType.MovementSpeed, this.speed) * 1f;
+            }
+        }
+
         // Overridden to use different head height
         protected override void CalculateMovement()
         {
@@ -2095,6 +2428,7 @@ namespace Furibrosa
                 {
                     this.xI += base.transform.localScale.x * 100f;
                     this.lastDashTime = Time.time;
+                    this.PlayRevSound();
                 }
 
                 this.boostFuel -= this.t * 0.15f;
@@ -2112,7 +2446,11 @@ namespace Furibrosa
 
         protected override void AddSpeedLeft()
         {
-            if (this.holdStillTime <= 0f)
+            if (this.holdStillTime > 0f)
+            {
+                return;
+            }
+            else
             {
                 if (this.xI > -25f)
                 {
@@ -2132,7 +2470,11 @@ namespace Furibrosa
 
         protected override void AddSpeedRight()
         {
-            if (this.holdStillTime <= 0f)
+            if (this.holdStillTime > 0f)
+            {
+                return;
+            }
+            else
             {
                 if (this.xI < 25f)
                 {
@@ -2165,13 +2507,7 @@ namespace Furibrosa
             {
                 this.blockCurrentlyStandingOn.BounceOn();
             }
-            if (this.blockCurrentlyStandingOn != null && this.IsSurroundedByBarbedWire())
-            {
-                this.yI = this.jumpForce * 0.8f;
-                EffectsController.CreateBloodParticles(this.bloodColor, base.X, base.Y + 10f, -5f, 3, 4f, 4f, 50f, this.xI * 0.8f, this.yI);
-                this.barbedWireWithin.PlayCutSound();
-            }
-            else if (Physics.Raycast(new Vector3(base.X, base.Y + 2f, 0f), Vector3.down, out this.raycastHit, 4f, Map.groundLayer) && this.raycastHit.collider.GetComponent<BossBlockPiece>() != null)
+            if (Physics.Raycast(new Vector3(base.X, base.Y + 2f, 0f), Vector3.down, out this.raycastHit, 4f, Map.groundLayer) && this.raycastHit.collider.GetComponent<BossBlockPiece>() != null)
             {
                 BossBlockPiece component = this.raycastHit.collider.GetComponent<BossBlockPiece>();
                 if (component.isBouncy)
@@ -2229,10 +2565,7 @@ namespace Furibrosa
             }
             else
             {
-                if (!this.IsSurroundedByBarbedWire())
-                {
-                    this.jumpTime = this.JUMP_TIME;
-                }
+                this.jumpTime = this.JUMP_TIME;
                 this.ChangeFrame();
                 this.PlayJumpSound();
             }
@@ -2299,7 +2632,7 @@ namespace Furibrosa
                     break;
                 case DamageType.GibOnImpact:
                 case DamageType.Crush:
-                    this.shieldDamage += Mathf.Min(damage, 5);
+                    this.shieldDamage += Mathf.Min(damage, 1);
                     damageType = DamageType.Normal;
                     break;
                 case DamageType.SelfEsteem:
@@ -2377,28 +2710,6 @@ namespace Furibrosa
             }
         }
 
-        // Set materials to default colors
-        protected virtual void SetUnhurtMaterial()
-        {
-            this.sprite.meshRender.material.SetColor("_TintColor", Color.gray);
-            this.wheelsSprite.meshRender.material.SetColor("_TintColor", Color.gray);
-            this.bumperSprite.meshRender.material.SetColor("_TintColor", Color.gray);
-            this.longSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
-            this.shortSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
-            this.frontSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.gray);
-        }
-
-        // Set materials to red tint
-        protected virtual void SetHurtMaterial()
-        {
-            this.sprite.meshRender.material.SetColor("_TintColor", Color.red);
-            this.wheelsSprite.meshRender.material.SetColor("_TintColor", Color.red);
-            this.bumperSprite.meshRender.material.SetColor("_TintColor", Color.red);
-            this.longSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
-            this.shortSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
-            this.frontSmokestacksSprite.meshRender.material.SetColor("_TintColor", Color.red);
-        }
-
         public override void Death(float xI, float yI, DamageObject damage)
         {
             if (base.GetComponent<Collider>() != null)
@@ -2420,7 +2731,6 @@ namespace Furibrosa
             {
                 if (this.deathCount > 9000)
                 {
-                    BMLogger.Log("massive explosion");
                     EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
                     Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
                     MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
@@ -2428,7 +2738,6 @@ namespace Furibrosa
                 }
                 else
                 {
-                    BMLogger.Log("mini explosion");
                     EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
                     EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
                     MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
@@ -2729,6 +3038,7 @@ namespace Furibrosa
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
                     firedBolt.gameObject.SetActive(true);
                 }
+                summoner.PlayCrossbowSound(base.transform.position);
                 this.fireDelay = crossbowDelay;
             }
             else if (this.currentPrimaryState == PrimaryState.FlareGun)
@@ -2741,6 +3051,7 @@ namespace Furibrosa
                 Projectile flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
                 flare.gameObject.SetActive(true);
                 this.gunFrame = 3;
+                summoner.PlayFlareSound(base.transform.position);
                 this.fireDelay = flaregunDelay;
             }
         }
@@ -2836,6 +3147,7 @@ namespace Furibrosa
                                 this.gunFrame = 0;
                                 if (!this.charged)
                                 {
+                                    summoner.PlayChargeSound(base.transform.position);
                                     this.charged = true;
                                     this.chargeFramerate = 0.04f;
                                 }
@@ -2921,6 +3233,10 @@ namespace Furibrosa
                         {
                             this.gunCounter -= 0.15f;
                             ++this.gunFrame;
+                            if ( this.gunFrame == 5 )
+                            {
+                                summoner.PlaySwapSound(base.transform.position);
+                            }
                         }
                     }
 
@@ -2957,6 +3273,12 @@ namespace Furibrosa
                     this.gunFrame = 0;
                     this.gunCounter = 0f;
                     this.RunGun();
+                }
+
+                // Play swap sound if switching weapon inside vehicle
+                if ( this.currentFuriosaState == FuriosaState.InVehicle )
+                {
+                    summoner.PlaySwapSound(base.transform.position);
                 }
             }
         }
@@ -3022,6 +3344,8 @@ namespace Furibrosa
             float ySpeed = 0;
             CreateMuzzleFlashBigEffect(base.X + base.transform.localScale.x * 46f, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
             Harpoon firedHarpoon = ProjectileController.SpawnProjectileLocally(harpoonPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Harpoon;
+            this.xIBlast -= base.transform.localScale.x * 150;
+            this.yI += 200;
             firedHarpoon.gameObject.SetActive(true);
         }
         #endregion

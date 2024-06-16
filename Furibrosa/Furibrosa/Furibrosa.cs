@@ -7,13 +7,7 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 using RocketLib;
-using Rogueforce;
-using JetBrains.Annotations;
-using RocketLib.Collections;
-using Networking;
-using System.Linq;
 using HarmonyLib;
-using World.LevelEdit.Triggers;
 using Newtonsoft.Json;
 
 namespace Furibrosa
@@ -26,6 +20,13 @@ namespace Furibrosa
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
         public static bool jsonLoaded = false;
+
+        // Sounds
+        protected AudioClip[] crossbowSounds;
+        protected AudioClip[] flareSounds;
+        protected AudioClip chargeSound;
+        protected AudioClip swapSound;
+        protected AudioClip[] meleeSwingSounds;
 
         // Primary
         public enum PrimaryState
@@ -186,7 +187,6 @@ namespace Furibrosa
                     }
                 }
             }
-            
 
             holdingArm = new GameObject("FuribrosaArm", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).GetComponent<MeshRenderer>();
             holdingArm.transform.parent = this.transform;
@@ -246,6 +246,29 @@ namespace Furibrosa
                 }
                 randomizedWeapon = true;
             }
+
+            // Load Audio
+            directoryPath = Path.Combine(directoryPath, "sounds");
+            this.crossbowSounds = new AudioClip[4];
+            this.crossbowSounds[0] = ResourcesController.CreateAudioClip(directoryPath, "crossbowShot1.wav");
+            this.crossbowSounds[1] = ResourcesController.CreateAudioClip(directoryPath, "crossbowShot2.wav");
+            this.crossbowSounds[2] = ResourcesController.CreateAudioClip(directoryPath, "crossbowShot3.wav");
+            this.crossbowSounds[3] = ResourcesController.CreateAudioClip(directoryPath, "crossbowShot4.wav");
+
+            this.flareSounds = new AudioClip[4];
+            this.flareSounds[0] = ResourcesController.CreateAudioClip(directoryPath, "flareShot1.wav");
+            this.flareSounds[1] = ResourcesController.CreateAudioClip(directoryPath, "flareShot2.wav");
+            this.flareSounds[2] = ResourcesController.CreateAudioClip(directoryPath, "flareShot3.wav");
+            this.flareSounds[3] = ResourcesController.CreateAudioClip(directoryPath, "flareShot4.wav");
+
+            this.chargeSound = ResourcesController.CreateAudioClip(directoryPath, "charged.wav");
+
+            this.swapSound = ResourcesController.CreateAudioClip(directoryPath, "weaponSwap.wav");
+
+            this.meleeSwingSounds = new AudioClip[3];
+            this.meleeSwingSounds[0] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing1.wav");
+            this.meleeSwingSounds[1] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing2.wav");
+            this.meleeSwingSounds[2] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing3.wav");
         }
 
         protected override void Update()
@@ -559,6 +582,7 @@ namespace Furibrosa
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
                     firedBolt.gameObject.SetActive(true);
                 }
+                this.PlayCrossbowSound(base.transform.position);
                 this.fireDelay = crossbowDelay;
             }
             else if ( this.currentState == PrimaryState.FlareGun )
@@ -571,8 +595,29 @@ namespace Furibrosa
                 Projectile flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
                 flare.gameObject.SetActive(true);
                 this.gunFrame = 3;
+                this.PlayFlareSound(base.transform.position);
                 this.fireDelay = flaregunDelay;
             }
+        }
+
+        public void PlayChargeSound(Vector3 position)
+        {
+            this.sound.PlaySoundEffectAt(this.chargeSound, 0.35f, position, 1f, true, false, true, 0f);
+        }
+
+        public void PlayCrossbowSound(Vector3 position)
+        {
+            this.sound.PlaySoundEffectAt(this.crossbowSounds, 0.35f, position, 1f, true, false, true, 0f);
+        }
+
+        public void PlayFlareSound(Vector3 position)
+        {
+            this.sound.PlaySoundEffectAt(this.flareSounds, 0.75f, position, 1f, true, false, true, 0f);
+        }
+
+        public void PlaySwapSound(Vector3 position)
+        {
+            this.sound.PlaySoundEffectAt(this.swapSound, 0.35f, position, 1f, true, false, true, 0f);
         }
 
         protected override void RunGun()
@@ -614,6 +659,7 @@ namespace Furibrosa
                                         ++this.chargeCounter;
                                         if (this.chargeCounter > 1)
                                         {
+                                            this.PlayChargeSound(base.transform.position);
                                             this.charged = true;
                                             this.gunFramerate = 0.04f;
                                         }
@@ -657,8 +703,13 @@ namespace Furibrosa
                 {
                     this.gunCounter -= 0.07f;
                     ++this.gunFrame;
-                }
 
+                    if (this.gunFrame == 3)
+                    {
+                        this.PlaySwapSound(base.transform.position);
+                    }
+                }
+                
                 if (this.gunFrame > 5)
                 {
                     this.SwitchWeapon();
@@ -798,7 +849,11 @@ namespace Furibrosa
                 base.frameRate = 0.07f;
             }
             this.sprite.SetLowerLeftPixel((25 + base.frame) * this.spritePixelWidth, 9 * this.spritePixelHeight);
-            if (base.frame == 3)
+            if (base.frame == 2)
+            {
+                this.sound.PlaySoundEffectAt(this.meleeSwingSounds, 0.3f, base.transform.position, 1f, true, false, true, 0f);
+            }
+            else if (base.frame == 3)
             {
                 base.counter -= 0.066f;
                 this.GrabUnit();
@@ -1079,10 +1134,7 @@ namespace Furibrosa
                 this.SpecialAmmo--;
                 this.DestroyCurrentWarRig();
                 this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>(warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity);
-                this.currentWarRig.summoner = this;
-                this.currentWarRig.targetX = base.X + base.transform.localScale.x * 10f;
-                this.currentWarRig.transform.localScale = new Vector3( base.transform.localScale.x, this.currentWarRig.transform.localScale.y, this.currentWarRig.transform.localScale.z);
-                this.currentWarRig.summonedDirection = base.transform.localScale.x;
+                this.currentWarRig.SetTarget(this, base.X + base.transform.localScale.x * 10f, new Vector3(base.transform.localScale.x, this.currentWarRig.transform.localScale.y, this.currentWarRig.transform.localScale.z), base.transform.localScale.x);
                 this.currentWarRig.gameObject.SetActive(true);
                 if ( this.special )
                 {
