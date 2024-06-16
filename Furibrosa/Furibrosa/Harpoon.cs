@@ -1,15 +1,8 @@
 ﻿using BroMakerLib;
-using BroMakerLib.Loggers;
-using RocketLib;
-using Rogueforce;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
-using Utility;
 
 namespace Furibrosa
 {
@@ -62,7 +55,7 @@ namespace Furibrosa
 
             // Setup Variables
             this.groundLayersCrushLeft = 5;
-            this.maxPenetrations = 4;
+            this.maxPenetrations = 8;
             this.life = 0.44f;
             this.unimpalementDamage = 8;
             this.trailDist = 12;
@@ -70,9 +63,9 @@ namespace Furibrosa
             this.rotationSpeed = 0;
             this.dragUnitsSpeedM = 0.9f;
             this.projectileSize = 14;
-            this.damage = 40;
-            this.damageInternal = 40;
-            this.fullDamage = 40;
+            this.damage = 50;
+            this.damageInternal = 50;
+            this.fullDamage = 50;
             this.fadeDamage = false;
             this.damageType = DamageType.Bullet;
             this.canHitGrenades = true;
