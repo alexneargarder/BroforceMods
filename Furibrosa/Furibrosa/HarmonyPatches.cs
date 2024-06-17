@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using BroMakerLib.Loggers;
+using HarmonyLib;
 
 namespace Furibrosa
 {
