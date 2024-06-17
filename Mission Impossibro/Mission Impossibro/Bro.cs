@@ -53,6 +53,7 @@ namespace Mission_Impossibro
         protected List<Explosive> currentExplosives;
         protected const int MaxExplosives = 5;
         protected Explosive explosivePrefab;
+        protected bool isElbowSlamming = false;
 
         // Melee Variables
         protected ExplosiveGum gumPrefab;
@@ -61,8 +62,6 @@ namespace Mission_Impossibro
 
         // Misc Variables
         protected bool acceptedDeath = false;
-
-        // DEBUG variables
 
         protected override void Awake()
         {
@@ -389,6 +388,10 @@ namespace Mission_Impossibro
 
         public void AnimateGrapple()
         {
+            if (this.recalling)
+            {
+                return;
+            }
             this.SetSpriteOffset(0f, 0f);
 
             // Hold frame
@@ -482,6 +485,11 @@ namespace Mission_Impossibro
             if ( !(this.grappleAttached || this.exitingGrapple) )
             {
                 base.SetGestureAnimation(gesture);
+                // Check if elbow slamming
+                if ( gesture == GestureElement.Gestures.Flex )
+                {
+                    this.isElbowSlamming = (bool)Traverse.Create(this).Field("isElbowSlamming").GetValue();
+                }
             }
         }
 
@@ -489,7 +497,17 @@ namespace Mission_Impossibro
         {
             if ( !this.grappleAttached )
             {
-                base.Land();
+                // Prevent mooks from noticing land
+                if ( this.stealthActive && !this.isElbowSlamming )
+                {
+                    this.yI = -100f;
+                    base.Land();
+                }
+                else
+                {
+                    base.Land();
+                }
+                this.isElbowSlamming = false;
             }
         }
         #endregion
@@ -581,7 +599,10 @@ namespace Mission_Impossibro
                 this.FireWeapon(base.X + num * 12f, base.Y + 10f, num * bulletSpeed, 0);
             }
             
-            Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+            if ( !this.stealthActive )
+            {
+                Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+            }
 
             this.fireCooldown = this.fireRate - 0.12f;
         }
@@ -940,7 +961,10 @@ namespace Mission_Impossibro
                 this.usingSpecialFrame = 5;
             }
             this.fireRate = originalFireRate;
-            Sound.GetInstance().PlaySoundEffectAt(detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f);
+            if ( !this.recalling )
+            {
+                Sound.GetInstance().PlaySoundEffectAt(detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f);
+            }
             // Detonate explosives
             foreach ( Explosive explosive in this.currentExplosives )
             {
@@ -951,6 +975,10 @@ namespace Mission_Impossibro
         protected override void AnimateSpecial()
         {
             base.frameRate = 0.0667f;
+            if ( this.recalling )
+            {
+                return;
+            }
             if ( this.grappleAttached || this.exitingGrapple )
             {
                 this.DeactivateGun();
