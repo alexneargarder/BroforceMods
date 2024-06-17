@@ -1,5 +1,5 @@
 ﻿using BroMakerLib;
-using BroMakerLib.Loggers;
+using RocketLib;
 using System;
 using System.IO;
 using System.Reflection;
@@ -214,6 +214,18 @@ namespace Furibrosa
                     }
                 }
             }
+        }
+
+        protected override void Bounce(RaycastHit raycastHit)
+        {
+            // Ensure we don't keep applying damage to boss blocks
+            if ( this.groundLayersCrushLeft > 0 && raycastHit.collider.gameObject.HasComponent<DamageRelay>() )
+            {
+                this.groundLayersCrushLeft = 1;
+                this.damage = 45;
+            }
+            base.Bounce(raycastHit);
+            this.damage = 30;
         }
 
         protected override void MakeEffects(bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint)

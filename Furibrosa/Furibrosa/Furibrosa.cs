@@ -20,6 +20,7 @@ namespace Furibrosa
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
         public static bool jsonLoaded = false;
+        public Material originalSpecialMat;
 
         // Sounds
         protected AudioClip[] crossbowSounds;
@@ -98,7 +99,7 @@ namespace Furibrosa
                 LoadKeyBinding();
             }
             LoadJson();
-
+            this.gameObject.layer = 19;
             base.Awake();
         }
 
@@ -140,17 +141,19 @@ namespace Furibrosa
             this.meleeType = MeleeType.Disembowel;
 
             string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            
-            this.crossbowMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteCrossbow.png"), ResourcesController.Particle_AlphaBlend);
+
+            this.crossbowMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "gunSpriteCrossbow.png"));
             this.crossbowNormalMat = this.crossbowMat;
-            this.crossbowHoldingMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteCrossbowHolding.png"), ResourcesController.Particle_AlphaBlend);
+            this.crossbowHoldingMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "gunSpriteCrossbowHolding.png"));
 
-            this.flareGunMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteFlareGun.png"), ResourcesController.Particle_AlphaBlend);
+            this.flareGunMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "gunSpriteFlareGun.png"));
             this.flareGunNormalMat = this.flareGunMat;
-            this.flareGunHoldingMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "gunSpriteFlareGunHolding.png"), ResourcesController.Particle_AlphaBlend);
+            this.flareGunHoldingMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "gunSpriteFlareGunHolding.png"));
 
-            this.gunSprite.gameObject.layer = 28;
+            this.gunSprite.gameObject.layer = 19;
             this.gunSprite.meshRender.material = this.crossbowMat;
+
+            this.originalSpecialMat = ResourcesController.GetMaterial(directoryPath, "special.png");
 
             if (boltPrefab == null)
             {
@@ -301,7 +304,8 @@ namespace Furibrosa
             // Check if invulnerability ran out
             if (this.wasInvulnerable && !this.invulnerable)
             {
-                // Fix any not currently displayed textures\
+                // Fix any not currently displayed textures
+                this.wasInvulnerable = false;
                 base.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
                 this.crossbowNormalMat.SetColor("_TintColor", Color.gray);
                 this.crossbowHoldingMat.SetColor("_TintColor", Color.gray);
@@ -339,6 +343,11 @@ namespace Furibrosa
         protected override void LateUpdate()
         {
             base.LateUpdate();
+
+            if ( this.acceptedDeath )
+            {
+                return;
+            }
 
             if (this.grabbedUnit != null)
             {
@@ -1033,7 +1042,7 @@ namespace Furibrosa
                     this.grabbedUnit = unit;
                     unit.Panic(1000f, true);
                     unit.playerNum = this.playerNum;
-                    unit.gameObject.layer = 28;
+                    unit.gameObject.layer = 19;
                     this.doRollOnLand = false;
                 }
                 // Punch unit
@@ -1189,6 +1198,28 @@ namespace Furibrosa
                 this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMinX() + 20f;
             }
             this.holdingSpecial = false;
+        }
+
+        public void ClearInvulnerability()
+        {
+            this.invulnerableTime = 0;
+            this.invulnerable = false;
+            base.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
+            this.crossbowNormalMat.SetColor("_TintColor", Color.gray);
+            this.crossbowHoldingMat.SetColor("_TintColor", Color.gray);
+            this.flareGunNormalMat.SetColor("_TintColor", Color.gray);
+            this.flareGunHoldingMat.SetColor("_TintColor", Color.gray);
+            this.holdingArm.material.SetColor("_TintColor", Color.gray);
+        }
+
+        public void ResetSpecialIcons()
+        {
+            for (int i = 0; i < this.player.hud.grenadeIcons.Length; ++i)
+            {
+                this.player.hud.grenadeIcons[i].gameObject.SetActive(false);
+            }
+            this.player.hud.SetGrenades(this.SpecialAmmo);
+            BroMakerUtilities.SetSpecialMaterials(this.playerNum, this.originalSpecialMat, new Vector2(5f, 0f), 0f);
         }
         #endregion
     }
