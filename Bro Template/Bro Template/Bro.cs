@@ -58,6 +58,7 @@ namespace Bro_Template
             if (this.wasInvulnerable && !this.invulnerable)
             {
                 // Fix any not currently displayed textures
+                this.wasInvulnerable = false;
             }
 
             // Check if character has died
