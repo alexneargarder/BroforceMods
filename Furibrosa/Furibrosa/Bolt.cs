@@ -318,7 +318,7 @@ namespace Furibrosa
         {
             MapController.DamageGround(this.firedBy, ValueOrchestrator.GetModifiedDamage(this.damage, this.playerNum), DamageType.Explosion, this.range, base.X, base.Y, null, false);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
-            Map.ExplodeUnits(this.firedBy, this.damage * 2, DamageType.Explosion, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
+            Map.ExplodeUnits(this.firedBy, 12, DamageType.Explosion, this.range * 1.3f, this.range, base.X, base.Y, 50f, 400f, this.playerNum, false, true, true);
             EffectsController.CreateExplosionRangePop(base.X, base.Y, -1f, this.range * 2f);
             EffectsController.CreateExplosion(base.X, base.Y, this.range * 0.25f, this.range * 0.25f, 120f, 1f, this.range * 1.5f, 1f, 0f, true);
             if (this.sound == null)

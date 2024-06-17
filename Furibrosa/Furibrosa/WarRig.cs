@@ -29,7 +29,6 @@ namespace Furibrosa
         public bool alwaysKnockOnExplosions = false;
         protected float pilotUnitDelay;
         protected bool fixedBubbles = false;
-        public Material originalSpecialSprite;
         public Material specialSprite;
         protected PlayerHUD hud;
         public const int maxDamageBeforeExploding = 100;
@@ -38,6 +37,9 @@ namespace Furibrosa
         protected float deathCountdownCounter = 0f;
         protected float deathCountdown = 0f;
         protected int deathCountdownExplodeThreshold = 20;
+        List<MonoBehaviour> recentlyHitBy = new List<MonoBehaviour>();
+        protected float hitCooldown = 0f;
+        protected bool gibbed = false;
 
         // Movement variables
         protected float wheelsCounter = 0f;
@@ -166,8 +168,8 @@ namespace Furibrosa
             LoadSprite(this.gameObject, "vehicleSprite.png", new Vector3(0f, 31f, 0.11f));
 
             // Load weapon sprites
-            this.crossbowMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleCrossbow.png"), ResourcesController.Particle_AlphaBlend);
-            this.flareGunMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "vehicleFlareGun.png"), ResourcesController.Particle_AlphaBlend);
+            this.crossbowMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "vehicleCrossbow.png"));
+            this.flareGunMat = ResourcesController.GetMaterial(Path.Combine(directoryPath, "vehicleFlareGun.png"));
             LoadSprite(this.gunSprite.gameObject, "vehicleCrossbow.png", new Vector3(0f, 31f, 0.1f));
 
             // Load wheel sprites
@@ -202,7 +204,6 @@ namespace Furibrosa
             this.spritePixelHeight = 64;
 
             // Load special icon sprite
-            this.originalSpecialSprite = ResourcesController.GetMaterial(directoryPath, "special.png");
             this.specialSprite = ResourcesController.GetMaterial(directoryPath, "vehicleSpecial.png");
 
             // Clear blood shrapnel
@@ -352,8 +353,7 @@ namespace Furibrosa
         {
             MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
 
-            //Material material = ResourcesController.GetMaterial(directoryPath, spritePath);
-            Material material = ResourcesController.CreateMaterial(Path.Combine(directoryPath, spritePath), ResourcesController.Particle_AlphaBlend);
+            Material material = ResourcesController.GetMaterial(directoryPath, spritePath);
             renderer.material = material;
 
             SpriteSM sprite = gameObject.GetComponent<SpriteSM>();
@@ -529,6 +529,18 @@ namespace Furibrosa
             if (this.pilotUnitDelay > 0f)
             {
                 this.pilotUnitDelay -= this.t;
+            }
+            this.hitCooldown -= this.t;
+            if ( this.hitCooldown <= 0 )
+            {
+                this.recentlyHitBy.Clear();
+                this.hitCooldown = 0.2f;
+            }
+
+            // See if vehicle should die
+            if ( this.shieldDamage + this.fireAmount > 130f )
+            {
+                this.deathCount = 9001;
             }
         }
 
@@ -1890,11 +1902,11 @@ namespace Furibrosa
                 {
                     if ( !hitHeavy )
                     {
-                        this.shieldDamage += 3f;
+                        this.shieldDamage += 7f;
                     }
                     else
                     {
-                        this.shieldDamage += 6f;
+                        this.shieldDamage += 10f;
                     }
                 }
             }
@@ -1907,7 +1919,7 @@ namespace Furibrosa
             {
                 // Hit Ground
                 // Range extended by 12 when facing left because otherwise we won't hit cages
-                hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange + 12f, yRange, base.X - xOffset, base.Y + yOffset, false);
+                hitGround = DamageGround(this, damageGroundAmount, DamageType.Crush, xRange + 12f, yRange, base.X - xOffset, base.Y + yOffset);
                 if (Physics.Raycast(new Vector3(base.X - xOffset, base.Y + yOffset, 0f), Vector3.left, out this.raycastHit, xRange, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
                 {
                     this.raycastHit.collider.gameObject.SendMessage("Damage", new DamageObject(2, DamageType.Crush, this.xI, this.yI, this.raycastHit.point.x, this.raycastHit.point.y, this));
@@ -1920,7 +1932,7 @@ namespace Furibrosa
             else if (this.xI > 0 || this.right)
             {
                 // Hit Ground
-                hitGround = MapController.DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X + xOffset, base.Y + yOffset, false);
+                hitGround = DamageGround(this, damageGroundAmount, DamageType.Crush, xRange, yRange, base.X + xOffset, base.Y + yOffset);
                 if (Physics.Raycast(new Vector3(base.X + xOffset, base.Y + yOffset, 0f), Vector3.right, out this.raycastHit, xRange, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
                 {
                     this.raycastHit.collider.gameObject.SendMessage("Damage", new DamageObject(2, DamageType.Crush, this.xI, this.yI, this.raycastHit.point.x, this.raycastHit.point.y, this));
@@ -1934,6 +1946,47 @@ namespace Furibrosa
             //RocketLib.Utils.DrawDebug.DrawRectangle("ground", new Vector3(base.X + xOffset - xRange / 2f, base.Y + yOffset - yRange / 2f, 0f), new Vector3(base.X + xOffset + xRange / 2f, base.Y + yOffset + yRange / 2f, 0f), Color.red);
 
             return hitGround;
+        }
+
+        public bool DamageGround(MonoBehaviour damageSender, int damage, DamageType damageType, float width, float height, float x, float y)
+        {
+            bool result = false;
+            width += 8f;
+            height += 8f;
+            Collider[] array = Physics.OverlapSphere(new Vector3(x, y, 0f), Mathf.Max(width * 2f, height * 2f) * 0.5f, Map.groundAndDamageableObjects);
+            if (array.Length > 0)
+            {
+                for (int i = 0; i < array.Length; i++)
+                {
+                    Vector3 position = array[i].transform.position;
+                    if (position.x >= x - width / 2f && position.x <= x + width / 2f && position.y >= y - height / 2f && position.y <= y + height / 2f 
+                        && !(array[i].gameObject.HasComponent<BossBlockWeapon>() || array[i].gameObject.HasComponent<BossBlockPiece>()) ) 
+                    {
+                        // Don't damage relays that damage bosses
+                        if (array[i].gameObject.HasComponent<DamageRelay>() )
+                        {
+                            DamageRelay relay = array[i].gameObject.GetComponent<DamageRelay>();
+                            if ( relay.unit != null && BroMakerUtilities.IsBoss(relay.unit) )
+                            {
+                                continue;
+                            }
+                        }
+                        float forceX = 0f;
+                        float forceY = 0f;
+                        if (damageSender is Rocket)
+                        {
+                            Vector3 a = position - damageSender.transform.position;
+                            a.Normalize();
+                            a *= 40f;
+                            forceX = a.x;
+                            forceY = a.y;
+                        }
+                        MapController.Damage_Networked(damageSender, array[i].gameObject, damage, damageType, forceX, forceY, x, y);
+                        result = true;
+                    }
+                }
+            }
+            return result;
         }
 
         protected virtual bool CrushUnitsWhileMoving(int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset, out bool hitHeavy)
@@ -2535,7 +2588,7 @@ namespace Furibrosa
                     this.PlayRevSound();
                 }
 
-                this.boostFuel -= this.t * 0.15f;
+                this.boostFuel -= this.t * 0.35f;
 
                 // Ran out of fuel
                 if (this.boostFuel <= 0f)
@@ -2726,7 +2779,17 @@ namespace Furibrosa
             {
                 damage = 0;
             }
-            
+
+            // Limit how much one damage source can repeatedly damage the vehicle
+            if ( damageType == DamageType.Melee && this.recentlyHitBy.Contains(damageSender) )
+            {
+                return;
+            }
+            else if ( damageSender != null )
+            {
+                this.recentlyHitBy.Add(damageSender);
+            }
+
             if (damageSender is Helicopter)
             {
                 Helicopter helicopter = damageSender as Helicopter;
@@ -2749,9 +2812,8 @@ namespace Furibrosa
             else if (damageSender is MookDog)
             {
                 MookDog mookDog = damageSender as MookDog;
+                mookDog.Damage(0, DamageType.Knock, 0, 0, (int) (-1f * mookDog.transform.localScale.x), this, mookDog.X, mookDog.Y);
                 mookDog.Panic((int)Mathf.Sign(xI) * -1, 2f, true);
-                this.xIBlast += xI * 0.1f + (float)damage * 0.03f;
-                this.yI += yI * 0.1f + (float)damage * 0.03f;
             }
             // Blow up falling explosive barrels
             else if (damageSender is BarrelBlock)
@@ -2774,6 +2836,8 @@ namespace Furibrosa
             {
                 case DamageType.Acid:
                     damageType = DamageType.Fire;
+                    damage = Mathf.Max(damage, 15);
+                    damage *= 2;
                     goto case DamageType.Fire;
                 case DamageType.Fire:
                     this.fireAmount += damage;
@@ -2784,6 +2848,9 @@ namespace Furibrosa
                     this.shieldDamage += damage;
                     damageType = DamageType.Normal;
                     break;
+                case DamageType.Melee:
+                    damage *= 2;
+                    break;
                 case DamageType.SelfEsteem:
                     break;
                 case DamageType.Bounce:
@@ -2792,9 +2859,6 @@ namespace Furibrosa
                     this.shieldDamage += damage;
                     break;
             }
-
-            // DEBUG
-            BMLogger.Log("damaged by: " + damageType + " for " + damage + " is " + damageSender.GetType());
 
             if (this.health <= 0)
             {
@@ -2829,7 +2893,6 @@ namespace Furibrosa
                 else
                 {
                     this.deathCount = 9001;
-                    this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
                 }
             }
         }
@@ -2880,10 +2943,11 @@ namespace Furibrosa
 
         protected override void Gib(DamageType damageType, float xI, float yI)
         {
-            if ( !this.destroyed )
+            if ( !this.destroyed && !this.gibbed )
             {
                 if (this.deathCount > 9000)
                 {
+                    this.gibbed = true;
                     EffectsController.CreateMassiveExplosion(base.X, base.Y, 10f, 30f, 120f, 1f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
                     Map.ExplodeUnits(this, 20, DamageType.Explosion, 72f, 32f, base.X, base.Y + 6f, 200f, 150f, -15, true, false, true);
                     MapController.DamageGround(this, 15, DamageType.Explosion, 72f, base.X, base.Y, null, false);
@@ -2891,6 +2955,7 @@ namespace Furibrosa
                 }
                 else
                 {
+                    this.gibbed = true;
                     EffectsController.CreateExplosion(base.X, base.Y + 5f, 8f, 8f, 120f, 0.5f, 100f, 1f, 0.6f, true);
                     EffectsController.CreateHugeExplosion(base.X, base.Y, 10f, 10f, 120f, 0.5f, 100f, 1f, 0.6f, 5, 70, 200f, 90f, 0.2f, 0.4f);
                     MapController.DamageGround(this, 15, DamageType.Explosion, 36f, base.X, base.Y, null, false);
@@ -3015,12 +3080,14 @@ namespace Furibrosa
                         furibrosa.nextState = this.currentPrimaryState;
                         furibrosa.SwitchWeapon();
                     }
-                }    
+                }
+
+                // Remove invulnerability in case we received it while piloting vehicle
+                furibrosa.ClearInvulnerability();
 
                 this.pilotUnit.GetComponent<Renderer>().enabled = true;
                 this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
                 base.StopPlayerBubbles();
-                BroMakerUtilities.SetSpecialMaterials(this.pilotUnit.playerNum, this.originalSpecialSprite, new Vector2(5f, 0f), 0f);
                 this.pilotUnit = null;
                 this.pilotted = false;
                 this.isHero = false;
@@ -3035,6 +3102,8 @@ namespace Furibrosa
                 this.currentPrimaryState = PrimaryState.Crossbow;
                 this.ChangeFrame();
                 this.RunGun();
+
+                furibrosa.ResetSpecialIcons();
             }
         }
 
@@ -3464,10 +3533,13 @@ namespace Furibrosa
         {
             if ( this.SpecialAmmo > 0 )
             {
-                this.usingSpecial = true;
-                --this.SpecialAmmo;
-                this.specialFrame = 0;
-                this.specialFrameCounter = 0f;
+                if (!this.usingSpecial)
+                {
+                    this.usingSpecial = true;
+                    --this.SpecialAmmo;
+                    this.specialFrame = 0;
+                    this.specialFrameCounter = 0f;
+                }
             }
             else
             {

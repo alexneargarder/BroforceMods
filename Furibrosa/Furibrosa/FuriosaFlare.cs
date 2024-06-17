@@ -1,5 +1,4 @@
-﻿using BroMakerLib.Loggers;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Furibrosa
 {
