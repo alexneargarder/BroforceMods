@@ -80,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bolt.cs" />
+    <Compile Include="FuriosaFlare.cs" />
     <Compile Include="Furibrosa.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Harpoon.cs" />

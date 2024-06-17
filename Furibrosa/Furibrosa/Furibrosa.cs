@@ -45,11 +45,11 @@ namespace Furibrosa
         protected Material crossbowMat, crossbowNormalMat, crossbowHoldingMat;
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
-        public static Flare flarePrefab;
+        public static FuriosaFlare flarePrefab;
         public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
         protected bool randomizedWeapon = false;
-        public const float crossbowDelay = 0.6f;
+        public const float crossbowDelay = 0.65f;
         public const float flaregunDelay = 0.8f;
         public const int crossbowDamage = 13;
         public const int flaregunDamage = 11;
@@ -87,8 +87,8 @@ namespace Furibrosa
         public bool holdingSpecial = false;
         public float holdingSpecialTime = 0f;
 
-        // Debug
-        public Flare originalFlare = null;
+        // DEBUG
+        public static Furibrosa currentChar;
 
         #region General
         protected override void Awake()
@@ -176,13 +176,11 @@ namespace Furibrosa
                 {
                     if (InstantiationController.PrefabList[i] != null &&  InstantiationController.PrefabList[i].name == "Bullet Flare")
                     {
-                        flarePrefab = (UnityEngine.Object.Instantiate(InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity) as GameObject).GetComponent<Flare>();
+                        Flare originalFlare = (UnityEngine.Object.Instantiate(InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity) as GameObject).GetComponent<Flare>();
+                        flarePrefab = originalFlare.gameObject.AddComponent<FuriosaFlare>();
+                        flarePrefab.Setup(originalFlare);
                         flarePrefab.gameObject.SetActive(false);
-                        flarePrefab.damage = flarePrefab.damageInternal = flaregunDamage;
-                        Traverse.Create(flarePrefab).SetFieldValue("fullDamage", flarePrefab.damage);
-                        flarePrefab.range = 9f;
                         UnityEngine.Object.DontDestroyOnLoad(flarePrefab);
-                        originalFlare = (InstantiationController.PrefabList[i] as GameObject).GetComponent<Flare>();
                         break;
                     }
                 }
@@ -269,6 +267,8 @@ namespace Furibrosa
             this.meleeSwingSounds[0] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing1.wav");
             this.meleeSwingSounds[1] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing2.wav");
             this.meleeSwingSounds[2] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing3.wav");
+
+            currentChar = this;
         }
 
         protected override void Update()
@@ -323,6 +323,15 @@ namespace Furibrosa
                 else
                 {
                     this.holdingSpecial = false;
+                }
+            }
+
+            // Handle death
+            if (base.actionState == ActionState.Dead && !this.acceptedDeath)
+            {
+                if (!this.WillReviveAlready)
+                {
+                    this.acceptedDeath = true;
                 }
             }
         }
@@ -430,17 +439,13 @@ namespace Furibrosa
             base.OnDestroy();
         }
 
-        protected override void CheckRescues()
+        public override void RecallBro()
         {
-            if (HeroController.CheckRescueBros(base.playerNum, base.X, base.Y, 12f))
-            {
-                this.ReleaseUnit(false);
-                this.DestroyCurrentWarRig();
+            // Destroy War Rig and release unit if despawning
+            this.ReleaseUnit(false);
+            this.DestroyCurrentWarRig();
 
-                this.ShowStartBubble();
-                this.SetInvulnerable(2f, false, false);
-                StatisticsController.AddBrotalityGrace(3f);
-            }
+            base.RecallBro();
         }
 
         protected override void ChangeFrame()
@@ -474,7 +479,7 @@ namespace Furibrosa
 
         protected override void ReleaseFire()
         {
-            if ( this.fireDelay < 0.1f )
+            if ( this.fireDelay < 0.2f )
             {
                 this.releasedFire = true;
             }
@@ -504,7 +509,6 @@ namespace Furibrosa
                     else if (this.releasedFire)
                     {
                         this.UseFire();
-                        this.FireFlashAvatar();
                         this.SetGestureAnimation(GestureElement.Gestures.None);
                     }
                 }
@@ -520,7 +524,6 @@ namespace Furibrosa
                     if (this.fire || this.releasedFire)
                     {
                         this.UseFire();
-                        this.FireFlashAvatar();
                         this.SetGestureAnimation(GestureElement.Gestures.None);
                         this.releasedFire = false;
                     }
@@ -556,7 +559,7 @@ namespace Furibrosa
                 // Fire explosive bolt
                 if ( this.charged )
                 {
-                    x = base.X + base.transform.localScale.x * 10f;
+                    x = base.X + base.transform.localScale.x * 8f;
                     y = base.Y + 8f;
                     xSpeed = base.transform.localScale.x * 500 + (this.xI / 2);
                     ySpeed = 0;
@@ -565,13 +568,12 @@ namespace Furibrosa
                     this.TriggerBroFireEvent();
                     EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
-                    firedBolt.gameObject.SetActive(true);
 
                 }
                 // Fire normal bolt
                 else
                 {
-                    x = base.X + base.transform.localScale.x * 10f;
+                    x = base.X + base.transform.localScale.x * 8f;
                     y = base.Y + 8f;
                     xSpeed = base.transform.localScale.x * 400 + (this.xI / 2);
                     ySpeed = 0;
@@ -580,20 +582,32 @@ namespace Furibrosa
                     this.TriggerBroFireEvent();
                     EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
-                    firedBolt.gameObject.SetActive(true);
                 }
                 this.PlayCrossbowSound(base.transform.position);
                 this.fireDelay = crossbowDelay;
             }
             else if ( this.currentState == PrimaryState.FlareGun )
             {
-                x = base.X + base.transform.localScale.x * 12f;
-                y = base.Y + 8f;
-                xSpeed = base.transform.localScale.x * 450;
-                ySpeed = UnityEngine.Random.Range(15, 50);
-                EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
-                Projectile flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
-                flare.gameObject.SetActive(true);
+                Projectile flare = null;
+                if ( this.attachedToZipline == null )
+                {
+                    x = base.X + base.transform.localScale.x * 12f;
+                    y = base.Y + 8f;
+                    xSpeed = base.transform.localScale.x * 450;
+                    ySpeed = UnityEngine.Random.Range(15, 50);
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
+                }
+                // Move position of shot if attached to a zipline
+                else
+                {
+                    x = base.X + base.transform.localScale.x * 4f;
+                    y = base.Y + 8f;
+                    xSpeed = base.transform.localScale.x * 450;
+                    ySpeed = UnityEngine.Random.Range(15, 50);
+                    EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
+                    flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
+                }
                 this.gunFrame = 3;
                 this.PlayFlareSound(base.transform.position);
                 this.fireDelay = flaregunDelay;
@@ -667,7 +681,8 @@ namespace Furibrosa
                                 }
                             }
                         }
-                        this.SetGunSprite(this.gunFrame + 14, 0);
+                        // Don't use SetGunSprite to avoid issues when on zipline
+                        this.gunSprite.SetLowerLeftPixel((this.gunFrame + 14) * this.gunSpritePixelWidth, this.gunSpritePixelHeight);
                     }
                 }
                 else if (!this.WallDrag && this.gunFrame > 0)
@@ -739,7 +754,7 @@ namespace Furibrosa
 
         protected void StartSwitchingWeapon()
         {
-            if ( !this.usingSpecial && this.currentState != PrimaryState.Switching )
+            if ( !this.usingSpecial && this.currentState != PrimaryState.Switching && this.attachedToZipline == null )
             {
                 this.CancelMelee();
                 this.SetGestureAnimation(GestureElement.Gestures.None);
@@ -794,6 +809,16 @@ namespace Furibrosa
                 }
                 this.lastDownPressTime = Time.realtimeSinceStartup;
             }
+        }
+
+        public override void AttachToZipline(ZipLine zipLine)
+        {
+            // Finish weapon switch animation if attaching to zipline
+            if (this.currentState == PrimaryState.Switching)
+            {
+                this.SwitchWeapon();
+            }
+            base.AttachToZipline(zipLine);
         }
         #endregion
 

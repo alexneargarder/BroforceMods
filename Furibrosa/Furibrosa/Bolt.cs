@@ -136,9 +136,58 @@ namespace Furibrosa
             foreground.transform.localPosition = new Vector3(5f, 0f, -0.62f);
         }
 
+        public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
+        {
+            this.gameObject.SetActive(true);
+            base.Fire(newX, newY, xI, yI, _zOffset, playerNum, FiredBy);
+        }
+
+        // Don't destroy projectile
         protected override void CheckSpawnPoint()
         {
-            
+            this.CheckWallsAtSpawnPoint();
+            Map.DamageDoodads(this.damageInternal, this.damageType, base.X, base.Y, this.xI, this.yI, this.projectileSize, this.playerNum, out _, this);
+            this.RegisterProjectile();
+            this.CheckReturnZones();
+            if ((this.canReflect && this.playerNum >= 0 && this.horizontalProjectile && Physics.Raycast(new Vector3(base.X - Mathf.Sign(this.xI) * this.projectileSize * 2f, base.Y, 0f), new Vector3(this.xI, this.yI, 0f), out this.raycastHit, this.projectileSize * 3f, this.barrierLayer)) || (!this.horizontalProjectile && Physics.Raycast(new Vector3(base.X, base.Y, 0f), new Vector3(this.xI, this.yI, 0f), out this.raycastHit, this.projectileSize + this.startProjectileSpeed * this.t, this.barrierLayer)))
+            {
+                this.ReflectProjectile(this.raycastHit);
+            }
+            else if ((this.canReflect && this.playerNum < 0 && this.horizontalProjectile && Physics.Raycast(new Vector3(base.X - Mathf.Sign(this.xI) * this.projectileSize * 2f, base.Y, 0f), new Vector3(this.xI, this.yI, 0f), out this.raycastHit, this.projectileSize * 3f, this.friendlyBarrierLayer)) || (!this.horizontalProjectile && Physics.Raycast(new Vector3(base.X, base.Y, 0f), new Vector3(this.xI, this.yI, 0f), out this.raycastHit, this.projectileSize + this.startProjectileSpeed * this.t, this.friendlyBarrierLayer)))
+            {
+                this.playerNum = 5;
+                this.firedBy = null;
+                this.ReflectProjectile(this.raycastHit);
+            }
+            else
+            {
+                this.TryHitUnitsAtSpawn();
+            }
+            this.CheckSpawnPointFragile();
+        }
+
+        // Don't destroy projectile
+        protected override bool CheckWallsAtSpawnPoint()
+        {
+            Collider[] array = Physics.OverlapSphere(new Vector3(base.X, base.Y, 0f), 5f, this.groundLayer);
+            bool flag = false;
+            if (array.Length > 0)
+            {
+                for (int i = 0; i < array.Length; i++)
+                {
+                    Collider y = null;
+                    if (this.firedBy != null)
+                    {
+                        y = this.firedBy.GetComponent<Collider>();
+                    }
+                    if (this.firedBy == null || array[i] != y)
+                    {
+                        this.ProjectileApplyDamageToBlock(array[i].gameObject, this.damageInternal, this.damageType, this.xI, this.yI);
+                        flag = true;
+                    }
+                }
+            }
+            return flag;
         }
 
         protected override void Update()

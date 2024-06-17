@@ -233,34 +233,6 @@ namespace Furibrosa
             {
                 UnityEngine.Object.Destroy(this.GetComponent<DisableWhenOffCamera>());
             }
-
-            if (this.vehicleEngineAudio == null)
-            {
-                if (base.gameObject.GetComponent<AudioSource>() == null)
-                {
-                    this.vehicleEngineAudio = base.gameObject.AddComponent<AudioSource>();
-                    this.vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
-                    this.vehicleEngineAudio.dopplerLevel = 0f;
-                    this.vehicleEngineAudio.minDistance = 100f;
-                    this.vehicleEngineAudio.maxDistance = 750f;
-                    this.vehicleEngineAudio.spatialBlend = 1f;
-                    this.vehicleEngineAudio.spatialize = false;
-                    this.vehicleEngineAudio.volume = vehicleEngineVolume;
-                }
-                else
-                {
-                    this.vehicleEngineAudio = this.GetComponent<AudioSource>();
-                }
-            }
-
-            this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
-            this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
-            this.vehicleHornAudio.dopplerLevel = 0f;
-            this.vehicleHornAudio.minDistance = 100f;
-            this.vehicleHornAudio.maxDistance = 750f;
-            this.vehicleHornAudio.spatialBlend = 1f;
-            this.vehicleEngineAudio.spatialize = true;
-            this.vehicleHornAudio.volume = 1f;
         }
 
         protected override void Start()
@@ -296,6 +268,32 @@ namespace Furibrosa
             this.SpecialAmmo = 3;
             this.bloodColor = BloodColor.None;
             this.dashSpeedM = 1.5f;
+
+            if (base.gameObject.GetComponent<AudioSource>() == null)
+            {
+                this.vehicleEngineAudio = base.gameObject.AddComponent<AudioSource>();
+                this.vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
+                this.vehicleEngineAudio.dopplerLevel = 0f;
+                this.vehicleEngineAudio.minDistance = 100f;
+                this.vehicleEngineAudio.maxDistance = 750f;
+                this.vehicleEngineAudio.spatialBlend = 1f;
+                this.vehicleEngineAudio.spatialize = false;
+                this.vehicleEngineAudio.volume = vehicleEngineVolume;
+            }
+            else
+            {
+                this.vehicleEngineAudio = this.GetComponent<AudioSource>();
+            }
+
+            // Setup audio
+            this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
+            this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
+            this.vehicleHornAudio.dopplerLevel = 0f;
+            this.vehicleHornAudio.minDistance = 100f;
+            this.vehicleHornAudio.maxDistance = 750f;
+            this.vehicleHornAudio.spatialBlend = 1f;
+            this.vehicleEngineAudio.spatialize = true;
+            this.vehicleHornAudio.volume = 1f;
 
             // Make sure gib holder exists
             if (this.gibs == null)
@@ -439,7 +437,7 @@ namespace Furibrosa
         {
             if (!this.reachedStartingPoint)
             {
-                if (Tools.FastAbsWithinRange(this.X - this.targetX, 5))
+                if (Tools.FastAbsWithinRange(this.X - this.targetX, 5) || Mathf.Sign(this.targetX - this.X) != summonedDirection )
                 {
                     if (summoner.holdingSpecial)
                     {
@@ -463,7 +461,7 @@ namespace Furibrosa
             }
             else if (this.keepGoingBeyondTarget)
             {
-                if (Tools.FastAbsWithinRange(this.X - this.secondTargetX, 5))
+                if (Tools.FastAbsWithinRange(this.X - this.secondTargetX, 5) || Mathf.Sign(this.secondTargetX - this.X) != summonedDirection )
                 {
                     this.xI = 0f;
                     this.keepGoingBeyondTarget = false;
@@ -551,11 +549,11 @@ namespace Furibrosa
             // Stay near Furiosa
             if (this.summonedDirection > 0)
             {
-                base.transform.position = new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.transform.position.y, 0f);
+                this.SetPosition(new Vector3(SortOfFollow.GetScreenMinX() - 65f, base.transform.position.y, 0f));
             }
             else
             {
-                base.transform.position = new Vector3(SortOfFollow.GetScreenMaxX() + 65f, base.transform.position.y, 0f);
+                this.SetPosition(new Vector3(SortOfFollow.GetScreenMaxX() + 65f, base.transform.position.y, 0f));
             }
 
             // Start horn audio
@@ -564,6 +562,11 @@ namespace Furibrosa
                 this.vehicleHornAudio.clip = this.vehicleHorn;
                 this.vehicleHornAudio.Play();
                 this.playedHornStart = true;
+            }
+            // Disable horn audio after it's finished playing
+            else if ( this.playedHornStart && !this.vehicleHornAudio.isPlaying )
+            {
+                this.vehicleHornAudio.enabled = false;
             }
 
             this.startupTimer -= this.t;
@@ -603,6 +606,11 @@ namespace Furibrosa
         }
 
         protected override bool CanBeAffectedByWind()
+        {
+            return false;
+        }
+
+        public override bool CanInseminate(float xI, float yI)
         {
             return false;
         }
@@ -697,6 +705,7 @@ namespace Furibrosa
                 {
                     if (!this.vehicleHornAudio.isPlaying)
                     {
+                        this.vehicleHornAudio.enabled = true;
                         this.vehicleHornAudio.volume = 1f;
                         this.vehicleHornAudio.clip = this.vehicleHornLong;
                         this.vehicleHornAudio.Play();
@@ -897,7 +906,7 @@ namespace Furibrosa
                     }
                     else
                     {
-                        if ( this.specialFrame == 4 )
+                        if ( this.specialFrame == 5 )
                         {
                             this.PlayHarpoonFireSound();
                         }
@@ -1088,6 +1097,7 @@ namespace Furibrosa
                 {
                     this.releasedHorn = false;
                     this.vehicleHornAudio.Stop();
+                    this.vehicleHornAudio.enabled = false;
                 }
             }
         }
@@ -1099,12 +1109,24 @@ namespace Furibrosa
 
         public void PlayRunOverUnitSound()
         {
-            Sound.GetInstance().PlaySoundEffectAt(this.vehicleHit, 0.55f, base.transform.position, 1f, true, false, false, 0f);
+            Sound.GetInstance().PlaySoundEffectAt(this.vehicleHit, 0.25f, base.transform.position, 1f, true, false, false, 0f);
         }
 
         public void PlayHarpoonFireSound()
         {
-            Sound.GetInstance().PlaySoundEffectAt(this.harpoonFire, 0.65f, base.transform.position, 1f, true, false, true, 0f);
+            Sound.GetInstance().PlaySoundEffectAt(this.harpoonFire, 0.55f, base.transform.position, 1f, true, false, true, 0f);
+        }
+
+        protected override void PlayHitSound(float v = 0.4F)
+        {
+        }
+
+        protected override void PlayDeathSound()
+        {    
+        }
+
+        protected override void PlayDeathGargleSound()
+        {
         }
         #endregion
 
@@ -1490,14 +1512,77 @@ namespace Furibrosa
                 }
             }
 
+            // Check back of vehicle if being pushed in a direction we're not facing
+            if ( base.transform.localScale.x < 0 && this.xIBlast > 0.01 )
+            {
+                // Check front of vehicle
+                float backWidth = this.HalfWidth - offsetBack;
+                Vector3 bottomRight = new Vector3(base.X + backWidth, base.Y, 0);
+                Vector3 topRight = new Vector3(base.X + backWidth, base.Y + this.collisionHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x < base.X + backWidth + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + backWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + backWidth);
+                        return true;
+                    }
+                }
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y) - 0.5f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + backWidth + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x - 2f, raycastHitWalls.point.y, 0f), Vector3.right, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x < base.X + backWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X + backWidth);
+                        return true;
+                    }
+                }
+            }
+            else if ( base.transform.localScale.x > 0 && this.xIBlast < -0.01 )
+            {
+                // Check front of vehicle
+                float backWidth = this.HalfWidth - offsetBack;
+                Vector3 bottomRight = new Vector3(base.X - backWidth, base.Y, 0);
+                Vector3 topRight = new Vector3(base.X - backWidth, base.Y + this.collisionHeadHeight, 0);
+                //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
+                if (Physics.Raycast(bottomRight, Vector3.up, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y), this.groundLayer) && this.raycastHitWalls.point.x > base.X - backWidth + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - backWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - backWidth);
+                        return true;
+                    }
+                }
+
+                if (Physics.Raycast(topRight, Vector3.down, out this.raycastHitWalls, Mathf.Abs(topRight.y - bottomRight.y) - 0.5f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - backWidth + xIT)
+                {
+                    if ((Physics.Raycast(new Vector3(bottomRight.x + 2f, raycastHitWalls.point.y, 0f), Vector3.left, out this.raycastHitWalls, 10f, this.groundLayer) && this.raycastHitWalls.point.x > base.X - backWidth + xIT))
+                    {
+                        //RocketLib.Utils.DrawDebug.DrawLine("wallhit", raycastHitWalls.point, raycastHitWalls.point + new Vector3(3f, 0f, 0f), Color.blue);
+                        this.xI = 0f;
+                        xIT = this.raycastHitWalls.point.x - (base.X - backWidth);
+                        return true;
+                    }
+                }
+            }
+
 
             return false;
         }
 
+        // DEBUG
+        protected float offsetBack = 2f;
+
         // Overridden to use new CanTouchGround
         protected override bool CanJumpOffGround()
         {
-            return this.CanTouchGround((float)((!this.right || this.canTouchLeftWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.left, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : -13) + (float)((!this.left || this.canTouchRightWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.right, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : 13) * ((!this.isInQuicksand) ? 1f : 0.4f));
+            return (this.groundTransform != null && this.actionState != ActionState.Jumping) || (this.CanTouchGround((float)((!this.right || this.canTouchLeftWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.left, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : -13) + (float)((!this.left || this.canTouchRightWalls || Physics.Raycast(new Vector3(base.X, base.Y + 5f, 0f), Vector3.right, out this.raycastHitWalls, 13.5f, this.groundLayer)) ? 0 : 13) * ((!this.isInQuicksand) ? 1f : 0.4f)));
         }
 
         // Overridden to use feetWidth rather than a hard-coded value
@@ -1768,10 +1853,14 @@ namespace Furibrosa
                 if (this.CrushGroundWhileMoving(currentGroundDamage, crushXRange, crushYRange, crushXOffset, crushYOffset))
                 {
                     this.crushMomentum -= ((this.crushMomentum > 150 ? 6.5f : 5.5f) * Mathf.Sign(this.crushMomentum));
-                    this.shieldDamage += 0.7f;
                     if (!crushSpeedReached)
                     {
                         crushDamageCooldown = 0.04f;
+                        this.shieldDamage += 0.7f;
+                    }
+                    else
+                    {
+                        this.shieldDamage += 0.5f;
                     }
                 }
             }
@@ -1796,9 +1885,17 @@ namespace Furibrosa
                 float currentSpeed = Mathf.Abs(this.xI);
                 bool crushSpeedReached = (this.dashing && currentSpeed > 100f);
                 int currentUnitDamage = crushSpeedReached ? 30 : (int)Mathf.Max(Mathf.Round(currentSpeed / this.speed * 20), 1);
-                if (this.CrushUnitsWhileMoving(currentUnitDamage, unitXRange, unitYRange, crushXOffset, crushYOffset) )
+                bool hitHeavy;
+                if (this.CrushUnitsWhileMoving(currentUnitDamage, unitXRange, unitYRange, crushXOffset, crushYOffset, out hitHeavy) )
                 {
-                    this.shieldDamage += 3f;
+                    if ( !hitHeavy )
+                    {
+                        this.shieldDamage += 3f;
+                    }
+                    else
+                    {
+                        this.shieldDamage += 6f;
+                    }
                 }
             }
         }
@@ -1839,12 +1936,13 @@ namespace Furibrosa
             return hitGround;
         }
 
-        protected virtual bool CrushUnitsWhileMoving(int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset)
+        protected virtual bool CrushUnitsWhileMoving(int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset, out bool hitHeavy)
         {
             float knockback = Mathf.Max(Mathf.Min( Mathf.Abs(this.xI), 75f), 225);
+            hitHeavy = false;
             if (this.xI < 0 || this.left)
             {
-                if (HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, -2 * knockback, 4 * knockback, true, true, true))
+                if (HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, -2 * knockback, 4 * knockback, true, true, true, out hitHeavy))
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
@@ -1853,7 +1951,7 @@ namespace Furibrosa
             }
             else if (this.xI > 0 || this.right)
             {
-                if (HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, 2 * knockback, 4 * knockback, true, true, true))
+                if (HitUnits(this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, 2 * knockback, 4 * knockback, true, true, true, out hitHeavy))
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
@@ -1863,8 +1961,9 @@ namespace Furibrosa
             return false;
         }
 
-        public bool HitUnits(MonoBehaviour damageSender, MonoBehaviour avoidID, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib)
+        public bool HitUnits(MonoBehaviour damageSender, MonoBehaviour avoidID, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, out bool hitHeavy)
         {
+            hitHeavy = false;
             if (Map.units == null)
             {
                 return false;
@@ -1876,7 +1975,7 @@ namespace Furibrosa
             {
                 Unit unit = Map.units[i];
                 if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health <= num
-                    && !this.recentlyHitUnits.Contains(unit) && !BroMakerUtilities.IsBoss(unit) )
+                    && !this.recentlyHitUnits.Contains(unit) && !BroMakerUtilities.IsBoss(unit) && !(unit is Tank) )
                 {
                     float num2 = unit.X - x;
                     if (Mathf.Abs(num2) - xRange < unit.width)
@@ -1907,6 +2006,10 @@ namespace Furibrosa
                                     float multiplier = unit.IsHeavy() ? 2.5f : 1f;
                                     unit.Knock(damageType, multiplier * xI, multiplier * yI, true);
                                 }
+                            }
+                            if ( unit.IsHeavy() )
+                            {
+                                hitHeavy = true;
                             }
                             result = true;
                             if (flag)
@@ -2079,11 +2182,12 @@ namespace Furibrosa
                 }
                 if (!this.wasButtonJump || this.pressedJumpInAirSoJumpIfTouchGroundGrace > 0f)
                 {
+                    this.GetGroundHeightGround();
                     if (this.airDashJumpGrace > 0f)
                     {
                         this.Jump(true);
                     }
-                    else if ((!this.ducking || !Map.IsBlockSolid(this.collumn, this.row + 1)) && Time.time - this.lastJumpTime > 0.08f && this.CanJumpOffGround() && !this.isInQuicksand)
+                    else if ((!this.ducking) && Time.time - this.lastJumpTime > 0.08f && this.CanJumpOffGround() && !this.isInQuicksand)
                     {
                         if (this.yI < 0f)
                         {
@@ -2615,11 +2719,55 @@ namespace Furibrosa
                 this.shieldDamage = 0;
             }
         }
+
         public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
         {
             if (this.dashing && damageType != DamageType.SelfEsteem)
             {
                 damage = 0;
+            }
+            
+            if (damageSender is Helicopter)
+            {
+                Helicopter helicopter = damageSender as Helicopter;
+                helicopter.Damage(new DamageObject(helicopter.health, DamageType.Explosion, 0f, 0f, base.X, base.Y, this));
+                this.xIBlast += xI * 0.1f + (float)damage * 0.03f;
+                this.yI += yI * 0.1f + (float)damage * 0.03f;
+            }
+            // Ignore blades of helicopter
+            else if (damageSender is Mookopter && damageType == DamageType.Melee)
+            {
+                return;
+            }
+            else if (damageSender is SawBlade)
+            {
+                SawBlade sawBlade = damageSender as SawBlade;
+                sawBlade.Damage(new DamageObject(sawBlade.health, DamageType.Explosion, 0f, 0f, base.X, base.Y, this));
+                this.xIBlast += xI * 0.1f + (float)damage * 0.03f;
+                this.yI += yI * 0.1f + (float)damage * 0.03f;
+            }
+            else if (damageSender is MookDog)
+            {
+                MookDog mookDog = damageSender as MookDog;
+                mookDog.Panic((int)Mathf.Sign(xI) * -1, 2f, true);
+                this.xIBlast += xI * 0.1f + (float)damage * 0.03f;
+                this.yI += yI * 0.1f + (float)damage * 0.03f;
+            }
+            // Blow up falling explosive barrels
+            else if (damageSender is BarrelBlock)
+            {
+                BarrelBlock barrel = damageSender as BarrelBlock;
+                barrel.Explode();
+            }
+            else if ( damageSender is FallingBlock )
+            {
+                FallingBlock block = damageSender as FallingBlock;
+                block.Damage(new DamageObject(block.health, DamageType.Explosion, 0, 0, block.X, block.Y, this));
+            }
+            // Ignore damage by falling vehicles
+            else if ( damageSender is HeroTransport )
+            {
+                return;
             }
 
             switch (damageType)
@@ -2632,7 +2780,8 @@ namespace Furibrosa
                     break;
                 case DamageType.GibOnImpact:
                 case DamageType.Crush:
-                    this.shieldDamage += Mathf.Min(damage, 1);
+                    damage = Mathf.Min(damage, 15);
+                    this.shieldDamage += damage;
                     damageType = DamageType.Normal;
                     break;
                 case DamageType.SelfEsteem:
@@ -2643,6 +2792,10 @@ namespace Furibrosa
                     this.shieldDamage += damage;
                     break;
             }
+
+            // DEBUG
+            BMLogger.Log("damaged by: " + damageType + " for " + damage + " is " + damageSender.GetType());
+
             if (this.health <= 0)
             {
                 this.knockCount++;
@@ -2920,7 +3073,7 @@ namespace Furibrosa
 
         protected override void ReleaseFire()
         {
-            if (this.fireDelay < 0.1f)
+            if (this.fireDelay < 0.2f)
             {
                 this.releasedFire = true;
             }
@@ -2960,7 +3113,6 @@ namespace Furibrosa
                     else if (this.releasedFire)
                     {
                         this.UseFire();
-                        this.FireFlashAvatar();
                         this.SetGestureAnimation(GestureElement.Gestures.None);
                     }
                 }
@@ -2976,7 +3128,6 @@ namespace Furibrosa
                     if (this.fire || this.releasedFire)
                     {
                         this.UseFire();
-                        this.FireFlashAvatar();
                         this.SetGestureAnimation(GestureElement.Gestures.None);
                         this.releasedFire = false;
                     }
@@ -3021,7 +3172,6 @@ namespace Furibrosa
                     this.TriggerBroFireEvent();
                     EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
-                    firedBolt.gameObject.SetActive(true);
 
                 }
                 // Fire normal bolt
@@ -3036,7 +3186,6 @@ namespace Furibrosa
                     this.TriggerBroFireEvent();
                     EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                     Bolt firedBolt = ProjectileController.SpawnProjectileLocally(boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Bolt;
-                    firedBolt.gameObject.SetActive(true);
                 }
                 summoner.PlayCrossbowSound(base.transform.position);
                 this.fireDelay = crossbowDelay;
@@ -3049,7 +3198,6 @@ namespace Furibrosa
                 ySpeed = UnityEngine.Random.Range(-25, 0);
                 EffectsController.CreateMuzzleFlashEffect(x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform);
                 Projectile flare = ProjectileController.SpawnProjectileLocally(flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum);
-                flare.gameObject.SetActive(true);
                 this.gunFrame = 3;
                 summoner.PlayFlareSound(base.transform.position);
                 this.fireDelay = flaregunDelay;
@@ -3346,7 +3494,6 @@ namespace Furibrosa
             Harpoon firedHarpoon = ProjectileController.SpawnProjectileLocally(harpoonPrefab, this, x, y, xSpeed, ySpeed, base.playerNum) as Harpoon;
             this.xIBlast -= base.transform.localScale.x * 150;
             this.yI += 200;
-            firedHarpoon.gameObject.SetActive(true);
         }
         #endregion
     }
