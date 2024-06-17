@@ -35,6 +35,7 @@ namespace Bro_Template
         protected override void Update()
         {
             base.Update();
+            // Don't run any code past this point if the character is dead
             if (this.acceptedDeath)
             {
                 if (this.health <= 0 && !this.WillReviveAlready)
@@ -57,6 +58,15 @@ namespace Bro_Template
             if (this.wasInvulnerable && !this.invulnerable)
             {
                 // Fix any not currently displayed textures
+            }
+
+            // Check if character has died
+            if (base.actionState == ActionState.Dead && !this.acceptedDeath)
+            {
+                if (!this.WillReviveAlready)
+                {
+                    this.acceptedDeath = true;
+                }
             }
         }
         #endregion
