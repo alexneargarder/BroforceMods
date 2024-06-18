@@ -1,0 +1,12 @@
+{
+  "Version": "1.0.0",
+  "BroMakerVersion": "2.3.3",
+  "Name": "Furibrosa",
+  "Author": "AlexN",
+  "CustomBros":[
+    "Furibrosa.json"
+  ],
+  "Assemblies": [
+    "Furibrosa.dll"
+  ]
+}

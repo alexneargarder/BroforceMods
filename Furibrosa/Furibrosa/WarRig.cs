@@ -1065,10 +1065,6 @@ namespace Furibrosa
         #endregion
 
         #region SoundEffects
-        // DEBUG
-        protected bool debugPitch;
-        public static string pitchStr = "1";
-        public static float pitchFloat = 1f;
 
         public void RunAudio()
         {
@@ -1528,7 +1524,7 @@ namespace Furibrosa
             if ( base.transform.localScale.x < 0 && this.xIBlast > 0.01 )
             {
                 // Check front of vehicle
-                float backWidth = this.HalfWidth - offsetBack;
+                float backWidth = this.HalfWidth - 2f;
                 Vector3 bottomRight = new Vector3(base.X + backWidth, base.Y, 0);
                 Vector3 topRight = new Vector3(base.X + backWidth, base.Y + this.collisionHeadHeight, 0);
                 //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
@@ -1557,7 +1553,7 @@ namespace Furibrosa
             else if ( base.transform.localScale.x > 0 && this.xIBlast < -0.01 )
             {
                 // Check front of vehicle
-                float backWidth = this.HalfWidth - offsetBack;
+                float backWidth = this.HalfWidth - 2f;
                 Vector3 bottomRight = new Vector3(base.X - backWidth, base.Y, 0);
                 Vector3 topRight = new Vector3(base.X - backWidth, base.Y + this.collisionHeadHeight, 0);
                 //RocketLib.Utils.DrawDebug.DrawLine("wall", bottomRight, topRight, Color.red);
@@ -1587,9 +1583,6 @@ namespace Furibrosa
 
             return false;
         }
-
-        // DEBUG
-        protected float offsetBack = 2f;
 
         // Overridden to use new CanTouchGround
         protected override bool CanJumpOffGround()

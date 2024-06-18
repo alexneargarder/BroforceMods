@@ -88,9 +88,6 @@ namespace Furibrosa
         public bool holdingSpecial = false;
         public float holdingSpecialTime = 0f;
 
-        // DEBUG
-        public static Furibrosa currentChar;
-
         #region General
         protected override void Awake()
         {
@@ -270,8 +267,6 @@ namespace Furibrosa
             this.meleeSwingSounds[0] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing1.wav");
             this.meleeSwingSounds[1] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing2.wav");
             this.meleeSwingSounds[2] = ResourcesController.CreateAudioClip(directoryPath, "meleeSwing3.wav");
-
-            currentChar = this;
         }
 
         protected override void Update()
