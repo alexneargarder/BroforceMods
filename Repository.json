@@ -1,7 +1,7 @@
 {
 	"Releases":
 	[
-		{"Id": "Swap Bros Mod", "Version": "2.0.7", "DownloadUrl": "https://github.com/alexneargarder/BroforceMods/raw/master/Releases/Swap%20Bros%20Mod/Swap%20Bros%20Mod.zip"},
+		{"Id": "Swap Bros Mod", "Version": "2.1.3", "DownloadUrl": "https://github.com/alexneargarder/BroforceMods/raw/master/Releases/Swap%20Bros%20Mod/Swap%20Bros%20Mod.zip"},
 		{"Id": "Utility Mod", "Version": "2.2.0", "DownloadUrl": "https://github.com/alexneargarder/BroforceMods/raw/master/Releases/Utility%20Mod/Utility%20Mod.zip"},
 		{"Id": "Randomizer Mod", "Version": "2.0.4", "DownloadUrl": "https://github.com/alexneargarder/BroforceMods/raw/master/Releases/Randomizer%20Mod/Randomizer%20Mod.zip"}
 	]
