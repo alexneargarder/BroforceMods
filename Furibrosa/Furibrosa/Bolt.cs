@@ -283,7 +283,7 @@ namespace Furibrosa
                         {
                             this.life += 0.15f;
                         }
-                        SortOfFollow.Shake(0.3f);
+                        SortOfFollow.Shake(0.1f);
                         EffectsController.CreateBloodParticles(firstUnit.bloodColor, base.X, base.Y, 4, 4f, 5f, 60f, this.xI * 0.2f, this.yI * 0.5f + 40f);
                         EffectsController.CreateMeleeStrikeEffect(base.X, base.Y, this.xI * 0.2f, this.yI * 0.5f + 24f);
                         if (this.xI > 0f)
