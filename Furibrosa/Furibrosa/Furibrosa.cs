@@ -1064,10 +1064,21 @@ namespace Furibrosa
             {
                 this.unitWasGrabbed = false;
                 this.grabbedUnit.playerNum = -1;
-                (this.grabbedUnit as Mook).blindTime = 0;
-                if (throwUnit)
+                if ( grabbedUnit is Mook )
                 {
-                    this.ThrowBackMook(this.grabbedUnit as Mook);
+                    Mook grabbedMook = grabbedUnit as Mook;
+                    grabbedMook.blindTime = 0;
+                    if (throwUnit)
+                    {
+                        this.ThrowBackMook(grabbedMook);
+                    }
+                }
+                else if ( grabbedUnit is Animal )
+                {
+                    Animal grabbedAnimal = grabbedUnit as Animal;
+                    Traverse.Create(grabbedUnit).SetFieldValue("blindTime", 0f);
+                    grabbedAnimal.xIBlast = base.transform.localScale.x * 450f;
+                    grabbedAnimal.yI = 300f;
                 }
                 this.gunSprite.gameObject.layer = 19;
                 this.grabbedUnit = null;
