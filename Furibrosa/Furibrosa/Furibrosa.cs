@@ -376,6 +376,7 @@ namespace Furibrosa
             {
                 this.unitWasGrabbed = false;
                 this.grabbedUnit = null;
+                this.gunSprite.gameObject.layer = 19;
                 this.SwitchToNormalMaterials();
                 this.ChangeFrame();
             }
@@ -789,20 +790,16 @@ namespace Furibrosa
             this.gunCounter = 0f;
             this.currentState = this.nextState;
             if ( this.currentState == PrimaryState.FlareGun )
-            {
-                if ( this.grabbedUnit != null )
-                {
-                    this.holdingArm.gameObject.SetActive(false);
-                }
+            { 
                 this.gunSprite.meshRender.material = this.flareGunMat;
             }
             else
             {
-                if ( this.grabbedUnit != null )
-                {
-                    this.holdingArm.gameObject.SetActive(true);
-                }
                 this.gunSprite.meshRender.material = this.crossbowMat;
+            }
+            if (this.grabbedUnit != null)
+            {
+                this.holdingArm.gameObject.SetActive(true);
             }
             this.SetGunSprite(0, 0);
         }
@@ -1042,7 +1039,7 @@ namespace Furibrosa
                     this.grabbedUnit = unit;
                     unit.Panic(1000f, true);
                     unit.playerNum = this.playerNum;
-                    unit.gameObject.layer = 19;
+                    this.gunSprite.gameObject.layer = 28;
                     this.doRollOnLand = false;
                 }
                 // Punch unit
@@ -1072,7 +1069,7 @@ namespace Furibrosa
                 {
                     this.ThrowBackMook(this.grabbedUnit as Mook);
                 }
-                this.grabbedUnit.gameObject.layer = 25;
+                this.gunSprite.gameObject.layer = 19;
                 this.grabbedUnit = null;
                 this.SwitchToNormalMaterials();
                 this.ChangeFrame();
@@ -1086,13 +1083,13 @@ namespace Furibrosa
             this.flareGunMat = this.flareGunHoldingMat;
             if (this.currentState == PrimaryState.Crossbow)
             {
-                this.holdingArm.gameObject.SetActive(true);
                 this.gunSprite.meshRender.material = this.crossbowMat;
             }
             else if (this.currentState == PrimaryState.FlareGun)
             {
                 this.gunSprite.meshRender.material = this.flareGunMat;
             }
+            this.holdingArm.gameObject.SetActive(true);
         }
 
         protected void SwitchToNormalMaterials()
