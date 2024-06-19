@@ -1895,11 +1895,11 @@ namespace Furibrosa
                 {
                     if ( !hitHeavy )
                     {
-                        this.shieldDamage += 7f;
+                        this.shieldDamage += 8f;
                     }
                     else
                     {
-                        this.shieldDamage += 10f;
+                        this.shieldDamage += 12f;
                     }
                 }
             }
