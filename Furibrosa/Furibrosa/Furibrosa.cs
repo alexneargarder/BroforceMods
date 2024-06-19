@@ -291,7 +291,7 @@ namespace Furibrosa
             }
 
             // Switch Weapon Pressed
-            if (switchWeaponKey.IsDown(playerNum))
+            if (playerNum >= 0 && playerNum < 4 && switchWeaponKey.IsDown(playerNum))
             {
                 StartSwitchingWeapon();
             }
@@ -332,6 +332,12 @@ namespace Furibrosa
                 {
                     this.acceptedDeath = true;
                 }
+            }
+
+            // Release unit if getting on helicopter
+            if (this.isOnHelicopter)
+            {
+                this.ReleaseUnit(false);
             }
         }
 
@@ -802,7 +808,7 @@ namespace Furibrosa
         protected override void CheckInput()
         {
             base.CheckInput();
-            if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
+            if (!acceptedDeath && base.actionState != ActionState.Dead && doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
             {
                 if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
                 {
@@ -1024,7 +1030,7 @@ namespace Furibrosa
             bool flag;
             Map.DamageDoodads(3, DamageType.Knock, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
             this.KickDoors(24f);
-            Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 20f, 12f, base.X, base.Y + base.height / 2f, new List<Unit>());
+            Unit unit = GetNextClosestUnit(this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 22f, 14f, base.X - base.transform.localScale.x * 4, base.Y + base.height / 2f, new List<Unit>());
             if ( unit != null )
             {
                 // Pickup unit if not heavy and not a dog and not on the ground
@@ -1036,6 +1042,14 @@ namespace Furibrosa
                     unit.playerNum = this.playerNum;
                     this.gunSprite.gameObject.layer = 28;
                     this.doRollOnLand = false;
+                    if ( unit is MookJetpack )
+                    {
+                        MookJetpack mookJetpack = unit as MookJetpack;
+                        Traverse mookTraverse = Traverse.Create(mookJetpack);
+                        (mookTraverse.GetFieldValue("jetpackAudio") as AudioSource).Stop();
+                        mookTraverse.SetFieldValue("jetpacksOn", false);
+                        mookTraverse.SetFieldValue("spiralling", false);
+                    }
                 }
                 // Punch unit
                 else
