@@ -1,4 +1,4 @@
-v1.0.3 (Unreleased)
+v1.0.3
 Fixed being able to fire multiple bullets in one melee attack
 
 v1.0.2
