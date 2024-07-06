@@ -4,7 +4,6 @@
  * Add tooltips for cheat options
  * 
  **/
-#define DEBUG
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,9 +131,7 @@ namespace Utility_Mod
 
             levelNum = new Dropdown(400, 150, 150, 300, levelList, settings.levelNum);
 
-#if DEBUG
             unitDropdown = new Dropdown(400, 150, 200, 300, unitList, settings.selectedEnemy);
-#endif
 
             return true;
         }
@@ -233,7 +230,6 @@ namespace Utility_Mod
                 ShowTeleportOptions(modEntry, ref previousToolTip, currentCharacter);   
             } // End Teleport Options
 
-#if DEBUG
             if (GUILayout.Button("Debug Options", headerStyle))
             {
                 settings.showDebugOptions = !settings.showDebugOptions;
@@ -243,7 +239,6 @@ namespace Utility_Mod
             {
                 ShowDebugOptions(modEntry, ref previousToolTip, currentCharacter);
             }
-#endif
         }
 
         static void ShowLevelControls(UnityModManager.ModEntry modEntry, ref string previousToolTip)
@@ -545,12 +540,10 @@ namespace Utility_Mod
 
             if ( settings.teleportToMouseCursor != (settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click")) )
             {
-#if DEBUG
                 if ( settings.teleportToMouseCursor )
                 {
                     settings.spawnEnemyOnRightClick = false;
                 }
-#endif
             }
 
             GUILayout.Space(10);
@@ -1012,7 +1005,6 @@ namespace Utility_Mod
                 {}
             }
 
-#if DEBUG
             try
             {
                 levelStartedCounter += dt;
@@ -1038,7 +1030,6 @@ namespace Utility_Mod
             {
                 Map.MapData.suppressAnnouncer = true;
             }
-#endif
 
             if ( settings.enableFlight )
             {
