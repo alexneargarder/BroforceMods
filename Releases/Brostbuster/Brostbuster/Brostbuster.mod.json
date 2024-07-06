@@ -1,6 +1,6 @@
 {
-  "Version": "1.0.0",
-  "BroMakerVersion": "2.3.1",
+  "Version": "1.0.1",
+  "BroMakerVersion": "2.3.4",
   "Name": "Brostbuster",
   "Author": "AlexN",
   "CustomBros":[
