@@ -1193,7 +1193,7 @@ namespace RJBrocready
             this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
             this.gunSprite.SetSize(64, 64);
             this.gunSprite.RecalcTexture();
-            this.gunSpriteOffset.x = -2f;
+            this.gunSpriteOffset = new Vector2(-2f, 0f);
             this.specialMaterials = new List<Material> { this.thingSpecialIconMaterial };
             this.specialMaterialOffset = new Vector2(3, 0);
             this.specialMaterialSpacing = 4f;
@@ -1248,6 +1248,7 @@ namespace RJBrocready
             this.doRollOnLand = false;
             this.canWallClimb = false;
             this.canChimneyFlip = false;
+            this.canCeilingHang = false;
             SetGestureAnimation(GestureElement.Gestures.None);
 
             this.ActivateGun();
@@ -1318,9 +1319,10 @@ namespace RJBrocready
             this.doRollOnLand = true;
             this.canWallClimb = true;
             this.canChimneyFlip = true;
+            this.canCeilingHang = true;
 
             this.SetGunPosition(0, 0);
-            this.gunSpriteOffset.x = -2f;
+            this.gunSpriteOffset = new Vector2(-2f, 0f);
             this.SetGunSprite(0, 0);
 
             base.GetComponent<Renderer>().material = this.thingMaterial;
