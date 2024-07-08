@@ -46,3 +46,9 @@ Information about this mod and a download link can be found [here](https://www.n
 
 ## Brostbuster
 Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/39).
+
+## R.J. Brocready
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/41).
+
+## Imperator Furibrosa
+Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/43).
