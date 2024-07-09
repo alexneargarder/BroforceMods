@@ -1,3 +1,6 @@
+v2.0.5
+Fixed randomization applying to Tank Bro's tank and the mech airdrop powerup.
+
 v2.0.4
 Fixed broken flex power.
 

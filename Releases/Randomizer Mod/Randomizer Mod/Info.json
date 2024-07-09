@@ -2,7 +2,7 @@
 	"Id": "Randomizer Mod",
 	"DisplayName": "Randomizer Mod",
 	"Author": "AlexN",
-	"Version": "2.0.4",
+	"Version": "2.0.5",
 	"AssemblyName": "Randomizer Mod.dll",
 	"EntryMethod": "Randomizer_Mod.Main.Load",
 	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
