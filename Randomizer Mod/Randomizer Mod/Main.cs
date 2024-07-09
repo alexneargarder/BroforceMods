@@ -1151,7 +1151,7 @@ namespace Randomizer_Mod
                 return;
             }
 
-            if ((Main.settings.enemyPercent > rnd.NextDouble() * (100)))
+            if (!(mookPrefab is TankBroTank || mookPrefab is MookArmouredGuy) && (Main.settings.enemyPercent > rnd.NextDouble() * (100)))
             {
                 Mook replacePrefab = getRandomMookPrefab();
                 if ( replacePrefab != null )
