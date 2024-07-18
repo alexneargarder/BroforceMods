@@ -33,7 +33,7 @@ namespace Brostbuster
 
 			if (storedMat == null)
 			{
-				storedMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "slimer.png"), ResourcesController.Unlit_DepthCutout);
+				storedMat = ResourcesController.GetMaterial(directoryPath, "slimer.png");
 			}
 
 			renderer.material = storedMat;
