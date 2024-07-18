@@ -161,6 +161,12 @@ namespace RJBrocready
             File.WriteAllText(jsonPath, json);
         }
 
+        public override void PreloadAssets()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            CustomHero.PreloadSprites(directoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png", "dynamite.png" });
+        }
+
         protected override void Start()
         {
             base.Start();
