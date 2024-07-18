@@ -1,2 +1,5 @@
+v1.0.1
+Improved load time for all bros.
+
 v1.0.0
 Release
