@@ -1,3 +1,6 @@
+v1.0.2
+Improved load time.
+
 v1.0.1
 Fixed holding mooks on helicopter ladder.
 Fixed switching weapons affecting dead Furibrosas.

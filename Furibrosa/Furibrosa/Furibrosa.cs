@@ -127,6 +127,12 @@ namespace Furibrosa
             File.WriteAllText(jsonPath, json);
         }
 
+        public override void PreloadAssets()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            CustomHero.PreloadSprites(directoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" });
+        }
+
         protected override void Start()
         {
             base.Start();
