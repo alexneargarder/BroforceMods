@@ -64,7 +64,7 @@ namespace Brostbuster
 				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 				if (storedMat == null)
 				{
-					storedMat = ResourcesController.CreateMaterial(Path.Combine(directoryPath, "ghostTrap.png"), ResourcesController.Particle_AlphaBlend);
+					storedMat = ResourcesController.GetMaterial(directoryPath, "ghostTrap.png");
 				}
 
 				renderer.material = storedMat;

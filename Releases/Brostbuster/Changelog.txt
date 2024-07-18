@@ -1,3 +1,6 @@
+v1.0.2
+Improved load time.
+
 v1.0.1
 Fixed audio bug with Ghost Trap.
 

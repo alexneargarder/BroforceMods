@@ -66,6 +66,12 @@ namespace Brostbuster
         public static bool patched = false;
         protected bool acceptedDeath = false;
 
+        public override void PreloadAssets()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            CustomHero.PreloadSprites(directoryPath, new List<string> { "protonLine1.png", "protonLine1End.png", "protonLine21.png", "protonLine22.png", "protonLine23.png", "protonLine24.png", "ghostTrap.png", "slimer.png" });
+        }
+
         protected override void Awake()
         {
             base.Awake();
