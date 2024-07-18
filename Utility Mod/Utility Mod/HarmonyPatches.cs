@@ -634,7 +634,5 @@ namespace Utility_Mod
                 return true;
             }
         }
-
-
     }
 }
