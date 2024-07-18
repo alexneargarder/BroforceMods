@@ -87,16 +87,8 @@ namespace Captain_Ameribro_Mod
 
 			if ( storedMat == null )
             {
-				storedMat = new Material(boom.GetComponent<MeshRenderer>().material);
-				if ( !CaptainAmeribro.DEBUGTEXTURES )
-                {
-					storedMat.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroShield.png"));
-				}
-				else
-                {
-					storedMat.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroShield.png");
-				}
-			}
+				storedMat = ResourcesController.GetMaterial(directoryPath, "captainAmeribroShield.png");
+            }
 
 			renderer.material = storedMat;
 
@@ -121,7 +113,7 @@ namespace Captain_Ameribro_Mod
 			}
 			catch ( Exception ex )
             {
-				BMLogger.Log("exception getting animated texture: " + ex);
+				BMLogger.Log("Exception getting animated texture: " + ex.ToString());
             }
 
 			this.ladderLayer = 1 << LayerMask.NameToLayer("Ladders");

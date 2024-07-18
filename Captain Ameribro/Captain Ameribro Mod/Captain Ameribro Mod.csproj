@@ -32,13 +32,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CaptainAmeribro.cs" />
-    <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Shield.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Sprites\captainAmeribroArmless.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroShield.png" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony, Version=2.0.2.0, Culture=neutral, processorArchitecture=MSIL">
@@ -89,15 +84,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\UnityModManager.dll</HintPath>
     </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Sprites\captainAmeribroAvatar.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroCutscene.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroGun.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroGunNoShield.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroMain.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroMainNoShield.png" />
-    <EmbeddedResource Include="Sprites\captainAmeribroSpecial.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
