@@ -66,10 +66,7 @@ namespace Captain_Ameribro_Mod
 		protected List<Unit> currentlyHitting;
 		protected const int defaultSpeed = 130;
 		protected bool acceptedDeath = false;
-		protected InvulnerabilityFlash flash;
-
-		// DEBUG variables
-		public const bool DEBUGTEXTURES = false;
+		protected InvulnerabilityFlash invulnerabilityFlash;
 
 		public void makeTextBox(string label, ref string text, ref float val)
         {
@@ -102,49 +99,32 @@ namespace Captain_Ameribro_Mod
 			base.Awake();
 		}
 
-		protected override void Start()
+        public override void PreloadAssets()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            CustomHero.PreloadSprites(directoryPath, new List<string> { "captainAmeribroMainNoShield.png", "captainAmeribroArmless.png", "captainAmeribroGunNoShield.png", "captainAmeribroShield.png" });
+
+			directoryPath = Path.Combine(directoryPath, "sounds");
+			CustomHero.PreloadSounds(directoryPath, new List<string> { "special1.wav", "special2.wav", "special3.wav", "ShieldShing.wav", "melee1part1.wav", "melee3part2.wav", "meleeterrainhit1.wav", "meleeterrainhit2.wav", "swish.wav", "grunt1.wav", "grunt2.wav", "grunt3.wav", "grunt4.wav", "grunt5.wav", "ricochet1.wav", "ricochet2.wav", "ricochet3.wav", "ricochet4.wav", "pistol1.wav", "pistol2.wav", "pistol3.wav", "pistol4.wav" });
+        }
+
+        protected override void Start()
         {
             base.Start();
 
-			materialNormal = this.material;
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+            materialNormal = this.material;
+
 			materialNormalShield = materialNormal;
+			materialNormalNoShield = ResourcesController.GetMaterial(directoryPath, "captainAmeribroMainNoShield.png");
 
-			materialNormalNoShield = new Material(this.material);
+			materialArmless = ResourcesController.GetMaterial(directoryPath, "captainAmeribroArmless.png");
 
-			string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            gunMaterialNormal = this.gunMaterial;
+			gunMaterialNoShield = ResourcesController.GetMaterial(directoryPath, "captainAmeribroGunNoShield.png");
 
-			if ( !DEBUGTEXTURES )
-            {
-				materialNormalNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroMainNoShield.png"));
-			}
-			else
-            {
-				materialNormalNoShield.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroMainNoShield.png");
-			}
-
-			materialArmless = new Material((HeroController.GetHeroPrefab(HeroType.Nebro) as Nebro).materialArmless);
-            if (!DEBUGTEXTURES)
-            {
-				materialArmless.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroArmless.png"));
-			}
-			else
-            {
-				materialArmless.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroArmless.png");
-			}
-
-			gunMaterialNormal = this.gunMaterial;
-
-			gunMaterialNoShield = new Material(gunMaterial);
-			if ( !DEBUGTEXTURES )
-            {
-				gunMaterialNoShield.mainTexture = ResourcesController.CreateTexture(Main.ExtractResource("Captain_Ameribro_Mod.Sprites.captainAmeribroGunNoShield.png"));
-			}
-			else
-            {
-				gunMaterialNoShield.mainTexture = ResourcesController.GetTexture(directoryPath, "captainAmeribroGunNoShield.png");
-			}
-
-			if ( shieldUnitBounce == null )
+            if ( shieldUnitBounce == null )
             {
 				shieldUnitBounce = new AudioClip[3];
 				shieldUnitBounce[0] = ResourcesController.GetAudioClip(Path.Combine(directoryPath, "sounds"), "special1.wav");
@@ -279,7 +259,7 @@ namespace Captain_Ameribro_Mod
 			}
 
 			// Reflect projectiles if using melee
-			if ( this.doingMelee && this.usingShieldMelee && base.frame > 1 )
+			if ( this.doingMelee && this.usingShieldMelee && base.frame > 0 )
             {
 				if (Map.DeflectProjectiles(this, this.playerNum, 10, this.X, this.Y, this.transform.localScale.x * 300, true))
 				{
@@ -847,13 +827,13 @@ namespace Captain_Ameribro_Mod
 				}
 				this.gunFrame = 0;
 				this.SetGunSprite(0, 0);
-				if ( this.flash == null )
+				if ( this.invulnerabilityFlash == null )
                 {
-					this.flash = this.GetComponent<InvulnerabilityFlash>();
+					this.invulnerabilityFlash = this.GetComponent<InvulnerabilityFlash>();
                 }
-				if (this.flash != null && this.invulnerableTime <= 0)
+				if (this.invulnerabilityFlash != null && this.invulnerableTime <= 0)
 				{
-					this.flash.enabled = false;
+					this.invulnerabilityFlash.enabled = false;
                 }
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashLeft();
@@ -872,13 +852,13 @@ namespace Captain_Ameribro_Mod
 				}
 				this.gunFrame = 0;
 				this.SetGunSprite(0, 0);
-				if (this.flash == null)
+				if (this.invulnerabilityFlash == null)
 				{
-					this.flash = this.GetComponent<InvulnerabilityFlash>();
+					this.invulnerabilityFlash = this.GetComponent<InvulnerabilityFlash>();
 				}
-				if (this.flash != null && this.invulnerableTime <= 0)
+				if (this.invulnerabilityFlash != null && this.invulnerableTime <= 0)
 				{
-					this.flash.enabled = false;
+					this.invulnerabilityFlash.enabled = false;
 				}
 				this.currentlyHitting = new List<Unit>();
 				base.AirDashRight();
@@ -890,9 +870,9 @@ namespace Captain_Ameribro_Mod
 		{
 			base.RunAirDashing();
 			// Re-enable invulnerability flash when finished air-dashing
-			if (this.airdashTime <= 0 && this.flash != null)
+			if (this.airdashTime <= 0 && this.invulnerabilityFlash != null)
 			{
-				this.flash.enabled = true;
+				this.invulnerabilityFlash.enabled = true;
 			}
 		}
 
