@@ -3,6 +3,9 @@ Added debug options for:
 Printing audio clip names
 Spawning enemies on right-click
 Changing zoom level
+Spawning objects on right-click
+Changing right-click function with middle-click
+
 
 v2.2.0
 Added options for:

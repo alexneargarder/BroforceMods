@@ -92,6 +92,31 @@ namespace Utility_Mod
             "MUSCLETEMPLE5"
         };
 
+        public static Dropdown unitDropdown;
+
+        public static string[] unitList = new string[]
+        {
+            // Normal
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook",
+            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            // Aliens
+            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
+            // Hell
+            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher",
+            "SandWorm", "Boneworm", "Boneworm Behind", "Alien Worm", "Alien Facehugger Worm", "Alien Facehugger Worm Behind",
+            "Satan", "CR666",
+            "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm",
+            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck"
+        };
+
+        public static Dropdown objectDropdown;
+
+        public static string[] objectList = new string[]
+        {
+            "Dirt", "Explosive Barrel", "Red Explosive Barrel", "Propane Tank", "Rescue Cage", "Crate", "Ammo Crate", "Time Ammo Crate", "RC Car Ammo Crate", "Air Strike Ammo Crate", "Mech Drop Ammo Crate", "Alien Pheromones Ammo Crate", "Steroids Ammo Crate", "Pig Ammo Crate",
+            "Flex Ammo Crate"
+        };
+
         public static string teleportX = "0";
         public static string teleportY = "0";
 
@@ -102,13 +127,23 @@ namespace Utility_Mod
 
         public static float levelStartedCounter = 0f;
 
+        #region UMM
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
             modEntry.OnUpdate = OnUpdate;
-            settings = Settings.Load<Settings>(modEntry);
+            try
+            {
+                settings = Settings.Load<Settings>(modEntry);
+            }
+            catch
+            {
+                // Settings format changed
+                settings = new Settings();
+            }
+
             mod = modEntry;
 
             try
@@ -117,7 +152,7 @@ namespace Utility_Mod
                 var assembly = Assembly.GetExecutingAssembly();
                 harmony.PatchAll(assembly);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Main.Log(ex.ToString());
             }
@@ -133,15 +168,280 @@ namespace Utility_Mod
 
             unitDropdown = new Dropdown(400, 150, 200, 300, unitList, settings.selectedEnemy);
 
+            objectDropdown = new Dropdown(400, 150, 200, 300, objectList, (int)settings.selectedObject);
+
             return true;
         }
 
+        static void OnSaveGUI(UnityModManager.ModEntry modEntry)
+        {
+            settings.Save(modEntry);
+        }
+
+        static bool OnToggle(UnityModManager.ModEntry modEntry, bool value)
+        {
+            enabled = value;
+            return true;
+        }
+
+        public static void Log(String str)
+        {
+            mod.Logger.Log(str);
+        }
+
+        static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
+        {
+            if (!enabled) return;
+
+            // Handle instant scene loading
+            if (!loadedScene && settings.quickLoadScene)
+            {
+                waitForLoad -= dt;
+                if (waitForLoad < 0)
+                {
+                    try
+                    {
+                        if (!Main.settings.cameraShake)
+                        {
+                            PlayerOptions.Instance.cameraShakeAmount = 0f;
+                        }
+
+                        Utility.SceneLoader.LoadScene("WorldMap3D");
+                        Utility.SceneLoader.LoadScene(settings.sceneToLoad);
+                    }
+                    catch {}
+                    loadedScene = true;
+                }
+            }
+
+            // Middle click to change right click function
+            if ( settings.middleClickToChangeRightClick )
+            {
+                if ( Input.GetMouseButtonDown(2) )
+                {
+                    if ( settings.currentRightClick == RightClick.SpawnObject )
+                    {
+                        settings.currentRightClick = RightClick.TeleportToCursor;
+                    }
+                    else
+                    {
+                        ++settings.currentRightClick;
+                    }
+                }
+            }
+
+            // Right click to teleport to cursor
+            if (settings.currentRightClick == RightClick.TeleportToCursor)
+            {
+                try
+                {
+                    if (Input.GetMouseButtonDown(1))
+                    {
+                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
+                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
+
+                        HeroController.players[0].character.X = newPos.x;
+                        HeroController.players[0].character.Y = newPos.y;
+                    }
+                }
+                catch {}
+            }
+
+            // Right click to spawn enemies
+            if (settings.currentRightClick == RightClick.SpawnEnemy)
+            {
+                try
+                {
+                    if (Input.GetMouseButtonDown(1))
+                    {
+                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
+                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
+
+                        SpawnUnit(settings.selectedEnemy, newPos);
+                    }
+                }
+                catch {}
+            }
+            
+
+            // Right click to spawn objects
+            if (settings.currentRightClick == RightClick.SpawnObject)
+            {
+                try
+                {
+                    if (Input.GetMouseButton(1))
+                    {
+                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
+                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
+                        int column = (int)Mathf.Round(newPos.x / 16f);
+                        int row = (int)Mathf.Round(newPos.y / 16f);
+
+                        if (Map.blocks[column, row] == null || Map.blocks[column, row].destroyed)
+                        {
+                            switch (settings.selectedObject)
+                            {
+                                case CurrentObject.Dirt:
+                                case CurrentObject.ExplosiveBarrel:
+                                case CurrentObject.RedExplosiveBarrel:
+                                case CurrentObject.PropaneTank:
+                                case CurrentObject.Crate:
+                                case CurrentObject.AmmoCrate:
+                                case CurrentObject.TimeAmmoCrate:
+                                case CurrentObject.RCCarAmmoCrate:
+                                case CurrentObject.AirStrikeAmmoCrate:
+                                case CurrentObject.MechDropAmmoCrate:
+                                case CurrentObject.AlienPheromonesAmmoCrate:
+                                case CurrentObject.SteroidsAmmoCrate:
+                                case CurrentObject.PigAmmoCrate:
+                                case CurrentObject.FlexAmmoCrate:
+                                    SpawnBlock(row, column);
+                                    break;
+                                default:
+                                    SpawnDoodad(row, column);
+                                    break;
+                            }
+                        }
+                    }
+                }
+                catch {}
+            }
+
+            // Set zoom level
+            levelStartedCounter += dt;
+            if ( settings.setZoom )
+            {
+                try
+                {
+                    if (levelStartedCounter > 1.5f && SortOfFollow.zoomLevel != settings.zoomLevel)
+                    {
+                        SortOfFollow.zoomLevel = settings.zoomLevel;
+                    }
+                }
+                catch {}
+            }
+
+            // Suppress announcer
+            if (Map.MapData != null && settings.suppressAnnouncer)
+            {
+                Map.MapData.suppressAnnouncer = true;
+            }
+
+            // Handle flight
+            if (settings.enableFlight)
+            {
+                try
+                {
+                    HeroController.players[0].character.speed = 300;
+                    if (HeroController.players[0].character.up)
+                    {
+                        HeroController.players[0].character.yI = 300;
+                    }
+                    else if (HeroController.players[0].character.down)
+                    {
+                        HeroController.players[0].character.yI = -300;
+                    }
+                    else
+                    {
+                        HeroController.players[0].character.yI = 0;
+                    }
+
+                    if (HeroController.players[0].character.right)
+                    {
+                        HeroController.players[0].character.xI = 300;
+                    }
+                    else if (HeroController.players[0].character.left)
+                    {
+                        HeroController.players[0].character.xI = -300;
+                    }
+                    else
+                    {
+                        HeroController.players[0].character.xI = 0;
+                    }
+                }
+                catch {}
+            }
+        }
+        #endregion
+
+        #region UI
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
-            string previousToolTip;
+            string previousToolTip = string.Empty;
 
-            
-            
+            GUIStyle headerStyle = new GUIStyle(GUI.skin.button);
+
+            TestVanDammeAnim currentCharacter = null;
+
+            if (settings.quickLoadScene)
+            {
+                if (loadedScene && HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
+                {
+                    currentCharacter = HeroController.players[0].character;
+                }
+            }
+            else if (HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
+            {
+                currentCharacter = HeroController.players[0].character;
+            }
+
+            headerStyle.fontStyle = FontStyle.Bold;
+            // 163, 232, 255
+            headerStyle.normal.textColor = new Color(0.639216f, 0.909804f, 1f);
+
+
+            if (GUILayout.Button("General Options", headerStyle))
+            {
+                settings.showGeneralOptions = !settings.showGeneralOptions;
+            }
+
+            if (settings.showGeneralOptions)
+            {
+                ShowGeneralOptions(modEntry, ref previousToolTip);
+            } // End General Options
+
+            if (GUILayout.Button("Level Controls", headerStyle))
+            {
+                settings.showLevelOptions = !settings.showLevelOptions;
+            }
+
+            if (settings.showLevelOptions)
+            {
+                ShowLevelControls(modEntry, ref previousToolTip);
+            } // End Level Controls
+
+            if (GUILayout.Button("Cheat Options", headerStyle))
+            {
+                settings.showCheatOptions = !settings.showCheatOptions;
+            }
+
+            if (settings.showCheatOptions)
+            {
+                ShowCheatOptions(modEntry, ref previousToolTip, currentCharacter);
+            } // End Cheat Options
+
+            if (GUILayout.Button("Teleport Options", headerStyle))
+            {
+                settings.showTeleportOptions = !settings.showTeleportOptions;
+            }
+
+            if (settings.showTeleportOptions)
+            {
+                ShowTeleportOptions(modEntry, ref previousToolTip, currentCharacter);
+            } // End Teleport Options
+
+            if (GUILayout.Button("Debug Options", headerStyle))
+            {
+                settings.showDebugOptions = !settings.showDebugOptions;
+            }
+
+            if (settings.showDebugOptions)
+            {
+                ShowDebugOptions(modEntry, ref previousToolTip, currentCharacter);
+            } // End Debug Options
+        }
+
+        static void ShowGeneralOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
+        {
             GUILayout.BeginHorizontal();
             {
                 settings.cameraShake = GUILayout.Toggle(settings.cameraShake, new GUIContent("Camera Shake",
@@ -154,14 +454,10 @@ namespace Utility_Mod
                 settings.enableSkip = GUILayout.Toggle(settings.enableSkip, new GUIContent("Helicopter Skip",
                     "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(120f));
 
-                GUI.Label(lastRect, GUI.tooltip);
-
                 settings.endingSkip = GUILayout.Toggle(settings.endingSkip, new GUIContent("Ending Skip",
                     "Speeds up the ending"), GUILayout.Width(100f));
 
-                GUI.Label(lastRect, GUI.tooltip);
-
-                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, "Speed up Main Menu Loading", GUILayout.Width(200f));
+                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, new GUIContent("Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech"), GUILayout.Width(200f));
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
@@ -171,74 +467,7 @@ namespace Utility_Mod
             }
             GUILayout.EndHorizontal();
 
-
             GUILayout.Space(25);
-
-            GUIStyle headerStyle = new GUIStyle( GUI.skin.button );
-
-
-            headerStyle.fontStyle = FontStyle.Bold;
-            // 163, 232, 255
-            headerStyle.normal.textColor = new Color(0.639216f, 0.909804f, 1f);
-
-
-            if ( GUILayout.Button("Level Controls", headerStyle) )
-            {
-                settings.showLevelOptions = !settings.showLevelOptions;
-            }
-
-            if ( settings.showLevelOptions )
-            {
-                ShowLevelControls(modEntry, ref previousToolTip);
-            } // End Level Controls
-
-
-            TestVanDammeAnim currentCharacter = null;
-
-            if (settings.quickLoadScene)
-            {
-                if ( loadedScene && HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
-                {
-                    currentCharacter = HeroController.players[0].character;
-                }
-            }
-            else if (HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
-            {
-                currentCharacter = HeroController.players[0].character;
-            }
-
-
-            if (GUILayout.Button("Cheat Options", headerStyle))
-            {
-                settings.showCheatOptions = !settings.showCheatOptions;
-            }
-
-            if ( settings.showCheatOptions )
-            {
-                ShowCheatOptions(modEntry, ref previousToolTip, currentCharacter);
-            } // End Cheat Options
-
-
-
-            if (GUILayout.Button("Teleport Options", headerStyle))
-            {
-                settings.showTeleportOptions = !settings.showTeleportOptions;
-            }
-
-            if ( settings.showTeleportOptions )
-            {
-                ShowTeleportOptions(modEntry, ref previousToolTip, currentCharacter);   
-            } // End Teleport Options
-
-            if (GUILayout.Button("Debug Options", headerStyle))
-            {
-                settings.showDebugOptions = !settings.showDebugOptions;
-            }
-
-            if ( settings.showDebugOptions )
-            {
-                ShowDebugOptions(modEntry, ref previousToolTip, currentCharacter);
-            }
         }
 
         static void ShowLevelControls(UnityModManager.ModEntry modEntry, ref string previousToolTip)
@@ -289,7 +518,7 @@ namespace Utility_Mod
                     {
                         campaignNum.OnGUI(modEntry);
 
-                        determineLevelsInCampaign();
+                        DetermineLevelsInCampaign();
 
                         levelNum.OnGUI(modEntry);
 
@@ -538,11 +767,16 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal(GUILayout.Width(400));
 
-            if ( settings.teleportToMouseCursor != (settings.teleportToMouseCursor = GUILayout.Toggle(settings.teleportToMouseCursor, "Teleport to Cursor on Right Click")) )
+            bool teleportEnabled = settings.currentRightClick == RightClick.TeleportToCursor;
+            if (teleportEnabled != (teleportEnabled = GUILayout.Toggle(teleportEnabled, "Teleport to Cursor on Right Click")))
             {
-                if ( settings.teleportToMouseCursor )
+                if (teleportEnabled)
                 {
-                    settings.spawnEnemyOnRightClick = false;
+                    settings.currentRightClick = RightClick.TeleportToCursor;
+                }
+                else
+                {
+                    settings.currentRightClick = RightClick.None;
                 }
             }
 
@@ -636,29 +870,11 @@ namespace Utility_Mod
             }
         }
 
-        static Dropdown unitDropdown;
-
-        #region DEBUG
-        public static string[] unitList = new string[]
-        {
-            // Normal
-            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook",
-            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
-            // Aliens
-            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
-            // Hell
-            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher",
-            "SandWorm", "Boneworm", "Boneworm Behind", "Alien Worm", "Alien Facehugger Worm", "Alien Facehugger Worm Behind",
-            "Satan", "CR666",
-            "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm",
-            "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck"
-        };
-
         static void ShowDebugOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
         {
             GUILayout.BeginHorizontal();
 
-            settings.printAudioPlayed = GUILayout.Toggle(settings.printAudioPlayed, "Print Audio Played");
+            settings.printAudioPlayed = GUILayout.Toggle(settings.printAudioPlayed, new GUIContent("Print Audio Played", "Prints the name of the Audio Clip to the Log"));
 
             GUILayout.EndHorizontal();
 
@@ -668,7 +884,7 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
 
-            settings.suppressAnnouncer = GUILayout.Toggle(settings.suppressAnnouncer, "Suppress Announcer");
+            settings.suppressAnnouncer = GUILayout.Toggle(settings.suppressAnnouncer, new GUIContent("Suppress Announcer", "Disables the Countdown at the start of levels"));
 
             GUILayout.EndHorizontal();
 
@@ -678,20 +894,25 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
 
-            settings.maxCageSpawns = GUILayout.Toggle(settings.maxCageSpawns, "Max Cage Spawns");
+            settings.maxCageSpawns = GUILayout.Toggle(settings.maxCageSpawns, new GUIContent("Max Cage Spawns", "Forces every cage that spawns on the map to contain a prisoner"));
 
             GUILayout.EndHorizontal();
 
-
-            GUILayout.Space(20);
-
-
-            GUILayout.Space(20);
-
-
-            if ( settings.setZoom != (settings.setZoom = GUILayout.Toggle(settings.setZoom, "Set Zoom Level")) )
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 300;
+            if (GUI.tooltip != previousToolTip)
             {
-                if ( !settings.setZoom )
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(30);
+
+
+            if (settings.setZoom != (settings.setZoom = GUILayout.Toggle(settings.setZoom, new GUIContent("Set Zoom Level", "Overrides the default zoom level of the camera"))))
+            {
+                if (!settings.setZoom)
                 {
                     SortOfFollow.zoomLevel = 1;
                 }
@@ -709,24 +930,67 @@ namespace Utility_Mod
 
             GUILayout.EndHorizontal();
 
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 300;
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
-            GUILayout.Space(20);
+            GUILayout.Space(30);
 
 
-            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((unitDropdown.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
+            settings.middleClickToChangeRightClick = GUILayout.Toggle(settings.middleClickToChangeRightClick, "Middle Click to change Right Click Function");
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((unitDropdown.show) ? 350 : 30), GUILayout.ExpandWidth(false) });
             unitDropdown.OnGUI(modEntry);
             Main.settings.selectedEnemy = unitDropdown.indexNumber;
 
-            if ( settings.spawnEnemyOnRightClick != (settings.spawnEnemyOnRightClick = GUILayout.Toggle(settings.spawnEnemyOnRightClick, "Spawn Enemy On Right Click") ) )
+            bool spawnEnemyEnabled = settings.currentRightClick == RightClick.SpawnEnemy;
+            if (spawnEnemyEnabled != (spawnEnemyEnabled = GUILayout.Toggle(spawnEnemyEnabled, "Spawn Enemy On Right Click")))
             {
-                if ( settings.spawnEnemyOnRightClick )
+                if (spawnEnemyEnabled)
                 {
-                    settings.teleportToMouseCursor = false;
+                    settings.currentRightClick = RightClick.SpawnEnemy;
                 }
+                else
+                {
+                    settings.currentRightClick = RightClick.None;
+                }
+
+            }
+            GUILayout.EndHorizontal();
+
+
+            GUILayout.Space(10);
+
+
+            GUILayout.BeginHorizontal(new GUILayoutOption[] { GUILayout.MinHeight((objectDropdown.show) ? 350 : 100), GUILayout.ExpandWidth(false) });
+            objectDropdown.OnGUI(modEntry);
+            Main.settings.selectedObject = (CurrentObject) objectDropdown.indexNumber;
+
+            bool spawnObjectEnabled = settings.currentRightClick == RightClick.SpawnObject;
+            if (spawnObjectEnabled != (spawnObjectEnabled = GUILayout.Toggle(spawnObjectEnabled, "Spawn Object On Right Click")))
+            {
+                if (spawnObjectEnabled)
+                {
+                    settings.currentRightClick = RightClick.SpawnObject;
+                }
+                else
+                {
+                    settings.currentRightClick = RightClick.None;
+                }
+
             }
             GUILayout.EndHorizontal();
         }
+        #endregion
 
+        #region Modding
         static void SpawnUnit(int unit, Vector3 vector)
         {
             TestVanDammeAnim original = null;
@@ -951,123 +1215,189 @@ namespace Utility_Mod
                 __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
             }
         }
-        #endregion
 
-        static void OnSaveGUI(UnityModManager.ModEntry modEntry)
+        static Block CreateBlock(int x, int y)
         {
-            settings.Save(modEntry);
+            Traverse trav = Traverse.Create(Map.Instance);
+            GroundType placeGroundType = GroundType.Earth;
+            Block[,] newBlocks = Map.blocks;
+            Vector3 vector = new Vector3((float)(x * 16), (float)(y * 16), 5f);
+            Block currentBlock = null;
+            Block currentBackgroundBlock = null;
+            switch ( settings.selectedObject )
+            {
+                case CurrentObject.Dirt:
+                    return Map.Instance.PlaceGround(GroundType.Earth, x, y, ref Map.blocks, true);
+                case CurrentObject.ExplosiveBarrel:
+                    placeGroundType = GroundType.Barrel;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabBarrels[1], vector, Quaternion.identity);
+                    break;
+                case CurrentObject.RedExplosiveBarrel:
+                    placeGroundType = GroundType.Barrel;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabBarrels[0], vector, Quaternion.identity);
+                    break;
+                case CurrentObject.PropaneTank:
+                    placeGroundType = GroundType.Barrel;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabBarrels[2], vector, Quaternion.identity);
+                    break;
+                case CurrentObject.Crate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabWood[0], vector, Quaternion.identity);
+                    break;
+                case CurrentObject.AmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.crateAmmo, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.TimeAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateTimeCop, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.RCCarAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateRCCar, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.AirStrikeAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateAirstrike, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.MechDropAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateMechDrop, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.AlienPheromonesAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateAlienPheromonesDrop, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.SteroidsAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.crateSteroids, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.PigAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.cratePiggy, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.FlexAmmoCrate:
+                    placeGroundType = GroundType.AmmoCrate;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.cratePerk, vector, Quaternion.identity);
+                    break;
+            }
+            if (placeGroundType != GroundType.Cage && (placeGroundType != GroundType.AlienFlesh || newBlocks != Map.backGroundBlocks))
+            {
+                newBlocks[x, y] = currentBlock;
+                Traverse groundTypesTrav = trav.Field("groundTypes");
+                (groundTypesTrav.GetValue() as GroundType[,])[x, y] = placeGroundType;
+            }
+            if (currentBlock != null)
+            {
+                currentBlock.OnSpawned();
+                if (currentBlock.groundType == GroundType.Earth && currentBlock.size == 2)
+                {
+                    Map.SetBlockEmpty(newBlocks[x + 1, y], x + 1, y);
+                    newBlocks[x + 1, y] = currentBlock;
+                    Map.SetBlockEmpty(newBlocks[x, y - 1], x, y - 1);
+                    newBlocks[x, y - 1] = currentBlock;
+                    Map.SetBlockEmpty(newBlocks[x + 1, y - 1], x + 1, y - 1);
+                    newBlocks[x + 1, y - 1] = currentBlock;
+                }
+            }
+            if (currentBlock != null)
+            {
+                currentBlock.transform.parent = Map.Instance.transform;
+                trav.Field("currentBlock").SetValue(currentBlock);
+            }
+
+            return currentBlock;
         }
 
-        static bool OnToggle(UnityModManager.ModEntry modEntry, bool value)
+        static void SpawnBlock(int row, int column)
         {
-            enabled = value;
-            return true;
+            Block block = CreateBlock(column, row);
+            if (block.groundType != GroundType.Bridge || block.groundType != GroundType.Bridge2 || block.groundType != GroundType.AlienBridge)
+            {
+                if (row > 0 && Map.blocks[row - 1, column] != null)
+                {
+                    block.HideLeft();
+                }
+                if (row < Map.MapData.Width - 1 && Map.blocks[row + 1, column] != null)
+                {
+                    block.HideRight();
+                }
+                if (column > 0 && Map.blocks[row, column - 1] != null)
+                {
+                    block.HideBelow();
+                }
+                if (column < Map.MapData.Height - 1 && Map.blocks[row, column + 1] != null)
+                {
+                    block.HideAbove();
+                }
+            }
+            Block aboveBlock = null;
+            Block belowBlock = null;
+            if (column < Map.MapData.Height - 1 && Map.blocks[row, column + 1] != null)
+            {
+                aboveBlock = Map.blocks[row, column + 1];
+            }
+            if (column > 0 && Map.blocks[row, column - 1] != null)
+            {
+                belowBlock = Map.blocks[row, column - 1];
+            }
+            block.SetupBlock(column, row, aboveBlock, belowBlock);
+            block.RegisterBlockOnNetwork();
+            if ( block is DirtBlock )
+            {
+                DirtBlock dirtBlock = (block as DirtBlock);
+                dirtBlock.addDecorations = false;
+                dirtBlock.backgroundPrefabs = null;
+                dirtBlock.backgroundEdgesPrefabs = null;
+            }
+            block.FirstFrame();
         }
 
-        static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
+        static void SpawnDoodad(int row, int column)
         {
-            if (!enabled) return;
+            DoodadInfo doodad = new DoodadInfo();
+            doodad.position = new GridPoint(column, row);
+            doodad.variation = 0;
 
-            if (!loadedScene && settings.quickLoadScene)
+            GameObject result = null;
+
+            GridPoint gridPoint = new GridPoint(doodad.position.collumn, doodad.position.row);
+            gridPoint.collumn -= Map.lastXLoadOffset;
+            gridPoint.row -= Map.lastYLoadOffset;
+
+            Vector3 vector = new Vector3((float)(gridPoint.c * 16), (float)(gridPoint.r * 16), 5f);
+
+            if (GameModeController.IsHardcoreMode)
             {
-                waitForLoad -= dt;
-                if ( waitForLoad < 0 )
-                {
-                    try
-                    {
-                        if (!Main.settings.cameraShake)
-                        {
-                            PlayerOptions.Instance.cameraShakeAmount = 0f;
-                        }
-
-                        Utility.SceneLoader.LoadScene("WorldMap3D");
-                        Utility.SceneLoader.LoadScene(settings.sceneToLoad);
-                    }
-                    catch { }
-                    loadedScene = true;
-                }
+                Map.havePlacedCageForHardcore = true;
+                Map.cagesSinceLastHardcoreCage = 0;
             }
 
-            if ( settings.teleportToMouseCursor )
+            switch ( settings.selectedObject )
             {
-                try
-                {
-                    if (Input.GetMouseButtonUp(1))
-                    {
-                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
-                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
-
-                        HeroController.players[0].character.X = newPos.x;
-                        HeroController.players[0].character.Y = newPos.y;
-                    }
-                }
-                catch
-                {}
+                case CurrentObject.RescueCage:
+                    result = (UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabCage, vector, Quaternion.identity) as Cage).gameObject;
+                    break;
             }
 
-            try
+            result.GetComponent<Cage>().row = gridPoint.row;
+            result.GetComponent<Cage>().collumn = gridPoint.collumn;
+
+            doodad.entity = result;
+            result.transform.parent = Map.Instance.transform;
+            Block component = result.GetComponent<Block>();
+            if (component != null)
             {
-                levelStartedCounter += dt;
-
-                if (settings.setZoom && levelStartedCounter > 1.5f && SortOfFollow.zoomLevel != settings.zoomLevel)
-                {
-                    SortOfFollow.zoomLevel = settings.zoomLevel;
-                }
-                if ( settings.spawnEnemyOnRightClick )
-                {
-                    if (Input.GetMouseButtonUp(1))
-                    {
-                        Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
-                        Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
-
-                        SpawnUnit(settings.selectedEnemy, newPos);
-                    }
-                }
+                component.OnSpawned();
             }
-            catch
-            { }
-            if ( Map.MapData != null && settings.suppressAnnouncer )
+            Registry.RegisterDeterminsiticGameObject(result.gameObject);
+            if (component != null)
             {
-                Map.MapData.suppressAnnouncer = true;
-            }
-
-            if ( settings.enableFlight )
-            {
-                try
-                {
-                    HeroController.players[0].character.speed = 300;
-                    if (HeroController.players[0].character.up)
-                    {
-                        HeroController.players[0].character.yI = 300;
-                    }
-                    else if (HeroController.players[0].character.down)
-                    {
-                        HeroController.players[0].character.yI = -300;
-                    }
-                    else
-                    {
-                        HeroController.players[0].character.yI = 0;
-                    }
-
-                    if ( HeroController.players[0].character.right )
-                    {
-                        HeroController.players[0].character.xI = 300;
-                    }
-                    else if (HeroController.players[0].character.left )
-                    {
-                        HeroController.players[0].character.xI = -300;
-                    }
-                    else
-                    {
-                        HeroController.players[0].character.xI = 0;
-                    }
-                }
-                catch
-                {}
+                component.FirstFrame();
             }
         }
 
-        static void determineLevelsInCampaign()
+        static void DetermineLevelsInCampaign()
         {
             Main.settings.campaignNum = campaignNum.indexNumber;
 
@@ -1075,7 +1405,7 @@ namespace Utility_Mod
             {
                 int actualCampaignNum = campaignNum.indexNumber + 1;
                 int numberOfLevels = 1;
-                switch (actualCampaignNum )
+                switch (actualCampaignNum)
                 {
                     case 1: numberOfLevels = 4; break;
                     case 2: numberOfLevels = 4; break;
@@ -1094,7 +1424,7 @@ namespace Utility_Mod
                     case 15: numberOfLevels = 14; break;
                     default: numberOfLevels = 1; break;
                 }
-                
+
 
                 if (levelNum.indexNumber + 1 > numberOfLevels)
                 {
@@ -1127,7 +1457,7 @@ namespace Utility_Mod
             GameModeController.RestartLevel();
         }
 
-        static void UnlockTerritory( WorldTerritory3D territory )
+        static void UnlockTerritory(WorldTerritory3D territory)
         {
             switch (territory.properties.territoryName)
             {
@@ -1178,7 +1508,7 @@ namespace Utility_Mod
 
         public static Vector3 GetFinalCheckpointPos()
         {
-            for ( int i = 0; i < Map.checkPoints.Count; ++i )
+            for (int i = 0; i < Map.checkPoints.Count; ++i)
             {
                 if ((bool)Traverse.Create(Map.checkPoints[i]).Field("isFinal").GetValue())
                 {
@@ -1187,9 +1517,6 @@ namespace Utility_Mod
             }
             return Map.checkPoints[Map.checkPoints.Count - 1].transform.position;
         }
-        public static void Log(String str)
-        {
-            mod.Logger.Log(str);
-        }
+        #endregion
     }
 }
