@@ -90,6 +90,15 @@ namespace Mission_Impossibro
             this.currentMeleeType = MeleeType.Punch;
         }
 
+        public override void PreloadAssets()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            CustomHero.PreloadSprites(directoryPath, new List<string> { "spriteStealth.png", "gunSpriteStealth.png", "avatar.png", "avatarStealth.png", "TranqDarts1.png", "explosive.png", "explosiveGum.png" });
+
+            directoryPath = Path.Combine(directoryPath, "sounds");
+            CustomHero.PreloadSounds(directoryPath, new List<string> { "gun1.wav", "gun2.wav", "gun3.wav", "gun4.wav", "gun5.wav", "gun6.wav", "gun7.wav", "Click_Metal1.wav", "Click_Metal2.wav", "Click_Metal3.wav", "Click_Metal5.wav", "Click_Metal6.wav" });
+        }
+
         protected override void Start()
         {
             base.Start();
