@@ -1,3 +1,6 @@
+v1.0.5
+Improved load time.
+
 v1.0.4
 Made special prevent dogs and other enemies from hearing attacks / landing.
 Fixed detonator noise playing multiple times when rescuing a bro.
