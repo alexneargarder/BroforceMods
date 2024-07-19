@@ -1,10 +1,4 @@
-﻿/**
- * TODO
- * 
- * Add tooltips for cheat options
- * 
- **/
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -127,6 +121,9 @@ namespace Utility_Mod
 
         public static float levelStartedCounter = 0f;
 
+        public static TestVanDammeAnim currentCharacter;
+        public static Helicopter helicopter;
+
         #region UMM
         static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -240,8 +237,9 @@ namespace Utility_Mod
                         Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
                         Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
 
-                        HeroController.players[0].character.X = newPos.x;
-                        HeroController.players[0].character.Y = newPos.y;
+                        currentCharacter = HeroController.players[0].character;
+
+                        Main.TeleportToCoords(newPos.x, newPos.y);
                     }
                 }
                 catch {}
@@ -360,6 +358,11 @@ namespace Utility_Mod
                 }
                 catch {}
             }
+
+            if (settings.showCursor)
+            {
+                Cursor.visible = true;
+            }
         }
         #endregion
 
@@ -369,8 +372,6 @@ namespace Utility_Mod
             string previousToolTip = string.Empty;
 
             GUIStyle headerStyle = new GUIStyle(GUI.skin.button);
-
-            TestVanDammeAnim currentCharacter = null;
 
             if (settings.quickLoadScene)
             {
@@ -382,6 +383,10 @@ namespace Utility_Mod
             else if (HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null)
             {
                 currentCharacter = HeroController.players[0].character;
+            }
+            else
+            {
+                currentCharacter = null;
             }
 
             headerStyle.fontStyle = FontStyle.Bold;
@@ -416,7 +421,7 @@ namespace Utility_Mod
 
             if (settings.showCheatOptions)
             {
-                ShowCheatOptions(modEntry, ref previousToolTip, currentCharacter);
+                ShowCheatOptions(modEntry, ref previousToolTip);
             } // End Cheat Options
 
             if (GUILayout.Button("Teleport Options", headerStyle))
@@ -426,7 +431,7 @@ namespace Utility_Mod
 
             if (settings.showTeleportOptions)
             {
-                ShowTeleportOptions(modEntry, ref previousToolTip, currentCharacter);
+                ShowTeleportOptions(modEntry, ref previousToolTip);
             } // End Teleport Options
 
             if (GUILayout.Button("Debug Options", headerStyle))
@@ -436,7 +441,7 @@ namespace Utility_Mod
 
             if (settings.showDebugOptions)
             {
-                ShowDebugOptions(modEntry, ref previousToolTip, currentCharacter);
+                ShowDebugOptions(modEntry, ref previousToolTip);
             } // End Debug Options
         }
 
@@ -457,7 +462,9 @@ namespace Utility_Mod
                 settings.endingSkip = GUILayout.Toggle(settings.endingSkip, new GUIContent("Ending Skip",
                     "Speeds up the ending"), GUILayout.Width(100f));
 
-                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, new GUIContent("Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech"), GUILayout.Width(200f));
+                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, new GUIContent("Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech"), GUILayout.Width(190f));
+
+                settings.helicopterWait = GUILayout.Toggle(settings.helicopterWait, new GUIContent("Helicopter Wait", "Makes helicopter wait for all alive players before leaving"), GUILayout.Width(110f));
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
@@ -578,7 +585,7 @@ namespace Utility_Mod
             GUILayout.EndHorizontal();
         }
 
-        static void ShowCheatOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        static void ShowCheatOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
             GUILayout.BeginHorizontal();
             {
@@ -722,7 +729,7 @@ namespace Utility_Mod
             GUILayout.Space(25);
         }
 
-        static void ShowTeleportOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        static void ShowTeleportOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
             GUILayout.BeginHorizontal();
             {
@@ -755,8 +762,7 @@ namespace Utility_Mod
                     {
                         if (currentCharacter != null)
                         {
-                            currentCharacter.X = x;
-                            currentCharacter.Y = y;
+                            TeleportToCoords(x, y);
                         }
                     }
                 }
@@ -807,8 +813,7 @@ namespace Utility_Mod
                 {
                     if (currentCharacter != null)
                     {
-                        currentCharacter.X = settings.SpawnPositionX;
-                        currentCharacter.Y = settings.SpawnPositionY;
+                        TeleportToCoords(settings.SpawnPositionX, settings.SpawnPositionY);
                     }
                 }
 
@@ -825,8 +830,7 @@ namespace Utility_Mod
                     if (currentCharacter != null)
                     {
                         Vector3 checkPoint = HeroController.GetCheckPointPosition(0, Map.IsCheckPointAnAirdrop(HeroController.GetCurrentCheckPointID()));
-                        currentCharacter.X = checkPoint.x;
-                        currentCharacter.Y = checkPoint.y;
+                        TeleportToCoords(checkPoint.x, checkPoint.y);
                     }
                 }
 
@@ -835,8 +839,7 @@ namespace Utility_Mod
                     if (currentCharacter != null)
                     {
                         Vector3 checkPoint = GetFinalCheckpointPos();
-                        currentCharacter.X = checkPoint.x;
-                        currentCharacter.Y = checkPoint.y;
+                        TeleportToCoords(checkPoint.x, checkPoint.y);
                     }
                 }
             }
@@ -859,8 +862,7 @@ namespace Utility_Mod
                     {
                         if (currentCharacter != null)
                         {
-                            currentCharacter.X = settings.waypointsX[i];
-                            currentCharacter.Y = settings.waypointsY[i];
+                            TeleportToCoords(settings.waypointsX[i], settings.waypointsY[i]);
                         }
                     }
 
@@ -870,7 +872,7 @@ namespace Utility_Mod
             }
         }
 
-        static void ShowDebugOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip, TestVanDammeAnim currentCharacter)
+        static void ShowDebugOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
             GUILayout.BeginHorizontal();
 
@@ -941,8 +943,11 @@ namespace Utility_Mod
 
             GUILayout.Space(30);
 
+            settings.middleClickToChangeRightClick = GUILayout.Toggle(settings.middleClickToChangeRightClick, "Middle Click to Change Right Click Function");
+            
+            GUILayout.Space(10);
 
-            settings.middleClickToChangeRightClick = GUILayout.Toggle(settings.middleClickToChangeRightClick, "Middle Click to change Right Click Function");
+            settings.showCursor = GUILayout.Toggle(settings.showCursor, "Make Cursor Always Visible");
 
             GUILayout.Space(10);
 
@@ -991,6 +996,21 @@ namespace Utility_Mod
         #endregion
 
         #region Modding
+        static void TeleportToCoords(float x, float y)
+        {
+            if ( currentCharacter != null )
+            {
+                for ( int i = 0; i < 4; ++i )
+                {
+                    if ( HeroController.PlayerIsAlive(i) )
+                    {
+                        HeroController.players[i].character.X = x;
+                        HeroController.players[i].character.Y = y;
+                    }
+                }
+            }
+        }
+
         static void SpawnUnit(int unit, Vector3 vector)
         {
             TestVanDammeAnim original = null;
