@@ -1,10 +1,12 @@
-v2.2.1 (Unreleased)
+v2.3.0
 Added debug options for:
 Printing audio clip names
-Spawning enemies on right-click
 Changing zoom level
+Spawning enemies on right-click
 Spawning objects on right-click
 Changing right-click function with middle-click
+Added option to always show cursor
+Added option to have the helicopter wait for all players before leaving
 
 
 v2.2.0

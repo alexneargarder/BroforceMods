@@ -48,6 +48,7 @@ namespace Utility_Mod
         public bool endingSkip = true;
         public bool disableConfirm = true;
         public bool quickMainMenu = false;
+        public bool helicopterWait = false;
 
         // Level Controls
         public bool loopCurrent = false;
@@ -84,6 +85,7 @@ namespace Utility_Mod
         public bool suppressAnnouncer = false;
         public bool maxCageSpawns = false;
         public bool middleClickToChangeRightClick = true;
+        public bool showCursor = false;
         public CurrentObject selectedObject = 0;
 
         public override void Save(UnityModManager.ModEntry modEntry)

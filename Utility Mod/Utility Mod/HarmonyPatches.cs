@@ -207,25 +207,42 @@ namespace Utility_Mod
         [HarmonyPatch(typeof(GameModeController), "LevelFinish")]
         static class GameModeController_LevelFinish_Patch
         {
-            static void Prefix(GameModeController __instance, LevelResult result)
+            static bool Prefix(GameModeController __instance, LevelResult result)
             {
                 if (!Main.enabled)
                 {
-                    return;
+                    return true;
                 }
 
+                // Check if helicopter should wait for ohter players
+                if (Main.settings.helicopterWait)
+                {
+                    if (result != LevelResult.Success || (HeroController.GetPlayersOnHelicopterAmount() == 0))
+                    {
+                        return true;
+                    }
+
+                    if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount())
+                    {
+                        Helicopter_Leave_Patch.attachCalled = false;
+                        Main.helicopter.Leave();
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                
                 if (Main.settings.loopCurrent && result == LevelResult.Success)
                 {
-                    //Main.mod.Logger.Log("current level num after finish called: " + LevelSelectionController.CurrentLevelNum);
-                    //LevelSelectionController.CurrentLevelNum -= 1;
-                    //GameModeController.RestartLevel();
                     bool temp = Main.settings.disableConfirm;
                     Main.settings.disableConfirm = true;
                     PauseMenu_RestartLevel_Patch.Prefix(null);
                     Main.settings.disableConfirm = temp;
                 }
 
-
+                return true;
             }
 
             static void Postfix(GameModeController __instance, LevelResult result)
@@ -632,6 +649,83 @@ namespace Utility_Mod
                 }
 
                 return true;
+            }
+        }
+
+        // Make helicopter wait for players
+        [HarmonyPatch(typeof(TestVanDammeAnim), "AttachToHelicopter")]
+        static class TestVanDammeAnim_AttachToHelicopter_Patch
+        {
+            static void Prefix(TestVanDammeAnim __instance)
+            {
+                Helicopter_Leave_Patch.attachCalled = true;
+            }
+        }
+
+        // Make helicopter wait for players
+        [HarmonyPatch(typeof(Helicopter), "Leave")]
+        static class Helicopter_Leave_Patch
+        {
+            public static bool attachCalled = false;
+            static bool Prefix(Helicopter __instance)
+            {
+                if (!Main.enabled || !Main.settings.helicopterWait)
+                {
+                    return true;
+                }
+
+                if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() || (HeroController.GetPlayersOnHelicopterAmount() == 0 && !attachCalled))
+                {
+                    return true;
+                }
+                else
+                {
+                    Main.helicopter = __instance;
+                    return false;
+                }
+            }
+        }
+
+        // Make helicopter wait for players
+        [HarmonyPatch(typeof(Map), "StartLevelEndExplosions")]
+        static class Map_StartLevelEndExplosions_Patch
+        {
+            static bool Prefix(Map __instance)
+            {
+                if (!Main.enabled || !Main.settings.helicopterWait)
+                {
+                    return true;
+                }
+                    
+                if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount())
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        // Make helicopter wait for players
+        [HarmonyPatch(typeof(Player), "RemoveLife")]
+        static class Player_RemoveLife_Patch
+        {
+            static void Postfix(Player __instance)
+            {
+                if (!Main.enabled || !Main.settings.helicopterWait)
+                    return;
+
+                if (GameModeController.IsHardcoreMode && (((HeroController.GetPlayersOnHelicopterAmount() == (HeroController.GetPlayersAliveCount()) && HeroController.GetPlayersOnHelicopterAmount() > 0)) || (HeroController.GetTotalLives() == 0)))
+                {
+                    GameModeController.LevelFinish(LevelResult.ForcedFail);
+                }
+                if (!GameModeController.IsHardcoreMode && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() && HeroController.GetPlayersOnHelicopterAmount() > 0)
+                {
+                    GameModeController.LevelFinish(LevelResult.Success);
+                }
+
             }
         }
     }
