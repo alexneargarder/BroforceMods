@@ -6,9 +6,43 @@ using UnityModManagerNet;
 
 namespace Control_Enemies_Mod
 {
+    public enum SwapBehavior
+    {
+        KillEnemy = 0,
+        StunEnemy = 1,
+        DeleteEnemy = 2
+    }
+
+
     public class Settings : UnityModManager.ModSettings
     {
-        public int count = 0;
+        // Show / Hide sections
+        public bool showGeneralOptions = false;
+        public bool showPossessionOptions = false;
+        public bool showSpawnAsEnemyOptions = false;
+        public bool showCompetitiveOptions = false;
+
+        // General Settings
+        public bool allowWallClimbing = false;
+        public bool disableFallDamage = true;
+        public bool disableTaunting = true;
+        public bool enableSprinting = true;
+
+        // Possession Settings
+        public bool possessionModeEnabled = true;
+        public bool loseLifeOnDeath = true;
+        public bool loseLifeOnSwitch = false;
+        public bool respawnFromCorpse = true;
+        public SwapBehavior leavingEnemy = SwapBehavior.KillEnemy;
+        public SwapBehavior swappingEnemies = SwapBehavior.DeleteEnemy;
+        public float swapCooldown = 2f;
+        public float fireRate = 0.5f;
+
+        // Spawn as Enemy Settings
+        public bool spawnAsEnemyEnabled = false;
+
+        // Competitive Settings
+        public bool competitiveModeEnabled = false;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {

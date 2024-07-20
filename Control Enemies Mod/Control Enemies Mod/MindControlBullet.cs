@@ -67,6 +67,18 @@ namespace Control_Enemies_Mod
             base.Fire(x, y, xI, yI, _zOffset, playerNum, FiredBy);
         }
 
+        protected override void TryHitUnitsAtSpawn()
+        {
+            Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
+            if ( hitUnit != null )
+            {
+                this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
+                UnityEngine.Object.Destroy(base.gameObject);
+                this.hasHit = true;
+                Main.StartControllingUnit(playerNum, hitUnit);
+            }
+        }
+
         protected override void HitUnits()
         {
             float xI = this.xI;
@@ -82,6 +94,21 @@ namespace Control_Enemies_Mod
                 Main.StartControllingUnit(playerNum, hitUnit);
             }
             this.xI = xI;
+        }
+
+        protected override void MakeEffects(bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 point)
+        {
+            if (!this.hasHitUnit)
+            {
+                Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false, false);
+                if (hitUnit != null)
+                {
+                    Main.StartControllingUnit(playerNum, hitUnit);
+                }
+            }
+            EffectsController.CreateShrapnel(this.sparkWhite1, x, y, 2f, 130f, 8f, this.xI * 0.2f, 50f);
+            this.hasHitUnit = true;
+            EffectsController.CreateWhiteFlashPopSmall(x, y);
         }
 
     }
