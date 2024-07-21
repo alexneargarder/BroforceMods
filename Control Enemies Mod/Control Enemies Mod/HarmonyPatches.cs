@@ -1,8 +1,11 @@
 ﻿using HarmonyLib;
 using System;
+using System.Linq;
 using System.Reflection;
+using System.Runtime;
 using UnityEngine;
 using static Text3D;
+using static UnityEngine.UI.CanvasScaler;
 using Net = Networking.Networking;
 
 namespace Control_Enemies_Mod
@@ -714,15 +717,302 @@ namespace Control_Enemies_Mod
 
             public static void Postfix(AlienXenomorph __instance)
             {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                // Automatically assume control of alien that spawned from facehugger that was controlled by a player
                 if (controlNextAlien)
                 {
                     Main.StartControllingUnit(controllerPlayerNum, __instance, true);
                     controlNextAlien = false;
                     Main.countdownToRespawn[controllerPlayerNum] = -1f;
                 }
+                // Make sure already controlled aliens don't have their playernum overwritten by the start function
+                else if (__instance.name == "controlled")
+                {
+                    int playerNum = Main.currentUnit.IndexOf(__instance);
+                    if (playerNum != __instance.playerNum)
+                    {
+                        Main.ReaffirmControl(playerNum);
+                    }
+                }
             }
         }
         #endregion
         #endregion // End Enemy Specific Patches
+
+        #region Spawning As Enemy Patches
+        // Automatic spawn
+        [HarmonyPatch(typeof(Player), "SpawnHero")]
+        static class Player_SpawnHero_Patch
+        {
+            static void Prefix(Player __instance, ref HeroType nextHeroType)
+            {
+                if ( !Main.enabled || !Main.settings.spawnAsEnemyEnabled )
+                {
+                    return;
+                }
+
+                Main.willReplaceBro[__instance.playerNum] = (Main.settings.spawnAsEnemyChance > 0 && Main.settings.spawnAsEnemyChance >= UnityEngine.Random.value * 100f);
+            }
+            static void Postfix(Player __instance)
+            {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                try
+                {
+                    if (Main.willReplaceBro[__instance.playerNum])
+                    {
+                        Main.willReplaceBro[__instance.playerNum] = false;
+
+                        if ( !Main.settings.alwaysChosen )
+                        {
+                            // Randomize unit
+                            Main.settings.selGridInt[__instance.playerNum] = UnityEngine.Random.Range(0, Main.currentUnitList.Length - 1);
+                        }
+                        GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(__instance.playerNum), new Vector3(0f, 0f, 0f));
+                        TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
+                        Main.StartControllingUnit(__instance.playerNum, newUnit, false, false, true);
+                        Main.WorkOutSpawnPosition(__instance, newUnit);
+                    }
+                    else
+                    {
+                        Main.previousCharacter[__instance.playerNum] = null;
+                        Main.currentlyEnemy[__instance.playerNum] = false;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Exception Replacing Bro: " + e.ToString());
+                }
+            }
+        }
+
+        // Fix vanilla bro being visible for 1 frame in certain spawning situations
+        [HarmonyPatch(typeof(Player), "InstantiateHero")]
+        static class Player_InstantiateHero_Patch
+        {
+            static void Postfix(Player __instance, ref TestVanDammeAnim __result)
+            {
+                // If mod is disabled or if we aren't loading a custom character don't disable
+                if (!Main.enabled || !Main.willReplaceBro[__instance.playerNum])
+                {
+                    return;
+                }
+
+                __result.gameObject.SetActive(false);
+            }
+        }
+
+        [HarmonyPatch(typeof(Map), "AddBroToHeroTransport")]
+        static class Map_AddBroToHeroTransport_Patch
+        {
+            static bool Prefix(Map __instance, ref TestVanDammeAnim Bro)
+            {
+                // If mod is disabled or if we aren't loading a custom character don't disable
+                return !Main.enabled || !Main.willReplaceBro[Bro.playerNum];
+            }
+        }
+
+/*        [HarmonyPatch(typeof(EffectsController), "CreateHeroIndicator")]
+        static class EffectsController_CreateHeroIndicator_Patch
+        {
+            static bool Prefix(ref Unit unit)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+                // Check Unit's pos because sometimes this function is called with a unit that has not had its position set yet
+                else if (LoadHero.anyCustomSpawning && (!LoadHero.broBeingRescued || (unit.X <= 0 && unit.Y <= 0)))
+                {
+                    return false;
+                }
+                return true;
+            }
+        }*/
+
+        [HarmonyPatch(typeof(Player), "WorkOutSpawnPosition")]
+        static class Player_WorkOutSpawnPosition_Patch
+        {
+            static void Prefix(Player __instance, ref TestVanDammeAnim bro)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (Main.willReplaceBro[__instance.playerNum])
+                {
+                    Main.wasFirstDeployment[__instance.playerNum] = __instance.firstDeployment;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
+        static class Player_WorkOutSpawnScenario_Patch
+        {
+            static void Postfix(Player __instance, ref Player.SpawnType __result)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+                // Store spawning info of normal character so we can pass it on to the custom character
+                else if (Main.willReplaceBro[__instance.playerNum])
+                {
+                    Main.previousSpawnInfo[__instance.playerNum] = __result;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(HeroTransport), "ReleaseBros")]
+        static class HeroTransport_ReleaseBros_Patch
+        {
+            public static void Postfix(HeroTransport __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                for ( int i = 0; i < 4; ++i )
+                {
+                    if (HeroController.PlayerIsAlive(i) && Main.currentlyEnemy[i])
+                    {
+                        TestVanDammeAnim character = HeroController.players[i].character;
+                        if ( character.enemyAI != null )
+                        {
+                            character.enemyAI.enabled = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for swap button being pressed
+        [HarmonyPatch(typeof(Player), "GetInput")]
+        static class Player_GetInput_Patch
+        {
+            public static void Postfix(Player __instance)
+            {
+                if (!Main.enabled || !Main.settings.spawnAsEnemyEnabled)
+                {
+                    return;
+                }
+
+                int curPlayer = __instance.playerNum;
+                bool leftPressed = Main.swapEnemiesLeft.IsDown(curPlayer);
+                bool rightPressed = Main.swapEnemiesRight.IsDown(curPlayer);
+
+                if ((((leftPressed || rightPressed) && Main.currentSpawnCooldown[curPlayer] <= 0f && __instance.IsAlive()) || (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
+                {
+                    float X, Y, XI, YI;
+                    Vector3 vec = __instance.GetCharacterPosition();
+                    X = vec.x;
+                    Y = vec.y;
+                    XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
+                    YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
+
+                    if (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])
+                    {
+                        try
+                        {
+                            GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
+                            TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
+                            Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
+
+                            __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
+                            __instance.character.SetInvulnerable(0f, false);
+                            Main.switched[curPlayer] = false;
+                        }
+                        catch ( Exception ex )
+                        {
+                            Main.Log("ex: " + ex.ToString());
+                        }
+                        return;
+                    }
+                    else
+                    {
+                        if (leftPressed)
+                        {
+                            --Main.settings.selGridInt[curPlayer];
+                            if (Main.settings.selGridInt[curPlayer] < 0)
+                            {
+                                Main.settings.selGridInt[curPlayer] = Main.currentUnitList.Length - 1;
+                            }
+                        }
+                        else if (rightPressed)
+                        {
+                            ++Main.settings.selGridInt[curPlayer];
+                            if (Main.settings.selGridInt[curPlayer] > Main.currentUnitList.Length - 1)
+                            {
+                                Main.settings.selGridInt[curPlayer] = 0;
+                            }
+                        }
+
+                        GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
+                        TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
+                        Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
+
+                        __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
+                        __instance.character.SetInvulnerable(0f, false);
+
+                        Main.currentSpawnCooldown[curPlayer] = Main.settings.spawnSwapCooldown;
+                    }
+                }
+                return;
+            }
+        }
+
+        // Don't let enemies have their playernum overwritten
+        [HarmonyPatch(typeof(TestVanDammeAnim), "Start")]
+        static class TestVanDammeAnim_Start_Patch
+        {
+            public static void Postfix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled || !Main.settings.spawnAsEnemyEnabled)
+                {
+                    return;
+                }
+
+                if ( __instance.name == "controlled" )
+                {
+                    int playerNum = Main.currentUnit.IndexOf(__instance);
+                    if (playerNum != __instance.playerNum)
+                    {
+                        Main.ReaffirmControl(playerNum);
+                    }
+                }
+            }
+        }
+
+        // Don't let enemies have their playernum overwritten
+        [HarmonyPatch(typeof(Alien), "Start")]
+        static class Alien_Start_Patch
+        {
+            public static void Postfix(Alien __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "controlled")
+                {
+                    int playerNum = Main.currentUnit.IndexOf(__instance);
+                    if (playerNum != __instance.playerNum)
+                    {
+                        Main.ReaffirmControl(playerNum);
+                    }
+                }
+            }
+        }
+        #endregion
     }
 }

@@ -72,10 +72,11 @@ namespace Control_Enemies_Mod
             Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
             if ( hitUnit != null )
             {
-                this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
-                UnityEngine.Object.Destroy(base.gameObject);
                 this.hasHit = true;
+                this.hasHitUnit = true;
+                this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
                 Main.StartControllingUnit(playerNum, hitUnit);
+                UnityEngine.Object.Destroy(base.gameObject);                
             }
         }
 
