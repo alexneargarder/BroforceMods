@@ -10,7 +10,8 @@ namespace Control_Enemies_Mod
     {
         KillEnemy = 0,
         StunEnemy = 1,
-        DeleteEnemy = 2
+        DeleteEnemy = 2,
+        Nothing = 3
     }
 
 

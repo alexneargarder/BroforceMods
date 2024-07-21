@@ -26,7 +26,7 @@ namespace Control_Enemies_Mod
         public static KeyBindingForPlayers leaveEnemy;
         public static KeyBindingForPlayers swapEnemiesLeft;
         public static KeyBindingForPlayers swapEnemiesRight;
-        public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy" };
+        public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
 
         static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -356,7 +356,7 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void StartControllingUnit( int playerNum, Unit unit )
+        public static void StartControllingUnit( int playerNum, Unit unit, bool gentleLeave = false )
         {
             try
             {
@@ -382,7 +382,7 @@ namespace Control_Enemies_Mod
                     // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
                     if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase) )
                     {
-                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum);
+                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave );
                     }
                     // Hide previous character
                     else
@@ -400,7 +400,7 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum)
+        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave )
         {   
             previous.playerNum = previousPlayerNum[playerNum];
             if ( previous is Mook )
@@ -417,25 +417,30 @@ namespace Control_Enemies_Mod
                 previous.gameObject.GetComponent<DisableWhenOffCamera>().enabled = true;
             }
 
-            switch ( settings.swappingEnemies )
+            if ( !gentleLeave )
             {
-                case SwapBehavior.KillEnemy:
-                    if ( previous is Mook )
-                    {
-                        (previous as Mook).Gib();
-                    }
-                    else
-                    {
-                        typeof(TestVanDammeAnim).GetMethod("Gib", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(previous, new object[] { DamageType.InstaGib, 0f, 0f });
-                    }
-                    EffectsController.CreateSlimeExplosion(previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor);
-                    break;
-                case SwapBehavior.StunEnemy:
-                    previous.Stun(2f);
-                    break;
-                case SwapBehavior.DeleteEnemy:
-                    UnityEngine.Object.Destroy(previous.gameObject);
-                    break;
+                switch (settings.swappingEnemies)
+                {
+                    case SwapBehavior.KillEnemy:
+                        if (previous is Mook)
+                        {
+                            (previous as Mook).Gib();
+                        }
+                        else
+                        {
+                            typeof(TestVanDammeAnim).GetMethod("Gib", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(previous, new object[] { DamageType.InstaGib, 0f, 0f });
+                        }
+                        EffectsController.CreateSlimeExplosion(previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor);
+                        break;
+                    case SwapBehavior.StunEnemy:
+                        previous.Stun(2f);
+                        break;
+                    case SwapBehavior.DeleteEnemy:
+                        UnityEngine.Object.Destroy(previous.gameObject);
+                        break;
+                    case SwapBehavior.Nothing:
+                        break;
+                }
             }
         }
 
@@ -493,6 +498,8 @@ namespace Control_Enemies_Mod
                                 break;
                             case SwapBehavior.DeleteEnemy:
                                 UnityEngine.Object.Destroy(previous.gameObject);
+                                break;
+                            case SwapBehavior.Nothing:
                                 break;
                         }
                     }
