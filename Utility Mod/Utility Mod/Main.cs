@@ -1234,6 +1234,14 @@ namespace Utility_Mod
             {
                 __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
             }
+
+            if ( __result != null )
+            {
+                __result.gameObject.transform.parent = Map.Instance.transform;
+                Registry.RegisterDeterminsiticGameObject(__result.gameObject);
+            }
+
+
         }
 
         static Block CreateBlock(int x, int y)
@@ -1243,7 +1251,7 @@ namespace Utility_Mod
             Block[,] newBlocks = Map.blocks;
             Vector3 vector = new Vector3((float)(x * 16), (float)(y * 16), 5f);
             Block currentBlock = null;
-            Block currentBackgroundBlock = null;
+            //Block currentBackgroundBlock = null;
             switch ( settings.selectedObject )
             {
                 case CurrentObject.Dirt:
@@ -1397,11 +1405,10 @@ namespace Utility_Mod
             {
                 case CurrentObject.RescueCage:
                     result = (UnityEngine.Object.Instantiate<Block>(Map.Instance.activeTheme.blockPrefabCage, vector, Quaternion.identity) as Cage).gameObject;
+                    result.GetComponent<Cage>().row = gridPoint.row;
+                    result.GetComponent<Cage>().collumn = gridPoint.collumn;
                     break;
             }
-
-            result.GetComponent<Cage>().row = gridPoint.row;
-            result.GetComponent<Cage>().collumn = gridPoint.collumn;
 
             doodad.entity = result;
             result.transform.parent = Map.Instance.transform;
