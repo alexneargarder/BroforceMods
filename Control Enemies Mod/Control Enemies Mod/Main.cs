@@ -1,15 +1,11 @@
-﻿using System;
+﻿using HarmonyLib;
+using RocketLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using HarmonyLib;
+using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
-using System.Reflection;
-using RocketLib;
-using static NeckBeard.OceanEngine.Server.Config;
-using JetBrains.Annotations;
-using UnityEngine.Experimental.Rendering;
 using static UnityEngine.UI.CanvasScaler;
 
 namespace Control_Enemies_Mod
@@ -17,16 +13,35 @@ namespace Control_Enemies_Mod
     static class Main
     {
         #region UMM
+        // General
         public static UnityModManager.ModEntry mod;
         public static bool enabled;
         public static Settings settings;
-
-        public static GUIStyle headerStyle = null;
         public static KeyBindingForPlayers possessEnemy;
         public static KeyBindingForPlayers leaveEnemy;
         public static KeyBindingForPlayers swapEnemiesLeft;
         public static KeyBindingForPlayers swapEnemiesRight;
+
+        // UI
+        public static GUIStyle headerStyle, buttonStyle, warningStyle;
+        public static bool changingEnabledUnits = false;
+        public static bool creatingUnitList = false;
+        public static float displayWarningTime = 0f;
         public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
+        public static string[] fullUnitList = new string[]
+        {
+            // Normal
+            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook",
+            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
+            // Aliens
+            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
+            // Hell
+            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher",
+            "Satan Miniboss", "CR666", "Pig", "Rotten Pig", "Villager"
+        };
+        public static bool[] filteredUnitList;
+        public static string[] currentUnitList;
+        public static string[] previousSelection = { "", "", "", "" };
 
         static bool Load(UnityModManager.ModEntry modEntry)
         {
@@ -57,6 +72,20 @@ namespace Control_Enemies_Mod
 
             // Load keybinding
             LoadKeyBinding();
+
+            // Initialize Unit List
+            int[] previousSelGridInts = new int[4];
+            settings.selGridInt.CopyTo(previousSelGridInts, 0);
+            CreateUnitList();
+            settings.selGridInt = previousSelGridInts;
+
+            // Initialize enabled bro list
+            if (settings.enabledUnits == null || settings.enabledUnits.Count() == 0)
+            {
+                settings.enabledUnits = new List<string>();
+                settings.enabledUnits.AddRange(fullUnitList);
+                filteredUnitList = Enumerable.Repeat(true, fullUnitList.Length).ToArray();
+            }
 
             return true;
         }
@@ -160,7 +189,8 @@ namespace Control_Enemies_Mod
             GUILayout.Space(10);
             GUI.tooltip = string.Empty;
             leaveEnemy.OnGUI(out _, true);
-
+            GUI.tooltip = string.Empty;
+            previousToolTip = GUI.tooltip;
 
             GUILayout.Space(25);
             
@@ -193,11 +223,226 @@ namespace Control_Enemies_Mod
 
         static void ShowSpawnAsEnemyOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
-            swapEnemiesLeft.OnGUI(out _, true);
-            GUILayout.Space(10);
-            swapEnemiesRight.OnGUI(out _, true);
+            if (buttonStyle == null)
+            {
+                buttonStyle = new GUIStyle(GUI.skin.button);
+                buttonStyle.normal.textColor = Color.red;
+                buttonStyle.hover.textColor = Color.red;
+                buttonStyle.active.textColor = Color.red;
+
+                buttonStyle.onHover.textColor = Color.green;
+                buttonStyle.onNormal.textColor = Color.green;
+                buttonStyle.onActive.textColor = Color.green;
+            }
+
+            if (warningStyle == null)
+            {
+                warningStyle = new GUIStyle(GUI.skin.label);
+
+                warningStyle.normal.textColor = Color.red;
+                warningStyle.hover.textColor = Color.red;
+                warningStyle.active.textColor = Color.red;
+                warningStyle.onHover.textColor = Color.red;
+                warningStyle.onNormal.textColor = Color.red;
+                warningStyle.onActive.textColor = Color.red;
+            }
+
+            GUILayout.BeginHorizontal();
+            settings.spawnAsEnemyEnabled = GUILayout.Toggle(settings.spawnAsEnemyEnabled, "Enable Spawning as Enemies");
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 500;
+
+            settings.filterEnemies = GUILayout.Toggle(settings.filterEnemies, new GUIContent("Filter Enemies", "Limits the enemies you can spawn as to the enabled ones"));
+
+            settings.alwaysChosen = GUILayout.Toggle(settings.alwaysChosen, new GUIContent("Always Spawn as Chosen Enemy"));
+
+            settings.clickingSwapEnabled = GUILayout.Toggle(settings.clickingSwapEnabled, new GUIContent("Swap On Click", "Swaps to a new enemy when you click one in the menu"));
+
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(20);
+            GUI.tooltip = string.Empty;
+            swapEnemiesLeft.OnGUI(out _, true);
+            GUILayout.Space(10);
+            GUI.tooltip = string.Empty;
+            swapEnemiesRight.OnGUI(out _, true);
+            GUI.tooltip = string.Empty;
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Chance to Spawn as an Enemy: " + settings.spawnAsEnemyChance.ToString("0.00") + "%", GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            settings.spawnAsEnemyChance = GUILayout.HorizontalSlider(settings.spawnAsEnemyChance, 0, 100);
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(String.Format("Cooldown Between Swaps: {0:0.00}s", settings.spawnSwapCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            settings.spawnSwapCooldown = GUILayout.HorizontalSlider(settings.spawnSwapCooldown, 0, 2);
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(20);
+
+            GUILayout.BeginVertical();
+            for (int i = 0; i < 4; ++i)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Player " + (i + 1) + " Options - " + (settings.showSettings[i] ? "Hide" : "Show"), GUILayout.Width(900)) )
+                {
+                    settings.showSettings[i] = !settings.showSettings[i];
+                }
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+
+                if (settings.showSettings[i])
+                {
+                    GUILayout.BeginHorizontal();
+
+                    if (GUILayout.Button(new GUIContent(changingEnabledUnits ? "Save Changes" : "Enter Filtering Mode",
+                                               "Enable or disable enemies for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)))
+                    {
+                        changingEnabledUnits = !changingEnabledUnits;
+                        if (changingEnabledUnits)
+                        {
+                            displayWarningTime = 0f;
+                            settings.filterEnemies = true;
+                            CreateFilteredUnitList();
+                        }
+                        else
+                        {
+                            // Check that at least one bro is enabled
+                            bool atleastOne = false;
+                            for (int x = 0; x < filteredUnitList.Length; ++x)
+                            {
+                                if (filteredUnitList[x])
+                                {
+                                    atleastOne = true;
+                                    break;
+                                }
+                            }
+                            if (atleastOne)
+                            {
+                                displayWarningTime = 0f;
+                                UpdateFilteredUnitList();
+                                CreateUnitList();
+                            }
+                            else
+                            {
+                                displayWarningTime = 10f;
+                                changingEnabledUnits = !changingEnabledUnits;
+                            }
+                        }
+                    }
+
+                    lastRect = GUILayoutUtility.GetLastRect();
+                    lastRect.y += 20;
+                    lastRect.width += 300;
+
+                    if (displayWarningTime <= 0f)
+                    {
+                        if (!GUI.tooltip.Equals(previousToolTip))
+                        {
+                            GUI.Label(lastRect, GUI.tooltip);
+                        }
+                        previousToolTip = GUI.tooltip;
+                    }
+                    else
+                    {
+                        displayWarningTime -= Time.unscaledDeltaTime;
+                        GUI.Label(lastRect, "Must have at least one enemy enabled", warningStyle);
+
+                        previousToolTip = GUI.tooltip;
+                    }
+
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(25);
+
+                    GUILayout.BeginHorizontal();
+
+                    if (!creatingUnitList)
+                    {
+                        // Display filtering menu
+                        if (changingEnabledUnits)
+                        {
+                            GUILayout.BeginVertical();
+                            GUILayout.BeginHorizontal();
+                            for (int j = 0; j < fullUnitList.Count(); ++j)
+                            {
+                                if (j % 5 == 0)
+                                {
+                                    GUILayout.EndHorizontal();
+                                    GUILayout.BeginHorizontal();
+                                }
+
+                                filteredUnitList[j] = GUILayout.Toggle(filteredUnitList[j], fullUnitList[j], buttonStyle, GUILayout.Height(26), GUILayout.Width(180));
+                            }
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(20);
+                            GUILayout.BeginHorizontal();
+                            if (GUILayout.Button("Select All", GUILayout.Width(200)))
+                            {
+                                for (int j = 0; j < filteredUnitList.Length; ++j)
+                                {
+                                    filteredUnitList[j] = true;
+                                }
+                            }
+                            if (GUILayout.Button("Unselect All", GUILayout.Width(200)))
+                            {
+                                for (int j = 0; j < filteredUnitList.Length; ++j)
+                                {
+                                    filteredUnitList[j] = false;
+                                }
+                            }
+                            GUILayout.EndHorizontal();
+                            GUILayout.EndVertical();
+                        }
+                        // Display bro selection menu
+                        else
+                        {
+                            if (settings.selGridInt[i] < 0 || settings.selGridInt[i] >= currentUnitList.Length)
+                            {
+                                settings.selGridInt[i] = 0;
+                            }
+
+                            if (settings.selGridInt[i] <= currentUnitList.Length)
+                            {
+                                if (settings.clickingSwapEnabled)
+                                {
+                                    if (settings.selGridInt[i] != (settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], currentUnitList, 5, GUILayout.Height(30 * Mathf.Ceil(currentUnitList.Length / 5.0f))))
+                                        && (Map.Instance != null))
+                                    {
+                                        switched[i] = true;
+                                    }
+                                }
+                                else
+                                {
+                                    settings.selGridInt[i] = GUILayout.SelectionGrid(settings.selGridInt[i], currentUnitList, 5, GUILayout.Height(30 * Mathf.Ceil(currentUnitList.Length / 5.0f)));
+                                }
+                            }
+                            else
+                            {
+                                CreateUnitList();
+                            }
+                        }
+                    }
+
+                    GUILayout.EndHorizontal();
+                    GUILayout.Space(10);
+                }
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(15);
         }
 
         static void ShowCompetitiveModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
@@ -216,20 +461,31 @@ namespace Control_Enemies_Mod
             return true;
         }
 
+        public static void Log(String str)
+        {
+            mod.Logger.Log(str);
+        }
+        #endregion
+
+
+        #region Modding
+        public static MindControlBullet bulletPrefab = null;
+
+        public static List<Unit> currentUnit = new List<Unit>() { null, null, null, null };
+        public static bool[] currentlyEnemy = { false, false, false, false };
+        public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
+        public static float[] fireDelay = new float[] { 0f, 0f, 0f, 0f };
+        public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
+        public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
+
+        public static bool[] switched = { false, false, false, false };
+        public static float[] currentSpawnCooldown = { 0f, 0f, 0f, 0f };
+        public static Player.SpawnType[] previousSpawnInfo = { Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown };
+        public static bool[] willReplaceBro = { false, false, false, false };
+        public static bool[] wasFirstDeployment = { false, false, false, false };
+
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
-/*            try
-            {
-                if (Input.GetMouseButtonDown(1))
-                {
-                    Camera camera = (Traverse.Create(typeof(SetResolutionCamera)).Field("mainCamera").GetValue() as Camera);
-                    Vector3 newPos = camera.ScreenToWorldPoint(Input.mousePosition);
-
-                    FindUnitToControl(newPos, 0);
-                }
-            }
-            catch { }*/
-
             try
             {
                 for (int i = 0; i < 4; ++i)
@@ -258,28 +514,15 @@ namespace Control_Enemies_Mod
                             }
                         }
                     }
+
+                    currentSpawnCooldown[i] -= dt;
                 }
             }
-            catch ( Exception ex )
+            catch (Exception ex)
             {
                 Main.Log("Exception in update: " + ex.ToString());
             }
         }
-
-        public static void Log(String str)
-        {
-            mod.Logger.Log(str);
-        }
-        #endregion
-
-        #region Modding
-        public static MindControlBullet bulletPrefab = null;
-
-        public static Unit[] currentUnit = new Unit[] { null, null, null, null };
-        public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
-        public static float[] fireDelay = new float[] { 0f, 0f, 0f, 0f };
-        public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
-        public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
 
         public static void LoadKeyBinding()
         {
@@ -356,7 +599,7 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void StartControllingUnit( int playerNum, Unit unit, bool gentleLeave = false )
+        public static void StartControllingUnit( int playerNum, Unit unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false )
         {
             try
             {
@@ -367,9 +610,15 @@ namespace Control_Enemies_Mod
                     unit.playerNum = playerNum;
                     Traverse.Create(unit).Field("isHero").SetValue(true);
                     unit.name = "controlled";
-                    if (unit.gameObject.HasComponent<DisableWhenOffCamera>())
+                    DisableWhenOffCamera disableWhenOffCamera = unit.gameObject.GetComponent<DisableWhenOffCamera>();
+                    if ( disableWhenOffCamera != null )
                     {
-                        unit.gameObject.GetComponent<DisableWhenOffCamera>().enabled = false;
+                        disableWhenOffCamera.enabled = false;
+                    }
+                    unit.enabled = true;
+                    if ( unit.enemyAI != null )
+                    {
+                        unit.enemyAI.enabled = true;
                     }
                     if (unit is Mook)
                     {
@@ -382,16 +631,24 @@ namespace Control_Enemies_Mod
                     // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
                     if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase) )
                     {
-                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave );
+                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave, erasePreviousCharacter );
                     }
                     // Hide previous character
                     else
                     {
                         HeroController.players[playerNum].character.gameObject.SetActive(false);
-                        previousCharacter[playerNum] = HeroController.players[playerNum].character;
+                        if ( savePreviousCharacter )
+                        {
+                            previousCharacter[playerNum] = HeroController.players[playerNum].character;
+                        }
+                        else
+                        {
+                            previousCharacter[playerNum] = null;
+                        }
                     }
 
                     HeroController.players[playerNum].character = unit as TestVanDammeAnim;
+                    Main.currentlyEnemy[playerNum] = true;
                 }
             }
             catch ( Exception ex )
@@ -400,7 +657,26 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave )
+        public static void ReaffirmControl( int playerNum )
+        {
+            TestVanDammeAnim unit = HeroController.players[playerNum].character;
+            unit.playerNum = playerNum;
+            Traverse.Create(unit).Field("isHero").SetValue(true);
+            DisableWhenOffCamera disableWhenOffCamera = unit.gameObject.GetComponent<DisableWhenOffCamera>();
+            if (disableWhenOffCamera != null)
+            {
+                disableWhenOffCamera.enabled = false;
+            }
+            if (unit is Mook)
+            {
+                Mook mook = unit as Mook;
+                mook.firingPlayerNum = playerNum;
+                mook.canWallClimb = Main.settings.allowWallClimbing;
+                mook.canDash = Main.settings.enableSprinting;
+            }
+        }
+
+        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter )
         {   
             previous.playerNum = previousPlayerNum[playerNum];
             if ( previous is Mook )
@@ -412,12 +688,17 @@ namespace Control_Enemies_Mod
             previous.name = "Enemy";
             previous.canWallClimb = false;
             previous.canDash = false;
-            if (previous.gameObject.HasComponent<DisableWhenOffCamera>())
+            DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
+            if (disableWhenOffCamera != null)
             {
-                previous.gameObject.GetComponent<DisableWhenOffCamera>().enabled = true;
+                disableWhenOffCamera.enabled = true;
             }
 
-            if ( !gentleLeave )
+            if ( erasePreviousCharacter )
+            {
+                UnityEngine.Object.Destroy(previous.gameObject);
+            }
+            else if ( !gentleLeave )
             {
                 switch (settings.swappingEnemies)
                 {
@@ -458,9 +739,10 @@ namespace Control_Enemies_Mod
                 previous.name = "Enemy";
                 previous.canWallClimb = false;
                 previous.canDash = false;
-                if (previous.gameObject.HasComponent<DisableWhenOffCamera>())
+                DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
+                if (disableWhenOffCamera != null)
                 {
-                    previous.gameObject.GetComponent<DisableWhenOffCamera>().enabled = true;
+                    disableWhenOffCamera.enabled = true;
                 }
 
                 if (!onlyLeaveUnit)
@@ -520,6 +802,7 @@ namespace Control_Enemies_Mod
                 }
 
                 previousCharacter[playerNum] = null;
+                currentlyEnemy[playerNum] = false;
             }
             else
             {
@@ -527,6 +810,333 @@ namespace Control_Enemies_Mod
             }
         }
 
+        public static void CreateUnitList()
+        {
+            Main.creatingUnitList = true;
+
+            if (currentUnitList != null)
+            {
+                for (int i = 0; i < 4; ++i)
+                {
+                    if (settings.selGridInt[i] > 0 && settings.selGridInt[i] < currentUnitList.Length)
+                    {
+                        previousSelection[i] = currentUnitList[settings.selGridInt[i]];
+                    }
+                }
+            }
+            if (settings.filterEnemies)
+            {
+                currentUnitList = settings.enabledUnits.ToArray();
+            }
+            else
+            {
+                currentUnitList = fullUnitList;
+            }
+
+            for (int i = 0; i < 4; ++i)
+            {
+                settings.selGridInt[i] = Array.IndexOf(currentUnitList, previousSelection[i]);
+                if (settings.selGridInt[i] == -1)
+                {
+                    settings.selGridInt[i] = 0;
+                }
+            }
+            Main.creatingUnitList = false;
+        }
+
+        public static void CreateFilteredUnitList()
+        {
+            filteredUnitList = Enumerable.Repeat(false, fullUnitList.Length).ToArray();
+            // Find index of the enabled bro in fullUnitList and set the corresponding index in filteredBroList to true
+            for (int i = 0; i < settings.enabledUnits.Count(); ++i)
+            {
+                int index = Array.IndexOf(fullUnitList, settings.enabledUnits[i]);
+                if (index != -1)
+                {
+                    filteredUnitList[index] = true;
+                }
+            }
+        }
+
+        public static void UpdateFilteredUnitList()
+        {
+            settings.enabledUnits.Clear();
+            for (int i = 0; i < filteredUnitList.Length; ++i)
+            {
+                if (filteredUnitList[i])
+                {
+                    settings.enabledUnits.Add(fullUnitList[i]);
+                }
+            }
+        }
+
+        public static string GetSelectedUnit(int playerNum)
+        {
+            if (settings.selGridInt[playerNum] >= 0 && settings.selGridInt[playerNum] < currentUnitList.Length)
+            {
+                return currentUnitList[settings.selGridInt[playerNum]];
+            }
+            else
+            {
+                return currentUnitList[0];
+            }
+        }
+
+        public static GameObject SpawnUnit(string unit, Vector3 vector)
+        {
+            TestVanDammeAnim original = null;
+            GameObject __result = null;
+
+            switch (unit)
+            {
+                case "Mook":
+                    original = Map.Instance.activeTheme.mook;
+                    break;
+                case "Suicide Mook":
+                    original = Map.Instance.activeTheme.mookSuicide;
+                    break;
+                case "Bruiser":
+                    original = Map.Instance.activeTheme.mookBigGuy;
+                    break;
+                case "Suicide Bruiser":
+                    original = Map.Instance.activeTheme.mookSuicideBigGuy;
+                    break;
+                case "Strong Bruiser":
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookBigGuyStrong, vector, Quaternion.identity).gameObject;
+                    break;
+                case "Elite Bruiser":
+                    original = Map.Instance.activeTheme.mookBigGuyElite;
+                    break;
+                case "Scout Mook":
+                    original = Map.Instance.activeTheme.mookScout;
+                    break;
+                case "Riot Shield Mook":
+                    original = Map.Instance.activeTheme.mookRiotShield;
+                    break;
+                case "Mech":
+                    original = Map.Instance.activeTheme.mookArmoured;
+                    break;
+                case "Brown Mech":
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mechBrown, vector, Quaternion.identity).gameObject;
+                    break;
+                case "Jetpack Mook":
+                    original = Map.Instance.sharedObjectsReference.Asset.mookJetpack;
+                    break;
+                case "Grenadier Mook":
+                    original = Map.Instance.activeTheme.mookGrenadier;
+                    break;
+                case "Bazooka Mook":
+                    original = Map.Instance.activeTheme.mookBazooka;
+                    break;
+                case "Jetpack Bazooka Mook":
+                    original = Map.Instance.activeTheme.mookJetpackBazooka;
+                    break;
+                case "Ninja Mook":
+                    original = Map.Instance.activeTheme.mookNinja;
+                    break;
+                case "Treasure Mook":
+                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.treasureMook, vector, Quaternion.identity).gameObject;
+                    break;
+                case "Attack Dog":
+                    original = Map.Instance.activeTheme.mookDog;
+                    break;
+                case "Skinned Mook":
+                    original = Map.Instance.activeTheme.skinnedMook;
+                    break;
+                case "Mook General":
+                    original = Map.Instance.activeTheme.mookGeneral;
+                    break;
+                case "Alarmist":
+                    original = Map.Instance.activeTheme.mookAlarmist;
+                    break;
+                case "Strong Mook":
+                    original = Map.Instance.activeTheme.mookStrong;
+                    break;
+                case "Scientist Mook":
+                    original = Map.Instance.activeTheme.mookScientist;
+                    break;
+                case "Snake":
+                    original = Map.Instance.activeTheme.snake;
+                    break;
+                // Satan
+                case "Satan":
+                    original = Map.Instance.activeTheme.satan;
+                    break;
+                // Aliens
+                case "Facehugger":
+                    original = Map.Instance.activeTheme.alienFaceHugger;
+                    break;
+                case "Xenomorph":
+                    original = Map.Instance.activeTheme.alienXenomorph;
+                    break;
+                case "Brute":
+                    original = Map.Instance.activeTheme.alienBrute;
+                    break;
+                case "Screecher":
+                    original = Map.Instance.activeTheme.alienBaneling;
+                    break;
+                case "Baneling":
+                    original = Map.Instance.activeTheme.alienMosquito;
+                    break;
+                case "Xenomorph Brainbox":
+                    original = Map.Instance.activeTheme.mookXenomorphBrainbox;
+                    break;
+                // HellDog
+                case "Hellhound":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
+                    break;
+                // ZMookUndead
+                case "Undead Mook":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
+                    break;
+                // ZMookUndeadStartDead
+                case "Undead Mook (Start Dead)":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
+                    break;
+                // ZMookWarlock
+                case "Warlock":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
+                    break;
+                // ZMookHellBoomer
+                case "Boomer":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
+                    break;
+                // ZMookUndeadSuicide
+                case "Undead Suicide Mook":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
+                    break;
+                // ZHellBigGuy
+                case "Executioner":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
+                    break;
+                // Lost Soul
+                case "Lost Soul":
+                    vector.y += 5;
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
+                    break;
+                // ZMookHellSoulCatcher
+                case "Soul Catcher":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
+                    break;
+                case "Satan Miniboss":
+                    SatanMiniboss satanMiniboss = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.satanMiniboss, vector, Quaternion.identity) as SatanMiniboss;
+                    if (satanMiniboss != null)
+                    {
+                        __result = satanMiniboss.gameObject;
+                    }
+                    break;
+                case "CR666":
+                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.mookDolfLundgren, vector, Quaternion.identity).gameObject;
+                    break;
+                case "Pig":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[0], vector, Quaternion.identity).gameObject;
+                    break;
+                case "Rotten Pig":
+                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[2], vector, Quaternion.identity).gameObject;
+                    break;
+                case "Villager":
+                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.villager1[UnityEngine.Random.Range(0, 1)], vector, Quaternion.identity).gameObject;
+                    break;
+            }
+
+            if (original != null)
+            {
+                __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
+            }
+
+            if (__result != null)
+            {
+                __result.gameObject.transform.parent = Map.Instance.transform;
+                Registry.RegisterDeterminsiticGameObject(__result.gameObject);
+            }
+
+            return __result;
+        }
+
+        public static void WorkOutSpawnPosition(Player player, TestVanDammeAnim bro)
+        {
+            player.firstDeployment = wasFirstDeployment[player.playerNum];
+            Vector3 arg = new Vector3(100f, 100f);
+            Player.SpawnType arg2 = previousSpawnInfo[player.playerNum];
+            bool flag = false;
+            bool flag2 = false;
+            switch (arg2)
+            {
+                case Player.SpawnType.Unknown:
+                    flag = true;
+                    goto IL_1E7;
+                case Player.SpawnType.AddBroToTransport:
+                    {
+                        Map.AddBroToHeroTransport(bro);
+                        arg = bro.transform.position;
+                        goto IL_1E7;
+                    }
+                case Player.SpawnType.CheckpointRespawn:
+                    flag2 = Map.IsCheckPointAnAirdrop(HeroController.GetCurrentCheckPointID());
+                    arg = HeroController.GetCheckPointPosition(player.playerNum, flag2);
+                    goto IL_1E7;
+                case Player.SpawnType.RespawnAtRescueBro:
+                    if (player.rescuingThisBro == null)
+                    {
+                        flag = true;
+                    }
+                    else
+                    {
+                        arg = player.rescuingThisBro.transform.position;
+                    }
+                    goto IL_1E7;
+                case Player.SpawnType.DropInDuringGame:
+                    flag = true;
+                    goto IL_1E7;
+                case Player.SpawnType.SpawnInCage:
+                    {
+                        SpawnPoint spawnPoint = Map.GetSpawnPoint(player.playerNum);
+                        if (spawnPoint == null)
+                        {
+                            flag = true;
+                        }
+                        else
+                        {
+                            arg = spawnPoint.transform.position;
+                            if (spawnPoint.cage != null)
+                            {
+                                spawnPoint.cage.SetPlayerColor(player.playerNum);
+                                arg.x -= 8f;
+                            }
+                        }
+                        goto IL_1E7;
+                    }
+                case Player.SpawnType.LevelEditorReload:
+                    arg = LevelEditorGUI.lastPayerPos;
+                    LevelEditorGUI.lastPayerPos = -Vector3.one;
+                    Map.CallInHeroTransportAnyway();
+                    goto IL_1E7;
+                case Player.SpawnType.TriggerSwapBro:
+                    arg = player.playerFollowPos;
+                    goto IL_1E7;
+                case Player.SpawnType.CustomSpawnPoint:
+                    {
+                        SpawnPoint spawnPoint2 = Map.GetSpawnPoint(player.playerNum);
+                        arg = spawnPoint2.transform.position;
+                        if (spawnPoint2 != null && spawnPoint2.cage != null)
+                        {
+                            arg.x -= 8f;
+                        }
+                        goto IL_1E7;
+                    }
+                case Player.SpawnType.AirDropRespawn:
+                    arg = HeroController.GetCheckPointPosition(player.playerNum, true);
+                    flag2 = true;
+                    goto IL_1E7;
+            }
+            flag = true;
+            IL_1E7:
+            if (flag)
+            {
+                arg = HeroController.GetFirstPlayerPosition(player.playerNum);
+            }
+            player.SetSpawnPositon(bro, arg2, flag2, arg);
+        }
         #endregion
     }
 }
