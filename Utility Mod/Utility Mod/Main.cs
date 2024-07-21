@@ -101,7 +101,7 @@ namespace Utility_Mod
             "Satan", "CR666",
             "Stealth Tank", "Terrorkopter", "Terrorbot", "Large Alien Worm",
             "Mook Launcher Tank", "Cannon Tank", "Rocket Tank", "Artillery Truck", "Blimp", "Drill carrier", "Mook Truck", "Turret", "Motorbike", "Motorbike Nuclear", "Dump Truck",
-            "Pig", "Seagull", "Rotten Pig", "Villager 1", "Villager 2"
+            "Pig", "Rotten Pig", "Villager 1", "Villager 2"
         };
 
         public static Dropdown objectDropdown;
@@ -1233,20 +1233,16 @@ namespace Utility_Mod
                 case 62:
                     __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[0], vector, Quaternion.identity).gameObject;
                     break;
-                // Seagull
-                case 63:
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[1], vector, Quaternion.identity).gameObject;
-                    break;
                 // Rotten Pig
-                case 64:
+                case 63:
                     __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[2], vector, Quaternion.identity).gameObject;
                     break;
                 // Villager1
-                case 65:
+                case 64:
                     __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.villager1[0], vector, Quaternion.identity).gameObject;
                     break;
                 // Villager2
-                case 66:
+                case 65:
                     __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.villager1[1], vector, Quaternion.identity).gameObject;
                     break;
             }
