@@ -326,7 +326,7 @@ namespace Swap_Bros_Mod
                                                "Enable or disable bros for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
                     {
                         changingEnabledBros = !changingEnabledBros;
-                        if  (changingEnabledBros )
+                        if ( changingEnabledBros )
                         {
                             displayWarningTime = 0f;
                             settings.filterBros = true;
