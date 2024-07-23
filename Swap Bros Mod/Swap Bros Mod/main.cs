@@ -32,7 +32,7 @@ namespace Swap_Bros_Mod
         public string joystick = "NONE";
     }
 
-    static class Main
+    public static class Main
     {
         public static UnityModManager.ModEntry mod;
         public static bool enabled;
@@ -787,11 +787,6 @@ namespace Swap_Bros_Mod
         public static bool CustomCountChanged()
         {
             return MakerObjectStorage.Bros.Length != allCustomBros.Count();
-        }
-
-        public static void CheckBroMakerAvailable()
-        {
-            BSett.instance.countEnabledBros();
         }
 
         public static void LoadCustomBros()
