@@ -67,15 +67,79 @@ namespace Control_Enemies_Mod
             base.Fire(x, y, xI, yI, _zOffset, playerNum, FiredBy);
         }
 
+        public static Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool knock, bool canGib, bool firedLocally, bool checkIfUnitIsLocallyOwned, bool hitDead = true)
+        {
+            if (Map.units == null)
+            {
+                return null;
+            }
+            int num = 999999;
+            float num2 = Mathf.Max(xRange, yRange);
+            float num3 = Mathf.Max(xRange, yRange);
+            Unit unit = null;
+            Unit unit2 = null;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                Unit unit3 = Map.units[i];
+                if (unit3 != null && !unit3.invulnerable && unit3.health <= num && GameModeController.DoesPlayerNumDamage(playerNum, unit3.playerNum) && unit3 is TestVanDammeAnim)
+                {
+                    float f = unit3.X - x;
+                    if (Mathf.Abs(f) - xRange < unit3.width)
+                    {
+                        float f2 = unit3.Y + unit3.height / 2f + 3f - y;
+                        if (Mathf.Abs(f2) - yRange < unit3.height)
+                        {
+                            float num4 = Mathf.Abs(f) + Mathf.Abs(f2);
+                            if (num4 < num2)
+                            {
+                                if (unit3.health <= 0 && unit == null && hitDead)
+                                {
+                                    if (num4 < num3)
+                                    {
+                                        num3 = num4;
+                                        unit2 = unit3;
+                                    }
+                                }
+                                else if (unit3.health > 0)
+                                {
+                                    unit = unit3;
+                                    num2 = num4;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Vector3 vector = new Vector3(x, y + 5f, 0f);
+            if (unit != null && !Physics.Raycast(vector, unit.transform.position - vector, (unit.transform.position - vector).magnitude * 0.8f, Map.groundLayer))
+            {
+                Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                return unit;
+            }
+            if (unit2 != null && !Physics.Raycast(vector, unit2.transform.position - vector, (unit2.transform.position - vector).magnitude * 0.8f, Map.groundLayer))
+            {
+                if (!canGib)
+                {
+                    damage = 0;
+                }
+                Map.KnockAndDamageUnit(damageSender, unit2, damage, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                return unit2;
+            }
+            return null;
+        }
+
         protected override void TryHitUnitsAtSpawn()
         {
-            Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
+            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
             if ( hitUnit != null )
             {
                 this.hasHit = true;
                 this.hasHitUnit = true;
                 this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
-                Main.StartControllingUnit(playerNum, hitUnit);
+                if ( hitUnit is TestVanDammeAnim )
+                {
+                    Main.StartControllingUnit(playerNum, hitUnit as TestVanDammeAnim);
+                }
                 UnityEngine.Object.Destroy(base.gameObject);                
             }
         }
@@ -84,7 +148,7 @@ namespace Control_Enemies_Mod
         {
             float xI = this.xI;
             this.xI *= 0.3333334f;
-            Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
+            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
             //if (Map.HitLivingUnits(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false))
             if ( hitUnit != null )
             {
@@ -92,7 +156,10 @@ namespace Control_Enemies_Mod
                 this.MakeEffects(false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point);
                 UnityEngine.Object.Destroy(base.gameObject);
                 Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds, 0.5f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.15f, true, false, false, 0f);
-                Main.StartControllingUnit(playerNum, hitUnit);
+                if ( hitUnit is TestVanDammeAnim )
+                {
+                    Main.StartControllingUnit(playerNum, hitUnit as TestVanDammeAnim);
+                }
             }
             this.xI = xI;
         }
@@ -101,10 +168,10 @@ namespace Control_Enemies_Mod
         {
             if (!this.hasHitUnit)
             {
-                Unit hitUnit = Map.HitClosestUnit(this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false, false);
-                if (hitUnit != null)
+                Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false, false);
+                if (hitUnit != null && hitUnit is TestVanDammeAnim)
                 {
-                    Main.StartControllingUnit(playerNum, hitUnit);
+                    Main.StartControllingUnit(playerNum, hitUnit as TestVanDammeAnim);
                 }
             }
             EffectsController.CreateShrapnel(this.sparkWhite1, x, y, 2f, 130f, 8f, this.xI * 0.2f, 50f);
