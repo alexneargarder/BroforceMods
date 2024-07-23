@@ -125,7 +125,7 @@ namespace Control_Enemies_Mod
                 if (__instance.name == "controlled")
                 {
                     // If we're not respawning from a corpse or we don't have enough lives left, release the unit
-                    if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds) )
+                    if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
                     {
                         Main.LeaveUnit(__instance, __instance.playerNum, true);
                     }
@@ -147,13 +147,13 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't report death if we don't want to lose lives when dying as a mook or if we want to respawn at their corpse
-                if (__instance.name == "controlled")
+                if (__instance.name == "controlled" && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum])
                 {
                     bool chestBurstDeath = false;
-                    if ( __instance is AlienFaceHugger )
+                    if (__instance is AlienFaceHugger)
                     {
                         AlienFaceHugger faceHugger = __instance as AlienFaceHugger;
-                        if ( faceHugger.insemenationCompleted )
+                        if (faceHugger.insemenationCompleted && faceHugger.layEggsInsideBros)
                         {
                             chestBurstDeath = true;
                             AlienXenomorph_Start_Patch.controlNextAlien = true;
@@ -161,7 +161,7 @@ namespace Control_Enemies_Mod
                         }
                     }
                     // If we're respawning from corpse and didn't die from out of bounds or if we're spawning from a chestburster
-                    if ( (Main.settings.respawnFromCorpse && !TestVanDammeAnim_Death_Patch.outOfBounds) || chestBurstDeath )
+                    if ((Main.settings.respawnFromCorpse && !TestVanDammeAnim_Death_Patch.outOfBounds && Main.previousCharacter[__instance.playerNum] != null) || chestBurstDeath)
                     {
                         if (Main.settings.loseLifeOnDeath && !chestBurstDeath)
                         {
@@ -363,6 +363,7 @@ namespace Control_Enemies_Mod
             }
         }
 
+        // Used for competitive mode to allow players to kill each other
         [HarmonyPatch(typeof(GameModeController), "DoesPlayerNumDamage")]
         static class GameModeController_DoesPlayerNumDamage_Patch
         {
@@ -374,6 +375,81 @@ namespace Control_Enemies_Mod
                 }
 
                 // FIXME: Override this to make versus mode work properly, need to have ghosts be able to damage main player, and have enemies be unable to damage ghosts
+            }
+        }
+
+        // Prevent enemies from trying to show the start bubble
+        [HarmonyPatch(typeof(TestVanDammeAnim), "ShowStartBubble")]
+        static class TestVanDammeAnim_ShowStartBubble_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Don't let method execute if this is a controlled enemy
+                return __instance.name != "controlled";
+            }
+        }
+
+        // Prevent enemies from trying to show the start bubble
+        [HarmonyPatch(typeof(TestVanDammeAnim), "RestartBubble", new Type[] { typeof(float) } )]
+        static class TestVanDammeAnim_RestartBubble_float_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Don't let method execute if this is a controlled enemy
+                return __instance.name != "controlled";
+            }
+        }
+
+        // Prevent enemies from trying to show the start bubble
+        [HarmonyPatch(typeof(TestVanDammeAnim), "RestartBubble", new Type[] {})]
+        static class TestVanDammeAnim_RestartBubble_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Don't let method execute if this is a controlled enemy
+                return __instance.name != "controlled";
+            }
+        }
+
+        // Use different avatar for players who are controlling enemies
+        [HarmonyPatch(typeof(HeroController), "SwitchAvatarMaterial")]
+        static class HeroController_SwitchAvatarMaterial_Patch
+        {
+            public static bool Prefix(ref SpriteSM sprite, ref bool __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                PlayerHUD hud = sprite.gameObject.GetComponent<PlayerHUD>();
+                if ( hud != null )
+                {
+                    int playerNum = (int) Traverse.Create(hud).Field("playerNum").GetValue();
+                    // If we're assigning an avatar to a player who is an enemy, use a different avatar instead of the bro one
+                    if (Main.currentlyEnemy[playerNum])
+                    {
+                        sprite.GetComponent<Renderer>().material = Main.defaultAvatarMat;
+                        return false;
+                    }
+                }
+
+                return true;
             }
         }
         #endregion
@@ -737,6 +813,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.ReaffirmControl(playerNum);
                     }
+                    __instance.SpecialAmmo = 0;
                 }
             }
         }
@@ -750,12 +827,23 @@ namespace Control_Enemies_Mod
         {
             static void Prefix(Player __instance, ref HeroType nextHeroType)
             {
-                if ( !Main.enabled || !Main.settings.spawnAsEnemyEnabled )
+                if ( !Main.enabled )
                 {
                     return;
                 }
 
-                Main.willReplaceBro[__instance.playerNum] = (Main.settings.spawnAsEnemyChance > 0 && Main.settings.spawnAsEnemyChance >= UnityEngine.Random.value * 100f);
+                Main.currentlyEnemy[__instance.playerNum] = false;
+
+                if (Main.settings.spawnAsEnemyEnabled)
+                {
+                    Main.willReplaceBro[__instance.playerNum] = (Main.settings.spawnAsEnemyChance > 0 && Main.settings.spawnAsEnemyChance >= UnityEngine.Random.value * 100f);
+
+                    // Disable BroMaker if it's installed
+                    if (Main.willReplaceBro[__instance.playerNum])
+                    {
+                        Main.DisableBroMaker(__instance.playerNum);
+                    }
+                }
             }
             static void Postfix(Player __instance)
             {
@@ -768,6 +856,9 @@ namespace Control_Enemies_Mod
                 {
                     if (Main.willReplaceBro[__instance.playerNum])
                     {
+                        // Reenable BroMaker if it's installed
+                        Main.EnableBroMaker();
+
                         Main.willReplaceBro[__instance.playerNum] = false;
 
                         if ( !Main.settings.alwaysChosen )
@@ -818,24 +909,6 @@ namespace Control_Enemies_Mod
                 return !Main.enabled || !Main.willReplaceBro[Bro.playerNum];
             }
         }
-
-/*        [HarmonyPatch(typeof(EffectsController), "CreateHeroIndicator")]
-        static class EffectsController_CreateHeroIndicator_Patch
-        {
-            static bool Prefix(ref Unit unit)
-            {
-                if (!Main.enabled)
-                {
-                    return true;
-                }
-                // Check Unit's pos because sometimes this function is called with a unit that has not had its position set yet
-                else if (LoadHero.anyCustomSpawning && (!LoadHero.broBeingRescued || (unit.X <= 0 && unit.Y <= 0)))
-                {
-                    return false;
-                }
-                return true;
-            }
-        }*/
 
         [HarmonyPatch(typeof(Player), "WorkOutSpawnPosition")]
         static class Player_WorkOutSpawnPosition_Patch
@@ -901,70 +974,179 @@ namespace Control_Enemies_Mod
         {
             public static void Postfix(Player __instance)
             {
-                if (!Main.enabled || !Main.settings.spawnAsEnemyEnabled)
+                if (!Main.enabled)
                 {
                     return;
                 }
 
                 int curPlayer = __instance.playerNum;
-                bool leftPressed = Main.swapEnemiesLeft.IsDown(curPlayer);
-                bool rightPressed = Main.swapEnemiesRight.IsDown(curPlayer);
-
-                if ((((leftPressed || rightPressed) && Main.currentSpawnCooldown[curPlayer] <= 0f && __instance.IsAlive()) || (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
+                if (Main.settings.spawnAsEnemyEnabled)
                 {
-                    float X, Y, XI, YI;
-                    Vector3 vec = __instance.GetCharacterPosition();
-                    X = vec.x;
-                    Y = vec.y;
-                    XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
-                    YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
+                    bool leftPressed = Main.swapEnemiesLeft.IsDown(curPlayer);
+                    bool rightPressed = Main.swapEnemiesRight.IsDown(curPlayer);
 
-                    if (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])
+                    if ((((leftPressed || rightPressed) && Main.currentSpawnCooldown[curPlayer] <= 0f && __instance.IsAlive()) || (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
                     {
-                        try
+                        float X, Y, XI, YI;
+                        Vector3 vec = __instance.GetCharacterPosition();
+                        X = vec.x;
+                        Y = vec.y;
+                        XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
+                        YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
+
+                        if (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])
                         {
+                            try
+                            {
+                                GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
+                                TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
+                                Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
+
+                                __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
+                                __instance.character.SetInvulnerable(0f, false);
+                                Main.switched[curPlayer] = false;
+                            }
+                            catch (Exception ex)
+                            {
+                                Main.Log("ex: " + ex.ToString());
+                            }
+                            return;
+                        }
+                        else
+                        {
+                            if (leftPressed)
+                            {
+                                --Main.settings.selGridInt[curPlayer];
+                                if (Main.settings.selGridInt[curPlayer] < 0)
+                                {
+                                    Main.settings.selGridInt[curPlayer] = Main.currentUnitList.Length - 1;
+                                }
+                            }
+                            else if (rightPressed)
+                            {
+                                ++Main.settings.selGridInt[curPlayer];
+                                if (Main.settings.selGridInt[curPlayer] > Main.currentUnitList.Length - 1)
+                                {
+                                    Main.settings.selGridInt[curPlayer] = 0;
+                                }
+                            }
+
                             GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
                             TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
                             Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
 
-                            __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
+                            __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
                             __instance.character.SetInvulnerable(0f, false);
-                            Main.switched[curPlayer] = false;
+
+                            Main.currentSpawnCooldown[curPlayer] = Main.settings.spawnSwapCooldown;
                         }
-                        catch ( Exception ex )
-                        {
-                            Main.Log("ex: " + ex.ToString());
-                        }
-                        return;
                     }
-                    else
+                }
+
+                if (Main.currentlyEnemy[curPlayer])
+                {
+                    bool special2Down = Main.special2[curPlayer].IsDown();
+                    bool special3Down = Main.special3[curPlayer].IsDown();
+                    // Pressed special2
+                    if (!Main.special2[curPlayer].wasDown && special2Down)
                     {
-                        if (leftPressed)
+                        if ( __instance.character is AlienClimber )
                         {
-                            --Main.settings.selGridInt[curPlayer];
-                            if (Main.settings.selGridInt[curPlayer] < 0)
-                            {
-                                Main.settings.selGridInt[curPlayer] = Main.currentUnitList.Length - 1;
-                            }
+                            // Make climbers climb
+                            Traverse.Create(__instance.character).SetFieldValue("climbButton", true);
                         }
-                        else if (rightPressed)
+                        else if (__instance.character is AlienMosquito)
                         {
-                            ++Main.settings.selGridInt[curPlayer];
-                            if (Main.settings.selGridInt[curPlayer] > Main.currentUnitList.Length - 1)
-                            {
-                                Main.settings.selGridInt[curPlayer] = 0;
-                            }
+                            // Make mosquito fly
+                            AlienMosquito mosquito = __instance.character as AlienMosquito;
+                            Traverse.Create(mosquito).SetFieldValue("flying", true);
                         }
-
-                        GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
-                        TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
-                        Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
-
-                        __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                        __instance.character.SetInvulnerable(0f, false);
-
-                        Main.currentSpawnCooldown[curPlayer] = Main.settings.spawnSwapCooldown;
+                        else if (__instance.character is DolphLundrenSoldier)
+                        {
+                            // Give DolphLundren his super jump special manually
+                            DolphLundrenSoldier character = __instance.character as DolphLundrenSoldier;
+                            character.jumpForce = 1000;
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", true);
+                        }
+                        else
+                        {
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", true);
+                        }
                     }
+                    // Release special2
+                    else if (Main.special2[curPlayer].wasDown && !special2Down)
+                    {
+                        if (__instance.character is AlienClimber)
+                        {
+                            // Make climbers climb
+                            Traverse.Create(__instance.character).SetFieldValue("climbButton", false);
+                        }
+                        else if ( __instance.character is AlienMosquito )
+                        {
+                            // Make mosquito fly
+                            AlienMosquito mosquito = __instance.character as AlienMosquito;
+                            Traverse.Create(mosquito).SetFieldValue("flying", false);
+                        }
+                        else if (__instance.character is DolphLundrenSoldier)
+                        {
+                            // Give DolphLundren his super jump special manually
+                            DolphLundrenSoldier character = __instance.character as DolphLundrenSoldier;
+                            character.jumpForce = 260;
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", false);
+                        }
+                        else
+                        {
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", false);
+                        }
+                    }
+
+                    // Pressed special3
+                    if (!Main.special3[curPlayer].wasDown && special3Down)
+                    {
+                        if ( __instance.character is AlienMelter )
+                        {
+                            // Special 4 for alien melters to allow rolling attack
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial4", true);
+                        }
+                        else if (__instance.character is AlienMosquito)
+                        {
+                            // Make mosquito dive
+                            AlienMosquito mosquito = __instance.character as AlienMosquito;
+                            Traverse.Create(mosquito).SetFieldValue("diving", true);
+                        }
+                        else if ( __instance.character is DolphLundrenSoldier )
+                        {
+                            // Make sure dolph has seen the player to allow his special to activate
+                            Traverse.Create(__instance.character.enemyAI).SetFieldValue("seenEnemyNum", 0);
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", true);
+                        }
+                        else
+                        {
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", true);
+                        }
+                    }
+                    // Release special3
+                    else if (Main.special3[curPlayer].wasDown && !special3Down)
+                    {
+                        if ( __instance.character is AlienMelter )
+                        {
+                            // Special 4 for alien melters to allow rolling attack
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial4", false);
+                        }
+                        else if (__instance.character is AlienMosquito)
+                        {
+                            // Make mosquito dive
+                            AlienMosquito mosquito = __instance.character as AlienMosquito;
+                            Traverse.Create(mosquito).SetFieldValue("diving", false);
+                        }
+                        else
+                        {
+                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", false);
+                        }
+                    }
+
+                    Main.special2[curPlayer].wasDown = special2Down;
+                    Main.special3[curPlayer].wasDown = special3Down;
                 }
                 return;
             }
@@ -988,6 +1170,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.ReaffirmControl(playerNum);
                     }
+                    __instance.SpecialAmmo = 0;
                 }
             }
         }
@@ -1010,6 +1193,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.ReaffirmControl(playerNum);
                     }
+                    __instance.SpecialAmmo = 0;
                 }
             }
         }

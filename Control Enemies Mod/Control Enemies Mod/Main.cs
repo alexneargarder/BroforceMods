@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using BroMakerLib.Loaders;
+using HarmonyLib;
 using RocketLib;
 using System;
 using System.Collections.Generic;
@@ -6,7 +7,9 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
-using static UnityEngine.UI.CanvasScaler;
+using BSett = BroMakerLib.Settings;
+using RocketLib.Utils;
+using System.IO;
 
 namespace Control_Enemies_Mod
 {
@@ -21,6 +24,10 @@ namespace Control_Enemies_Mod
         public static KeyBindingForPlayers leaveEnemy;
         public static KeyBindingForPlayers swapEnemiesLeft;
         public static KeyBindingForPlayers swapEnemiesRight;
+        public static KeyBindingForPlayers special2;
+        public static KeyBindingForPlayers special3;
+        public static bool isBroMakerInstalled = false;
+        public static bool isSwapBrosModInstalled = false;
 
         // UI
         public static GUIStyle headerStyle, buttonStyle, warningStyle;
@@ -86,6 +93,12 @@ namespace Control_Enemies_Mod
                 settings.enabledUnits.AddRange(fullUnitList);
                 filteredUnitList = Enumerable.Repeat(true, fullUnitList.Length).ToArray();
             }
+
+            // Check if BroMaker is installed
+            CheckBroMakerAvailable();
+
+            // Load sprites for avatars
+            LoadSprites();
 
             return true;
         }
@@ -158,6 +171,12 @@ namespace Control_Enemies_Mod
             GUILayout.EndHorizontal();
 
             GUILayout.Space(20);
+
+            special2.OnGUI(out _, true, true, ref previousToolTip);
+
+            GUILayout.Space(10);
+
+            special3.OnGUI(out _, true, true, ref previousToolTip);
         }
 
         static void ShowPossessionModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
@@ -267,15 +286,6 @@ namespace Control_Enemies_Mod
             GUILayout.EndHorizontal();
 
             GUILayout.Space(20);
-            GUI.tooltip = string.Empty;
-            swapEnemiesLeft.OnGUI(out _, true);
-            GUILayout.Space(10);
-            GUI.tooltip = string.Empty;
-            swapEnemiesRight.OnGUI(out _, true);
-            GUI.tooltip = string.Empty;
-            previousToolTip = GUI.tooltip;
-
-            GUILayout.Space(10);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Chance to Spawn as an Enemy: " + settings.spawnAsEnemyChance.ToString("0.00") + "%", GUILayout.Width(225), GUILayout.ExpandWidth(false));
@@ -305,6 +315,11 @@ namespace Control_Enemies_Mod
 
                 if (settings.showSettings[i])
                 {
+                    GUILayout.BeginHorizontal();
+                    swapEnemiesLeft.OnGUI(out _, false, true, ref previousToolTip, i, true, false, false);
+                    swapEnemiesRight.OnGUI(out _, false, true, ref previousToolTip, i, true, false, false);
+                    GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
 
                     if (GUILayout.Button(new GUIContent(changingEnabledUnits ? "Save Changes" : "Enter Filtering Mode",
@@ -484,6 +499,8 @@ namespace Control_Enemies_Mod
         public static bool[] willReplaceBro = { false, false, false, false };
         public static bool[] wasFirstDeployment = { false, false, false, false };
 
+        public static Material defaultAvatarMat;
+
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
             try
@@ -542,6 +559,23 @@ namespace Control_Enemies_Mod
             {
                 swapEnemiesRight = new KeyBindingForPlayers("Swap Enemies Right Key", "Control Enemies Mod");
             }
+            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Special 2 Key", out special2))
+            {
+                special2 = new KeyBindingForPlayers("Special 2 Key", "Control Enemies Mod");
+            }
+            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Special 3 Key", out special3))
+            {
+                special3 = new KeyBindingForPlayers("Special 3 Key", "Control Enemies Mod");
+            }
+        }
+
+        public static void LoadSprites()
+        {
+            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            directoryPath = Path.Combine(directoryPath, "sprites");
+
+
+            defaultAvatarMat = ResourcesController.GetMaterial(directoryPath, "defaultAvatar.png");
         }
 
         public static void SetupBullet()
@@ -587,19 +621,19 @@ namespace Control_Enemies_Mod
             {
                 Unit unit = Map.units[i];
                 // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-                if (unit != null && unit.playerNum < 0 && unit.health > 0 && !currentUnit.Contains(unit) && !unit.IsHero)
+                if (unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && !currentUnit.Contains(unit) && !unit.IsHero)
                 {
                     // Check unit is in rectangle around trap
                     if (Tools.FastAbsWithinRange(unit.X - center.x, 10f) && Tools.FastAbsWithinRange(unit.Y - center.y, 10f))
                     {
-                        StartControllingUnit(playerNum, unit);
+                        StartControllingUnit(playerNum, unit as TestVanDammeAnim);
                         return;
                     }
                 }
             }
         }
 
-        public static void StartControllingUnit( int playerNum, Unit unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false )
+        public static void StartControllingUnit( int playerNum, TestVanDammeAnim unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false )
         {
             try
             {
@@ -620,6 +654,7 @@ namespace Control_Enemies_Mod
                     {
                         unit.enemyAI.enabled = true;
                     }
+                    unit.SpecialAmmo = 0;
                     if (unit is Mook)
                     {
                         Mook mook = unit as Mook;
@@ -646,6 +681,9 @@ namespace Control_Enemies_Mod
                             previousCharacter[playerNum] = null;
                         }
                     }
+
+                    // Set avatar to blank one
+                    HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
 
                     HeroController.players[playerNum].character = unit as TestVanDammeAnim;
                     Main.currentlyEnemy[playerNum] = true;
@@ -1136,6 +1174,65 @@ namespace Control_Enemies_Mod
                 arg = HeroController.GetFirstPlayerPosition(player.playerNum);
             }
             player.SetSpawnPositon(bro, arg2, flag2, arg);
+        }
+
+        private static string TryToUseBroMaker()
+        {
+            return BroMakerLib.Info.NAME;
+        }
+
+        public static void CheckBroMakerAvailable()
+        {
+            try
+            {
+                TryToUseBroMaker();
+                isBroMakerInstalled = true;
+            }
+            catch
+            {
+                isBroMakerInstalled = false;
+            }
+        }
+
+        public static void TryDisableBroMaker(int playerNum)
+        {
+            BSett.instance.disableSpawning = true;
+            LoadHero.willReplaceBro[playerNum] = false;
+        }
+
+        public static void DisableBroMaker(int playerNum)
+        {
+            if ( isBroMakerInstalled )
+            {
+                try
+                {
+                    TryDisableBroMaker(playerNum);
+                }
+                catch
+                {
+                    isBroMakerInstalled = false;
+                }
+            }
+        }
+
+        public static void TryEnableBroMaker()
+        {
+            BSett.instance.disableSpawning = false;
+        }
+
+        public static void EnableBroMaker()
+        {
+            if (isBroMakerInstalled)
+            {
+                try
+                {
+                    TryEnableBroMaker();
+                }
+                catch
+                {
+                    isBroMakerInstalled = false;
+                }
+            }
         }
         #endregion
     }
