@@ -52,6 +52,8 @@ namespace Control_Enemies_Mod
 
         // Competitive Settings
         public bool competitiveModeEnabled = false;
+        public bool controlRandomEnemy = false;
+        public int ghostLives = 3;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {

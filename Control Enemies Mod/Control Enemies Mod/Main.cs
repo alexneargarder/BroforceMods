@@ -462,6 +462,20 @@ namespace Control_Enemies_Mod
 
         static void ShowCompetitiveModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
+            GUILayout.BeginHorizontal();
+            settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player"));
+
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 500;
+
+            //settings.disableFallDamage = GUILayout.Toggle(settings.disableFallDamage, new GUIContent("Disable Fall Damage", "Disables fall damage for controlled enemies."));
+
+            GUI.Label(lastRect, GUI.tooltip);
+            previousToolTip = GUI.tooltip;
+
+            GUILayout.EndHorizontal();
+
             GUILayout.Space(20);
         }
 
@@ -482,25 +496,31 @@ namespace Control_Enemies_Mod
         }
         #endregion
 
-
         #region Modding
-        public static MindControlBullet bulletPrefab = null;
-
+        // General options
         public static List<Unit> currentUnit = new List<Unit>() { null, null, null, null };
         public static bool[] currentlyEnemy = { false, false, false, false };
         public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
-        public static float[] fireDelay = new float[] { 0f, 0f, 0f, 0f };
         public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
         public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
+        public static Material defaultAvatarMat;
 
+        // Possessing Enemy
+        public static MindControlBullet bulletPrefab = null;
+        public static float[] fireDelay = new float[] { 0f, 0f, 0f, 0f };
+
+        // Spawning as Enemy
         public static bool[] switched = { false, false, false, false };
         public static float[] currentSpawnCooldown = { 0f, 0f, 0f, 0f };
         public static Player.SpawnType[] previousSpawnInfo = { Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown };
         public static bool[] willReplaceBro = { false, false, false, false };
         public static bool[] wasFirstDeployment = { false, false, false, false };
 
-        public static Material defaultAvatarMat;
+        // Competitive Mode
+        public static int currentHeroNum = 0;
+        public static bool[] revealed = { false, false, false, false };
 
+        #region General
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
             try
@@ -578,66 +598,11 @@ namespace Control_Enemies_Mod
             defaultAvatarMat = ResourcesController.GetMaterial(directoryPath, "defaultAvatar.png");
         }
 
-        public static void SetupBullet()
+        public static void StartControllingUnit(int playerNum, TestVanDammeAnim unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false)
         {
             try
             {
-                bulletPrefab = new GameObject("MindControlBullet", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(MindControlBullet) }).GetComponent<MindControlBullet>();
-                bulletPrefab.gameObject.SetActive(false);
-                EllenRipbro ellenRipbro = (HeroController.GetHeroPrefab(HeroType.EllenRipbro) as EllenRipbro);
-                bulletPrefab.Setup(ellenRipbro);
-                UnityEngine.Object.DontDestroyOnLoad(bulletPrefab);
-            }
-            catch ( Exception ex )
-            {
-                Main.Log("Exception creating bullet: " + ex.ToString());
-            }
-        }
-
-        public static void FireBullet(int playerNum)
-        {
-            // Don't allow dying characters to fire bullets
-            if (countdownToRespawn[playerNum] > 0)
-            {
-                return;
-            }
-            if ( bulletPrefab == null )
-            {
-                // Create Mind Control Bullet
-                SetupBullet();
-            }
-            fireDelay[playerNum] = settings.fireRate;
-            TestVanDammeAnim firingChar = HeroController.players[playerNum].character;
-            float x = firingChar.X + 3f;
-            float y = firingChar.Y + firingChar.height + 1.5f;
-            float xSpeed = firingChar.transform.localScale.x * 700f;
-            float ySpeed = 0f;
-            MindControlBullet firedBullet = ProjectileController.SpawnProjectileLocally(bulletPrefab, firingChar, x, y, xSpeed, ySpeed, firingChar.playerNum) as MindControlBullet;
-        }
-
-        public static void FindUnitToControl( Vector3 center, int playerNum )
-        {
-            for (int i = 0; i < Map.units.Count; ++i)
-            {
-                Unit unit = Map.units[i];
-                // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-                if (unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && !currentUnit.Contains(unit) && !unit.IsHero)
-                {
-                    // Check unit is in rectangle around trap
-                    if (Tools.FastAbsWithinRange(unit.X - center.x, 10f) && Tools.FastAbsWithinRange(unit.Y - center.y, 10f))
-                    {
-                        StartControllingUnit(playerNum, unit as TestVanDammeAnim);
-                        return;
-                    }
-                }
-            }
-        }
-
-        public static void StartControllingUnit( int playerNum, TestVanDammeAnim unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false )
-        {
-            try
-            {
-                if ( HeroController.players[playerNum].character != null && HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
+                if (HeroController.players[playerNum].character != null && HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
                 {
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
@@ -645,12 +610,12 @@ namespace Control_Enemies_Mod
                     Traverse.Create(unit).Field("isHero").SetValue(true);
                     unit.name = "controlled";
                     DisableWhenOffCamera disableWhenOffCamera = unit.gameObject.GetComponent<DisableWhenOffCamera>();
-                    if ( disableWhenOffCamera != null )
+                    if (disableWhenOffCamera != null)
                     {
                         disableWhenOffCamera.enabled = false;
                     }
                     unit.enabled = true;
-                    if ( unit.enemyAI != null )
+                    if (unit.enemyAI != null)
                     {
                         unit.enemyAI.enabled = true;
                     }
@@ -664,15 +629,15 @@ namespace Control_Enemies_Mod
                     }
 
                     // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
-                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase) )
+                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase))
                     {
-                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave, erasePreviousCharacter );
+                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave, erasePreviousCharacter);
                     }
                     // Hide previous character
                     else
                     {
                         HeroController.players[playerNum].character.gameObject.SetActive(false);
-                        if ( savePreviousCharacter )
+                        if (savePreviousCharacter)
                         {
                             previousCharacter[playerNum] = HeroController.players[playerNum].character;
                         }
@@ -682,6 +647,9 @@ namespace Control_Enemies_Mod
                         }
                     }
 
+                    // Hide player if in competitive mode
+                    revealed[playerNum] = false;
+
                     // Set avatar to blank one
                     HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
 
@@ -689,13 +657,13 @@ namespace Control_Enemies_Mod
                     Main.currentlyEnemy[playerNum] = true;
                 }
             }
-            catch ( Exception ex )
+            catch (Exception ex)
             {
                 Log("Exception controlling unit: " + ex.ToString());
             }
         }
 
-        public static void ReaffirmControl( int playerNum )
+        public static void ReaffirmControl(int playerNum)
         {
             TestVanDammeAnim unit = HeroController.players[playerNum].character;
             unit.playerNum = playerNum;
@@ -714,10 +682,10 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter )
-        {   
+        public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter)
+        {
             previous.playerNum = previousPlayerNum[playerNum];
-            if ( previous is Mook )
+            if (previous is Mook)
             {
                 Mook previousMook = previous as Mook;
                 previousMook.firingPlayerNum = previousPlayerNum[playerNum];
@@ -732,11 +700,11 @@ namespace Control_Enemies_Mod
                 disableWhenOffCamera.enabled = true;
             }
 
-            if ( erasePreviousCharacter )
+            if (erasePreviousCharacter)
             {
                 UnityEngine.Object.Destroy(previous.gameObject);
             }
-            else if ( !gentleLeave )
+            else if (!gentleLeave)
             {
                 switch (settings.swappingEnemies)
                 {
@@ -763,9 +731,9 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static void LeaveUnit(TestVanDammeAnim previous, int playerNum, bool onlyLeaveUnit, bool respawning = false )
+        public static void LeaveUnit(TestVanDammeAnim previous, int playerNum, bool onlyLeaveUnit, bool respawning = false)
         {
-            if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(previous is BroBase) )
+            if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(previous is BroBase))
             {
                 previous.playerNum = previousPlayerNum[playerNum];
                 if (previous is Mook)
@@ -848,6 +816,124 @@ namespace Control_Enemies_Mod
             }
         }
 
+        private static string TryToUseBroMaker()
+        {
+            return BroMakerLib.Info.NAME;
+        }
+
+        public static void CheckBroMakerAvailable()
+        {
+            try
+            {
+                TryToUseBroMaker();
+                isBroMakerInstalled = true;
+            }
+            catch
+            {
+                isBroMakerInstalled = false;
+            }
+        }
+
+        public static void TryDisableBroMaker(int playerNum)
+        {
+            BSett.instance.disableSpawning = true;
+            LoadHero.willReplaceBro[playerNum] = false;
+        }
+
+        public static void DisableBroMaker(int playerNum)
+        {
+            if (isBroMakerInstalled)
+            {
+                try
+                {
+                    TryDisableBroMaker(playerNum);
+                }
+                catch
+                {
+                    isBroMakerInstalled = false;
+                }
+            }
+        }
+
+        public static void TryEnableBroMaker()
+        {
+            BSett.instance.disableSpawning = false;
+        }
+
+        public static void EnableBroMaker()
+        {
+            if (isBroMakerInstalled)
+            {
+                try
+                {
+                    TryEnableBroMaker();
+                }
+                catch
+                {
+                    isBroMakerInstalled = false;
+                }
+            }
+        }
+        #endregion
+
+        #region Possessing Enemies
+        public static void SetupBullet()
+        {
+            try
+            {
+                bulletPrefab = new GameObject("MindControlBullet", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(MindControlBullet) }).GetComponent<MindControlBullet>();
+                bulletPrefab.gameObject.SetActive(false);
+                EllenRipbro ellenRipbro = (HeroController.GetHeroPrefab(HeroType.EllenRipbro) as EllenRipbro);
+                bulletPrefab.Setup(ellenRipbro);
+                UnityEngine.Object.DontDestroyOnLoad(bulletPrefab);
+            }
+            catch (Exception ex)
+            {
+                Main.Log("Exception creating bullet: " + ex.ToString());
+            }
+        }
+
+        public static void FireBullet(int playerNum)
+        {
+            // Don't allow dying characters to fire bullets
+            if (countdownToRespawn[playerNum] > 0)
+            {
+                return;
+            }
+            if (bulletPrefab == null)
+            {
+                // Create Mind Control Bullet
+                SetupBullet();
+            }
+            fireDelay[playerNum] = settings.fireRate;
+            TestVanDammeAnim firingChar = HeroController.players[playerNum].character;
+            float x = firingChar.X + 3f;
+            float y = firingChar.Y + firingChar.height + 1.5f;
+            float xSpeed = firingChar.transform.localScale.x * 700f;
+            float ySpeed = 0f;
+            MindControlBullet firedBullet = ProjectileController.SpawnProjectileLocally(bulletPrefab, firingChar, x, y, xSpeed, ySpeed, firingChar.playerNum) as MindControlBullet;
+        }
+
+        public static void FindUnitToControl(Vector3 center, int playerNum)
+        {
+            for (int i = 0; i < Map.units.Count; ++i)
+            {
+                Unit unit = Map.units[i];
+                // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
+                if (unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && !currentUnit.Contains(unit) && !unit.IsHero)
+                {
+                    // Check unit is in rectangle around trap
+                    if (Tools.FastAbsWithinRange(unit.X - center.x, 10f) && Tools.FastAbsWithinRange(unit.Y - center.y, 10f))
+                    {
+                        StartControllingUnit(playerNum, unit as TestVanDammeAnim);
+                        return;
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Spawning As Enemy
         public static void CreateUnitList()
         {
             Main.creatingUnitList = true;
@@ -1175,65 +1261,24 @@ namespace Control_Enemies_Mod
             }
             player.SetSpawnPositon(bro, arg2, flag2, arg);
         }
+        #endregion
 
-        private static string TryToUseBroMaker()
+        #region Competitive
+        public static void HidePlayer(int playerNum)
         {
-            return BroMakerLib.Info.NAME;
+            // Set avatar to blank one
+            HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
+
+            HeroController.players[playerNum].character.gameObject.SetActive(false);
         }
 
-        public static void CheckBroMakerAvailable()
+        public static void ResurrectGhost(int playerNum)
         {
-            try
-            {
-                TryToUseBroMaker();
-                isBroMakerInstalled = true;
-            }
-            catch
-            {
-                isBroMakerInstalled = false;
-            }
+            Main.currentHeroNum = playerNum;
+            LeaveUnit(HeroController.players[playerNum].character, playerNum, false, true);
         }
+        #endregion
 
-        public static void TryDisableBroMaker(int playerNum)
-        {
-            BSett.instance.disableSpawning = true;
-            LoadHero.willReplaceBro[playerNum] = false;
-        }
-
-        public static void DisableBroMaker(int playerNum)
-        {
-            if ( isBroMakerInstalled )
-            {
-                try
-                {
-                    TryDisableBroMaker(playerNum);
-                }
-                catch
-                {
-                    isBroMakerInstalled = false;
-                }
-            }
-        }
-
-        public static void TryEnableBroMaker()
-        {
-            BSett.instance.disableSpawning = false;
-        }
-
-        public static void EnableBroMaker()
-        {
-            if (isBroMakerInstalled)
-            {
-                try
-                {
-                    TryEnableBroMaker();
-                }
-                catch
-                {
-                    isBroMakerInstalled = false;
-                }
-            }
-        }
         #endregion
     }
 }
