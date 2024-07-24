@@ -26,7 +26,14 @@ namespace Control_Enemies_Mod
 
                 if ( __instance.name == "controlled" )
                 {
-                    __instance.mentalState = MentalState.Alerted;
+                    if ( Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum] )
+                    {
+                        __instance.mentalState = MentalState.Idle;
+                    }
+                    else
+                    {
+                        __instance.mentalState = MentalState.Alerted;
+                    }
                     return false;
                 }
 
@@ -47,7 +54,14 @@ namespace Control_Enemies_Mod
 
                 if (__instance.name == "controlled")
                 {
-                    __instance.mentalState = MentalState.Alerted;
+                    if (Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum])
+                    {
+                        __instance.mentalState = MentalState.Idle;
+                    }
+                    else
+                    {
+                        __instance.mentalState = MentalState.Alerted;
+                    }
                     return false;
                 }
 
@@ -128,6 +142,15 @@ namespace Control_Enemies_Mod
                     if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
                     {
                         Main.LeaveUnit(__instance, __instance.playerNum, true);
+                    }
+                }
+                // Check if hero player was killed
+                else if ( __instance.playerNum == Main.currentHeroNum && damage.damageSender is TestVanDammeAnim )
+                {
+                    TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
+                    if ( killer.name == "controlled" )
+                    {
+                        Main.ResurrectGhost(killer.playerNum);
                     }
                 }
             }
@@ -257,7 +280,6 @@ namespace Control_Enemies_Mod
             }
         }
 
-
         // Ensure heavy units are allowed on the helicopter
         [HarmonyPatch(typeof(TestVanDammeAnim), "IsOverFinish")]
         static class TestVanDammeAnim_IsOverFinish_Patch
@@ -360,21 +382,6 @@ namespace Control_Enemies_Mod
                 {
                     Main.previousCharacter[__instance.playerNum] = null;
                 }
-            }
-        }
-
-        // Used for competitive mode to allow players to kill each other
-        [HarmonyPatch(typeof(GameModeController), "DoesPlayerNumDamage")]
-        static class GameModeController_DoesPlayerNumDamage_Patch
-        {
-            public static void Postfix(GameModeController __instance, ref int fromNum, ref int toNum, ref bool __result)
-            {
-                if (!Main.enabled)
-                {
-                    return;
-                }
-
-                // FIXME: Override this to make versus mode work properly, need to have ghosts be able to damage main player, and have enemies be unable to damage ghosts
             }
         }
 
@@ -844,6 +851,8 @@ namespace Control_Enemies_Mod
                         Main.DisableBroMaker(__instance.playerNum);
                     }
                 }
+
+                return;
             }
             static void Postfix(Player __instance)
             {
@@ -875,6 +884,12 @@ namespace Control_Enemies_Mod
                     {
                         Main.previousCharacter[__instance.playerNum] = null;
                         Main.currentlyEnemy[__instance.playerNum] = false;
+                    }
+                    
+                    // Hide player since they're not the current hero
+                    if (Main.settings.competitiveModeEnabled && __instance.playerNum != Main.currentHeroNum)
+                    {
+                        Main.HidePlayer(__instance.playerNum);
                     }
                 }
                 catch (Exception e)
@@ -924,6 +939,12 @@ namespace Control_Enemies_Mod
                 {
                     Main.wasFirstDeployment[__instance.playerNum] = __instance.firstDeployment;
                 }
+
+                // Set all players lives to starting value if in competitive mode
+                if ( Main.settings.competitiveModeEnabled && __instance.firstDeployment )
+                {
+                    __instance.Lives = Main.settings.ghostLives;
+                }
             }
         }
 
@@ -972,7 +993,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Player), "GetInput")]
         static class Player_GetInput_Patch
         {
-            public static void Postfix(Player __instance)
+            public static void Postfix(Player __instance, ref bool fire)
             {
                 if (!Main.enabled)
                 {
@@ -1008,7 +1029,7 @@ namespace Control_Enemies_Mod
                             }
                             catch (Exception ex)
                             {
-                                Main.Log("ex: " + ex.ToString());
+                                Main.Log("Exception: " + ex.ToString());
                             }
                             return;
                         }
@@ -1147,6 +1168,12 @@ namespace Control_Enemies_Mod
 
                     Main.special2[curPlayer].wasDown = special2Down;
                     Main.special3[curPlayer].wasDown = special3Down;
+
+                    // Check if enemy should be revealed if in competitive mode
+                    if ( Main.settings.competitiveModeEnabled && fire &&  Main.currentHeroNum != curPlayer )
+                    {
+                        Main.revealed[curPlayer] = true;
+                    }
                 }
                 return;
             }
@@ -1158,19 +1185,30 @@ namespace Control_Enemies_Mod
         {
             public static void Postfix(TestVanDammeAnim __instance)
             {
-                if (!Main.enabled || !Main.settings.spawnAsEnemyEnabled)
+                if (!Main.enabled)
                 {
                     return;
                 }
 
-                if ( __instance.name == "controlled" )
+                if (Main.settings.spawnAsEnemyEnabled)
                 {
-                    int playerNum = Main.currentUnit.IndexOf(__instance);
-                    if (playerNum != __instance.playerNum)
+                    if (__instance.name == "controlled")
                     {
-                        Main.ReaffirmControl(playerNum);
+                        int playerNum = Main.currentUnit.IndexOf(__instance);
+                        if (playerNum != __instance.playerNum)
+                        {
+                            Main.ReaffirmControl(playerNum);
+                        }
+                        __instance.SpecialAmmo = 0;
                     }
-                    __instance.SpecialAmmo = 0;
+                }
+                else if ( Main.settings.competitiveModeEnabled )
+                {
+                    // FIXME: Update to handle all players
+                    if ( !Main.currentlyEnemy[1] && !(__instance.playerNum >= 0 && __instance.playerNum < 4) && __instance.name != "controlled" && __instance.name != "Hobro" )
+                    {
+                        Main.StartControllingUnit(1, __instance, false, true, false);
+                    }
                 }
             }
         }
@@ -1195,6 +1233,126 @@ namespace Control_Enemies_Mod
                     }
                     __instance.SpecialAmmo = 0;
                 }
+            }
+        }
+        #endregion
+
+        #region Competitive Mode Patches
+        // Allow players to kill each other
+        [HarmonyPatch(typeof(GameModeController), "DoesPlayerNumDamage")]
+        static class GameModeController_DoesPlayerNumDamage_Patch
+        {
+            public static void Postfix(GameModeController __instance, ref int fromNum, ref int toNum, ref bool __result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if ( fromNum != toNum )
+                {
+                    // Hero player was attacked
+                    if (toNum == Main.currentHeroNum)
+                    {
+                        __result = true;
+                    }
+                    else if (fromNum != Main.currentHeroNum)
+                    {
+                        // Ghost player was attacked
+                        if (toNum >= 0 && toNum < 4)
+                        {
+                            __result = false;
+                        }
+                        // Ghost player attacking enemies
+                        else
+                        {
+                            __result = false;
+                        }
+                    }
+                    
+                }
+            }
+        }
+
+        // Make camera focus on hero
+        [HarmonyPatch(typeof(Player), "HasFollowPosition")]
+        static class Player_HasFollowPosition_Patch
+        {
+            public static bool Prefix(Player __instance, ref bool __result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if (__instance != null && __instance.playerNum != Main.currentHeroNum)
+                {
+                    __result = false;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Hide ghost players from enemies
+        [HarmonyPatch(typeof(TestVanDammeAnim), "AlertNearbyMooks")]
+        static class TestVanDammeAnim_AlertNearbyMooks_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if ( __instance.IsHero && __instance.playerNum != Main.currentHeroNum )
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Hide ghost players from enemies
+        [HarmonyPatch(typeof(TestVanDammeAnim), "IsInStealthMode")]
+        static class TestVanDammeAnim_IsInStealthMode_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance, ref bool __result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && __instance.playerNum != Main.currentHeroNum)
+                {
+                    __result = true;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Hide ghost players from enemies
+        [HarmonyPatch(typeof(Map), "DisturbWildLife")]
+        static class Map_DisturbWildLife_Patch
+        {
+            public static bool Prefix(Map __instance, ref int playerNum)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if (playerNum >= 0 && playerNum < 4 && playerNum != Main.currentHeroNum)
+                {
+                    return false;
+                }
+
+                return true;
             }
         }
         #endregion
