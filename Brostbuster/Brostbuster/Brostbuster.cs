@@ -96,10 +96,12 @@ namespace Brostbuster
             protonLine1 = new GameObject("ProtonLine1", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             protonLine1.transform.parent = this.transform;
             protonLine1.material = ResourcesController.GetMaterial(directoryPath, "protonLine1.png");
+            protonLine1.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             protonLine1Cap = new GameObject("ProtonLine1End", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             protonLine1Cap.transform.parent = this.transform;
             protonLine1Cap.material = ResourcesController.GetMaterial(directoryPath, "protonLine1End.png");
+            protonLine1Cap.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             protonLine2 = new GameObject("ProtonLine2", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             protonLine2.transform.parent = this.transform;
@@ -107,6 +109,7 @@ namespace Brostbuster
             for ( int i = 0; i < 4; ++i )
             {
                 protonLine2Mats[i] = ResourcesController.GetMaterial(directoryPath, "protonLine2" + (i + 1) + ".png");
+                protonLine2Mats[i].mainTexture.wrapMode = TextureWrapMode.Repeat;
             }
             protonLine2.material = protonLine2Mats[0];
 

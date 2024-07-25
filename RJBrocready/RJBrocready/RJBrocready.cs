@@ -197,6 +197,7 @@ namespace RJBrocready
             tentacleLine = new GameObject("TentacleLine", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             tentacleLine.transform.parent = this.transform;
             tentacleLine.material = ResourcesController.GetMaterial(directoryPath, "tentacleLine.png");
+            tentacleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             this.tentacleImpaler = new GameObject("TentacleImpaler", new Type[] { typeof(Transform) }).transform;
 

@@ -393,8 +393,9 @@ namespace Furibrosa
         {
             if ( !AllModKeyBindings.TryGetKeyBinding("Furibrosa", "Switch Weapon", out switchWeaponKey) )
             {
-                switchWeaponKey = new KeyBindingForPlayers("Switch Weapon", "Furibrosa");
+                switchWeaponKey = new KeyBindingForPlayers("Furibrosa", "Switch Weapon");
             }
+            
         }
 
         public void makeTextBox(string label, ref string text, ref float val)
