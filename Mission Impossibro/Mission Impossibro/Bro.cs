@@ -76,6 +76,7 @@ namespace Mission_Impossibro
             grappleLine = new GameObject("GrappleLine", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
             grappleLine.transform.parent = this.transform;
             grappleLine.material = ResourcesController.GetMaterial(directoryPath, "line.png");
+            grappleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             explosivePrefab = new GameObject("Explosive", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Explosive) }).GetComponent<Explosive>();
             explosivePrefab.enabled = false;
