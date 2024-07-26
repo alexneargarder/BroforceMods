@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using BroMakerLib.CustomObjects;
+using HarmonyLib;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -7,6 +8,7 @@ using UnityEngine;
 using static Text3D;
 using static UnityEngine.UI.CanvasScaler;
 using Net = Networking.Networking;
+using System.Collections.Generic;
 
 namespace Control_Enemies_Mod
 {
@@ -24,7 +26,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "controlled" )
+                if ( __instance.name == "c" )
                 {
                     if ( Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum] )
                     {
@@ -52,7 +54,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     if (Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum])
                     {
@@ -80,8 +82,13 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
+                    return false;
+                }
+                else if ( __instance.name == "p" )
+                {
+                    __instance.left = __instance.right = false;
                     return false;
                 }
 
@@ -100,7 +107,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (gesture == GestureElement.Gestures.Flex && __instance.name == "controlled")
+                if (gesture == GestureElement.Gestures.Flex && __instance.name == "c")
                 {
                     return false;
                 }
@@ -122,7 +129,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     // Track whether we're dying from out-of-bounds to know if we should be able to respawn from corpse
                     outOfBounds = damage.damageType == DamageType.OutOfBounds;
@@ -136,21 +143,62 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
+                    // If in competitive mode, make ghost respawn at enemy corpse
+                    if ( Main.settings.competitiveModeEnabled )
+                    {
+                        Main.GhostControlledEnemyDied(__instance);
+                    }
                     // If we're not respawning from a corpse or we don't have enough lives left, release the unit
-                    if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
+                    else if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
                     {
                         Main.LeaveUnit(__instance, __instance.playerNum, true);
                     }
                 }
                 // Check if hero player was killed
-                else if ( __instance.playerNum == Main.currentHeroNum && damage.damageSender is TestVanDammeAnim )
+                if ( Main.settings.competitiveModeEnabled && __instance.playerNum == Main.currentHeroNum)
                 {
-                    TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
-                    if ( killer.name == "controlled" )
+                    // Killed by ghost player
+                    if (damage.damageSender is TestVanDammeAnim)
                     {
-                        Main.ResurrectGhost(killer.playerNum);
+                        TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
+                        if (killer.name == "c")
+                        {
+                            Main.ResurrectGhost(killer.playerNum);
+                        }
+                        if (Main.settings.spawnMode == SpawnMode.Automatic)
+                        {
+                            Main.findNewEnemyCooldown[__instance.playerNum] = 2f;
+                            Main.waitingToBecomeEnemy.Add(__instance.playerNum);
+                        }
+                        Main.ghostSpawnPoint[__instance.playerNum] = __instance.transform.position;
+                        HeroController.players[__instance.playerNum].RespawnBro(false);
+                    }
+                    // Died from other stuff
+                    else
+                    {
+                        Main.Log("hero died from something other than ghost");
+                        Main.Log("hero remaining lives: " + HeroController.players[__instance.playerNum].Lives);
+                        // If more lives left respawn hero
+                        if (HeroController.players[__instance.playerNum].Lives > 0)
+                        {
+                            HeroController.players[__instance.playerNum].RespawnBro(false);
+                        }
+                        // No more lives, respawn random ghost player
+                        else
+                        {
+                            Main.Log("attempting to resurrect random enemy");
+                            List<int> players = new List<int>();
+                            for ( int i = 0; i < 4; ++i )
+                            {
+                                if ( i != Main.currentHeroNum && HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0 )
+                                {
+                                    players.Add(i);
+                                }
+                            }
+                            Main.ResurrectGhost(UnityEngine.Random.Range(0, players.Count - 1));
+                        }
                     }
                 }
             }
@@ -169,8 +217,12 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
+                // Competitive mode 
+                if ( Main.settings.competitiveModeEnabled )
+                {
+                }
                 // Don't report death if we don't want to lose lives when dying as a mook or if we want to respawn at their corpse
-                if (__instance.name == "controlled" && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum])
+                else if (__instance.name == "c" && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum])
                 {
                     bool chestBurstDeath = false;
                     if (__instance is AlienFaceHugger)
@@ -314,7 +366,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "controlled" && __instance.IsHeavy() )
+                if ( __instance.name == "c" && __instance.IsHeavy() )
                 {
                     __result = false;
                     if (__instance.playerNum >= 0 && __instance.playerNum < 5)
@@ -397,7 +449,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "controlled";
+                return __instance.name != "c";
             }
         }
 
@@ -413,7 +465,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "controlled";
+                return __instance.name != "c";
             }
         }
 
@@ -429,7 +481,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "controlled";
+                return __instance.name != "c";
             }
         }
 
@@ -459,6 +511,21 @@ namespace Control_Enemies_Mod
                 return true;
             }
         }
+
+        // Refresh all settings
+        [HarmonyPatch(typeof(Map), "Start")]
+        static class Map_Start_Patch
+        {
+            public static void Prefix(Map __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                Main.ClearVariables();
+            }
+        }
         #endregion
 
         #region Enemy Specific Patches
@@ -475,7 +542,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -495,7 +562,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -515,7 +582,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -535,7 +602,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -555,7 +622,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -575,7 +642,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -595,7 +662,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -615,7 +682,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -635,7 +702,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -655,7 +722,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -675,7 +742,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -695,7 +762,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -715,7 +782,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -735,7 +802,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     return false;
                 }
@@ -761,7 +828,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // If egg was fired by controlled enemy or friendly enemy, make it friendly
-                if ( (__instance.firedBy.name == "controlled" || (__instance.firedBy as Mook).playerNum >= 0 ))
+                if ( (__instance.firedBy.name == "c" || (__instance.firedBy as Mook).playerNum >= 0 ))
                 {
                     nextDogFriendly = true;
                     playerNum = (__instance.firedBy as Mook).playerNum;
@@ -813,7 +880,7 @@ namespace Control_Enemies_Mod
                     Main.countdownToRespawn[controllerPlayerNum] = -1f;
                 }
                 // Make sure already controlled aliens don't have their playernum overwritten by the start function
-                else if (__instance.name == "controlled")
+                else if (__instance.name == "c")
                 {
                     int playerNum = Main.currentUnit.IndexOf(__instance);
                     if (playerNum != __instance.playerNum)
@@ -921,7 +988,7 @@ namespace Control_Enemies_Mod
             static bool Prefix(Map __instance, ref TestVanDammeAnim Bro)
             {
                 // If mod is disabled or if we aren't loading a custom character don't disable
-                return !Main.enabled || !Main.willReplaceBro[Bro.playerNum];
+                return !Main.enabled || !(Bro.playerNum >= 0 && Bro.playerNum < 4 && Main.willReplaceBro[Bro.playerNum]);
             }
         }
 
@@ -939,12 +1006,6 @@ namespace Control_Enemies_Mod
                 {
                     Main.wasFirstDeployment[__instance.playerNum] = __instance.firstDeployment;
                 }
-
-                // Set all players lives to starting value if in competitive mode
-                if ( Main.settings.competitiveModeEnabled && __instance.firstDeployment )
-                {
-                    __instance.Lives = Main.settings.ghostLives;
-                }
             }
         }
 
@@ -957,8 +1018,23 @@ namespace Control_Enemies_Mod
                 {
                     return;
                 }
+
+                // Set all players lives to starting value if in competitive mode
+                if (Main.settings.competitiveModeEnabled)
+                {
+                    if (__instance.firstDeployment)
+                    {
+                        __instance.Lives = Main.settings.ghostLives;
+                    }
+                    // Need to delay writing lives if doing drop in so that it doesn't get overwritten
+                    else if (__result == Player.SpawnType.DropInDuringGame)
+                    {
+                        Main.fixLives[__instance.playerNum] = true;
+                    }
+                }
+
                 // Store spawning info of normal character so we can pass it on to the custom character
-                else if (Main.willReplaceBro[__instance.playerNum])
+                if (Main.willReplaceBro[__instance.playerNum])
                 {
                     Main.previousSpawnInfo[__instance.playerNum] = __result;
                 }
@@ -990,23 +1066,24 @@ namespace Control_Enemies_Mod
         }
 
         // Check for swap button being pressed
+        // Check for special 2 and 3 buttons
         [HarmonyPatch(typeof(Player), "GetInput")]
         static class Player_GetInput_Patch
         {
-            public static void Postfix(Player __instance, ref bool fire)
+            public static void Postfix(Player __instance, ref bool fire, ref bool special, ref bool buttonGesture, ref bool left, ref bool right)
             {
                 if (!Main.enabled)
                 {
                     return;
                 }
 
-                int curPlayer = __instance.playerNum;
+                int playerNum = __instance.playerNum;
                 if (Main.settings.spawnAsEnemyEnabled)
                 {
-                    bool leftPressed = Main.swapEnemiesLeft.IsDown(curPlayer);
-                    bool rightPressed = Main.swapEnemiesRight.IsDown(curPlayer);
+                    bool leftPressed = Main.swapEnemiesLeft.IsDown(playerNum);
+                    bool rightPressed = Main.swapEnemiesRight.IsDown(playerNum);
 
-                    if ((((leftPressed || rightPressed) && Main.currentSpawnCooldown[curPlayer] <= 0f && __instance.IsAlive()) || (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
+                    if ((((leftPressed || rightPressed) && Main.currentSpawnCooldown[playerNum] <= 0f && __instance.IsAlive()) || (Main.settings.clickingSwapEnabled && Main.switched[playerNum])) && __instance.character.pilottedUnit == null)
                     {
                         float X, Y, XI, YI;
                         Vector3 vec = __instance.GetCharacterPosition();
@@ -1015,17 +1092,17 @@ namespace Control_Enemies_Mod
                         XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
                         YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
 
-                        if (Main.settings.clickingSwapEnabled && Main.switched[curPlayer])
+                        if (Main.settings.clickingSwapEnabled && Main.switched[playerNum])
                         {
                             try
                             {
-                                GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
+                                GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(playerNum), vec);
                                 TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
-                                Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
+                                Main.StartControllingUnit(playerNum, newUnit, false, false, true);
 
                                 __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
                                 __instance.character.SetInvulnerable(0f, false);
-                                Main.switched[curPlayer] = false;
+                                Main.switched[playerNum] = false;
                             }
                             catch (Exception ex)
                             {
@@ -1037,143 +1114,134 @@ namespace Control_Enemies_Mod
                         {
                             if (leftPressed)
                             {
-                                --Main.settings.selGridInt[curPlayer];
-                                if (Main.settings.selGridInt[curPlayer] < 0)
+                                --Main.settings.selGridInt[playerNum];
+                                if (Main.settings.selGridInt[playerNum] < 0)
                                 {
-                                    Main.settings.selGridInt[curPlayer] = Main.currentUnitList.Length - 1;
+                                    Main.settings.selGridInt[playerNum] = Main.currentUnitList.Length - 1;
                                 }
                             }
                             else if (rightPressed)
                             {
-                                ++Main.settings.selGridInt[curPlayer];
-                                if (Main.settings.selGridInt[curPlayer] > Main.currentUnitList.Length - 1)
+                                ++Main.settings.selGridInt[playerNum];
+                                if (Main.settings.selGridInt[playerNum] > Main.currentUnitList.Length - 1)
                                 {
-                                    Main.settings.selGridInt[curPlayer] = 0;
+                                    Main.settings.selGridInt[playerNum] = 0;
                                 }
                             }
 
-                            GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(curPlayer), vec);
+                            GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(playerNum), vec);
                             TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
-                            Main.StartControllingUnit(curPlayer, newUnit, false, false, true);
+                            Main.StartControllingUnit(playerNum, newUnit, false, false, true);
 
                             __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
                             __instance.character.SetInvulnerable(0f, false);
 
-                            Main.currentSpawnCooldown[curPlayer] = Main.settings.spawnSwapCooldown;
+                            Main.currentSpawnCooldown[playerNum] = Main.settings.spawnSwapCooldown;
                         }
                     }
                 }
 
-                if (Main.currentlyEnemy[curPlayer])
+                if (Main.currentlyEnemy[playerNum])
                 {
-                    bool special2Down = Main.special2[curPlayer].IsDown();
-                    bool special3Down = Main.special3[curPlayer].IsDown();
+                    TestVanDammeAnim character = __instance.character;
+
+                    #region Special
+                    bool special2Down = Main.special2[playerNum].IsDown();
+                    bool special3Down = Main.special3[playerNum].IsDown();
                     // Pressed special2
-                    if (!Main.special2[curPlayer].wasDown && special2Down)
+                    if (!Main.special2[playerNum].wasDown && special2Down)
                     {
-                        if ( __instance.character is AlienClimber )
+                        // Press and hold
+                        if (!Main.settings.extraControlsToggle)
                         {
-                            // Make climbers climb
-                            Traverse.Create(__instance.character).SetFieldValue("climbButton", true);
+                            Main.PressSpecial2(character);
                         }
-                        else if (__instance.character is AlienMosquito)
-                        {
-                            // Make mosquito fly
-                            AlienMosquito mosquito = __instance.character as AlienMosquito;
-                            Traverse.Create(mosquito).SetFieldValue("flying", true);
-                        }
-                        else if (__instance.character is DolphLundrenSoldier)
-                        {
-                            // Give DolphLundren his super jump special manually
-                            DolphLundrenSoldier character = __instance.character as DolphLundrenSoldier;
-                            character.jumpForce = 1000;
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", true);
-                        }
+                        // Press to toggle
                         else
                         {
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", true);
+                            // Wasn't held so start holding
+                            if (!Main.holdingSpecial2[__instance.playerNum])
+                            {
+                                Main.holdingSpecial2[__instance.playerNum] = true;
+                                Main.PressSpecial2(__instance.character);
+                            }
+                            // Release
+                            else
+                            {
+                                Main.holdingSpecial2[__instance.playerNum] = false;
+                                Main.ReleaseSpecial2(__instance.character);
+                            }
                         }
                     }
                     // Release special2
-                    else if (Main.special2[curPlayer].wasDown && !special2Down)
+                    else if (Main.special2[playerNum].wasDown && !special2Down)
                     {
-                        if (__instance.character is AlienClimber)
+                        // Releasing hold
+                        if (!Main.settings.extraControlsToggle)
                         {
-                            // Make climbers climb
-                            Traverse.Create(__instance.character).SetFieldValue("climbButton", false);
-                        }
-                        else if ( __instance.character is AlienMosquito )
-                        {
-                            // Make mosquito fly
-                            AlienMosquito mosquito = __instance.character as AlienMosquito;
-                            Traverse.Create(mosquito).SetFieldValue("flying", false);
-                        }
-                        else if (__instance.character is DolphLundrenSoldier)
-                        {
-                            // Give DolphLundren his super jump special manually
-                            DolphLundrenSoldier character = __instance.character as DolphLundrenSoldier;
-                            character.jumpForce = 260;
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", false);
-                        }
-                        else
-                        {
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial2", false);
+                            Main.ReleaseSpecial2(character);
                         }
                     }
 
                     // Pressed special3
-                    if (!Main.special3[curPlayer].wasDown && special3Down)
+                    if (!Main.special3[playerNum].wasDown && special3Down)
                     {
-                        if ( __instance.character is AlienMelter )
+                        // Press and hold
+                        if (!Main.settings.extraControlsToggle)
                         {
-                            // Special 4 for alien melters to allow rolling attack
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial4", true);
+                            Main.PressSpecial3(character);
                         }
-                        else if (__instance.character is AlienMosquito)
-                        {
-                            // Make mosquito dive
-                            AlienMosquito mosquito = __instance.character as AlienMosquito;
-                            Traverse.Create(mosquito).SetFieldValue("diving", true);
-                        }
-                        else if ( __instance.character is DolphLundrenSoldier )
-                        {
-                            // Make sure dolph has seen the player to allow his special to activate
-                            Traverse.Create(__instance.character.enemyAI).SetFieldValue("seenEnemyNum", 0);
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", true);
-                        }
+                        // Press to toggle
                         else
                         {
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", true);
+                            // Wasn't held so start holding
+                            if (!Main.holdingSpecial3[playerNum])
+                            {
+                                Main.holdingSpecial3[playerNum] = true;
+                                Main.PressSpecial3(character);
+                            }
+                            // Release
+                            else
+                            {
+                                Main.holdingSpecial3[playerNum] = false;
+                                Main.ReleaseSpecial3(character);
+                            }
                         }
                     }
                     // Release special3
-                    else if (Main.special3[curPlayer].wasDown && !special3Down)
+                    else if (Main.special3[playerNum].wasDown && !special3Down)
                     {
-                        if ( __instance.character is AlienMelter )
+                        // Releasing hold
+                        if (!Main.settings.extraControlsToggle)
                         {
-                            // Special 4 for alien melters to allow rolling attack
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial4", false);
-                        }
-                        else if (__instance.character is AlienMosquito)
-                        {
-                            // Make mosquito dive
-                            AlienMosquito mosquito = __instance.character as AlienMosquito;
-                            Traverse.Create(mosquito).SetFieldValue("diving", false);
-                        }
-                        else
-                        {
-                            Traverse.Create(__instance.character).SetFieldValue("usingSpecial3", false);
+                            Main.ReleaseSpecial3(character);
                         }
                     }
 
-                    Main.special2[curPlayer].wasDown = special2Down;
-                    Main.special3[curPlayer].wasDown = special3Down;
+                    Main.special2[playerNum].wasDown = special2Down;
+                    Main.special3[playerNum].wasDown = special3Down;
 
+                    // FIXME: Check if enemy is using a broken special
+                    //if ( special && (character is AlienXenomorph || character is AlienBrute || character is ))
+                    #endregion
+
+                    #region Taunting
+                    // Started dancing
+                    if ( buttonGesture && !Main.holdingGesture[playerNum] )
+                    {
+                        Main.holdingGesture[playerNum] = true;
+                        character.Dance(10000000f);
+                    }
+                    
+                    #endregion
+
+                    #region Competitive
                     // Check if enemy should be revealed if in competitive mode
-                    if ( Main.settings.competitiveModeEnabled && fire &&  Main.currentHeroNum != curPlayer )
+                    if (Main.settings.competitiveModeEnabled && fire && Main.currentHeroNum != playerNum)
                     {
-                        Main.revealed[curPlayer] = true;
+                        Main.revealed[playerNum] = true;
                     }
+                    #endregion
                 }
                 return;
             }
@@ -1192,7 +1260,7 @@ namespace Control_Enemies_Mod
 
                 if (Main.settings.spawnAsEnemyEnabled)
                 {
-                    if (__instance.name == "controlled")
+                    if (__instance.name == "c")
                     {
                         int playerNum = Main.currentUnit.IndexOf(__instance);
                         if (playerNum != __instance.playerNum)
@@ -1204,10 +1272,13 @@ namespace Control_Enemies_Mod
                 }
                 else if ( Main.settings.competitiveModeEnabled )
                 {
-                    // FIXME: Update to handle all players
-                    if ( !Main.currentlyEnemy[1] && !(__instance.playerNum >= 0 && __instance.playerNum < 4) && __instance.name != "controlled" && __instance.name != "Hobro" )
+                    if (Main.waitingToBecomeEnemy.Count > 0)
                     {
-                        Main.StartControllingUnit(1, __instance, false, true, false);
+                        int chosenPlayer = Main.waitingToBecomeEnemy[UnityEngine.Random.Range(0, Main.waitingToBecomeEnemy.Count - 1)];
+                        if ( !(__instance.playerNum >= 0 && __instance.playerNum < 4) && __instance.name != "c" && __instance.name != "Hobro")
+                        {
+                            Main.StartControllingUnit(chosenPlayer, __instance, false, true, false);
+                        }
                     }
                 }
             }
@@ -1224,7 +1295,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (__instance.name == "controlled")
+                if (__instance.name == "c")
                 {
                     int playerNum = Main.currentUnit.IndexOf(__instance);
                     if (playerNum != __instance.playerNum)
@@ -1256,6 +1327,16 @@ namespace Control_Enemies_Mod
                     {
                         __result = true;
                     }
+                    // Hero player attacking
+                    else if (fromNum == Main.currentHeroNum)
+                    {
+                        // Ghost player being attacked
+                        if (toNum >= 0 && toNum < 4 && Main.currentlyEnemy[toNum])
+                        {
+                            __result = true;
+                        }
+                    }
+                    // Ghost Player Attacking
                     else if (fromNum != Main.currentHeroNum)
                     {
                         // Ghost player was attacked
@@ -1353,6 +1434,40 @@ namespace Control_Enemies_Mod
                 }
 
                 return true;
+            }
+        }
+
+        // Ensure players have the correct number of lives
+        [HarmonyPatch(typeof(Player), "Start")]
+        static class Player_Start_Patch
+        {
+            public static void Postfix(Player __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (Main.fixLives[__instance.playerNum])
+                {
+                    Main.fixLives[__instance.playerNum] = false;
+                    __instance.Lives = Main.settings.ghostLives;
+                }
+            }
+        }
+
+        // Fix avatars flashing for ghost players
+        [HarmonyPatch(typeof(HeroController), "FlashAvatar")]
+        static class HeroController_FlashAvatar_Patch
+        {
+            public static bool Prefix(ref int playerNum)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                return playerNum == Main.currentHeroNum;
             }
         }
         #endregion
