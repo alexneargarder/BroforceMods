@@ -10,6 +10,7 @@ using UnityModManagerNet;
 using BSett = BroMakerLib.Settings;
 using RocketLib.Utils;
 using System.IO;
+using Rogueforce.PerkSystem.Interfaces;
 
 namespace Control_Enemies_Mod
 {
@@ -35,6 +36,7 @@ namespace Control_Enemies_Mod
         public static bool creatingUnitList = false;
         public static float displayWarningTime = 0f;
         public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
+        public static string[] spawnBehaviorList = new string[] { "Spawn As Ghost", "Automatically Spawn as Enemies" };
         public static string[] fullUnitList = new string[]
         {
             // Normal
@@ -157,7 +159,7 @@ namespace Control_Enemies_Mod
 
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
-            lastRect.width += 500;
+            lastRect.width += 600;
 
             settings.disableFallDamage = GUILayout.Toggle(settings.disableFallDamage, new GUIContent("Disable Fall Damage", "Disables fall damage for controlled enemies."));
 
@@ -165,12 +167,14 @@ namespace Control_Enemies_Mod
 
             settings.enableSprinting = GUILayout.Toggle(settings.enableSprinting, new GUIContent("Enable Sprinting", "Allows controlled enemies to sprint."));
 
+            settings.extraControlsToggle = GUILayout.Toggle(settings.extraControlsToggle, new GUIContent("Keybindings Toggleable", "When enabled, makes the Special 2 and Special 3 buttons function as toggles rather than requiring that you hold them."));
+
             GUI.Label(lastRect, GUI.tooltip);
             previousToolTip = GUI.tooltip;
 
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(20);
+            GUILayout.Space(25);
 
             special2.OnGUI(out _, true, true, ref previousToolTip);
 
@@ -464,19 +468,33 @@ namespace Control_Enemies_Mod
         {
             GUILayout.BeginHorizontal();
             settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player"));
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Spawn Mode:", "Controls whether you spawn as a ghost and fly towards enemies to possess them, or if you are automatically given enemies to control."), GUILayout.Width(225));
 
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
-            lastRect.width += 500;
+            lastRect.width += 600;
 
-            //settings.disableFallDamage = GUILayout.Toggle(settings.disableFallDamage, new GUIContent("Disable Fall Damage", "Disables fall damage for controlled enemies."));
+            settings.spawnMode = (SpawnMode)GUILayout.SelectionGrid((int)settings.spawnMode, spawnBehaviorList, 3);
 
             GUI.Label(lastRect, GUI.tooltip);
             previousToolTip = GUI.tooltip;
-
             GUILayout.EndHorizontal();
-
+            
             GUILayout.Space(20);
+
+            settings.ghostLives = RGUI.HorizontalSliderInt("Lives at Level Start: ", settings.ghostLives, 1, 10, 500);
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(String.Format("Ghost Cooldown After Death: {0:0.00}s", settings.ghostCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            settings.ghostCooldown = GUILayout.HorizontalSlider(settings.ghostCooldown, 0, 15);
+            GUILayout.EndHorizontal();
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -503,7 +521,11 @@ namespace Control_Enemies_Mod
         public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
         public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
         public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
-        public static Material defaultAvatarMat;
+        public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat;
+        public static bool[] holdingSpecial2 = { false, false, false, false };
+        public static bool[] holdingSpecial3 = { false, false, false, false };
+        public static bool[] holdingGesture = { false, false, false, false };
+        public static bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
 
         // Possessing Enemy
         public static MindControlBullet bulletPrefab = null;
@@ -519,8 +541,15 @@ namespace Control_Enemies_Mod
         // Competitive Mode
         public static int currentHeroNum = 0;
         public static bool[] revealed = { false, false, false, false };
+        public static float[] findNewEnemyCooldown = { 0f, 0f, 0f, 0f };
+        public static List<int> waitingToBecomeEnemy = new List<int>();
+        public static bool[] fixLives = new bool[] { false, false, false, false };
+        public static GhostPlayer[] currentGhosts = new GhostPlayer[] { null, null, null, null };
+        public static Vector3[] ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
+        public static GhostPlayer ghostPrefab;
 
         #region General
+        // Update Everything
         static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
         {
             try
@@ -552,6 +581,28 @@ namespace Control_Enemies_Mod
                         }
                     }
 
+                    // Check for dancing
+                    if (holdingGesture[i])
+                    {
+                        // Manually check for input because dancing disables GetInput
+                        HeroController.players[i].GetInput(ref up, ref down, ref left, ref right, ref fire, ref buttonJump, ref special, ref highfive, ref buttonGesture, ref sprint);
+                        if ( !buttonGesture )
+                        {
+                            holdingGesture[i] = false;
+                            HeroController.players[i].character.Dance(0f);
+                        }
+                    }
+
+                    // Countdown to respawn
+                    if (findNewEnemyCooldown[i] > 0f)
+                    {
+                        findNewEnemyCooldown[i] -= dt;
+                        if (findNewEnemyCooldown[i] <= 0f)
+                        {
+                            FindNewEnemyOnMap(i);
+                        }
+                    }
+
                     currentSpawnCooldown[i] -= dt;
                 }
             }
@@ -561,43 +612,67 @@ namespace Control_Enemies_Mod
             }
         }
 
+        // Loading
         public static void LoadKeyBinding()
         {
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Possess Enemy Key", out possessEnemy))
-            {
-                possessEnemy = new KeyBindingForPlayers("Possess Enemy Key", "Control Enemies Mod");
-            }
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Leave Enemy Key", out leaveEnemy))
-            {
-                leaveEnemy = new KeyBindingForPlayers("Leave Enemy Key", "Control Enemies Mod");
-            }
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Swap Enemies Left Key", out swapEnemiesLeft))
-            {
-                swapEnemiesLeft = new KeyBindingForPlayers("Swap Enemies Left Key", "Control Enemies Mod");
-            }
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Swap Enemies Right Key", out swapEnemiesRight))
-            {
-                swapEnemiesRight = new KeyBindingForPlayers("Swap Enemies Right Key", "Control Enemies Mod");
-            }
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Special 2 Key", out special2))
-            {
-                special2 = new KeyBindingForPlayers("Special 2 Key", "Control Enemies Mod");
-            }
-            if (!AllModKeyBindings.TryGetKeyBinding("Control Enemies Mod", "Special 3 Key", out special3))
-            {
-                special3 = new KeyBindingForPlayers("Special 3 Key", "Control Enemies Mod");
-            }
+            possessEnemy = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Possess Enemy Key");
+            leaveEnemy = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Leave Enemy Key");
+            swapEnemiesLeft = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Swap Enemies Left Key");
+            swapEnemiesRight = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Swap Enemies Right Key");
+            special2 = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Special 2 Key");
+            special3 = AllModKeyBindings.LoadKeyBinding("Control Enemies Mod", "Special 3 Key");
         }
-
         public static void LoadSprites()
         {
             string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             directoryPath = Path.Combine(directoryPath, "sprites");
 
+            defaultAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_default.png");
+            ghostAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_ghost.png");
+            mookAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_mook.png");
+            cr666AvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_CR666.png");
 
-            defaultAvatarMat = ResourcesController.GetMaterial(directoryPath, "defaultAvatar.png");
+            // Create ghost prefab
+            if ( ghostPrefab == null )
+            {
+                ghostPrefab = new GameObject("GhostPlayer", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(GhostPlayer) }).GetComponent<GhostPlayer>();
+                ghostPrefab.gameObject.SetActive(false);
+                ghostPrefab.Setup();
+                UnityEngine.Object.DontDestroyOnLoad(ghostPrefab);
+            }
+        }
+        public static void ClearVariables()
+        {
+            // General options
+            currentUnit = new List<Unit>() { null, null, null, null };
+            currentlyEnemy = new bool[] { false, false, false, false };
+            previousPlayerNum = new int[] { -1, -1, -1, -1 };
+            previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
+            countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
+            holdingSpecial2 = new bool[] { false, false, false, false };
+            holdingSpecial3 = new bool[] { false, false, false, false };
+            holdingGesture = new bool[] { false, false, false, false };
+
+            // Possessing Enemy
+            fireDelay = new float[] { 0f, 0f, 0f, 0f };
+
+            // Spawning as Enemy
+            switched = new bool[] { false, false, false, false };
+            currentSpawnCooldown = new float[] { 0f, 0f, 0f, 0f };
+            previousSpawnInfo = new Player.SpawnType[] { Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown };
+            willReplaceBro = new bool[] { false, false, false, false };
+            wasFirstDeployment = new bool[] { false, false, false, false };
+
+            // Competitive Mode
+            revealed = new bool[] { false, false, false, false };
+            findNewEnemyCooldown = new float[] { 0f, 0f, 0f, 0f };
+            waitingToBecomeEnemy = new List<int>();
+            fixLives = new bool[] { false, false, false, false };
+            currentGhosts = new GhostPlayer[] { null, null, null, null };
+            ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
         }
 
+        // Controlling Units
         public static void StartControllingUnit(int playerNum, TestVanDammeAnim unit, bool gentleLeave = false, bool savePreviousCharacter = true, bool erasePreviousCharacter = false)
         {
             try
@@ -608,7 +683,7 @@ namespace Control_Enemies_Mod
                     currentUnit[playerNum] = unit;
                     unit.playerNum = playerNum;
                     Traverse.Create(unit).Field("isHero").SetValue(true);
-                    unit.name = "controlled";
+                    unit.name = "c";
                     DisableWhenOffCamera disableWhenOffCamera = unit.gameObject.GetComponent<DisableWhenOffCamera>();
                     if (disableWhenOffCamera != null)
                     {
@@ -627,6 +702,12 @@ namespace Control_Enemies_Mod
                         mook.canWallClimb = settings.allowWallClimbing;
                         mook.canDash = settings.enableSprinting;
                     }
+                    // Make sure held buttons aren't carried over
+                    holdingSpecial2[playerNum] = false;
+                    holdingSpecial3[playerNum] = false;
+                    holdingGesture[playerNum] = false;
+
+                    waitingToBecomeEnemy.Remove(playerNum);
 
                     // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
                     if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase))
@@ -650,19 +731,18 @@ namespace Control_Enemies_Mod
                     // Hide player if in competitive mode
                     revealed[playerNum] = false;
 
-                    // Set avatar to blank one
-                    HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
+                    // Set avatar to enemy one
+                    HeroController.players[playerNum].hud.SetAvatar(mookAvatarMat);
 
                     HeroController.players[playerNum].character = unit as TestVanDammeAnim;
-                    Main.currentlyEnemy[playerNum] = true;
+                    currentlyEnemy[playerNum] = true;
                 }
             }
             catch (Exception ex)
             {
-                Log("Exception controlling unit: " + ex.ToString());
+                Log("Exception playerNum " + playerNum + " controlling unit: " + ex.ToString());
             }
         }
-
         public static void ReaffirmControl(int playerNum)
         {
             TestVanDammeAnim unit = HeroController.players[playerNum].character;
@@ -681,7 +761,6 @@ namespace Control_Enemies_Mod
                 mook.canDash = Main.settings.enableSprinting;
             }
         }
-
         public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter)
         {
             previous.playerNum = previousPlayerNum[playerNum];
@@ -730,15 +809,14 @@ namespace Control_Enemies_Mod
                 }
             }
         }
-
         public static void LeaveUnit(TestVanDammeAnim previous, int playerNum, bool onlyLeaveUnit, bool respawning = false)
         {
             if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(previous is BroBase))
             {
                 previous.playerNum = previousPlayerNum[playerNum];
-                if (previous is Mook)
+                Mook previousMook = previous as Mook;
+                if (previousMook != null)
                 {
-                    Mook previousMook = previous as Mook;
                     previousMook.firingPlayerNum = previousPlayerNum[playerNum];
                 }
                 Traverse.Create(previous).Field("isHero").SetValue(true);
@@ -761,17 +839,17 @@ namespace Control_Enemies_Mod
                     originalCharacter.xI = previous.xI;
                     originalCharacter.yI = previous.yI;
 
-                    if (settings.loseLifeOnSwitch)
-                    {
-                        HeroController.players[playerNum].RemoveLife();
-                    }
-
                     if (!respawning)
                     {
+                        if (settings.loseLifeOnSwitch)
+                        {
+                            HeroController.players[playerNum].RemoveLife();
+                        }
+
                         switch (settings.leavingEnemy)
                         {
                             case SwapBehavior.KillEnemy:
-                                if (previous is Mook)
+                                if (previousMook != null)
                                 {
                                     (previous as Mook).Gib();
                                 }
@@ -793,8 +871,8 @@ namespace Control_Enemies_Mod
                     }
                     else
                     {
-                        if (previous is Mook)
-                        {
+                        if (previousMook != null)
+                        {   
                             (previous as Mook).Gib();
                         }
                         else
@@ -816,11 +894,115 @@ namespace Control_Enemies_Mod
             }
         }
 
+        // Enemy Specific
+        public static void PressSpecial2(TestVanDammeAnim character)
+        {
+            if (character is AlienClimber)
+            {
+                // Make climbers climb
+                Traverse.Create(character).SetFieldValue("climbButton", true);
+            }
+            else if (character is AlienMosquito)
+            {
+                // Make mosquito fly
+                AlienMosquito mosquito = character as AlienMosquito;
+                Traverse trav = Traverse.Create(mosquito);
+                // if using toggle controls and mosquito is already flying, stop flying
+                if ( settings.extraControlsToggle && (bool)trav.GetFieldValue("flying") )
+                {
+                    holdingSpecial2[character.playerNum] = false;
+                    trav.SetFieldValue("flying", false);
+                }
+                else
+                {
+                    trav.SetFieldValue("flying", true);
+                }
+            }
+            else if (character is DolphLundrenSoldier)
+            {
+                // Give DolphLundren his super jump special manually
+                DolphLundrenSoldier dolph = character as DolphLundrenSoldier;
+                dolph.jumpForce = 1000;
+                Traverse.Create(dolph).SetFieldValue("usingSpecial2", true);
+            }
+            else
+            {
+                Traverse.Create(character).SetFieldValue("usingSpecial2", true);
+            }
+        }
+        public static void ReleaseSpecial2(TestVanDammeAnim character)
+        {
+            if (character is AlienClimber)
+            {
+                // Make climbers climb
+                Traverse.Create(character).SetFieldValue("climbButton", false);
+            }
+            else if (character is AlienMosquito)
+            {
+                // Make mosquito fly
+                AlienMosquito mosquito = character as AlienMosquito;
+                Traverse.Create(mosquito).SetFieldValue("flying", false);
+            }
+            else if (character is DolphLundrenSoldier)
+            {
+                // Give DolphLundren his super jump special manually
+                DolphLundrenSoldier dolph = character as DolphLundrenSoldier;
+                dolph.jumpForce = 260;
+                Traverse.Create(dolph).SetFieldValue("usingSpecial2", false);
+            }
+            else
+            {
+                Traverse.Create(character).SetFieldValue("usingSpecial2", false);
+            }
+        }
+        public static void PressSpecial3(TestVanDammeAnim character)
+        {
+            if (character is AlienMelter)
+            {
+                // Special 4 for alien melters to allow rolling attack
+                Traverse.Create(character).SetFieldValue("usingSpecial4", true);
+            }
+            else if (character is AlienMosquito)
+            {
+                // Make mosquito dive
+                AlienMosquito mosquito = character as AlienMosquito;
+                Traverse.Create(mosquito).SetFieldValue("diving", true);
+            }
+            else if (character is DolphLundrenSoldier)
+            {
+                // Make sure dolph has seen the player to allow his special to activate
+                Traverse.Create(character.enemyAI).SetFieldValue("seenEnemyNum", 0);
+                Traverse.Create(character).SetFieldValue("usingSpecial3", true);
+            }
+            else
+            {
+                Traverse.Create(character).SetFieldValue("usingSpecial3", true);
+            }
+        }
+        public static void ReleaseSpecial3(TestVanDammeAnim character)
+        {
+            if (character is AlienMelter)
+            {
+                // Special 4 for alien melters to allow rolling attack
+                Traverse.Create(character).SetFieldValue("usingSpecial4", false);
+            }
+            else if (character is AlienMosquito)
+            {
+                // Make mosquito dive
+                AlienMosquito mosquito = character as AlienMosquito;
+                Traverse.Create(mosquito).SetFieldValue("diving", false);
+            }
+            else
+            {
+                Traverse.Create(character).SetFieldValue("usingSpecial3", false);
+            }
+        }
+
+        // BroMaker
         private static string TryToUseBroMaker()
         {
             return BroMakerLib.Info.NAME;
         }
-
         public static void CheckBroMakerAvailable()
         {
             try
@@ -833,13 +1015,11 @@ namespace Control_Enemies_Mod
                 isBroMakerInstalled = false;
             }
         }
-
         public static void TryDisableBroMaker(int playerNum)
         {
             BSett.instance.disableSpawning = true;
             LoadHero.willReplaceBro[playerNum] = false;
         }
-
         public static void DisableBroMaker(int playerNum)
         {
             if (isBroMakerInstalled)
@@ -854,12 +1034,10 @@ namespace Control_Enemies_Mod
                 }
             }
         }
-
         public static void TryEnableBroMaker()
         {
             BSett.instance.disableSpawning = false;
         }
-
         public static void EnableBroMaker()
         {
             if (isBroMakerInstalled)
@@ -930,6 +1108,11 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+        }
+
+        public static bool AvailableToPossess(TestVanDammeAnim character)
+        {
+            return character.name != "c" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
         }
         #endregion
 
@@ -1266,19 +1449,104 @@ namespace Control_Enemies_Mod
         #region Competitive
         public static void HidePlayer(int playerNum)
         {
-            // Set avatar to blank one
-            HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
-
             HeroController.players[playerNum].character.gameObject.SetActive(false);
+
+            if ( settings.spawnMode == SpawnMode.Automatic )
+            {
+                // Set avatar to blank one
+                HeroController.players[playerNum].hud.SetAvatar(defaultAvatarMat);
+
+                waitingToBecomeEnemy.Add(playerNum);
+            }
+            else
+            {
+                HeroController.players[playerNum].hud.SetAvatar(ghostAvatarMat);
+
+                CreateGhost(playerNum);
+            }
         }
 
         public static void ResurrectGhost(int playerNum)
         {
             Main.currentHeroNum = playerNum;
             LeaveUnit(HeroController.players[playerNum].character, playerNum, false, true);
+            HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroController.players[playerNum].character.heroType);
+        }
+
+        public static TestVanDammeAnim newUnit;
+
+        public static void FindNewEnemyOnMap(int playerNum)
+        {
+            try
+            {
+                for (int i = 0; i < Map.units.Count; ++i)
+                {
+                    // Find a valid unit to control
+                    TestVanDammeAnim character = Map.units[i] as TestVanDammeAnim;
+                    if ( AvailableToPossess(character) && SortOfFollow.IsItSortOfVisible(character.transform.position, 5f, 8f))
+                    {
+                        Main.Log("starting to control");
+                        newUnit = character;
+                        StartControllingUnit(playerNum, character, false, true, false);
+                        return;
+                    }
+                }
+
+                // Failed to find enemy, waiting for a bit to try again
+                findNewEnemyCooldown[playerNum] = 0.5f;
+            }
+            catch ( Exception e)
+            {
+                Log("Exception finding new unit: " + e.ToString());
+            }
+        }
+
+        public static void CreateGhost(int playerNum)
+        {
+            if (currentGhosts[playerNum] == null)
+            {
+                
+                currentGhosts[playerNum] = UnityEngine.Object.Instantiate<GhostPlayer>(ghostPrefab, Vector3.zero, Quaternion.identity).GetComponent<GhostPlayer>();
+                currentGhosts[playerNum].playerNum = playerNum;
+                if (ghostSpawnPoint[playerNum] != Vector3.zero)
+                {
+                    currentGhosts[playerNum].overrideSpawnPoint = ghostSpawnPoint[playerNum];
+                    ghostSpawnPoint[playerNum] = Vector3.zero;
+                    currentGhosts[playerNum].frame = 0;
+                    currentGhosts[playerNum].state = GhostState.Ressurecting;
+                }
+                currentGhosts[playerNum].gameObject.SetActive(true);
+            }
+            // Update ghost position
+            else
+            {
+                if (ghostSpawnPoint[playerNum] != Vector3.zero)
+                {
+                    currentGhosts[playerNum].transform.position = ghostSpawnPoint[playerNum];
+                    ghostSpawnPoint[playerNum] = Vector3.zero;
+                }
+                currentGhosts[playerNum].frame = 0;
+                currentGhosts[playerNum].state = GhostState.Ressurecting;
+                currentGhosts[playerNum].gameObject.SetActive(true);
+            }
+        }
+
+        public static void GhostControlledEnemyDied(TestVanDammeAnim character)
+        {
+            int playerNum = character.playerNum;
+
+            ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, 16f, 0f);
+
+            // Leave previous unit
+            LeaveUnit(character, playerNum, true);
+
+            // Become ghost if enough lives are remaining
+            if ( HeroController.players[playerNum].Lives > 0 )
+            {
+                CreateGhost(playerNum);
+            }
         }
         #endregion
-
         #endregion
     }
 }

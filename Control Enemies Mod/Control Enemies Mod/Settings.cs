@@ -14,6 +14,11 @@ namespace Control_Enemies_Mod
         Nothing = 3
     }
 
+    public enum SpawnMode
+    {
+        Ghost = 0,
+        Automatic = 1
+    }
 
     public class Settings : UnityModManager.ModSettings
     {
@@ -28,6 +33,7 @@ namespace Control_Enemies_Mod
         public bool disableFallDamage = true;
         public bool disableTaunting = true;
         public bool enableSprinting = true;
+        public bool extraControlsToggle = false;
 
         // Possession Settings
         public bool possessionModeEnabled = true;
@@ -52,8 +58,9 @@ namespace Control_Enemies_Mod
 
         // Competitive Settings
         public bool competitiveModeEnabled = false;
-        public bool controlRandomEnemy = false;
+        public SpawnMode spawnMode = SpawnMode.Ghost;
         public int ghostLives = 3;
+        public float ghostCooldown = 2f;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
