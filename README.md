@@ -5,7 +5,9 @@ If you have questions about making mods for Broforce or encounter any bugs in my
 
 Email: alexneargarder@yahoo.com
 
-Discord: alexneargarder#7226
+Discord: alexneargarder
+
+You can also find me on the [FreeLives Discord Server](https://discord.gg/freelives) as well as other modders and sprite artists if you need any help.
 
 ## How to Create Your Own Mods
 For anyone interested in creating their own mods for this game, feel free to use my code as a starting off point. 
@@ -25,6 +27,7 @@ There is also an Info.json file in the Compliled Mod Folder that shows you how y
 * [Harmony Documentation](https://harmony.pardeike.net/articles/intro.html)
 * [Dnspy - A tool for viewing the game's code](https://github.com/dnSpy/dnSpy)
 * [RuntimeUnityEditor - A tool for debugging game objects in game](https://github.com/ManlyMarco/RuntimeUnityEditor)
+* [AssetStudio - A tool for extracting assets from Unity Games](https://github.com/Perfare/AssetStudio)
 
 ## Swap Bros Mod
 Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/1).
