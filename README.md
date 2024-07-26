@@ -7,7 +7,7 @@ Email: alexneargarder@yahoo.com
 
 Discord: alexneargarder
 
-You can also find me on the [FreeLives Discord Server](https://discord.gg/freelives) as well as other modders and sprite artists if you need any help.
+You can also find me on the [Free Lives Discord Server](https://discord.gg/freelives) as well as other modders and sprite artists if you need any help.
 
 ## How to Create Your Own Mods
 For anyone interested in creating their own mods for this game, feel free to use my code as a starting off point. 
