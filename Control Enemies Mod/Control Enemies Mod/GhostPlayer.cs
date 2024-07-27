@@ -14,7 +14,8 @@ namespace Control_Enemies_Mod
         Idle = 0,
         Attacking = 1,
         Taunting = 2,
-        Ressurecting = 3
+        Resurrecting = 3,
+        Reviving = 4,
     }
 
     public class GhostPlayer : MonoBehaviour
@@ -25,6 +26,10 @@ namespace Control_Enemies_Mod
         public float spawnDelay = 0.25f;
         public GhostState state = GhostState.Idle;
         public Vector3 overrideSpawnPoint = Vector3.zero;
+        protected bool ableToRevive = false;
+        protected float forceReviveTime = 0f;
+        protected float startReviveFlashTime = 0f;
+        public const float ghostSpawnOffset = 16f;
 
         // Animation
         public SpriteSM sprite;
@@ -36,9 +41,12 @@ namespace Control_Enemies_Mod
         protected const float idleFramerate = 0.11f;
         protected const float attackingFramerate = 0.11f;
         protected float dancingFramerate = 0.07f;
-        protected float ressurectingFramerate = 0.15f;
+        protected float ressurectingFramerate = 0.13f;
         protected const float spriteWidth = 32f;
         protected const float spriteHeight = 32f;
+        protected Color reviveColor = new Color(1f, 0.8431f, 0f);
+        //protected Color[] playerColors = new Color[] { new Color(0.15f, 0.47f, 0.92f), new Color(1f, 0.17f, 0.17f), new Color(1f, 0.64f, 0f), new Color(0.56f, 0f, 1f) };
+        protected Color[] playerColors = new Color[] { new Color(0f, 0.5f, 1f), new Color(1f, 0f, 0f), new Color(1f, 0.45f, 0f), new Color(0.55f, 0f, 1f) };
 
         // Movement
         public bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
@@ -46,6 +54,9 @@ namespace Control_Enemies_Mod
         protected const float speed = 175f;
         protected const float accelerationFactor = 3.5f;
         protected const float decelerationFactor = 1.5f;
+        protected float screenMinX, screenMaxX, screenMinY, screenMaxY;
+        protected bool usingController = false;
+        protected int controllerNum = 0;
 
         // Possession
         TestVanDammeAnim characterToPossess = null;
@@ -88,6 +99,13 @@ namespace Control_Enemies_Mod
         public virtual void Start()
         {
             this.player = HeroController.players[playerNum];
+            this.playerColor = playerColors[playerNum];
+
+            if ( this.player.controllerNum > 3 )
+            {
+                this.usingController = true;
+                controllerNum = this.player.controllerNum - 4;
+            }
         }
 
         public void SetSpawn()
@@ -97,14 +115,25 @@ namespace Control_Enemies_Mod
             if ( overrideSpawnPoint == Vector3.zero )
             {
                 start = Map.FindStartLocation();
-                start.y += 40;
-                start.x = SortOfFollow.GetScreenMinX() + ((SortOfFollow.GetScreenMaxX() - SortOfFollow.GetScreenMinX() - 50) / 4) * (playerNum + 1);
+                // Spawning near start
+                if ( Mathf.Abs(SortOfFollow.GetScreenMinX() - start.x) < 100 )
+                {
+                    start.y += 40;
+                    start.x = SortOfFollow.GetScreenMinX() + 25 + ((SortOfFollow.GetScreenMaxX() - SortOfFollow.GetScreenMinX() - 50) / 4) * (playerNum + 1);
+                }
+                // Spawning away from start
+                else
+                {
+                    start.y = SortOfFollow.GetScreenMinY() + 60 + (SortOfFollow.GetScreenMaxY() - SortOfFollow.GetScreenMinY()) / 2f;
+                    start.x = SortOfFollow.GetScreenMinX() + 25 + ((SortOfFollow.GetScreenMaxX() - SortOfFollow.GetScreenMinX() - 50) / 4) * (playerNum + 1);
+                }
+                
             }
             // Use overidden spawn point
             else
             {
                 start = overrideSpawnPoint;
-                start.y += 16;
+                start.y += ghostSpawnOffset;
             }
             this.transform.position = start;
         }
@@ -125,7 +154,26 @@ namespace Control_Enemies_Mod
 
             this.HandleInput();
 
+            this.ConstrainToScreen();
+
             this.ChangeFrame();
+
+            // Countdown to player being forced to revive
+            if ( this.ableToRevive && this.state != GhostState.Reviving )
+            {
+                this.forceReviveTime -= Time.deltaTime;
+                if ( this.forceReviveTime <= 0 )
+                {
+                    this.StartReviving();
+                }
+                // Flash player
+                else
+                {
+                    float num = 0.5f + Mathf.Sin((Time.time - startReviveFlashTime) * 15f) * 0.23f;
+                    Color color = new Color(num, num, num, 1f);
+                    this.sprite.GetComponent<Renderer>().material.SetColor("_TintColor", color);
+                }
+            }
         }
 
         public virtual void LateUpdate()
@@ -139,16 +187,35 @@ namespace Control_Enemies_Mod
 
         public void HandleTransparency()
         {
-            if (currentTransparency < finalTransparency)
+            if ( this.state != GhostState.Reviving )
             {
-                currentTransparency += Time.deltaTime / 1.5f;
-
-                if (currentTransparency > finalTransparency)
+                if (currentTransparency < finalTransparency)
                 {
-                    currentTransparency = finalTransparency;
-                }
+                    currentTransparency += Time.deltaTime / 1.5f;
 
-                sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
+                    if (currentTransparency > finalTransparency)
+                    {
+                        currentTransparency = finalTransparency;
+                    }
+
+                    sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
+                }
+            }
+            else
+            {
+                if (currentTransparency > 0f)
+                {
+                    currentTransparency -= Time.deltaTime / 1.5f;
+
+                    // Finish reviving
+                    if (currentTransparency <= 0f)
+                    {
+                        currentTransparency = 0f;
+                        this.ReviveCharacter();
+                    }
+
+                    sprite.SetColor(new Color(reviveColor.r, reviveColor.g, reviveColor.b, currentTransparency));
+                }
             }
         }
 
@@ -156,90 +223,187 @@ namespace Control_Enemies_Mod
         {
             player.GetInput(ref up, ref down, ref left, ref right, ref fire, ref buttonJump, ref special, ref highfive, ref buttonGesture, ref sprint);
 
-            if ( state == GhostState.Idle )
+            if ( state == GhostState.Idle || this.state == GhostState.Reviving )
             {
-                // Go up
-                if (this.up)
+                // Use actual axes rather than just cardinal directions
+                if ( this.usingController )
                 {
-                    this.yI += speed * Time.deltaTime * accelerationFactor;
-                    if (this.yI > speed)
+                    Rewired.Player player = Rewired.ReInput.players.GetPlayer(this.controllerNum);
+
+                    float upAmount = player.GetAxis("Up") - player.GetAxis("Down");
+                    float rightAmount = player.GetAxis("Right") - player.GetAxis("Left");
+
+                    if ( Mathf.Abs(yI) < Mathf.Abs(upAmount * speed))
+                    {
+                        this.yI += upAmount * speed * Time.deltaTime * accelerationFactor;
+                    }
+
+                    if ( this.yI > speed)
                     {
                         this.yI = speed;
                     }
-                }
-                // Go down
-                else if (this.down)
-                {
-                    this.yI -= speed * Time.deltaTime * accelerationFactor;
-                    if (this.yI < -speed)
+                    else if ( this.yI < -speed)
                     {
                         this.yI = -speed;
                     }
-                }
-                // Slow vertical momentum
-                else
-                {
-                    if (this.yI > 0)
-                    {
-                        this.yI -= speed * Time.deltaTime * decelerationFactor;
-                        if (this.yI < 0)
-                        {
-                            this.yI = 0;
-                        }
-                    }
-                    else if (this.yI < 0)
-                    {
-                        this.yI += speed * Time.deltaTime * decelerationFactor;
-                        if (this.yI > 0)
-                        {
-                            this.yI = 0;
-                        }
-                    }
-                }
 
-                // Go right
-                if (this.right)
-                {
-                    if (this.transform.localScale.x != 1)
+                    if ( Mathf.Abs(xI) < Mathf.Abs(rightAmount * speed) )
                     {
-                        this.transform.localScale = new Vector3(1f, 1f, 1f);
+                        this.xI += rightAmount * speed * Time.deltaTime * accelerationFactor;
                     }
-                    this.xI += speed * Time.deltaTime * accelerationFactor;
+
                     if (this.xI > speed)
                     {
                         this.xI = speed;
                     }
-                }
-                // Go left
-                else if (this.left)
-                {
-                    if (this.transform.localScale.x != -1)
-                    {
-                        this.transform.localScale = new Vector3(-1f, 1f, 1f);
-                    }
-                    this.xI -= speed * Time.deltaTime * accelerationFactor;
-                    if (this.xI < -speed)
+                    else if (this.xI < -speed)
                     {
                         this.xI = -speed;
                     }
-                }
-                // Slow horizontal momentum
-                else
-                {
-                    if (this.xI > 0)
+
+                    // Slow vertical momentum
+                    if ( !(this.up || this.down) )
                     {
-                        this.xI -= speed * Time.deltaTime * decelerationFactor;
-                        if (this.xI < 0)
+                        if (this.yI > 0)
                         {
-                            this.xI = 0;
+                            this.yI -= speed * Time.deltaTime * decelerationFactor;
+                            if (this.yI < 0)
+                            {
+                                this.yI = 0;
+                            }
+                        }
+                        else if (this.yI < 0)
+                        {
+                            this.yI += speed * Time.deltaTime * decelerationFactor;
+                            if (this.yI > 0)
+                            {
+                                this.yI = 0;
+                            }
                         }
                     }
-                    else if (this.xI < 0)
+
+                    // Go right
+                    if (this.right)
                     {
-                        this.xI += speed * Time.deltaTime * decelerationFactor;
+                        if (this.transform.localScale.x != 1)
+                        {
+                            this.transform.localScale = new Vector3(1f, 1f, 1f);
+                        }
+                    }
+                    // Go left
+                    else if (this.left)
+                    {
+                        if (this.transform.localScale.x != -1)
+                        {
+                            this.transform.localScale = new Vector3(-1f, 1f, 1f);
+                        }
+                    }
+                    // Slow horizontal momentum
+                    else
+                    {
                         if (this.xI > 0)
                         {
-                            this.xI = 0;
+                            this.xI -= speed * Time.deltaTime * decelerationFactor;
+                            if (this.xI < 0)
+                            {
+                                this.xI = 0;
+                            }
+                        }
+                        else if (this.xI < 0)
+                        {
+                            this.xI += speed * Time.deltaTime * decelerationFactor;
+                            if (this.xI > 0)
+                            {
+                                this.xI = 0;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Go up
+                    if (this.up)
+                    {
+                        this.yI += speed * Time.deltaTime * accelerationFactor;
+                        if (this.yI > speed)
+                        {
+                            this.yI = speed;
+                        }
+                    }
+                    // Go down
+                    else if (this.down)
+                    {
+                        this.yI -= speed * Time.deltaTime * accelerationFactor;
+                        if (this.yI < -speed)
+                        {
+                            this.yI = -speed;
+                        }
+                    }
+                    // Slow vertical momentum
+                    else
+                    {
+                        if (this.yI > 0)
+                        {
+                            this.yI -= speed * Time.deltaTime * decelerationFactor;
+                            if (this.yI < 0)
+                            {
+                                this.yI = 0;
+                            }
+                        }
+                        else if (this.yI < 0)
+                        {
+                            this.yI += speed * Time.deltaTime * decelerationFactor;
+                            if (this.yI > 0)
+                            {
+                                this.yI = 0;
+                            }
+                        }
+                    }
+
+                    // Go right
+                    if (this.right)
+                    {
+                        if (this.transform.localScale.x != 1)
+                        {
+                            this.transform.localScale = new Vector3(1f, 1f, 1f);
+                        }
+                        this.xI += speed * Time.deltaTime * accelerationFactor;
+                        if (this.xI > speed)
+                        {
+                            this.xI = speed;
+                        }
+                    }
+                    // Go left
+                    else if (this.left)
+                    {
+                        if (this.transform.localScale.x != -1)
+                        {
+                            this.transform.localScale = new Vector3(-1f, 1f, 1f);
+                        }
+                        this.xI -= speed * Time.deltaTime * accelerationFactor;
+                        if (this.xI < -speed)
+                        {
+                            this.xI = -speed;
+                        }
+                    }
+                    // Slow horizontal momentum
+                    else
+                    {
+                        if (this.xI > 0)
+                        {
+                            this.xI -= speed * Time.deltaTime * decelerationFactor;
+                            if (this.xI < 0)
+                            {
+                                this.xI = 0;
+                            }
+                        }
+                        else if (this.xI < 0)
+                        {
+                            this.xI += speed * Time.deltaTime * decelerationFactor;
+                            if (this.xI > 0)
+                            {
+                                this.xI = 0;
+                            }
                         }
                     }
                 }
@@ -250,23 +414,40 @@ namespace Control_Enemies_Mod
 
                 this.transform.position = position;
 
-                // Try to find enemy to attack
-                if (fire)
+                // Keep player next to ghost to make camera work
+                if ( this.state == GhostState.Reviving )
                 {
-                    this.TryToAttack();
-                    HeroController.SetAvatarAngry(playerNum, true);
+                    player.character.SetXY(position.x, position.y);
                 }
                 else
                 {
-                    HeroController.SetAvatarCalm(playerNum, true);
-                }
+                    // Try to find enemy to attack
+                    if (fire)
+                    {
+                        if (!this.ableToRevive)
+                        {
+                            this.TryToAttack();
+                            HeroController.SetAvatarAngry(playerNum, true);
+                        }
+                        // Start reviving
+                        else
+                        {
+                            this.StartReviving();
+                        }
+                    }
+                    else
+                    {
+                        HeroController.SetAvatarCalm(playerNum, true);
+                    }
 
-                // Start dancing
-                if (buttonGesture && this.state != GhostState.Attacking)
-                {
-                    this.frame = 0;
-                    this.state = GhostState.Taunting;
+                    // Start dancing
+                    if (buttonGesture && this.state != GhostState.Attacking)
+                    {
+                        this.frame = 0;
+                        this.state = GhostState.Taunting;
+                    }
                 }
+                
             }
             else if ( state == GhostState.Taunting )
             {
@@ -328,71 +509,38 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static TestVanDammeAnim GetNextClosestUnit(int playerNum, float xRange, float yRange, float x, float y)
+        public void ConstrainToScreen()
         {
-            if (Map.units == null)
-            {
-                return null;
-            }
-            float num = xRange;
-            TestVanDammeAnim unit = null;
-            for (int i = Map.units.Count - 1; i >= 0; i--)
-            {
-                TestVanDammeAnim unit2 = Map.units[i] as TestVanDammeAnim;
-                if (unit2 != null && Main.AvailableToPossess(unit2))
-                {
-                    float num2 = unit2.Y + unit2.height / 2f + 3f - y;
-                    if (Mathf.Abs(num2) - yRange < unit2.height)
-                    {
-                        float num3 = unit2.X - x;
-                        if (Mathf.Abs(num3) - num < unit2.width)
-                        {
-                            unit = unit2;
-                            num = Mathf.Abs(num2);
-                        }
-                    }
-                }
-            }
-            if (unit != null)
-            {
-                return unit;
-            }
-            return null;
-        }
+            SetResolutionCamera.GetScreenExtents(ref this.screenMinX, ref this.screenMaxX, ref this.screenMinY, ref this.screenMaxY);
 
-        public static float ghostoffsetx = 11f;
-        public static float ghostoffsety = 3f;
+            Vector3 position = this.transform.position;
 
-        public void TryToAttack()
-        {
-            TestVanDammeAnim character = GetNextClosestUnit(playerNum, 15f, 10f, this.transform.position.x, this.transform.position.y);
-            if ( character != null )
+            if ( position.x < this.screenMinX + 5f )
             {
-                characterToPossess = character;
-                characterToPossess.name = "p";
-                this.transform.localScale = new Vector3( Mathf.Sign(characterToPossess.X - this.transform.position.x), 1f, 1f);
-                this.frozenPosition = characterToPossess.transform.position;
-                this.transform.position = new Vector3(characterToPossess.X - base.transform.localScale.x * ghostoffsetx, characterToPossess.Y + characterToPossess.height + ghostoffsety, 0f);
-                this.state = GhostState.Attacking;
-                this.frame = 0;
-                this.xI = 0;
-                this.yI = 0;
+                position.x = this.screenMinX + 5f;
             }
-        }
+            else if ( position.x > this.screenMaxX - 5f )
+            {
+                position.x = this.screenMaxX - 5f;
+            }
 
-        public void FinishAttack()
-        {
-            Main.StartControllingUnit(playerNum, characterToPossess, false, true, false);
-            characterToPossess = null;
-            this.state = GhostState.Idle;
-            this.gameObject.SetActive(false);
+            if ( position.y < screenMinY + 10f )
+            {
+                position.y = this.screenMinY + 10f;
+            }
+            else if ( position.y > screenMaxY - 10f )
+            {
+                position.y = this.screenMaxY - 10f;
+            }
+
+            this.transform.position = position;
         }
 
         public void ChangeFrame()
         {
             frameCounter += Time.deltaTime;
 
-            switch ( state )
+            switch (state)
             {
                 case GhostState.Idle:
                     if (frameCounter > idleFramerate)
@@ -440,7 +588,7 @@ namespace Control_Enemies_Mod
                         this.sprite.SetLowerLeftPixel(frame * spriteWidth, 3 * spriteHeight);
                     }
                     break;
-                case GhostState.Ressurecting:
+                case GhostState.Resurrecting:
                     if (frameCounter > ressurectingFramerate)
                     {
                         frameCounter -= ressurectingFramerate;
@@ -458,7 +606,143 @@ namespace Control_Enemies_Mod
                         this.sprite.SetLowerLeftPixel(frame * spriteWidth, 4 * spriteHeight);
                     }
                     break;
+                case GhostState.Reviving:
+                    if (frameCounter > idleFramerate)
+                    {
+                        frameCounter -= idleFramerate;
+
+                        ++frame;
+
+                        if (frame > 7)
+                        {
+                            frame = 0;
+                        }
+
+                        this.sprite.SetLowerLeftPixel(frame * spriteWidth, spriteHeight);
+                    }
+                    break;
             }
+        }
+
+        public void SetFrame()
+        {
+            switch (state)
+            {
+                case GhostState.Idle:
+                    this.sprite.SetLowerLeftPixel(frame * spriteWidth, spriteHeight);
+                    break;
+                case GhostState.Attacking:
+                    this.sprite.SetLowerLeftPixel(frame * spriteWidth, 2 * spriteHeight);
+                    break;
+                case GhostState.Taunting:
+                    this.sprite.SetLowerLeftPixel(frame * spriteWidth, 3 * spriteHeight);
+                    break;
+                case GhostState.Resurrecting:
+                    this.sprite.SetLowerLeftPixel(frame * spriteWidth, 4 * spriteHeight);
+                    break;
+                case GhostState.Reviving:
+                    this.sprite.SetLowerLeftPixel(frame * spriteWidth, spriteHeight);
+                    break;
+            }
+        }
+
+        public static TestVanDammeAnim GetNextClosestUnit(int playerNum, float xRange, float yRange, float x, float y)
+        {
+            if (Map.units == null)
+            {
+                return null;
+            }
+            float num = xRange;
+            TestVanDammeAnim unit = null;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                TestVanDammeAnim unit2 = Map.units[i] as TestVanDammeAnim;
+                if (unit2 != null && Main.AvailableToPossess(unit2))
+                {
+                    float num2 = unit2.Y + unit2.height / 2f + 3f - y;
+                    if (Mathf.Abs(num2) - yRange < unit2.height)
+                    {
+                        float num3 = unit2.X - x;
+                        if (Mathf.Abs(num3) - num < unit2.width)
+                        {
+                            unit = unit2;
+                            num = Mathf.Abs(num2);
+                        }
+                    }
+                }
+            }
+            if (unit != null)
+            {
+                return unit;
+            }
+            return null;
+        }
+
+        public void TryToAttack()
+        {
+            TestVanDammeAnim character = GetNextClosestUnit(playerNum, 15f, 10f, this.transform.position.x, this.transform.position.y);
+            if ( character != null )
+            {
+                characterToPossess = character;
+                characterToPossess.name = "p";
+                this.transform.localScale = new Vector3( Mathf.Sign(characterToPossess.X - this.transform.position.x), 1f, 1f);
+                this.frozenPosition = characterToPossess.transform.position;
+                this.transform.position = new Vector3(characterToPossess.X - base.transform.localScale.x * 11f, characterToPossess.Y + characterToPossess.height + 3f, 0f);
+                this.state = GhostState.Attacking;
+                this.frame = 0;
+                this.xI = 0;
+                this.yI = 0;
+            }
+        }
+
+        public void FinishAttack()
+        {
+            Main.StartControllingUnit(playerNum, characterToPossess, false, true, false);
+            characterToPossess = null;
+            this.state = GhostState.Idle;
+            this.gameObject.SetActive(false);
+        }
+
+        public void SetCanReviveCharacter()
+        {
+            this.state = GhostState.Idle;
+            if ( this.characterToPossess != null )
+            {
+                this.characterToPossess.name = "enemy";
+                this.characterToPossess = null;
+            }
+            ableToRevive = true;
+            forceReviveTime = 3f;
+            startReviveFlashTime = Time.time;
+            sprite.SetColor(new Color(reviveColor.r, reviveColor.g, reviveColor.b, currentTransparency));
+        }
+
+        public void StartReviving()
+        {
+            this.ableToRevive = false;
+            this.state = GhostState.Reviving;
+            // Restore original tint
+            this.sprite.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
+        }
+
+        public void ReviveCharacter()
+        {
+            this.player.character.transform.position = this.transform.position;
+            this.player.character.SetXY(this.transform.position.x, this.transform.position.y);
+            this.player.character.transform.localScale = this.transform.localScale;
+            this.gameObject.SetActive(false);
+            this.player.character.gameObject.SetActive(true);
+            HeroController.SwitchAvatarMaterial(player.hud.avatar, player.character.heroType);
+            this.state = GhostState.Idle;
+            this.currentTransparency = finalTransparency;
+            this.sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
+        }
+
+        public void StartResurrecting()
+        {
+            this.frame = 0;
+            this.state = GhostState.Resurrecting;
+            this.SetFrame();
         }
     }
 }

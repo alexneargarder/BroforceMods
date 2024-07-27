@@ -40,6 +40,9 @@
     <Reference Include="BroMakerLib">
       <HintPath>..\..\..\Bro-Maker\BroMakerLib.UnityMod\bin\Debug\BroMakerLib.dll</HintPath>
     </Reference>
+    <Reference Include="Rewired_Core">
+      <HintPath>..\..\libs\Extra Libs\Rewired_Core.dll</HintPath>
+    </Reference>
     <Reference Include="RocketLib">
       <HintPath>..\..\..\Mods-Broforce\RocketLib\src\RocketLibUMM\bin\Debug\RocketLib.dll</HintPath>
     </Reference>

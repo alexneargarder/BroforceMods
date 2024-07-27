@@ -60,7 +60,6 @@ namespace Control_Enemies_Mod
         public bool competitiveModeEnabled = false;
         public SpawnMode spawnMode = SpawnMode.Ghost;
         public int ghostLives = 3;
-        public float ghostCooldown = 2f;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
