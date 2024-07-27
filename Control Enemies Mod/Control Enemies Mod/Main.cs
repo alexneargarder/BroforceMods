@@ -10,7 +10,7 @@ using UnityModManagerNet;
 using BSett = BroMakerLib.Settings;
 using RocketLib.Utils;
 using System.IO;
-using Rogueforce.PerkSystem.Interfaces;
+using static RocketLib.Utils.TestVanDammeAnimTypes;
 
 namespace Control_Enemies_Mod
 {
@@ -37,17 +37,7 @@ namespace Control_Enemies_Mod
         public static float displayWarningTime = 0f;
         public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
         public static string[] spawnBehaviorList = new string[] { "Spawn As Ghost", "Automatically Spawn as Enemies" };
-        public static string[] fullUnitList = new string[]
-        {
-            // Normal
-            "Mook", "Suicide Mook", "Bruiser", "Suicide Bruiser", "Strong Bruiser", "Elite Bruiser", "Scout Mook", "Riot Shield Mook", "Mech", "Brown Mech", "Jetpack Mook", "Grenadier Mook", "Bazooka Mook", "Jetpack Bazooka Mook", "Ninja Mook",
-            "Treasure Mook", "Attack Dog", "Skinned Mook", "Mook General", "Alarmist", "Strong Mook", "Scientist Mook", "Snake", "Satan", 
-            // Aliens
-            "Facehugger", "Xenomorph", "Brute", "Screecher", "Baneling", "Xenomorph Brainbox",
-            // Hell
-            "Hellhound", "Undead Mook", "Undead Mook (Start Dead)", "Warlock", "Boomer", "Undead Suicide Mook", "Executioner", "Lost Soul", "Soul Catcher",
-            "Satan Miniboss", "CR666", "Pig", "Rotten Pig", "Villager"
-        };
+        public static string[] fullUnitList = TestVanDammeAnimTypes.allUnitNames;
         public static bool[] filteredUnitList;
         public static string[] currentUnitList;
         public static string[] previousSelection = { "", "", "", "" };
@@ -181,6 +171,12 @@ namespace Control_Enemies_Mod
             GUILayout.Space(10);
 
             special3.OnGUI(out _, true, true, ref previousToolTip);
+
+            GUILayout.Space(10);
+
+            leaveEnemy.OnGUI(out _, true, true, ref previousToolTip);
+
+            GUILayout.Space(10);
         }
 
         static void ShowPossessionModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
@@ -207,14 +203,7 @@ namespace Control_Enemies_Mod
             GUILayout.Space(20);
 
             // Display keybinding options
-            GUI.tooltip = string.Empty;
-            possessEnemy.OnGUI(out _, true);
-            GUILayout.Space(10);
-            GUI.tooltip = string.Empty;
-            leaveEnemy.OnGUI(out _, true);
-            GUI.tooltip = string.Empty;
-            previousToolTip = GUI.tooltip;
-
+            possessEnemy.OnGUI(out _, true, true, ref previousToolTip);
             GUILayout.Space(25);
             
             GUILayout.BeginHorizontal();
@@ -481,8 +470,11 @@ namespace Control_Enemies_Mod
 
             settings.spawnMode = (SpawnMode)GUILayout.SelectionGrid((int)settings.spawnMode, spawnBehaviorList, 3);
 
-            GUI.Label(lastRect, GUI.tooltip);
-            previousToolTip = GUI.tooltip;
+            if ( previousToolTip != GUI.tooltip )
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
             GUILayout.EndHorizontal();
             
             GUILayout.Space(20);
@@ -490,11 +482,6 @@ namespace Control_Enemies_Mod
             settings.ghostLives = RGUI.HorizontalSliderInt("Lives at Level Start: ", settings.ghostLives, 1, 10, 500);
 
             GUILayout.Space(15);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(String.Format("Ghost Cooldown After Death: {0:0.00}s", settings.ghostCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
-            settings.ghostCooldown = GUILayout.HorizontalSlider(settings.ghostCooldown, 0, 15);
-            GUILayout.EndHorizontal();
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -543,7 +530,6 @@ namespace Control_Enemies_Mod
         public static bool[] revealed = { false, false, false, false };
         public static float[] findNewEnemyCooldown = { 0f, 0f, 0f, 0f };
         public static List<int> waitingToBecomeEnemy = new List<int>();
-        public static bool[] fixLives = new bool[] { false, false, false, false };
         public static GhostPlayer[] currentGhosts = new GhostPlayer[] { null, null, null, null };
         public static Vector3[] ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
         public static GhostPlayer ghostPrefab;
@@ -556,25 +542,49 @@ namespace Control_Enemies_Mod
             {
                 for (int i = 0; i < 4; ++i)
                 {
-                    fireDelay[i] -= dt;
-                    if (possessEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && fireDelay[i] <= 0f)
+                    // Disable possession bullets and normal leaving enemy
+                    if ( !settings.competitiveModeEnabled )
                     {
-                        FireBullet(i);
+                        fireDelay[i] -= dt;
+                        if (possessEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && fireDelay[i] <= 0f)
+                        {
+                            FireBullet(i);
+                        }
+
+                        if (leaveEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && previousCharacter[i] != null && !previousCharacter[i].destroyed)
+                        {
+                            LeaveUnit(HeroController.players[i].character, i, false);
+                        }
+                    }
+                    // Check for leaving enemy in competitive mode
+                    else
+                    {
+                        if (leaveEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && previousCharacter[i] != null && currentlyEnemy[i])
+                        {
+                            // Set ghost spawn to 
+                            ghostSpawnPoint[i] = HeroController.players[i].character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                            LeaveUnit(HeroController.players[i].character, i, true);
+                            // Restore previous character
+                            HeroController.players[i].character = previousCharacter[i];
+                            HidePlayer(i, true);
+                        }
                     }
 
-                    if (leaveEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && previousCharacter[i] != null && !previousCharacter[i].destroyed)
-                    {
-                        LeaveUnit(HeroController.players[i].character, i, false);
-                    }
-
-                    // Check if any characters are in the process of respawning from a killed enemy
+                    // Check if any characters are in the process of respawning
                     if (countdownToRespawn[i] > 0f)
                     {
                         countdownToRespawn[i] -= dt;
 
                         if (countdownToRespawn[i] <= 0f)
                         {
-                            if (HeroController.players[i].character != null && !HeroController.players[i].character.destroyed)
+                            // Respawn as normal player
+                            if ( settings.competitiveModeEnabled && HeroController.players[i] != null )
+                            {
+                                HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                                HeroController.players[i].RespawnBro(false);
+                            }
+                            // Respawn from enemy corpse
+                            else if (HeroController.players[i].character != null && !HeroController.players[i].character.destroyed)
                             {
                                 LeaveUnit(HeroController.players[i].character, i, false, true);
                             }
@@ -662,14 +672,20 @@ namespace Control_Enemies_Mod
             previousSpawnInfo = new Player.SpawnType[] { Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown, Player.SpawnType.Unknown };
             willReplaceBro = new bool[] { false, false, false, false };
             wasFirstDeployment = new bool[] { false, false, false, false };
+            HarmonyPatches.TestVanDammeAnim_Death_Patch.outOfBounds = false;
+            HarmonyPatches.TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss = false;
+            HarmonyPatches.HellDogEgg_MakeEffects_Patch.playerNum = -1;
+            HarmonyPatches.HellDogEgg_MakeEffects_Patch.nextDogFriendly = false;
+            HarmonyPatches.AlienXenomorph_Start_Patch.controllerPlayerNum = -1;
+            HarmonyPatches.AlienXenomorph_Start_Patch.controlNextAlien = false;
 
             // Competitive Mode
             revealed = new bool[] { false, false, false, false };
             findNewEnemyCooldown = new float[] { 0f, 0f, 0f, 0f };
             waitingToBecomeEnemy = new List<int>();
-            fixLives = new bool[] { false, false, false, false };
             currentGhosts = new GhostPlayer[] { null, null, null, null };
             ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
+            HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = false;
         }
 
         // Controlling Units
@@ -811,44 +827,70 @@ namespace Control_Enemies_Mod
         }
         public static void LeaveUnit(TestVanDammeAnim previous, int playerNum, bool onlyLeaveUnit, bool respawning = false)
         {
-            if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(previous is BroBase))
+            try
             {
-                previous.playerNum = previousPlayerNum[playerNum];
-                Mook previousMook = previous as Mook;
-                if (previousMook != null)
+                if (!(previous is BroBase))
                 {
-                    previousMook.firingPlayerNum = previousPlayerNum[playerNum];
-                }
-                Traverse.Create(previous).Field("isHero").SetValue(true);
-                previous.name = "Enemy";
-                previous.canWallClimb = false;
-                previous.canDash = false;
-                DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
-                if (disableWhenOffCamera != null)
-                {
-                    disableWhenOffCamera.enabled = true;
-                }
-
-                if (!onlyLeaveUnit)
-                {
-                    TestVanDammeAnim originalCharacter = previousCharacter[playerNum];
-                    HeroController.players[playerNum].character = originalCharacter;
-                    originalCharacter.X = previous.X;
-                    originalCharacter.Y = previous.Y;
-                    originalCharacter.transform.localScale = new Vector3(Mathf.Sign(previous.transform.localScale.x) * originalCharacter.transform.localScale.x, originalCharacter.transform.localScale.y, originalCharacter.transform.localScale.z);
-                    originalCharacter.xI = previous.xI;
-                    originalCharacter.yI = previous.yI;
-
-                    if (!respawning)
+                    previous.playerNum = previousPlayerNum[playerNum];
+                    Mook previousMook = previous as Mook;
+                    if (previousMook != null)
                     {
-                        if (settings.loseLifeOnSwitch)
-                        {
-                            HeroController.players[playerNum].RemoveLife();
-                        }
+                        previousMook.firingPlayerNum = previousPlayerNum[playerNum];
+                    }
+                    Traverse.Create(previous).Field("isHero").SetValue(false);
+                    previous.name = "Enemy";
+                    previous.canWallClimb = false;
+                    previous.canDash = false;
+                    DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
+                    if (disableWhenOffCamera != null)
+                    {
+                        disableWhenOffCamera.enabled = true;
+                    }
 
-                        switch (settings.leavingEnemy)
+                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive())
+                    {
+                        if (!onlyLeaveUnit)
                         {
-                            case SwapBehavior.KillEnemy:
+                            TestVanDammeAnim originalCharacter = previousCharacter[playerNum];
+                            HeroController.players[playerNum].character = originalCharacter;
+                            originalCharacter.X = previous.X;
+                            originalCharacter.Y = previous.Y;
+                            originalCharacter.transform.localScale = new Vector3(Mathf.Sign(previous.transform.localScale.x) * originalCharacter.transform.localScale.x, originalCharacter.transform.localScale.y, originalCharacter.transform.localScale.z);
+                            originalCharacter.xI = previous.xI;
+                            originalCharacter.yI = previous.yI;
+
+                            if (!respawning)
+                            {
+                                if (settings.loseLifeOnSwitch)
+                                {
+                                    HeroController.players[playerNum].RemoveLife();
+                                }
+
+                                switch (settings.leavingEnemy)
+                                {
+                                    case SwapBehavior.KillEnemy:
+                                        if (previousMook != null)
+                                        {
+                                            (previous as Mook).Gib();
+                                        }
+                                        else
+                                        {
+                                            typeof(TestVanDammeAnim).GetMethod("Gib", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(previous, new object[] { DamageType.InstaGib, 0f, 0f });
+                                        }
+                                        EffectsController.CreateSlimeExplosion(previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor);
+                                        break;
+                                    case SwapBehavior.StunEnemy:
+                                        previous.Stun(2f);
+                                        break;
+                                    case SwapBehavior.DeleteEnemy:
+                                        UnityEngine.Object.Destroy(previous.gameObject);
+                                        break;
+                                    case SwapBehavior.Nothing:
+                                        break;
+                                }
+                            }
+                            else
+                            {
                                 if (previousMook != null)
                                 {
                                     (previous as Mook).Gib();
@@ -858,39 +900,23 @@ namespace Control_Enemies_Mod
                                     typeof(TestVanDammeAnim).GetMethod("Gib", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(previous, new object[] { DamageType.InstaGib, 0f, 0f });
                                 }
                                 EffectsController.CreateSlimeExplosion(previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor);
-                                break;
-                            case SwapBehavior.StunEnemy:
-                                previous.Stun(2f);
-                                break;
-                            case SwapBehavior.DeleteEnemy:
-                                UnityEngine.Object.Destroy(previous.gameObject);
-                                break;
-                            case SwapBehavior.Nothing:
-                                break;
+                            }
+
+                            originalCharacter.gameObject.SetActive(true);
+                            previousCharacter[playerNum] = null;
                         }
+                        
+                        currentlyEnemy[playerNum] = false;
                     }
                     else
                     {
-                        if (previousMook != null)
-                        {   
-                            (previous as Mook).Gib();
-                        }
-                        else
-                        {
-                            typeof(TestVanDammeAnim).GetMethod("Gib", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(previous, new object[] { DamageType.InstaGib, 0f, 0f });
-                        }
-                        EffectsController.CreateSlimeExplosion(previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor);
+                        previousCharacter[playerNum] = null;
                     }
-
-                    originalCharacter.gameObject.SetActive(true);
                 }
-
-                previousCharacter[playerNum] = null;
-                currentlyEnemy[playerNum] = false;
             }
-            else
+            catch ( Exception ex )
             {
-                previousCharacter[playerNum] = null;
+                Log("Exception leaving unit: " + ex.ToString());
             }
         }
 
@@ -1177,179 +1203,21 @@ namespace Control_Enemies_Mod
             }
         }
 
-        public static string GetSelectedUnit(int playerNum)
+        public static UnitType GetSelectedUnit(int playerNum)
         {
             if (settings.selGridInt[playerNum] >= 0 && settings.selGridInt[playerNum] < currentUnitList.Length)
             {
-                return currentUnitList[settings.selGridInt[playerNum]];
+                return (UnitType)settings.selGridInt[playerNum] + 2;
             }
             else
             {
-                return currentUnitList[0];
+                return UnitType.Mook;
             }
         }
 
-        public static GameObject SpawnUnit(string unit, Vector3 vector)
+        public static GameObject SpawnUnit(UnitType type, Vector3 vector)
         {
-            TestVanDammeAnim original = null;
-            GameObject __result = null;
-
-            switch (unit)
-            {
-                case "Mook":
-                    original = Map.Instance.activeTheme.mook;
-                    break;
-                case "Suicide Mook":
-                    original = Map.Instance.activeTheme.mookSuicide;
-                    break;
-                case "Bruiser":
-                    original = Map.Instance.activeTheme.mookBigGuy;
-                    break;
-                case "Suicide Bruiser":
-                    original = Map.Instance.activeTheme.mookSuicideBigGuy;
-                    break;
-                case "Strong Bruiser":
-                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mookBigGuyStrong, vector, Quaternion.identity).gameObject;
-                    break;
-                case "Elite Bruiser":
-                    original = Map.Instance.activeTheme.mookBigGuyElite;
-                    break;
-                case "Scout Mook":
-                    original = Map.Instance.activeTheme.mookScout;
-                    break;
-                case "Riot Shield Mook":
-                    original = Map.Instance.activeTheme.mookRiotShield;
-                    break;
-                case "Mech":
-                    original = Map.Instance.activeTheme.mookArmoured;
-                    break;
-                case "Brown Mech":
-                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.mechBrown, vector, Quaternion.identity).gameObject;
-                    break;
-                case "Jetpack Mook":
-                    original = Map.Instance.sharedObjectsReference.Asset.mookJetpack;
-                    break;
-                case "Grenadier Mook":
-                    original = Map.Instance.activeTheme.mookGrenadier;
-                    break;
-                case "Bazooka Mook":
-                    original = Map.Instance.activeTheme.mookBazooka;
-                    break;
-                case "Jetpack Bazooka Mook":
-                    original = Map.Instance.activeTheme.mookJetpackBazooka;
-                    break;
-                case "Ninja Mook":
-                    original = Map.Instance.activeTheme.mookNinja;
-                    break;
-                case "Treasure Mook":
-                    __result = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.treasureMook, vector, Quaternion.identity).gameObject;
-                    break;
-                case "Attack Dog":
-                    original = Map.Instance.activeTheme.mookDog;
-                    break;
-                case "Skinned Mook":
-                    original = Map.Instance.activeTheme.skinnedMook;
-                    break;
-                case "Mook General":
-                    original = Map.Instance.activeTheme.mookGeneral;
-                    break;
-                case "Alarmist":
-                    original = Map.Instance.activeTheme.mookAlarmist;
-                    break;
-                case "Strong Mook":
-                    original = Map.Instance.activeTheme.mookStrong;
-                    break;
-                case "Scientist Mook":
-                    original = Map.Instance.activeTheme.mookScientist;
-                    break;
-                case "Snake":
-                    original = Map.Instance.activeTheme.snake;
-                    break;
-                // Satan
-                case "Satan":
-                    original = Map.Instance.activeTheme.satan;
-                    break;
-                // Aliens
-                case "Facehugger":
-                    original = Map.Instance.activeTheme.alienFaceHugger;
-                    break;
-                case "Xenomorph":
-                    original = Map.Instance.activeTheme.alienXenomorph;
-                    break;
-                case "Brute":
-                    original = Map.Instance.activeTheme.alienBrute;
-                    break;
-                case "Screecher":
-                    original = Map.Instance.activeTheme.alienBaneling;
-                    break;
-                case "Baneling":
-                    original = Map.Instance.activeTheme.alienMosquito;
-                    break;
-                case "Xenomorph Brainbox":
-                    original = Map.Instance.activeTheme.mookXenomorphBrainbox;
-                    break;
-                // HellDog
-                case "Hellhound":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[0], vector, Quaternion.identity);
-                    break;
-                // ZMookUndead
-                case "Undead Mook":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[1], vector, Quaternion.identity);
-                    break;
-                // ZMookUndeadStartDead
-                case "Undead Mook (Start Dead)":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[2], vector, Quaternion.identity);
-                    break;
-                // ZMookWarlock
-                case "Warlock":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[3], vector, Quaternion.identity);
-                    break;
-                // ZMookHellBoomer
-                case "Boomer":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[4], vector, Quaternion.identity);
-                    break;
-                // ZMookUndeadSuicide
-                case "Undead Suicide Mook":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[5], vector, Quaternion.identity);
-                    break;
-                // ZHellBigGuy
-                case "Executioner":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[6], vector, Quaternion.identity);
-                    break;
-                // Lost Soul
-                case "Lost Soul":
-                    vector.y += 5;
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[8], vector, Quaternion.identity);
-                    break;
-                // ZMookHellSoulCatcher
-                case "Soul Catcher":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[10], vector, Quaternion.identity);
-                    break;
-                case "Satan Miniboss":
-                    SatanMiniboss satanMiniboss = UnityEngine.Object.Instantiate<Unit>(Map.Instance.sharedObjectsReference.Asset.satanMiniboss, vector, Quaternion.identity) as SatanMiniboss;
-                    if (satanMiniboss != null)
-                    {
-                        __result = satanMiniboss.gameObject;
-                    }
-                    break;
-                case "CR666":
-                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.mookDolfLundgren, vector, Quaternion.identity).gameObject;
-                    break;
-                case "Pig":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[0], vector, Quaternion.identity).gameObject;
-                    break;
-                case "Rotten Pig":
-                    __result = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.activeTheme.animals[2], vector, Quaternion.identity).gameObject;
-                    break;
-                case "Villager":
-                    __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(Map.Instance.activeTheme.villager1[UnityEngine.Random.Range(0, 1)], vector, Quaternion.identity).gameObject;
-                    break;
-            }
-
-            if (original != null)
-            {
-                __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(original, vector, Quaternion.identity).gameObject;
-            }
+            GameObject __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(type.GetUnitPrefab(), vector, Quaternion.identity).gameObject;
 
             if (__result != null)
             {
@@ -1447,7 +1315,97 @@ namespace Control_Enemies_Mod
         #endregion
 
         #region Competitive
-        public static void HidePlayer(int playerNum)
+        // Called whenever a player character (ghost or hero) dies in competitive mode
+        public static void PlayerDiedInCompetitiveMode(TestVanDammeAnim character, int remainingLives, DamageObject damage = null )
+        {
+            // Character has already died so ignore this repeat death
+            if ( character.name == "dead" )
+            {
+                return;
+            }
+
+            int playerNum = character.playerNum;
+
+            // Ghost controlled enemy died
+            if (character.name == "c")
+            {
+                ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset, 0f);
+
+                // Leave previous unit
+                LeaveUnit(character, playerNum, true);
+
+                // Become ghost if enough lives are remaining
+                if (remainingLives > 0)
+                {
+                    // Restore previous character if we still have remaining lives, otherwise stay as dead mook
+                    HeroController.players[playerNum].character = previousCharacter[playerNum];
+                    HidePlayer(playerNum);
+                }
+            }
+            // Hero player died
+            else if (playerNum == Main.currentHeroNum)
+            {
+                // Killed by ghost player
+                if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c" )
+                {
+                    TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
+                    Main.ResurrectGhost(killer.playerNum);
+
+                    if ( remainingLives > 0 )
+                    {
+                        if (Main.settings.spawnMode == SpawnMode.Automatic)
+                        {
+                            Main.findNewEnemyCooldown[playerNum] = 2f;
+                            Main.waitingToBecomeEnemy.Add(playerNum);
+                        }
+                        else
+                        {
+                            // Only adjust spawn point upwards if the ghost has already spawned
+                            if (currentGhosts[playerNum] != null)
+                            {
+                                Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                            }
+                            else
+                            {
+                                Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                            }
+                            HeroController.players[playerNum].RespawnBro(false);
+                        }
+                    }
+                }
+                // Died from other stuff
+                else
+                {
+                    // If more lives left respawn hero
+                    if (remainingLives > 0)
+                    {
+                        Main.countdownToRespawn[playerNum] = 1f;
+                    }
+                    // No more lives, respawn random ghost player
+                    else
+                    {
+                        List<int> players = new List<int>();
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            if (i != Main.currentHeroNum && HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0)
+                            {
+                                players.Add(i);
+                            }
+                        }
+                        int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
+                        Main.ResurrectGhost(chosenPlayer);
+                    }
+                }
+            }
+
+            if ( character != null )
+            {
+                character.name = "dead";
+            }
+        }
+
+        // Turns a character into a ghost, reusing the ghost if it already exists
+        public static void HidePlayer(int playerNum, bool fastResurrect = false)
         {
             HeroController.players[playerNum].character.gameObject.SetActive(false);
 
@@ -1462,58 +1420,23 @@ namespace Control_Enemies_Mod
             {
                 HeroController.players[playerNum].hud.SetAvatar(ghostAvatarMat);
 
-                CreateGhost(playerNum);
+                CreateGhost(playerNum, fastResurrect);
             }
         }
 
-        public static void ResurrectGhost(int playerNum)
-        {
-            Main.currentHeroNum = playerNum;
-            LeaveUnit(HeroController.players[playerNum].character, playerNum, false, true);
-            HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroController.players[playerNum].character.heroType);
-        }
-
-        public static TestVanDammeAnim newUnit;
-
-        public static void FindNewEnemyOnMap(int playerNum)
-        {
-            try
-            {
-                for (int i = 0; i < Map.units.Count; ++i)
-                {
-                    // Find a valid unit to control
-                    TestVanDammeAnim character = Map.units[i] as TestVanDammeAnim;
-                    if ( AvailableToPossess(character) && SortOfFollow.IsItSortOfVisible(character.transform.position, 5f, 8f))
-                    {
-                        Main.Log("starting to control");
-                        newUnit = character;
-                        StartControllingUnit(playerNum, character, false, true, false);
-                        return;
-                    }
-                }
-
-                // Failed to find enemy, waiting for a bit to try again
-                findNewEnemyCooldown[playerNum] = 0.5f;
-            }
-            catch ( Exception e)
-            {
-                Log("Exception finding new unit: " + e.ToString());
-            }
-        }
-
-        public static void CreateGhost(int playerNum)
+        // Creates a ghost for the player if none exist, or reuses it if it does
+        public static void CreateGhost(int playerNum, bool fastResurrect)
         {
             if (currentGhosts[playerNum] == null)
             {
-                
                 currentGhosts[playerNum] = UnityEngine.Object.Instantiate<GhostPlayer>(ghostPrefab, Vector3.zero, Quaternion.identity).GetComponent<GhostPlayer>();
                 currentGhosts[playerNum].playerNum = playerNum;
+                // Ghost isn't spawning at level start so play resurrection animation instead
                 if (ghostSpawnPoint[playerNum] != Vector3.zero)
                 {
                     currentGhosts[playerNum].overrideSpawnPoint = ghostSpawnPoint[playerNum];
                     ghostSpawnPoint[playerNum] = Vector3.zero;
-                    currentGhosts[playerNum].frame = 0;
-                    currentGhosts[playerNum].state = GhostState.Ressurecting;
+                    currentGhosts[playerNum].StartResurrecting();
                 }
                 currentGhosts[playerNum].gameObject.SetActive(true);
             }
@@ -1525,25 +1448,67 @@ namespace Control_Enemies_Mod
                     currentGhosts[playerNum].transform.position = ghostSpawnPoint[playerNum];
                     ghostSpawnPoint[playerNum] = Vector3.zero;
                 }
-                currentGhosts[playerNum].frame = 0;
-                currentGhosts[playerNum].state = GhostState.Ressurecting;
+                if ( !fastResurrect )
+                {
+                    currentGhosts[playerNum].StartResurrecting();    
+                }
+                else
+                {
+                    currentGhosts[playerNum].frame = 0;
+                    currentGhosts[playerNum].SetFrame();
+                }
                 currentGhosts[playerNum].gameObject.SetActive(true);
             }
         }
 
-        public static void GhostControlledEnemyDied(TestVanDammeAnim character)
+        // Turns a ghost into a player, if they are inside an enemy it kills the enemy, if they are in ghost mode it sets their ghost to begin the resurrection process
+        public static void ResurrectGhost(int playerNum)
         {
-            int playerNum = character.playerNum;
-
-            ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, 16f, 0f);
-
-            // Leave previous unit
-            LeaveUnit(character, playerNum, true);
-
-            // Become ghost if enough lives are remaining
-            if ( HeroController.players[playerNum].Lives > 0 )
+            try
             {
-                CreateGhost(playerNum);
+                // Resurrect ghost inside enemy
+                if (currentlyEnemy[playerNum])
+                {
+                    currentHeroNum = playerNum;
+                    LeaveUnit(HeroController.players[playerNum].character, playerNum, false, true);
+                    HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroController.players[playerNum].character.heroType);
+                }
+                // Resurrect ghost
+                else
+                {
+                    HeroController.players[playerNum].character.SetXY(currentGhosts[playerNum].transform.position.x, currentGhosts[playerNum].transform.position.y);
+                    currentGhosts[playerNum].SetCanReviveCharacter();
+                    currentHeroNum = playerNum;
+                }
+            }
+            catch ( Exception ex )
+            {
+                Log("Exception resurrecting ghost: " + ex.ToString());
+            }
+        }
+
+        // Finds an enemy on the map that is visible and starts controlling it
+        public static void FindNewEnemyOnMap(int playerNum)
+        {
+            try
+            {
+                for (int i = 0; i < Map.units.Count; ++i)
+                {
+                    // Find a valid unit to control
+                    TestVanDammeAnim character = Map.units[i] as TestVanDammeAnim;
+                    if ( AvailableToPossess(character) && SortOfFollow.IsItSortOfVisible(character.transform.position, 5f, 8f))
+                    {
+                        StartControllingUnit(playerNum, character, false, true, false);
+                        return;
+                    }
+                }
+
+                // Failed to find enemy, waiting for a bit to try again
+                findNewEnemyCooldown[playerNum] = 0.5f;
+            }
+            catch ( Exception e)
+            {
+                Log("Exception finding new unit: " + e.ToString());
             }
         }
         #endregion

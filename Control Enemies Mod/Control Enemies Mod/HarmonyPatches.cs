@@ -118,7 +118,7 @@ namespace Control_Enemies_Mod
 
         // Make player respawn at mook if that option is enabled
         [HarmonyPatch(typeof(TestVanDammeAnim), "Death", new Type[] { typeof(float), typeof(float), typeof(DamageObject) })]
-        static class TestVanDammeAnim_Death_Patch
+        public static class TestVanDammeAnim_Death_Patch
         {
             public static bool outOfBounds = false;
 
@@ -143,62 +143,54 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (__instance.name == "c")
+                try
                 {
-                    // If in competitive mode, make ghost respawn at enemy corpse
-                    if ( Main.settings.competitiveModeEnabled )
+                    if (Main.settings.competitiveModeEnabled)
                     {
-                        Main.GhostControlledEnemyDied(__instance);
+                        if ( __instance.playerNum >= 0 && __instance.playerNum < 4 )
+                        {
+                            Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives, damage);
+                        }
                     }
-                    // If we're not respawning from a corpse or we don't have enough lives left, release the unit
-                    else if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
+                    else if (__instance.name == "c")
                     {
-                        Main.LeaveUnit(__instance, __instance.playerNum, true);
+                        // If we're not respawning from a corpse or we don't have enough lives left, release the unit
+                        if (!(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null))
+                        {
+                            Main.LeaveUnit(__instance, __instance.playerNum, true);
+                        }
                     }
                 }
-                // Check if hero player was killed
-                if ( Main.settings.competitiveModeEnabled && __instance.playerNum == Main.currentHeroNum)
+                catch ( Exception ex )
                 {
-                    // Killed by ghost player
-                    if (damage.damageSender is TestVanDammeAnim)
+                    Main.Log("Exception in death: " + ex.ToString());
+                }
+            }
+        }
+
+        // Check if player died by falling out of bounds, which doesn't call the death function
+        [HarmonyPatch(typeof(TestVanDammeAnim), "Gib")]
+        static class TestVanDammeAnim_Gib_Patch
+        {
+            public static void Prefix(TestVanDammeAnim __instance, ref DamageType damageType)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (Main.settings.competitiveModeEnabled && damageType == DamageType.OutOfBounds && __instance.playerNum >= 0 && __instance.playerNum < 4 )
+                {
+                    // Manually remove life if player died as an enemy because it doesn't count normally for some reason
+                    if (Main.currentlyEnemy[__instance.playerNum])
                     {
-                        TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
-                        if (killer.name == "c")
-                        {
-                            Main.ResurrectGhost(killer.playerNum);
-                        }
-                        if (Main.settings.spawnMode == SpawnMode.Automatic)
-                        {
-                            Main.findNewEnemyCooldown[__instance.playerNum] = 2f;
-                            Main.waitingToBecomeEnemy.Add(__instance.playerNum);
-                        }
-                        Main.ghostSpawnPoint[__instance.playerNum] = __instance.transform.position;
-                        HeroController.players[__instance.playerNum].RespawnBro(false);
+                        HeroController.players[__instance.playerNum].RemoveLife();
+                        Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
                     }
-                    // Died from other stuff
                     else
                     {
-                        Main.Log("hero died from something other than ghost");
-                        Main.Log("hero remaining lives: " + HeroController.players[__instance.playerNum].Lives);
-                        // If more lives left respawn hero
-                        if (HeroController.players[__instance.playerNum].Lives > 0)
-                        {
-                            HeroController.players[__instance.playerNum].RespawnBro(false);
-                        }
-                        // No more lives, respawn random ghost player
-                        else
-                        {
-                            Main.Log("attempting to resurrect random enemy");
-                            List<int> players = new List<int>();
-                            for ( int i = 0; i < 4; ++i )
-                            {
-                                if ( i != Main.currentHeroNum && HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0 )
-                                {
-                                    players.Add(i);
-                                }
-                            }
-                            Main.ResurrectGhost(UnityEngine.Random.Range(0, players.Count - 1));
-                        }
+                        // One less life because this death hasn't been counted yet
+                        Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives - 1);
                     }
                 }
             }
@@ -206,7 +198,7 @@ namespace Control_Enemies_Mod
 
         // Prevent game from reporting death to prevent respawn
         [HarmonyPatch(typeof(TestVanDammeAnim), "ReduceLives")]
-        static class TestVanDammeAnim_ReduceLives_Patch
+        public static class TestVanDammeAnim_ReduceLives_Patch
         {
             public static bool ignoreNextLifeLoss = false;
 
@@ -815,7 +807,7 @@ namespace Control_Enemies_Mod
         // Make spawned helldogs friendly
         #region HellDog
         [HarmonyPatch(typeof(HellDogEgg), "MakeEffects")]
-        static class HellDogEgg_MakeEffects_Patch
+        public static class HellDogEgg_MakeEffects_Patch
         {
             public static bool nextDogFriendly = false;
             public static int playerNum = -1;
@@ -860,7 +852,7 @@ namespace Control_Enemies_Mod
         // Become xenomorph when facehugging enemy
         #region Facehugger
         [HarmonyPatch(typeof(AlienXenomorph), "Start")]
-        static class AlienXenomorph_Start_Patch
+        public static class AlienXenomorph_Start_Patch
         {
             public static int controllerPlayerNum = -1;
             public static bool controlNextAlien = false;
@@ -1010,8 +1002,10 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
-        static class Player_WorkOutSpawnScenario_Patch
+        public static class Player_WorkOutSpawnScenario_Patch
         {
+            public static bool forceCheckpointSpawn = false;
+
             static void Postfix(Player __instance, ref Player.SpawnType __result)
             {
                 if (!Main.enabled)
@@ -1026,10 +1020,11 @@ namespace Control_Enemies_Mod
                     {
                         __instance.Lives = Main.settings.ghostLives;
                     }
-                    // Need to delay writing lives if doing drop in so that it doesn't get overwritten
-                    else if (__result == Player.SpawnType.DropInDuringGame)
+
+                    if (forceCheckpointSpawn)
                     {
-                        Main.fixLives[__instance.playerNum] = true;
+                        __result = Player.SpawnType.CheckpointRespawn;
+                        forceCheckpointSpawn = false;
                     }
                 }
 
@@ -1325,7 +1320,11 @@ namespace Control_Enemies_Mod
                     // Hero player was attacked
                     if (toNum == Main.currentHeroNum)
                     {
-                        __result = true;
+                        // Hit player unless a playerNum greater than 3 was attacking them, which is seemingly reserved for stuff like doors and crates
+                        if ( fromNum < 4 )
+                        {
+                            __result = true;
+                        }
                     }
                     // Hero player attacking
                     else if (fromNum == Main.currentHeroNum)
@@ -1336,7 +1335,7 @@ namespace Control_Enemies_Mod
                             __result = true;
                         }
                     }
-                    // Ghost Player Attacking
+                    // Ghost Player attacking things other than hero
                     else if (fromNum != Main.currentHeroNum)
                     {
                         // Ghost player was attacked
@@ -1448,9 +1447,8 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (Main.fixLives[__instance.playerNum])
+                if (Main.settings.competitiveModeEnabled)
                 {
-                    Main.fixLives[__instance.playerNum] = false;
                     __instance.Lives = Main.settings.ghostLives;
                 }
             }
@@ -1468,6 +1466,45 @@ namespace Control_Enemies_Mod
                 }
 
                 return playerNum == Main.currentHeroNum;
+            }
+        }
+
+        // Fix avatars flashing for ghost players
+        [HarmonyPatch(typeof(PlayerHUD), "FlashAvatar")]
+        static class PlayerHUD_FlashAvatar_Patch
+        {
+            public static bool Prefix(PlayerHUD __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                int playerNum = (int) Traverse.Create(__instance).GetFieldValue("playerNum");
+
+                return playerNum == Main.currentHeroNum;
+            }
+        }
+
+        // Fix ghosts being left over when player drops out of the game
+        [HarmonyPatch(typeof(HeroController), "DropoutRPC")]
+        static class HeroController_DropoutRPC_Patch
+        {
+            public static void Prefix(ref int playerNum)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                // Delete ghost if bro is dropping out of the game
+                if (Main.settings.competitiveModeEnabled && Main.currentGhosts[playerNum] != null)
+                {
+                    UnityEngine.Object.Destroy(Main.currentGhosts[playerNum].gameObject);
+                    Main.previousCharacter[playerNum] = null;
+                    Main.currentlyEnemy[playerNum] = false;
+                    Main.currentGhosts[playerNum] = null;
+                }
             }
         }
         #endregion
