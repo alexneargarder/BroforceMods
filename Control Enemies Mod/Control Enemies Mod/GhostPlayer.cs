@@ -51,7 +51,8 @@ namespace Control_Enemies_Mod
         // Movement
         public bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
         protected float yI, xI;
-        protected const float speed = 175f;
+        protected const float normalSpeed = 130f;
+        protected const float sprintSpeed = 180f;
         protected const float accelerationFactor = 3.5f;
         protected const float decelerationFactor = 1.5f;
         protected float screenMinX, screenMaxX, screenMinY, screenMaxY;
@@ -174,6 +175,22 @@ namespace Control_Enemies_Mod
                     this.sprite.GetComponent<Renderer>().material.SetColor("_TintColor", color);
                 }
             }
+
+            // Make sure enemy we are attacking doesn't die
+            if ( this.state == GhostState.Attacking )
+            {
+                if ( characterToPossess == null || !characterToPossess.IsAlive() || characterToPossess.health <= 0 )
+                {
+                    if (this.characterToPossess != null)
+                    {
+                        this.characterToPossess.name = "enemy";
+                    }
+                    this.characterToPossess = null;
+                    this.state = GhostState.Idle;
+                    this.frame = 0;
+                    SetFrame();
+                }
+            }
         }
 
         public virtual void LateUpdate()
@@ -225,6 +242,9 @@ namespace Control_Enemies_Mod
 
             if ( state == GhostState.Idle || this.state == GhostState.Reviving )
             {
+                // Check sprint manually since it's not detected by GetInput
+                this.sprint = InputReader.GetDashStart(player.controllerNum);
+
                 // Use actual axes rather than just cardinal directions
                 if ( this.usingController )
                 {
@@ -232,6 +252,8 @@ namespace Control_Enemies_Mod
 
                     float upAmount = player.GetAxis("Up") - player.GetAxis("Down");
                     float rightAmount = player.GetAxis("Right") - player.GetAxis("Left");
+
+                    float speed = this.sprint ? sprintSpeed : normalSpeed;
 
                     if ( Mathf.Abs(yI) < Mathf.Abs(upAmount * speed))
                     {
@@ -321,6 +343,8 @@ namespace Control_Enemies_Mod
                 }
                 else
                 {
+                    float speed = this.sprint ? sprintSpeed : normalSpeed;
+
                     // Go up
                     if (this.up)
                     {
@@ -415,11 +439,13 @@ namespace Control_Enemies_Mod
                 this.transform.position = position;
 
                 // Keep player next to ghost to make camera work
-                if ( this.state == GhostState.Reviving )
+                if ( this.state == GhostState.Reviving || this.ableToRevive )
                 {
                     player.character.SetXY(position.x, position.y);
                 }
-                else
+
+                // Don't check inputs if we're reviving
+                if ( this.state != GhostState.Reviving )
                 {
                     // Try to find enemy to attack
                     if (fire)
@@ -466,6 +492,8 @@ namespace Control_Enemies_Mod
                         this.transform.localScale = new Vector3(-1f, 1f, 1f);
                     }
                 }
+
+                float speed = this.sprint ? sprintSpeed : normalSpeed;
 
                 // Slow Down
                 if (this.yI > 0)
@@ -697,10 +725,25 @@ namespace Control_Enemies_Mod
 
         public void FinishAttack()
         {
-            Main.StartControllingUnit(playerNum, characterToPossess, false, true, false);
-            characterToPossess = null;
-            this.state = GhostState.Idle;
-            this.gameObject.SetActive(false);
+            // Make sure character is alive before finish possession
+            if (characterToPossess != null && characterToPossess.IsAlive() && characterToPossess.health > 0)
+            {
+                Main.StartControllingUnit(playerNum, characterToPossess, false, true, false);
+                characterToPossess = null;
+                this.state = GhostState.Idle;
+                this.gameObject.SetActive(false);
+            }
+            else
+            {
+                if ( this.characterToPossess != null )
+                {
+                    this.characterToPossess.name = "enemy";
+                }
+                this.characterToPossess = null;
+                this.state = GhostState.Idle;
+                this.frame = 0;
+                SetFrame();
+            }
         }
 
         public void SetCanReviveCharacter()

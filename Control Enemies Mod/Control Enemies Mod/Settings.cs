@@ -59,6 +59,7 @@ namespace Control_Enemies_Mod
         // Competitive Settings
         public bool competitiveModeEnabled = false;
         public SpawnMode spawnMode = SpawnMode.Ghost;
+        public int heroLives = 3;
         public int ghostLives = 3;
 
         public override void Save(UnityModManager.ModEntry modEntry)

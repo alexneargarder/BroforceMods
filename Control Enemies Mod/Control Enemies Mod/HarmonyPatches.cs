@@ -358,53 +358,64 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" && __instance.IsHeavy() )
+                if (!Main.settings.competitiveModeEnabled)
                 {
-                    __result = false;
-                    if (__instance.playerNum >= 0 && __instance.playerNum < 5)
+                    if (__instance.name == "c" && __instance.IsHeavy())
                     {
-                        Collider[] array = Physics.OverlapSphere(new Vector3(__instance.X, __instance.Y, 0f), 4f, victoryLayer);
-                        if (array.Length > 0)
+                        __result = false;
+                        if (__instance.playerNum >= 0 && __instance.playerNum < 5)
                         {
-                            __instance.invulnerable = true;
-                            if (__instance.GetComponent<AudioSource>() != null)
+                            Collider[] array = Physics.OverlapSphere(new Vector3(__instance.X, __instance.Y, 0f), 4f, victoryLayer);
+                            if (array.Length > 0)
                             {
-                                __instance.GetComponent<AudioSource>().Stop();
-                            }
-                            __instance.enabled = false;
-                            if (array[0].transform.parent != null)
-                            {
-                                HelicopterFake component = array[0].transform.parent.GetComponent<HelicopterFake>();
-                                if (component != null || Map.MapData.onlyTriggersCanWinLevel)
+                                __instance.invulnerable = true;
+                                if (__instance.GetComponent<AudioSource>() != null)
                                 {
-                                    Helicopter component2 = array[0].transform.parent.GetComponent<Helicopter>();
-                                    ladderXPos = AttachToHelicopter(__instance, ladderXPos, component2);
-                                    Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component2, false, false);
-                                    __result = true;
+                                    __instance.GetComponent<AudioSource>().Stop();
                                 }
-                                Helicopter component3 = array[0].transform.parent.GetComponent<Helicopter>();
-                                if (component3 != null)
+                                __instance.enabled = false;
+                                if (array[0].transform.parent != null)
                                 {
-                                    ladderXPos = AttachToHelicopter(__instance, ladderXPos, component3);
-                                    Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component3, true, false);
+                                    HelicopterFake component = array[0].transform.parent.GetComponent<HelicopterFake>();
+                                    if (component != null || Map.MapData.onlyTriggersCanWinLevel)
+                                    {
+                                        Helicopter component2 = array[0].transform.parent.GetComponent<Helicopter>();
+                                        ladderXPos = AttachToHelicopter(__instance, ladderXPos, component2);
+                                        Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component2, false, false);
+                                        __result = true;
+                                    }
+                                    Helicopter component3 = array[0].transform.parent.GetComponent<Helicopter>();
+                                    if (component3 != null)
+                                    {
+                                        ladderXPos = AttachToHelicopter(__instance, ladderXPos, component3);
+                                        Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component3, true, false);
+                                    }
                                 }
+                                Traverse trav = Traverse.Create(__instance);
+                                trav.Field("jumpTime").SetValue(0.07f);
+                                trav.Field("doubleJumpsLeft").SetValue(0);
+                                HeroLevelExitPortal component4 = array[0].GetComponent<HeroLevelExitPortal>();
+                                if (component4 != null)
+                                {
+                                    typeof(TestVanDammeAnim).GetMethod("SuckIntoPortal", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, null);
+                                }
+                                GameModeController.LevelFinish(LevelResult.Success);
+                                Map.StartLevelEndExplosionsOverNetwork();
+                                __instance.isOnHelicopter = true;
+                                __instance.playerNum = 5;
+                                __result = true;
                             }
-                            Traverse trav = Traverse.Create(__instance);
-                            trav.Field("jumpTime").SetValue(0.07f);
-                            trav.Field("doubleJumpsLeft").SetValue(0);
-                            HeroLevelExitPortal component4 = array[0].GetComponent<HeroLevelExitPortal>();
-                            if (component4 != null)
-                            {
-                                typeof(TestVanDammeAnim).GetMethod("SuckIntoPortal", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, null);
-                            }
-                            GameModeController.LevelFinish(LevelResult.Success);
-                            Map.StartLevelEndExplosionsOverNetwork();
-                            __instance.isOnHelicopter = true;
-                            __instance.playerNum = 5;
-                            __result = true;
                         }
+                        return false;
                     }
-                    return false;
+                }
+                else
+                {
+                    // Don't allow non hero players or inactive players to finish the level
+                    if ( __instance.playerNum != Main.currentHeroNum || !__instance.gameObject.activeSelf )
+                    {
+                        return false;
+                    }
                 }
 
                 return true;
@@ -804,6 +815,171 @@ namespace Control_Enemies_Mod
         }
         #endregion
 
+        // Allow controlled enemies to fire offscreen
+        #region UseFirePatches
+        public static bool overrideNextVisibilityCheck = false;
+
+        [HarmonyPatch(typeof(SetResolutionCamera), "IsItVisible")]
+        static class SetResolutionCamera_IsItVisible_Patch
+        {
+            public static bool Prefix(SetResolutionCamera __instance, ref bool __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (overrideNextVisibilityCheck)
+                {
+                    __result = true;
+                    overrideNextVisibilityCheck = false;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(SortOfFollow), "IsItSortOfVisible", new Type[] { typeof(float), typeof(float), typeof(float), typeof(float) })]
+        static class SortOfFollow_IsItSortOfVisible_Patch
+        {
+            public static bool Prefix(SortOfFollow __instance, ref bool __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (overrideNextVisibilityCheck)
+                {
+                    __result = true;
+                    overrideNextVisibilityCheck = false;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(Mook), "UseFire")]
+        static class Mook_UseFire_Patch
+        {
+            public static void Prefix(Mook __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+                
+                if ( __instance.name == "c" )
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookArmouredGuy), "UseFire")]
+        static class MookArmouredGuy_UseFire_Patch
+        {
+            public static void Prefix(MookArmouredGuy __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookBigGuy), "UseFire")]
+        static class MookBigGuy_UseFire_Patch
+        {
+            public static void Prefix(MookBigGuy __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookHellBoomer), "UseFire")]
+        static class MookHellBoomer_UseFire_Patch
+        {
+            public static void Prefix(MookHellBoomer __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookJetpackBazooka), "UseFire")]
+        static class MookJetpackBazooka_UseFire_Patch
+        {
+            public static void Prefix(MookJetpackBazooka __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookBigGuyElite), "UseFire")]
+        static class MookBigGuyElite_UseFire_Patch
+        {
+            public static void Prefix(MookBigGuyElite __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(MookBazooka), "UseFire")]
+        static class MookBazooka_UseFire_Patch
+        {
+            public static void Prefix(MookBazooka __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    overrideNextVisibilityCheck = true;
+                }
+            }
+        }
+        #endregion
         // Make spawned helldogs friendly
         #region HellDog
         [HarmonyPatch(typeof(HellDogEgg), "MakeEffects")]
@@ -881,6 +1057,40 @@ namespace Control_Enemies_Mod
                     }
                     __instance.SpecialAmmo = 0;
                 }
+            }
+        }
+        #endregion
+
+        // Prevent Jetpack mooks from automatically flying up
+        #region Jetpack Mooks
+        [HarmonyPatch(typeof(MookJetpack), "StartJetPacks")]
+        public static class MookJetpack_StartJetPacks_Patch
+        {
+            public static bool allowJetpack = false;
+
+            public static bool Prefix(MookJetpack __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (__instance.name == "c")
+                {
+                    if (!allowJetpack)
+                    {
+                        Traverse.Create(__instance).SetFieldValue("jetpacksDelay", 1000000f);
+                        return false;
+                    }
+                    else
+                    {
+                        allowJetpack = false;
+                        Traverse.Create(__instance).SetFieldValue("jetpacksDelay", 0f);
+                        return true;
+                    }
+                }
+
+                return true;
             }
         }
         #endregion
@@ -1018,7 +1228,28 @@ namespace Control_Enemies_Mod
                 {
                     if (__instance.firstDeployment)
                     {
-                        __instance.Lives = Main.settings.ghostLives;
+                        if ( __instance.playerNum == Main.currentHeroNum )
+                        {
+                            if ( Main.settings.heroLives == 0 )
+                            {
+                                __instance.Lives = 100000;
+                            }
+                            else
+                            {
+                                __instance.Lives = Main.settings.heroLives;
+                            }
+                        }
+                        else
+                        {
+                            if ( Main.settings.ghostLives == 0 )
+                            {
+                                __instance.Lives = 100000;
+                            }
+                            else
+                            {
+                                __instance.Lives = Main.settings.ghostLives;
+                            }
+                        }   
                     }
 
                     if (forceCheckpointSpawn)
@@ -1143,81 +1374,13 @@ namespace Control_Enemies_Mod
                     #region Special
                     bool special2Down = Main.special2[playerNum].IsDown();
                     bool special3Down = Main.special3[playerNum].IsDown();
-                    // Pressed special2
-                    if (!Main.special2[playerNum].wasDown && special2Down)
-                    {
-                        // Press and hold
-                        if (!Main.settings.extraControlsToggle)
-                        {
-                            Main.PressSpecial2(character);
-                        }
-                        // Press to toggle
-                        else
-                        {
-                            // Wasn't held so start holding
-                            if (!Main.holdingSpecial2[__instance.playerNum])
-                            {
-                                Main.holdingSpecial2[__instance.playerNum] = true;
-                                Main.PressSpecial2(__instance.character);
-                            }
-                            // Release
-                            else
-                            {
-                                Main.holdingSpecial2[__instance.playerNum] = false;
-                                Main.ReleaseSpecial2(__instance.character);
-                            }
-                        }
-                    }
-                    // Release special2
-                    else if (Main.special2[playerNum].wasDown && !special2Down)
-                    {
-                        // Releasing hold
-                        if (!Main.settings.extraControlsToggle)
-                        {
-                            Main.ReleaseSpecial2(character);
-                        }
-                    }
 
-                    // Pressed special3
-                    if (!Main.special3[playerNum].wasDown && special3Down)
-                    {
-                        // Press and hold
-                        if (!Main.settings.extraControlsToggle)
-                        {
-                            Main.PressSpecial3(character);
-                        }
-                        // Press to toggle
-                        else
-                        {
-                            // Wasn't held so start holding
-                            if (!Main.holdingSpecial3[playerNum])
-                            {
-                                Main.holdingSpecial3[playerNum] = true;
-                                Main.PressSpecial3(character);
-                            }
-                            // Release
-                            else
-                            {
-                                Main.holdingSpecial3[playerNum] = false;
-                                Main.ReleaseSpecial3(character);
-                            }
-                        }
-                    }
-                    // Release special3
-                    else if (Main.special3[playerNum].wasDown && !special3Down)
-                    {
-                        // Releasing hold
-                        if (!Main.settings.extraControlsToggle)
-                        {
-                            Main.ReleaseSpecial3(character);
-                        }
-                    }
+                    Main.HandleSpecial(ref special, ref Main.specialWasDown[playerNum], ref Main.holdingSpecial[playerNum], character, playerNum);
+                    Main.HandleButton(special2Down, ref Main.holdingSpecial2[playerNum], ref Main.special2[playerNum].wasDown, Main.PressSpecial2, Main.ReleaseSpecial2, character, playerNum);
+                    Main.HandleButton(special3Down, ref Main.holdingSpecial3[playerNum], ref Main.special3[playerNum].wasDown, Main.PressSpecial3, Main.ReleaseSpecial3, character, playerNum);
 
-                    Main.special2[playerNum].wasDown = special2Down;
-                    Main.special3[playerNum].wasDown = special3Down;
-
-                    // FIXME: Check if enemy is using a broken special
-                    //if ( special && (character is AlienXenomorph || character is AlienBrute || character is ))
+                    // Override special with our own variable so we can disable specials that don't work
+                    special = Main.holdingSpecial[playerNum];
                     #endregion
 
                     #region Taunting
@@ -1436,6 +1599,26 @@ namespace Control_Enemies_Mod
             }
         }
 
+        // Hide ghost players from enemies
+        [HarmonyPatch(typeof(Map), "BotherNearbyMooks")]
+        static class Map_BotherNearbyMooks_Patch
+        {
+            public static bool Prefix(Map __instance, ref int playerNum)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if (playerNum >= 0 && playerNum < 4 && playerNum != Main.currentHeroNum)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
         // Ensure players have the correct number of lives
         [HarmonyPatch(typeof(Player), "Start")]
         static class Player_Start_Patch
@@ -1449,7 +1632,28 @@ namespace Control_Enemies_Mod
 
                 if (Main.settings.competitiveModeEnabled)
                 {
-                    __instance.Lives = Main.settings.ghostLives;
+                    if (__instance.playerNum == Main.currentHeroNum)
+                    {
+                        if (Main.settings.heroLives == 0)
+                        {
+                            __instance.Lives = 100000;
+                        }
+                        else
+                        {
+                            __instance.Lives = Main.settings.heroLives;
+                        }
+                    }
+                    else
+                    {
+                        if (Main.settings.ghostLives == 0)
+                        {
+                            __instance.Lives = 100000;
+                        }
+                        else
+                        {
+                            __instance.Lives = Main.settings.ghostLives;
+                        }
+                    }
                 }
             }
         }
@@ -1505,6 +1709,148 @@ namespace Control_Enemies_Mod
                     Main.currentlyEnemy[playerNum] = false;
                     Main.currentGhosts[playerNum] = null;
                 }
+            }
+        }
+
+        // Disable rescuing prisoners for ghost players
+        [HarmonyPatch(typeof(TestVanDammeAnim), "CheckRescues")]
+        static class TestVanDammeAnim_CheckRescues_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                return __instance.playerNum == Main.currentHeroNum;
+            }
+        }
+
+        // Disable highfives with ghost players
+        [HarmonyPatch(typeof(HeroController), "IsAnotherPlayerNearby")]
+        static class HeroController_IsAnotherPlayerNearby_Patch
+        {
+            public static bool Prefix(HeroController __instance, ref bool __result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                __result = false;
+                return false;
+            }
+        }
+
+        // Include ghost controlled mooks as mooks
+        [HarmonyPatch(typeof(Map), "GetNearbyMook")]
+        static class Map_GetNearbyMook_Patch
+        {
+            public static bool Prefix(Map __instance, ref float xRange, ref float yRange, ref float x, ref float y, ref int direction, ref bool canBeDead, ref Mook __result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                __result = null;
+                float nearestDist = Mathf.Max(xRange, yRange) + 1f;
+                for (int i = Map.units.Count - 1; i >= 0; i--)
+                {
+                    Unit unit = Map.units[i];
+                    if (!(unit == null) && (unit.playerNum < 0 || unit.name == "c") && (canBeDead || unit.health > 0))
+                    {
+                        float num = unit.X - x;
+                        if (Tools.FastAbsWithinRange(num, xRange) && Mathf.Sign(num) == (float)direction)
+                        {
+                            float num2 = unit.Y - y;
+                            if (Tools.FastAbsWithinRange(num2, yRange))
+                            {
+                                Mook component = unit.GetComponent<Mook>();
+                                if (component != null)
+                                {
+                                    float num3 = Mathf.Abs(num) + Mathf.Abs(num2);
+                                    if (num3 < nearestDist)
+                                    {
+                                        nearestDist = num3;
+                                        __result = component;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        // Include ghost controlled mooks as mooks
+        [HarmonyPatch(typeof(Map), "GetNearbyMookVertical")]
+        static class Map_GetNearbyMookVertical_Patch
+        {
+            public static bool Prefix(Map __instance, ref float xRange, ref float yRange, ref float x, ref float y, ref int direction, ref bool canBeDead, ref Mook __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (Map.units == null)
+                {
+                    __result =  null;
+                    return false;
+                }
+                float nearestDist = Mathf.Max(xRange, yRange) + 1f;
+                for (int i = Map.units.Count - 1; i >= 0; i--)
+                {
+                    Unit unit = Map.units[i];
+                    if (!(unit == null) && unit.playerNum < 0 && (canBeDead || unit.health > 0))
+                    {
+                        float num = unit.X - x;
+                        if (Tools.FastAbsWithinRange(num, xRange))
+                        {
+                            float num2 = unit.Y - y;
+                            if (Tools.FastAbsWithinRange(num2, yRange) && Mathf.Sign(num2) == (float)direction)
+                            {
+                                Mook component = unit.GetComponent<Mook>();
+                                if (component != null)
+                                {
+                                    float num3 = Mathf.Abs(num) + Mathf.Abs(num2);
+                                    if (num3 < nearestDist)
+                                    {
+                                        nearestDist = num3;
+                                        __result = component;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        // Prevent rescues from going to ghost players that have died
+        [HarmonyPatch(typeof(HeroController), "MayIRescueThisBro")]
+        static class HeroController_MayIRescueThisBro_Patch
+        {
+            public static bool Prefix(HeroController __instance, ref int playerNum, ref RescueBro rescueBro, ref Ack ackRequest)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                // Don't bother checking anything, always accept rescue requests from hero player
+                if ( playerNum == Main.currentHeroNum )
+                {
+                    typeof(HeroController).GetMethod("SwapBro", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { playerNum, rescueBro, HeroController.Instance.playerDeathOrder.ToArray(), ackRequest });
+                    return false;
+                }
+
+                return true;
             }
         }
         #endregion
