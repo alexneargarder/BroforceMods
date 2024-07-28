@@ -479,7 +479,11 @@ namespace Control_Enemies_Mod
             
             GUILayout.Space(20);
 
-            settings.ghostLives = RGUI.HorizontalSliderInt("Lives at Level Start: ", settings.ghostLives, 1, 10, 500);
+            settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", settings.heroLives, 0, 10, 500);
+
+            GUILayout.Space(15);
+
+            settings.ghostLives = RGUI.HorizontalSliderInt("Ghost Lives at Level Start (0 = unlimited): ", settings.ghostLives, 0, 10, 500);
 
             GUILayout.Space(15);
         }
@@ -504,11 +508,14 @@ namespace Control_Enemies_Mod
         #region Modding
         // General options
         public static List<Unit> currentUnit = new List<Unit>() { null, null, null, null };
+        public static UnitType[] currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
         public static bool[] currentlyEnemy = { false, false, false, false };
         public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
         public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
         public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
         public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat;
+        public static bool[] specialWasDown = { false, false, false, false };
+        public static bool[] holdingSpecial = { false, false, false, false };
         public static bool[] holdingSpecial2 = { false, false, false, false };
         public static bool[] holdingSpecial3 = { false, false, false, false };
         public static bool[] holdingGesture = { false, false, false, false };
@@ -655,13 +662,18 @@ namespace Control_Enemies_Mod
         {
             // General options
             currentUnit = new List<Unit>() { null, null, null, null };
+            currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
             currentlyEnemy = new bool[] { false, false, false, false };
             previousPlayerNum = new int[] { -1, -1, -1, -1 };
             previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
             countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
+            specialWasDown = new bool[] { false, false, false, false };
+            holdingSpecial = new bool[] { false, false, false, false };
             holdingSpecial2 = new bool[] { false, false, false, false };
             holdingSpecial3 = new bool[] { false, false, false, false };
             holdingGesture = new bool[] { false, false, false, false };
+            HarmonyPatches.overrideNextVisibilityCheck = false;
+            HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = false;
 
             // Possessing Enemy
             fireDelay = new float[] { 0f, 0f, 0f, 0f };
@@ -697,6 +709,7 @@ namespace Control_Enemies_Mod
                 {
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
+                    currentUnitType[playerNum] = unit.GetUnitType();
                     unit.playerNum = playerNum;
                     Traverse.Create(unit).Field("isHero").SetValue(true);
                     unit.name = "c";
@@ -719,6 +732,8 @@ namespace Control_Enemies_Mod
                         mook.canDash = settings.enableSprinting;
                     }
                     // Make sure held buttons aren't carried over
+                    specialWasDown[playerNum] = false;
+                    holdingSpecial[playerNum] = false;
                     holdingSpecial2[playerNum] = false;
                     holdingSpecial3[playerNum] = false;
                     holdingGesture[playerNum] = false;
@@ -920,107 +935,269 @@ namespace Control_Enemies_Mod
             }
         }
 
-        // Enemy Specific
-        public static void PressSpecial2(TestVanDammeAnim character)
+        // Enemy Specific Inputs
+        public static void HandleSpecial(ref bool down, ref bool wasDown, ref bool holding, TestVanDammeAnim character, int playerNum)
         {
-            if (character is AlienClimber)
+            bool actuallyDown = down;
+
+            // Pressed button
+            if (!wasDown && down)
             {
-                // Make climbers climb
-                Traverse.Create(character).SetFieldValue("climbButton", true);
+                PressSpecial(character, playerNum, ref down);
+                holding = down;
             }
-            else if (character is AlienMosquito)
+            // Released button
+            else if (wasDown && !down)
             {
-                // Make mosquito fly
-                AlienMosquito mosquito = character as AlienMosquito;
-                Traverse trav = Traverse.Create(mosquito);
-                // if using toggle controls and mosquito is already flying, stop flying
-                if ( settings.extraControlsToggle && (bool)trav.GetFieldValue("flying") )
+                ReleaseSpecial(character, playerNum, ref down);
+                holding = false;
+            }
+
+            wasDown = actuallyDown;
+        }
+        public static void PressSpecial(TestVanDammeAnim character, int playerNum, ref bool down)
+        {
+            Traverse trav = Traverse.Create(character);
+            switch (currentUnitType[character.playerNum])
+            {
+                // Don't use special because it requires special ammo which we're removing from all enemies
+                case UnitType.Villager:
+                    down = false;
+                    break;
+
+                // Manually set usingSpecial to true since satan ignores it from input
+                case UnitType.SatanMiniboss:
+                    trav.SetFieldValue("usingSpecial", true);
+                    break;
+
+                // Don't use special if we don't have one
+                default:
+                    if (!currentUnitType[playerNum].HasSpecial())
+                    {
+                        down = false;
+                    }
+                    break;
+            }
+        }
+        public static void ReleaseSpecial(TestVanDammeAnim character, int playerNum, ref bool down)
+        {
+            Traverse trav = Traverse.Create(character);
+            switch (currentUnitType[character.playerNum])
+            {
+                // Stop using special so you don't get trapped into using it forever
+                case UnitType.AttackDog:
+                case UnitType.Hellhound:
+                case UnitType.MookGeneral:
+                case UnitType.Alarmist:
+                    trav.SetFieldValue("usingSpecial", false);
+                    break;
+
+                // Manually set usingSpecial since satan ignores it from input
+                case UnitType.SatanMiniboss:
+                    trav.SetFieldValue("usingSpecial", false);
+                    break;
+            }
+        }
+        public static void HandleButton(bool down, ref bool wasDown, ref bool holding, Action<TestVanDammeAnim> press, Action<TestVanDammeAnim> release, TestVanDammeAnim character, int playerNum)
+        {
+            // Pressed button
+            if (!wasDown && down)
+            {
+                // Press and hold
+                if (!Main.settings.extraControlsToggle)
                 {
-                    holdingSpecial2[character.playerNum] = false;
-                    trav.SetFieldValue("flying", false);
+                    press(character);
                 }
+                // Press to toggle
                 else
                 {
-                    trav.SetFieldValue("flying", true);
+                    // Wasn't held so start holding
+                    if (!holding)
+                    {
+                        holding = true;
+                        press(character);
+                    }
+                    // Release
+                    else
+                    {
+                        holding = false;
+                        release(character);
+                    }
                 }
             }
-            else if (character is DolphLundrenSoldier)
+            // Released button
+            else if (wasDown && !down)
             {
-                // Give DolphLundren his super jump special manually
-                DolphLundrenSoldier dolph = character as DolphLundrenSoldier;
-                dolph.jumpForce = 1000;
-                Traverse.Create(dolph).SetFieldValue("usingSpecial2", true);
+                // Releasing hold
+                if (!Main.settings.extraControlsToggle)
+                {
+                    release(character);
+                }
             }
-            else
+
+            wasDown = down;
+        }
+        public static void PressSpecial2(TestVanDammeAnim character)
+        {
+            Traverse trav = Traverse.Create(character);
+
+            switch (currentUnitType[character.playerNum])
             {
-                Traverse.Create(character).SetFieldValue("usingSpecial2", true);
+                // Make climbers climb
+                case UnitType.Snake:
+                case UnitType.Facehugger:
+                case UnitType.Xenomorph:
+                case UnitType.Screecher:
+                case UnitType.XenomorphBrainbox:
+                    trav.SetFieldValue("climbButton", true);
+                    break;
+
+                // Make jetpack enemies start their jetpack
+                case UnitType.JetpackMook:
+                case UnitType.JetpackBazookaMook:
+                    // if using toggle controls and mosquito is already flying, stop flying
+                    if (settings.extraControlsToggle && (bool)trav.GetFieldValue("jetpacksOn"))
+                    {
+                        holdingSpecial2[character.playerNum] = false;
+                        typeof(MookJetpack).GetMethod("StopJetpacks", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(character, new object[] {});
+                    }
+                    else
+                    {
+                        HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = true;
+                        typeof(MookJetpack).GetMethod("StartJetPacks", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(character, new object[] { });
+                    }
+                    break;
+
+                // Make flying enemies fly
+                case UnitType.Baneling:
+                case UnitType.LostSoul:
+                    // if using toggle controls and mosquito is already flying, stop flying
+                    if (settings.extraControlsToggle && (bool)trav.GetFieldValue("flying"))
+                    {
+                        holdingSpecial2[character.playerNum] = false;
+                        trav.SetFieldValue("flying", false);
+                    }
+                    else
+                    {
+                        trav.SetFieldValue("flying", true);
+                    }
+                    break;
+
+                // Give DolphLundren his super jump special manually
+                case UnitType.CR666:
+                    character.jumpForce = 1000;
+                    Traverse.Create(character).SetFieldValue("usingSpecial2", true);
+                    break;
+
+                default:
+                    if (currentUnitType[character.playerNum].HasSpecial2())
+                    {
+                        Traverse.Create(character).SetFieldValue("usingSpecial2", true);
+                    }
+                    break;
             }
         }
         public static void ReleaseSpecial2(TestVanDammeAnim character)
         {
-            if (character is AlienClimber)
+            Traverse trav = Traverse.Create(character);
+
+            switch (currentUnitType[character.playerNum])
             {
                 // Make climbers climb
-                Traverse.Create(character).SetFieldValue("climbButton", false);
-            }
-            else if (character is AlienMosquito)
-            {
-                // Make mosquito fly
-                AlienMosquito mosquito = character as AlienMosquito;
-                Traverse.Create(mosquito).SetFieldValue("flying", false);
-            }
-            else if (character is DolphLundrenSoldier)
-            {
+                case UnitType.Snake:
+                case UnitType.Facehugger:
+                case UnitType.Xenomorph:
+                case UnitType.Screecher:
+                case UnitType.XenomorphBrainbox:
+                    trav.SetFieldValue("climbButton", false);
+                    break;
+
+                // Make jetpack enemies start their jetpack
+                case UnitType.JetpackMook:
+                case UnitType.JetpackBazookaMook:
+                    typeof(MookJetpack).GetMethod("StopJetpacks", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(character, new object[] { });
+                    break;
+
+                // Make flying enemies fly
+                case UnitType.Baneling:
+                case UnitType.LostSoul:
+                    trav.SetFieldValue("flying", false);
+                    break;
+
                 // Give DolphLundren his super jump special manually
-                DolphLundrenSoldier dolph = character as DolphLundrenSoldier;
-                dolph.jumpForce = 260;
-                Traverse.Create(dolph).SetFieldValue("usingSpecial2", false);
-            }
-            else
-            {
-                Traverse.Create(character).SetFieldValue("usingSpecial2", false);
+                case UnitType.CR666:
+                    character.jumpForce = 260;
+                    Traverse.Create(character).SetFieldValue("usingSpecial2", false);
+                    break;
+
+                default:
+                    if (currentUnitType[character.playerNum].HasSpecial2())
+                    {
+                        Traverse.Create(character).SetFieldValue("usingSpecial2", false);
+                    }
+                    break;
             }
         }
         public static void PressSpecial3(TestVanDammeAnim character)
         {
-            if (character is AlienMelter)
+            Traverse trav = Traverse.Create(character);
+
+            switch (currentUnitType[character.playerNum])
             {
                 // Special 4 for alien melters to allow rolling attack
-                Traverse.Create(character).SetFieldValue("usingSpecial4", true);
-            }
-            else if (character is AlienMosquito)
-            {
-                // Make mosquito dive
-                AlienMosquito mosquito = character as AlienMosquito;
-                Traverse.Create(mosquito).SetFieldValue("diving", true);
-            }
-            else if (character is DolphLundrenSoldier)
-            {
-                // Make sure dolph has seen the player to allow his special to activate
-                Traverse.Create(character.enemyAI).SetFieldValue("seenEnemyNum", 0);
-                Traverse.Create(character).SetFieldValue("usingSpecial3", true);
-            }
-            else
-            {
-                Traverse.Create(character).SetFieldValue("usingSpecial3", true);
+                case UnitType.Screecher:
+                    trav.SetFieldValue("usingSpecial4", true);
+                    break;
+
+                // Make flying enemies dive
+                case UnitType.Baneling:
+                case UnitType.LostSoul:
+                    trav.SetFieldValue("diving", true);
+                    break;
+
+                case UnitType.CR666:
+                    // Make sure dolph has seen the player to allow his special to activate
+                    Traverse.Create(character.enemyAI).SetFieldValue("seenEnemyNum", 0);
+                    trav.SetFieldValue("usingSpecial3", true);
+                    break;
+
+                default:
+                    if (currentUnitType[character.playerNum].HasSpecial3())
+                    {
+                        trav.SetFieldValue("usingSpecial3", true);
+                    }
+                    break;
             }
         }
         public static void ReleaseSpecial3(TestVanDammeAnim character)
         {
-            if (character is AlienMelter)
+            Traverse trav = Traverse.Create(character);
+
+            switch (currentUnitType[character.playerNum])
             {
                 // Special 4 for alien melters to allow rolling attack
-                Traverse.Create(character).SetFieldValue("usingSpecial4", false);
-            }
-            else if (character is AlienMosquito)
-            {
-                // Make mosquito dive
-                AlienMosquito mosquito = character as AlienMosquito;
-                Traverse.Create(mosquito).SetFieldValue("diving", false);
-            }
-            else
-            {
-                Traverse.Create(character).SetFieldValue("usingSpecial3", false);
+                case UnitType.Screecher:
+                    trav.SetFieldValue("usingSpecial4", false);
+                    break;
+
+                // Make flying enemies dive
+                case UnitType.Baneling:
+                case UnitType.LostSoul:
+                    trav.SetFieldValue("diving", false);
+                    break;
+
+                case UnitType.CR666:
+                    // Make sure dolph has seen the player to allow his special to activate
+                    Traverse.Create(character.enemyAI).SetFieldValue("seenEnemyNum", 0);
+                    trav.SetFieldValue("usingSpecial3", false);
+                    break;
+
+                default:
+                    if (currentUnitType[character.playerNum].HasSpecial3())
+                    {
+                        trav.SetFieldValue("usingSpecial3", false);
+                    }
+                    break;
             }
         }
 
@@ -1124,7 +1301,7 @@ namespace Control_Enemies_Mod
             {
                 Unit unit = Map.units[i];
                 // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-                if (unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && !currentUnit.Contains(unit) && !unit.IsHero)
+                if (unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && unit.name != "c" && unit.name != "p" && !unit.IsHero)
                 {
                     // Check unit is in rectangle around trap
                     if (Tools.FastAbsWithinRange(unit.X - center.x, 10f) && Tools.FastAbsWithinRange(unit.Y - center.y, 10f))
