@@ -84,6 +84,7 @@
     <Compile Include="Main.cs" />
     <Compile Include="MindControlBullet.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ScoreManager.cs" />
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

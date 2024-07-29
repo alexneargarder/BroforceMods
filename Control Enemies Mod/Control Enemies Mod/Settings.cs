@@ -59,6 +59,9 @@ namespace Control_Enemies_Mod
         // Competitive Settings
         public bool competitiveModeEnabled = false;
         public SpawnMode spawnMode = SpawnMode.Ghost;
+        public bool ghostControlledEnemiesAffectCamera = true;
+        public int scoreToWin = 10;
+        public int scoreIncrement = 5;
         public int heroLives = 3;
         public int ghostLives = 3;
 

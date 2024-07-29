@@ -9,6 +9,9 @@ using static Text3D;
 using static UnityEngine.UI.CanvasScaler;
 using Net = Networking.Networking;
 using System.Collections.Generic;
+using JetBrains.Annotations;
+using System.Net.NetworkInformation;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Control_Enemies_Mod
 {
@@ -179,19 +182,22 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (Main.settings.competitiveModeEnabled && damageType == DamageType.OutOfBounds && __instance.playerNum >= 0 && __instance.playerNum < 4 )
+                try
                 {
-                    // Manually remove life if player died as an enemy because it doesn't count normally for some reason
-                    if (Main.currentlyEnemy[__instance.playerNum])
+                    if (Main.settings.competitiveModeEnabled && __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
                     {
-                        HeroController.players[__instance.playerNum].RemoveLife();
+                        if ( __instance.name == "c" )
+                        {
+                            // Manually remove life because it doesn't count normally for some reason
+                            HeroController.players[__instance.playerNum].RemoveLife();
+                        }
+
                         Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
                     }
-                    else
-                    {
-                        // One less life because this death hasn't been counted yet
-                        Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives - 1);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Main.Log("Exception in gib: " + ex.ToString());
                 }
             }
         }
@@ -262,7 +268,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Player), "RemoveLife")]
         static class Player_RemoveLife_Patch
         {
-            public static bool Prefix()
+            public static bool Prefix(Player __instance)
             {
                 if (!Main.enabled)
                 {
@@ -273,6 +279,20 @@ namespace Control_Enemies_Mod
                 {
                     TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss = false;
                     return false;
+                }
+
+                if ( Main.settings.competitiveModeEnabled )
+                {
+                    // Disable life loss for ghosts if they have infinite lives
+                    if (Main.settings.ghostLives == 0 && __instance.playerNum != Main.currentHeroNum)
+                    {
+                        return false;
+                    }
+                    // Disable life loss for heros if they have infinite lives
+                    else if ( Main.settings.heroLives == 0 && __instance.playerNum == Main.currentHeroNum )
+                    {
+                        return false;
+                    }
                 }
 
                 return true;
@@ -290,7 +310,12 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (Main.countdownToRespawn[__instance.playerNum] > 0)
+                if ( Main.everyoneDead )
+                {
+                    __result = false;
+                    return false;
+                }
+                else if (Main.countdownToRespawn[__instance.playerNum] > 0)
                 {
                     __result = true;
                     return false;
@@ -351,6 +376,57 @@ namespace Control_Enemies_Mod
                 return ladderXPos;
             }
 
+            public static void IsOverFinish(TestVanDammeAnim character, ref float ladderXPos, ref bool __result, bool canTakePortal = true)
+            {
+                Collider[] array = Physics.OverlapSphere(new Vector3(character.X, character.Y, 0f), 4f, victoryLayer);
+                if (array.Length > 0)
+                {
+                    // Don't let character take the portal
+                    HeroLevelExitPortal component4 = array[0].GetComponent<HeroLevelExitPortal>();
+                    if (component4 != null && !canTakePortal)
+                    {
+                        __result = false;
+                        return;
+                    }
+
+                    character.invulnerable = true;
+                    if (character.GetComponent<AudioSource>() != null)
+                    {
+                        character.GetComponent<AudioSource>().Stop();
+                    }
+                    character.enabled = false;
+                    if (array[0].transform.parent != null)
+                    {
+                        HelicopterFake component = array[0].transform.parent.GetComponent<HelicopterFake>();
+                        if (component != null || Map.MapData.onlyTriggersCanWinLevel)
+                        {
+                            Helicopter component2 = array[0].transform.parent.GetComponent<Helicopter>();
+                            ladderXPos = AttachToHelicopter(character, ladderXPos, component2);
+                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), character.transform.localPosition, character.transform.localScale.x, character, component2, false, false);
+                            __result = true;
+                        }
+                        Helicopter component3 = array[0].transform.parent.GetComponent<Helicopter>();
+                        if (component3 != null)
+                        {
+                            ladderXPos = AttachToHelicopter(character, ladderXPos, component3);
+                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), character.transform.localPosition, character.transform.localScale.x, character, component3, true, false);
+                        }
+                    }
+                    Traverse trav = Traverse.Create(character);
+                    trav.Field("jumpTime").SetValue(0.07f);
+                    trav.Field("doubleJumpsLeft").SetValue(0);
+                    if (component4 != null)
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("SuckIntoPortal", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(character, null);
+                    }
+                    GameModeController.LevelFinish(LevelResult.Success);
+                    Map.StartLevelEndExplosionsOverNetwork();
+                    character.isOnHelicopter = true;
+                    character.playerNum = 5;
+                    __result = true;
+                }
+            }
+
             public static bool Prefix(TestVanDammeAnim __instance, ref float ladderXPos, ref bool __result)
             {
                 if (!Main.enabled)
@@ -365,46 +441,7 @@ namespace Control_Enemies_Mod
                         __result = false;
                         if (__instance.playerNum >= 0 && __instance.playerNum < 5)
                         {
-                            Collider[] array = Physics.OverlapSphere(new Vector3(__instance.X, __instance.Y, 0f), 4f, victoryLayer);
-                            if (array.Length > 0)
-                            {
-                                __instance.invulnerable = true;
-                                if (__instance.GetComponent<AudioSource>() != null)
-                                {
-                                    __instance.GetComponent<AudioSource>().Stop();
-                                }
-                                __instance.enabled = false;
-                                if (array[0].transform.parent != null)
-                                {
-                                    HelicopterFake component = array[0].transform.parent.GetComponent<HelicopterFake>();
-                                    if (component != null || Map.MapData.onlyTriggersCanWinLevel)
-                                    {
-                                        Helicopter component2 = array[0].transform.parent.GetComponent<Helicopter>();
-                                        ladderXPos = AttachToHelicopter(__instance, ladderXPos, component2);
-                                        Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component2, false, false);
-                                        __result = true;
-                                    }
-                                    Helicopter component3 = array[0].transform.parent.GetComponent<Helicopter>();
-                                    if (component3 != null)
-                                    {
-                                        ladderXPos = AttachToHelicopter(__instance, ladderXPos, component3);
-                                        Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>(PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>(HeroController.Instance.AttachHeroToHelicopter), __instance.transform.localPosition, __instance.transform.localScale.x, __instance, component3, true, false);
-                                    }
-                                }
-                                Traverse trav = Traverse.Create(__instance);
-                                trav.Field("jumpTime").SetValue(0.07f);
-                                trav.Field("doubleJumpsLeft").SetValue(0);
-                                HeroLevelExitPortal component4 = array[0].GetComponent<HeroLevelExitPortal>();
-                                if (component4 != null)
-                                {
-                                    typeof(TestVanDammeAnim).GetMethod("SuckIntoPortal", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, null);
-                                }
-                                GameModeController.LevelFinish(LevelResult.Success);
-                                Map.StartLevelEndExplosionsOverNetwork();
-                                __instance.isOnHelicopter = true;
-                                __instance.playerNum = 5;
-                                __result = true;
-                            }
+                            IsOverFinish(__instance, ref ladderXPos, ref __result);
                         }
                         return false;
                     }
@@ -414,6 +451,12 @@ namespace Control_Enemies_Mod
                     // Don't allow non hero players or inactive players to finish the level
                     if ( __instance.playerNum != Main.currentHeroNum || !__instance.gameObject.activeSelf )
                     {
+                        return false;
+                    }
+                    // Don't allow player into portal if they don't have the required score
+                    else if ( Main.openedPortal && __instance.playerNum == Main.currentHeroNum && !ScoreManager.CanWin(__instance.playerNum) )
+                    {
+                        IsOverFinish(__instance, ref ladderXPos, ref __result, false);
                         return false;
                     }
                 }
@@ -980,6 +1023,50 @@ namespace Control_Enemies_Mod
             }
         }
         #endregion
+
+        // Allow enemies to use doors
+        #region CanPassThroughBarriers
+        [HarmonyPatch(typeof(Mook), "CanPassThroughBarriers")]
+        static class Mook_CanPassThroughBarriers_Patch
+        {
+            public static bool Prefix(Mook __instance, ref bool __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if ( __instance.name == "c" )
+                {
+                    __result = true;
+                    return false;
+                }
+                
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(MookDog), "CanPassThroughBarriers")]
+        static class MookDog_CanPassThroughBarriers_Patch
+        {
+            public static bool Prefix(MookDog __instance, ref bool __result)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (__instance.name == "c")
+                {
+                    __result = true;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        #endregion
+
         // Make spawned helldogs friendly
         #region HellDog
         [HarmonyPatch(typeof(HellDogEgg), "MakeEffects")]
@@ -1091,6 +1178,54 @@ namespace Control_Enemies_Mod
                 }
 
                 return true;
+            }
+        }
+        #endregion
+
+        // Fix warlock summoning
+        #region Warlock
+        // Fix warlocks being unable to fire unless they've seen an enemy
+        [HarmonyPatch(typeof(PolymorphicAI), "GetSeenPlayerNum")]
+        static class PolymorphicAI_GetSeenPlayerNum_Patch
+        {
+            public static void Postfix(PolymorphicAI __instance, ref int __result)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c" && __instance is MookWarlockAI)
+                {
+                    // Set playernum to hero in competitive
+                    if ( Main.settings.competitiveModeEnabled)
+                    {
+                        __result = Main.currentHeroNum;
+                    }
+                    // Set playernum to yourself in normal mode, because it can't be set to enemies
+                    else
+                    {
+                        __result = __instance.GetComponent<TestVanDammeAnim>().playerNum;
+                    }
+                }
+            }
+        }
+
+        // Fix warlock mooks damaging the player if they're controlling the warlock
+        [HarmonyPatch(typeof(WarlockPortal), "SpawnUnit")]
+        static class WarlockPortal_SpawnUnit_Patch
+        {
+            public static void Postfix(WarlockPortal __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if ( __instance.owner != null && __instance.owner.name == "c" )
+                {
+                    __instance.unit.playerNum = __instance.owner.playerNum;
+                }
             }
         }
         #endregion
@@ -1232,7 +1367,7 @@ namespace Control_Enemies_Mod
                         {
                             if ( Main.settings.heroLives == 0 )
                             {
-                                __instance.Lives = 100000;
+                                __instance.Lives = 10;
                             }
                             else
                             {
@@ -1243,7 +1378,7 @@ namespace Control_Enemies_Mod
                         {
                             if ( Main.settings.ghostLives == 0 )
                             {
-                                __instance.Lives = 100000;
+                                __instance.Lives = 10;
                             }
                             else
                             {
@@ -1528,7 +1663,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if (__instance != null && __instance.playerNum != Main.currentHeroNum)
+                if (__instance != null && __instance.playerNum != Main.currentHeroNum && (!Main.settings.ghostControlledEnemiesAffectCamera || __instance.character == null || __instance.character.destroyed || __instance.character.name != "c" || !__instance.character.IsAlive()) )
                 {
                     __result = false;
                     return false;
@@ -1632,11 +1767,15 @@ namespace Control_Enemies_Mod
 
                 if (Main.settings.competitiveModeEnabled)
                 {
+                    // Setup score display
+                    ScoreManager.SetupSprites(__instance.playerNum);
+
+                    // Fix lives
                     if (__instance.playerNum == Main.currentHeroNum)
                     {
                         if (Main.settings.heroLives == 0)
                         {
-                            __instance.Lives = 100000;
+                            __instance.Lives = 10;
                         }
                         else
                         {
@@ -1647,7 +1786,7 @@ namespace Control_Enemies_Mod
                     {
                         if (Main.settings.ghostLives == 0)
                         {
-                            __instance.Lives = 100000;
+                            __instance.Lives = 10;
                         }
                         else
                         {
@@ -1851,6 +1990,219 @@ namespace Control_Enemies_Mod
                 }
 
                 return true;
+            }
+        }
+
+        // Keep score
+        [HarmonyPatch(typeof(GameModeController), "LevelFinish")]
+        static class GameModeController_LevelFinish_Patch
+        {
+            public static void Prefix(GameModeController __instance, ref LevelResult result)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if ( result == LevelResult.Success )
+                {
+                    ++ScoreManager.currentScore[Main.currentHeroNum];
+                    ScoreManager.UpdateScore(Main.currentHeroNum);
+
+                }
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Death")]
+        static class Villager_Death_Patch
+        {
+            public static void Prefix(Villager __instance, ref DamageObject damage)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4)
+                {
+                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives, damage);
+                }
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Gib", new Type[] { typeof(DamageType), typeof(float), typeof(float) })]
+        static class Villager_Gib_Patch
+        {
+            public static void Prefix(Villager __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if ( __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    // Manually remove life because it doesn't count normally for some reason
+                    HeroController.players[__instance.playerNum].RemoveLife();
+
+                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
+                }    
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Gib", new Type[] {} )]
+        static class Villager_Gib2_Patch
+        {
+            public static void Prefix(Villager __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    // Manually remove life because it doesn't count normally for some reason
+                    HeroController.players[__instance.playerNum].RemoveLife();
+
+                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
+                }
+            }
+        }
+
+        // Make sure ghost controlled pigs can hit the player
+        [HarmonyPatch(typeof(Animal), "RunFalling")]
+        static class Animal_RunFalling_Patch
+        {
+            public static bool Prefix(Animal __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                if ( __instance.name == "c" )
+                {
+                    if (__instance.fatAnimal)
+                    {
+                        __instance.invulnerable = true;
+                        if (Map.HitLivingUnits(__instance, __instance.playerNum, 3, DamageType.Crush, __instance.squashRange, __instance.X, __instance.Y + 2f, __instance.transform.localScale.x * 100f, 30f, false, true, true, false))
+                        {
+                            __instance.PlaySpecialAttackSound(0.25f);
+                            __instance.yI = 160f;
+                        }
+                        __instance.invulnerable = false;
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // Don't allow ghost players to activate checkpoints
+        [HarmonyPatch(typeof(TestVanDammeAnim), "CheckForCheckPoints")]
+        static class TestVanDammeAnim_CheckForCheckPoints_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+                
+                if ( __instance.name == "c" )
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Create exit portal on level finish if 
+        [HarmonyPatch(typeof(Helicopter), "Enter")]
+        static class Helicopter_Enter_Patch
+        {
+            public static void Postfix(Helicopter __instance, ref Vector2 Target)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled )
+                {
+                    return;
+                }
+                
+                // Make sure this isn't a dropoff helicopter
+                if ( !__instance.DroppingHeroesOff && !Main.openedPortal )
+                {
+                    // Check if any players are able to win
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        if (ScoreManager.CanWin(i))
+                        {
+                            Main.openedPortal = true;
+                            Vector2 portalLocation = Target;
+                            portalLocation.x += 70;
+                            Map.CreateExitPortal(portalLocation);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if player that can win enter the portal
+        [HarmonyPatch(typeof(TestVanDammeAnim), "SuckIntoPortal")]
+        static class TestVanDammeAnim_SuckIntoPortal_Patch
+        {
+            public static void Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if ( ScoreManager.CanWin(__instance.playerNum) )
+                {
+                    Main.anyAttemptingWin = true;
+                    Main.attemptingWin[__instance.playerNum] = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(GameModeController), "LoadNextScene")]
+        static class GameModeController_LoadNextScene_Patch
+        {
+            public static void Prefix(GameModeController __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if (Main.anyAttemptingWin )
+                {
+                    LevelSelectionController.ResetLevelAndGameModeToDefault();
+                    GameState.Instance.ResetToDefault();
+
+                    int chosenBoss = UnityEngine.Random.Range(0, 0);
+
+                    switch (chosenBoss)
+                    {
+                        // CR666
+                        case 0:
+                            GameState.Instance.campaignName = "WM_Village1(mouse)";
+                            LevelSelectionController.CurrentLevelNum = 3;
+                            break;
+                    }
+
+                    GameState.Instance.loadMode = MapLoadMode.Campaign;
+                    GameState.Instance.gameMode = GameMode.Campaign;
+                    GameState.Instance.returnToWorldMap = true;
+                    GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
+                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;   
+                }
             }
         }
         #endregion

@@ -11,6 +11,7 @@ using BSett = BroMakerLib.Settings;
 using RocketLib.Utils;
 using System.IO;
 using static RocketLib.Utils.TestVanDammeAnimTypes;
+using BroMakerLib.CustomObjects;
 
 namespace Control_Enemies_Mod
 {
@@ -92,6 +93,12 @@ namespace Control_Enemies_Mod
             // Load sprites for avatars
             LoadSprites();
 
+            // Load sprites for score
+            ScoreManager.LoadSprites();
+
+            // Initialize score
+            requiredScore = new int[] { settings.scoreToWin, settings.scoreToWin, settings.scoreToWin, settings.scoreToWin };
+
             return true;
         }
 
@@ -144,6 +151,31 @@ namespace Control_Enemies_Mod
 
         static void ShowGeneralOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
+            if ( GUILayout.Button("debug"))
+            {
+                try
+                {
+                    LevelSelectionController.ResetLevelAndGameModeToDefault();
+                    GameState.Instance.ResetToDefault();
+                    GameState.Instance.campaignName = "WM_Village1(mouse)";
+                    GameState.Instance.loadMode = MapLoadMode.Campaign;
+                    GameState.Instance.gameMode = GameMode.Campaign;
+                    GameState.Instance.returnToWorldMap = true;
+                    GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
+                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+                    LevelSelectionController.CurrentLevelNum = 1;
+                    HeroUnlockController.Initialize();
+                    MissionScreenController.SetVariables(string.Empty, WeatherType.Evil, RainType.None);
+                    MissionScreenController.SetMissionDescription(string.Empty);
+                    GameModeController.LoadNextSceneFade(GameState.Instance);
+                    RPCBatcher.FlushQueue();
+                }
+                catch ( Exception ex )
+                {
+                    Main.Log("exception: " + ex.ToString());
+                }
+            }
+
             GUILayout.BeginHorizontal();
             settings.allowWallClimbing = GUILayout.Toggle(settings.allowWallClimbing, new GUIContent("Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations"));
 
@@ -457,14 +489,26 @@ namespace Control_Enemies_Mod
         {
             GUILayout.BeginHorizontal();
             settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player"));
+            
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
+
+            settings.ghostControlledEnemiesAffectCamera = GUILayout.Toggle(settings.ghostControlledEnemiesAffectCamera, new GUIContent("Ghost Enemies Affect Camera", "Allows enemies controlled by ghosts to affect the camera, so they can't be left behind."));
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(10);
+            GUILayout.Space(15);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Spawn Mode:", "Controls whether you spawn as a ghost and fly towards enemies to possess them, or if you are automatically given enemies to control."), GUILayout.Width(225));
 
-            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 600;
 
@@ -476,8 +520,16 @@ namespace Control_Enemies_Mod
                 previousToolTip = GUI.tooltip;
             }
             GUILayout.EndHorizontal();
-            
+
             GUILayout.Space(20);
+
+            settings.scoreToWin = RGUI.HorizontalSliderInt("Score Required to Attempt a Win (0 = unlimited): ", settings.scoreToWin, 0, 10, 500);
+
+            GUILayout.Space(15);
+
+            settings.scoreIncrement = RGUI.HorizontalSliderInt("Score Increase on Failed Win Attempt: ", settings.scoreIncrement, 0, 10, 500);
+
+            GUILayout.Space(25);
 
             settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", settings.heroLives, 0, 10, 500);
 
@@ -520,6 +572,7 @@ namespace Control_Enemies_Mod
         public static bool[] holdingSpecial3 = { false, false, false, false };
         public static bool[] holdingGesture = { false, false, false, false };
         public static bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
+        public static bool createdSandworms = false;
 
         // Possessing Enemy
         public static MindControlBullet bulletPrefab = null;
@@ -540,6 +593,11 @@ namespace Control_Enemies_Mod
         public static GhostPlayer[] currentGhosts = new GhostPlayer[] { null, null, null, null };
         public static Vector3[] ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
         public static GhostPlayer ghostPrefab;
+        public static bool everyoneDead = false;
+        public static int[] requiredScore;
+        public static bool openedPortal = false;
+        public static bool anyAttemptingWin = false;
+        public static bool[] attemptingWin = new bool[] { false, false, false, false };
 
         #region General
         // Update Everything
@@ -674,6 +732,7 @@ namespace Control_Enemies_Mod
             holdingGesture = new bool[] { false, false, false, false };
             HarmonyPatches.overrideNextVisibilityCheck = false;
             HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = false;
+            createdSandworms = false;
 
             // Possessing Enemy
             fireDelay = new float[] { 0f, 0f, 0f, 0f };
@@ -698,6 +757,10 @@ namespace Control_Enemies_Mod
             currentGhosts = new GhostPlayer[] { null, null, null, null };
             ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
             HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = false;
+            ScoreManager.scoreSprites = new List<List<SpriteSM>>() { new List<SpriteSM>() { null, null, null, null } };
+            ScoreManager.spriteSetup = new bool[] { false, false, false, false };
+            everyoneDead = false;
+            openedPortal = false;
         }
 
         // Controlling Units
@@ -711,7 +774,8 @@ namespace Control_Enemies_Mod
                     currentUnit[playerNum] = unit;
                     currentUnitType[playerNum] = unit.GetUnitType();
                     unit.playerNum = playerNum;
-                    Traverse.Create(unit).Field("isHero").SetValue(true);
+                    Traverse trav = Traverse.Create(unit);
+                    trav.SetFieldValue("isHero", true);
                     unit.name = "c";
                     DisableWhenOffCamera disableWhenOffCamera = unit.gameObject.GetComponent<DisableWhenOffCamera>();
                     if (disableWhenOffCamera != null)
@@ -1089,6 +1153,27 @@ namespace Control_Enemies_Mod
                     Traverse.Create(character).SetFieldValue("usingSpecial2", true);
                     break;
 
+                // Spawn in sandworms for satan's special
+                case UnitType.SatanMiniboss:
+                    try
+                    {
+                        // Setup more sandworms if there aren't some available
+                        if (!createdSandworms)
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                AlienSandWorm worm = UnityEngine.Object.Instantiate<GameObject>(Map.Instance.sharedObjectsReference.Asset.hellEnemies[7], new Vector3(-200f, -200f, 0f), Quaternion.identity).GetComponent<AlienSandWorm>();
+                            }
+                            createdSandworms = true;
+                        }
+                    }
+                    catch ( Exception ex )
+                    {
+                        Main.Log("Exception creating sandowrms: " + ex.ToString());
+                    }
+                    Traverse.Create(character).SetFieldValue("usingSpecial2", true);
+                    break;
+
                 default:
                     if (currentUnitType[character.playerNum].HasSpecial2())
                     {
@@ -1253,6 +1338,27 @@ namespace Control_Enemies_Mod
                 {
                     isBroMakerInstalled = false;
                 }
+            }
+        }
+        public static bool TrySetAvatarToSwitch(TestVanDammeAnim character)
+        {
+            if ( character is ICustomHero )
+            {
+                LoadHero.tryReplaceAvatar = true;
+                return true;
+            }
+            return false;
+        }
+        public static bool SetAvatarToSwitch(TestVanDammeAnim character)
+        {
+            try
+            {
+                return TrySetAvatarToSwitch(character);
+            }
+            catch
+            {
+                isBroMakerInstalled = false;
+                return false;
             }
         }
         #endregion
@@ -1501,64 +1607,87 @@ namespace Control_Enemies_Mod
                 return;
             }
 
+            // Character is not actually a player, which usually means they're a character controlled entity like a boondock bro or vehicle
+            if (HeroController.players[character.playerNum].character != character)
+            {
+                return;
+            }
+
             int playerNum = character.playerNum;
 
-            // Ghost controlled enemy died
-            if (character.name == "c")
+            try
             {
-                ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset, 0f);
-
-                // Leave previous unit
-                LeaveUnit(character, playerNum, true);
-
-                // Become ghost if enough lives are remaining
-                if (remainingLives > 0)
+                // Check if all players are dead
+                bool livingPlayer = false;
+                for (int i = 0; i < 4; ++i)
                 {
+                    if (i != playerNum)
+                    {
+                        if (HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0)
+                        {
+                            livingPlayer = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if ( remainingLives > 0 )
+                        {
+                            livingPlayer = true;
+                            break;
+                        }
+                    }
+                }
+                if ( !livingPlayer)
+                {
+                    everyoneDead = true;
+                    return;
+                }
+
+                // Ghost controlled enemy died
+                if (character.name == "c")
+                {
+                    ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset, 0f);
+
+                    // Leave previous unit
+                    LeaveUnit(character, playerNum, true);
+
                     // Restore previous character if we still have remaining lives, otherwise stay as dead mook
                     HeroController.players[playerNum].character = previousCharacter[playerNum];
                     HidePlayer(playerNum);
                 }
-            }
-            // Hero player died
-            else if (playerNum == Main.currentHeroNum)
-            {
-                // Killed by ghost player
-                if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c" )
+                // Hero player died
+                else if (playerNum == Main.currentHeroNum)
                 {
-                    TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
-                    Main.ResurrectGhost(killer.playerNum);
-
-                    if ( remainingLives > 0 )
+                    // Killed by ghost player
+                    if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
                     {
-                        if (Main.settings.spawnMode == SpawnMode.Automatic)
+                        TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
+                        Main.ResurrectGhost(killer.playerNum);
+
+                        if (remainingLives > 0)
                         {
-                            Main.findNewEnemyCooldown[playerNum] = 2f;
-                            Main.waitingToBecomeEnemy.Add(playerNum);
-                        }
-                        else
-                        {
-                            // Only adjust spawn point upwards if the ghost has already spawned
-                            if (currentGhosts[playerNum] != null)
+                            if (Main.settings.spawnMode == SpawnMode.Automatic)
                             {
-                                Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                Main.findNewEnemyCooldown[playerNum] = 2f;
+                                Main.waitingToBecomeEnemy.Add(playerNum);
                             }
                             else
                             {
-                                Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                                // Only adjust spawn point upwards if the ghost has already spawned
+                                if (currentGhosts[playerNum] != null)
+                                {
+                                    Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                }
+                                else
+                                {
+                                    Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                                }
+                                HeroController.players[playerNum].RespawnBro(false);
                             }
-                            HeroController.players[playerNum].RespawnBro(false);
                         }
                     }
-                }
-                // Died from other stuff
-                else
-                {
-                    // If more lives left respawn hero
-                    if (remainingLives > 0)
-                    {
-                        Main.countdownToRespawn[playerNum] = 1f;
-                    }
-                    // No more lives, respawn random ghost player
+                    // Died from other stuff
                     else
                     {
                         List<int> players = new List<int>();
@@ -1569,22 +1698,60 @@ namespace Control_Enemies_Mod
                                 players.Add(i);
                             }
                         }
-                        int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
-                        Main.ResurrectGhost(chosenPlayer);
+                        
+                        // If other ghost players have lives, respawn one of them
+                        if ( players.Count > 0 )
+                        {
+                            int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
+                            Main.ResurrectGhost(chosenPlayer);
+                            // Only adjust spawn point upwards if the ghost has already spawned
+                            if (currentGhosts[playerNum] != null)
+                            {
+                                Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                            }
+                            else
+                            {
+                                Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                            }
+
+                            HeroController.players[playerNum].RemoveLife();
+                            HeroController.players[playerNum].RespawnBro(false);
+                        }
+                        // Otherwise respawn the hero player
+                        else
+                        {
+                            // Life hasn't been subtracted yet
+                            --remainingLives;
+                            if ( remainingLives > 0 )
+                            {
+                                Main.countdownToRespawn[playerNum] = 1.25f;
+                            }
+                            else
+                            {
+                                everyoneDead = true;
+                            }
+                        }
                     }
                 }
-            }
 
-            if ( character != null )
+                if (character != null)
+                {
+                    character.name = "dead";
+                }
+            }
+            catch (Exception ex)
             {
-                character.name = "dead";
+                Main.Log("Exception on player death: " + ex.ToString());
             }
         }
 
         // Turns a character into a ghost, reusing the ghost if it already exists
         public static void HidePlayer(int playerNum, bool fastResurrect = false)
         {
-            HeroController.players[playerNum].character.gameObject.SetActive(false);
+            if (HeroController.players[playerNum].character != null)
+            {
+                HeroController.players[playerNum].character.gameObject.SetActive(false);
+            }
 
             if ( settings.spawnMode == SpawnMode.Automatic )
             {
@@ -1615,7 +1782,7 @@ namespace Control_Enemies_Mod
                     ghostSpawnPoint[playerNum] = Vector3.zero;
                     currentGhosts[playerNum].StartResurrecting();
                 }
-                currentGhosts[playerNum].gameObject.SetActive(true);
+                currentGhosts[playerNum].ReActivate();
             }
             // Update ghost position
             else
@@ -1634,7 +1801,7 @@ namespace Control_Enemies_Mod
                     currentGhosts[playerNum].frame = 0;
                     currentGhosts[playerNum].SetFrame();
                 }
-                currentGhosts[playerNum].gameObject.SetActive(true);
+                currentGhosts[playerNum].ReActivate();
             }
         }
 
@@ -1648,7 +1815,7 @@ namespace Control_Enemies_Mod
                 {
                     currentHeroNum = playerNum;
                     LeaveUnit(HeroController.players[playerNum].character, playerNum, false, true);
-                    HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroController.players[playerNum].character.heroType);
+                    SwitchToHeroAvatar(playerNum);
                 }
                 // Resurrect ghost
                 else
@@ -1661,6 +1828,18 @@ namespace Control_Enemies_Mod
             catch ( Exception ex )
             {
                 Log("Exception resurrecting ghost: " + ex.ToString());
+            }
+        }
+
+        public static void SwitchToHeroAvatar(int playerNum)
+        {
+            if ( isBroMakerInstalled && SetAvatarToSwitch(HeroController.players[playerNum].character) )
+            {
+                HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroType.None);
+            }
+            else
+            {
+                HeroController.players[playerNum].hud.SwitchAvatarAndGrenadeMaterial(HeroController.players[playerNum].heroType);
             }
         }
 
