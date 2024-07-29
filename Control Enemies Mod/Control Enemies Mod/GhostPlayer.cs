@@ -39,9 +39,10 @@ namespace Control_Enemies_Mod
         public int frame = 0;
         protected float frameCounter = 0f;
         protected const float idleFramerate = 0.11f;
-        protected const float attackingFramerate = 0.11f;
-        protected float dancingFramerate = 0.07f;
-        protected float ressurectingFramerate = 0.13f;
+        protected float attackingFramerate = 0.08f;
+        protected float dancingFramerate = 0.11f;
+        protected float resurrectingFramerate = 0.11f;
+        protected float reviveFramerate = 0.11f;
         protected const float spriteWidth = 32f;
         protected const float spriteHeight = 32f;
         protected Color reviveColor = new Color(1f, 0.8431f, 0f);
@@ -204,35 +205,16 @@ namespace Control_Enemies_Mod
 
         public void HandleTransparency()
         {
-            if ( this.state != GhostState.Reviving )
+            if (currentTransparency < finalTransparency)
             {
-                if (currentTransparency < finalTransparency)
+                currentTransparency += Time.deltaTime / 1.5f;
+
+                if (currentTransparency > finalTransparency)
                 {
-                    currentTransparency += Time.deltaTime / 1.5f;
-
-                    if (currentTransparency > finalTransparency)
-                    {
-                        currentTransparency = finalTransparency;
-                    }
-
-                    sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
+                    currentTransparency = finalTransparency;
                 }
-            }
-            else
-            {
-                if (currentTransparency > 0f)
-                {
-                    currentTransparency -= Time.deltaTime / 1.5f;
 
-                    // Finish reviving
-                    if (currentTransparency <= 0f)
-                    {
-                        currentTransparency = 0f;
-                        this.ReviveCharacter();
-                    }
-
-                    sprite.SetColor(new Color(reviveColor.r, reviveColor.g, reviveColor.b, currentTransparency));
-                }
+                sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
             }
         }
 
@@ -602,9 +584,9 @@ namespace Control_Enemies_Mod
                     }
                     break;
                 case GhostState.Taunting:
-                    if (frameCounter > attackingFramerate)
+                    if (frameCounter > dancingFramerate)
                     {
-                        frameCounter -= attackingFramerate;
+                        frameCounter -= dancingFramerate;
 
                         ++frame;
 
@@ -617,13 +599,13 @@ namespace Control_Enemies_Mod
                     }
                     break;
                 case GhostState.Resurrecting:
-                    if (frameCounter > ressurectingFramerate)
+                    if (frameCounter > resurrectingFramerate)
                     {
-                        frameCounter -= ressurectingFramerate;
+                        frameCounter -= resurrectingFramerate;
 
                         ++frame;
 
-                        if (frame > 14)
+                        if (frame > 15)
                         {
                             frame = 0;
                             this.state = GhostState.Idle;
@@ -635,18 +617,19 @@ namespace Control_Enemies_Mod
                     }
                     break;
                 case GhostState.Reviving:
-                    if (frameCounter > idleFramerate)
+                    if (frameCounter > reviveFramerate)
                     {
-                        frameCounter -= idleFramerate;
+                        frameCounter -= reviveFramerate;
 
                         ++frame;
 
-                        if (frame > 7)
+                        if (frame > 14)
                         {
+                            this.ReviveCharacter();
                             frame = 0;
                         }
 
-                        this.sprite.SetLowerLeftPixel(frame * spriteWidth, spriteHeight);
+                        this.sprite.SetLowerLeftPixel(frame * spriteWidth, 5* spriteHeight);
                     }
                     break;
             }
@@ -708,6 +691,11 @@ namespace Control_Enemies_Mod
 
         public void TryToAttack()
         {
+            if (player.Lives <= 0)
+            {
+                // Disable attacking
+                return;
+            }
             TestVanDammeAnim character = GetNextClosestUnit(playerNum, 15f, 10f, this.transform.position.x, this.transform.position.y);
             if ( character != null )
             {
@@ -755,7 +743,7 @@ namespace Control_Enemies_Mod
                 this.characterToPossess = null;
             }
             ableToRevive = true;
-            forceReviveTime = 3f;
+            forceReviveTime = 1.5f;
             startReviveFlashTime = Time.time;
             sprite.SetColor(new Color(reviveColor.r, reviveColor.g, reviveColor.b, currentTransparency));
         }
@@ -764,6 +752,7 @@ namespace Control_Enemies_Mod
         {
             this.ableToRevive = false;
             this.state = GhostState.Reviving;
+            this.frame = 0;
             // Restore original tint
             this.sprite.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
         }
@@ -771,11 +760,13 @@ namespace Control_Enemies_Mod
         public void ReviveCharacter()
         {
             this.player.character.transform.position = this.transform.position;
-            this.player.character.SetXY(this.transform.position.x, this.transform.position.y);
+            this.player.character.SetXY(this.transform.position.x, this.transform.position.y - 15f);
             this.player.character.transform.localScale = this.transform.localScale;
             this.gameObject.SetActive(false);
+            this.player.character.xI = this.xI;
+            this.player.character.yI = this.yI;
             this.player.character.gameObject.SetActive(true);
-            HeroController.SwitchAvatarMaterial(player.hud.avatar, player.character.heroType);
+            Main.SwitchToHeroAvatar(playerNum);
             this.state = GhostState.Idle;
             this.currentTransparency = finalTransparency;
             this.sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
@@ -786,6 +777,16 @@ namespace Control_Enemies_Mod
             this.frame = 0;
             this.state = GhostState.Resurrecting;
             this.SetFrame();
+        }
+
+        public void ReActivate()
+        {
+            if (HeroController.players[playerNum].Lives <= 0 )
+            {
+                this.playerColor = new Color(1f, 1f, 1f, 1f);
+                this.sprite.SetColor(new Color(playerColor.r, playerColor.g, playerColor.b, currentTransparency));
+            }
+            this.gameObject.SetActive(true);
         }
     }
 }
