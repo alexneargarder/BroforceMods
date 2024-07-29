@@ -2966,7 +2966,7 @@ namespace Furibrosa
         #region Piloting
         public override bool CanPilotUnit(int newPlayerNum)
         {
-            return HeroController.players[playerNum].character is Furibrosa;
+            return HeroController.players[newPlayerNum].character is Furibrosa;
         }
 
         public override void PilotUnitRPC(Unit newPilotUnit)
