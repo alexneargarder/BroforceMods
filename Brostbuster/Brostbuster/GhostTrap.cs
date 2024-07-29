@@ -54,6 +54,7 @@ namespace Brostbuster
 		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
 		public List<Unit> ignoredUnits = new List<Unit>();
 		public int killedUnits = 0;
+		public int thrownBy = -1;
 
 		protected override void Awake()
 		{
@@ -484,7 +485,7 @@ namespace Brostbuster
             {
 				Unit unit = Map.units[i];
 				// Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-				if (unit != null && unit.playerNum < 0 && unit.health > 0 && !grabbedUnits.ContainsKey(unit) && !ignoredUnits.Contains(unit) && !unit.IsHero )
+				if (unit != null && GameModeController.DoesPlayerNumDamage(thrownBy, unit.playerNum) && unit.health > 0 && !grabbedUnits.ContainsKey(unit) && !ignoredUnits.Contains(unit) )
                 {
 					// Ignore all vehicles and bosses
 					if (unit.CompareTag("Boss") || unit.CompareTag("Metal") || unit is SatanMiniboss || unit is DolphLundrenSoldier || unit is Tank || unit is MookVehicleDigger)
