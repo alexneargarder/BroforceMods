@@ -752,6 +752,7 @@ namespace Brostbuster
                         grenade = ProjectileController.SpawnGrenadeLocally(this.trapPrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 8f, base.Y + 8f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 200f, 150f, base.playerNum, 0);
                     }
                     this.currentTrap = grenade.GetComponent<GhostTrap>();
+                    this.currentTrap.thrownBy = this.playerNum;
                     this.currentTrap.enabled = true;
                 }
             }
