@@ -62,8 +62,9 @@ namespace Control_Enemies_Mod
         public bool ghostControlledEnemiesAffectCamera = true;
         public int scoreToWin = 10;
         public int scoreIncrement = 5;
-        public int heroLives = 3;
-        public int ghostLives = 3;
+        public int heroLives = 5;
+        public int ghostLives = 5;
+        public int extraLiveOnBossLevel = 2;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {

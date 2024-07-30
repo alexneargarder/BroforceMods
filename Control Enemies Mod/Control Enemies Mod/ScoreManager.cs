@@ -80,13 +80,13 @@ namespace Control_Enemies_Mod
             if (playerNum % 2 == 0)
             {
                 sprite.transform.localPosition = new Vector3(70f + 12.5f * row, -8f, -2f);
-                sprite.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+                sprite.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
             }
             // Odd (right players)
             else
             {
                 sprite.transform.localPosition = new Vector3(-(70f + 12.5f * row), -8f, -2f);
-                sprite.transform.localScale = new Vector3(-0.5f, 0.5f, 0.5f);
+                sprite.transform.localScale = new Vector3(-0.5f, 0.5f, 1f);
             }
 
             int scoreForThisRow;
@@ -109,6 +109,11 @@ namespace Control_Enemies_Mod
             else
             {
                 sprite.SetLowerLeftPixel((scoreForThisRow - 1) * spriteWidth, spriteHeight);
+            }
+
+            if ( CanWin(playerNum) )
+            {
+                sprite.SetColor(new Color(1f, 0.8431f, 0f));
             }
 
             sprite.gameObject.SetActive(true);
@@ -152,6 +157,11 @@ namespace Control_Enemies_Mod
                     {
                         scoreSprites[i][playerNum].SetLowerLeftPixel((scoreForThisRow - 1) * spriteWidth, spriteHeight);
                     }
+
+                    if ( CanWin(i) )
+                    {
+                        scoreSprites[i][playerNum].SetColor(new Color(1f, 0.8431f, 0f));
+                    }
                 }
             }
         }
@@ -159,6 +169,61 @@ namespace Control_Enemies_Mod
         public static bool CanWin(int playerNum)
         {
             return currentScore[playerNum] >= Main.requiredScore[playerNum];
+        }
+
+        public static void SetupFinalScoreSprites(int playerNum, Transform parentTransform)
+        {
+            int rows = (int)Mathf.Ceil(currentScore[playerNum] / 5);
+            if (rows == 0)
+            {
+                rows = 1;
+            }
+            for (int i = 0; i < rows; ++i)
+            {
+                // Add another row
+                if (scoreSprites.Count < i + 1)
+                {
+                    scoreSprites.Add(new List<SpriteSM>() { null, null, null, null });
+                }
+
+                PlayerHUD hud = HeroController.players[playerNum].hud;
+
+                SpriteSM sprite = UnityEngine.Object.Instantiate<SpriteSM>(scorePrefab, Vector3.zero, Quaternion.identity).GetComponent<SpriteSM>();
+                sprite.transform.parent = parentTransform;
+                sprite.gameObject.layer = 17;
+
+                sprite.transform.localPosition = new Vector3(0f + 24.5f * i, -4f, -2f);
+                sprite.transform.localScale = new Vector3(1f, 0.75f, 1f);
+
+                int scoreForThisRow;
+                if (currentScore[playerNum] >= 5 * (i + 1))
+                {
+                    scoreForThisRow = 5;
+                }
+                else
+                {
+                    scoreForThisRow = currentScore[playerNum] - 5 * i;
+                }
+                if (scoreForThisRow <= 0)
+                {
+                    // Display 0 if on the first row
+                    if (i == 0)
+                    {
+                        sprite.SetLowerLeftPixel(5 * spriteWidth, spriteHeight);
+                    }
+                }
+                else
+                {
+                    sprite.SetLowerLeftPixel((scoreForThisRow - 1) * spriteWidth, spriteHeight);
+                }
+
+                if (Main.attemptingWin == playerNum)
+                {
+                    sprite.SetColor(new Color(1f, 0.8431f, 0f));
+                }
+
+                sprite.gameObject.SetActive(true);
+            }
         }
     }
 }

@@ -1,17 +1,12 @@
-﻿using BroMakerLib.CustomObjects;
-using HarmonyLib;
+﻿using HarmonyLib;
+using Localisation;
+using RocketLib.Collections;
 using System;
-using System.Linq;
 using System.Reflection;
-using System.Runtime;
 using UnityEngine;
-using static Text3D;
-using static UnityEngine.UI.CanvasScaler;
+using static UnityEngine.UI.ContentSizeFitter;
 using Net = Networking.Networking;
-using System.Collections.Generic;
-using JetBrains.Annotations;
-using System.Net.NetworkInformation;
-using System.Security.Cryptography.X509Certificates;
+using BitCode;
 
 namespace Control_Enemies_Mod
 {
@@ -152,7 +147,7 @@ namespace Control_Enemies_Mod
                     {
                         if ( __instance.playerNum >= 0 && __instance.playerNum < 4 )
                         {
-                            Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives, damage);
+                            Main.PlayerDiedInCompetitiveMode(__instance, damage);
                         }
                     }
                     else if (__instance.name == "c")
@@ -186,13 +181,7 @@ namespace Control_Enemies_Mod
                 {
                     if (Main.settings.competitiveModeEnabled && __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
                     {
-                        if ( __instance.name == "c" )
-                        {
-                            // Manually remove life because it doesn't count normally for some reason
-                            HeroController.players[__instance.playerNum].RemoveLife();
-                        }
-
-                        Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
+                        Main.PlayerDiedInCompetitiveMode(__instance);
                     }
                 }
                 catch (Exception ex)
@@ -266,8 +255,10 @@ namespace Control_Enemies_Mod
 
         // Prevent life loss when controlling enemy if life loss is disabled
         [HarmonyPatch(typeof(Player), "RemoveLife")]
-        static class Player_RemoveLife_Patch
+        public static class Player_RemoveLife_Patch
         {
+            public static bool allowLifeLoss = false;
+
             public static bool Prefix(Player __instance)
             {
                 if (!Main.enabled)
@@ -286,13 +277,24 @@ namespace Control_Enemies_Mod
                     // Disable life loss for ghosts if they have infinite lives
                     if (Main.settings.ghostLives == 0 && __instance.playerNum != Main.currentHeroNum)
                     {
+                        allowLifeLoss = false;
                         return false;
                     }
                     // Disable life loss for heros if they have infinite lives
                     else if ( Main.settings.heroLives == 0 && __instance.playerNum == Main.currentHeroNum )
                     {
+                        allowLifeLoss = false;
                         return false;
                     }
+                    
+                    // Disable all life loss unless specifically enabled
+                    if ( allowLifeLoss )
+                    {
+                        allowLifeLoss = false;
+                        return true;
+                    }
+
+                    return false;
                 }
 
                 return true;
@@ -542,10 +544,55 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
+                // If a player won, make sure all the avatars display correctly on the score screen
+                if (Main.settings.competitiveModeEnabled && Main.playerWon)
+                {
+                    int playerNum = -1;
+                    PlayerScoreDisplay currentDisplay = sprite.transform.parent.parent.parent.gameObject.GetComponent<PlayerScoreDisplay>();
+                    if ( currentDisplay != null && LevelOverScreen_Show_Patch.scoreDisplays.Length > 0 )
+                    {
+                        for (int i = 0; i < LevelOverScreen_Show_Patch.scoreDisplays.Length; ++i)
+                        {
+                            if (LevelOverScreen_Show_Patch.scoreDisplays[i] == currentDisplay)
+                            {
+                                playerNum = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Unable to determine player
+                    if ( playerNum == -1 )
+                    {
+                        return true;
+                    }
+
+                    // Don't replace avatar with ghost if the current player is the one who one
+                    if (playerNum == Main.attemptingWin)
+                    {
+                        if (Main.isBroMakerInstalled)
+                        {
+                            if (Main.SetAvatarToSwitch(HeroController.players[playerNum].character, playerNum))
+                            {
+                                HeroController.SwitchAvatarMaterial(sprite, HeroType.None);
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    // Replace all other avatars with ghosts
+                    else
+                    {
+                        sprite.GetComponent<Renderer>().material = Main.ghostAvatarMat;
+                        return false;
+                    }
+                }
+
                 PlayerHUD hud = sprite.gameObject.GetComponent<PlayerHUD>();
                 if ( hud != null )
                 {
                     int playerNum = (int) Traverse.Create(hud).Field("playerNum").GetValue();
+
                     // If we're assigning an avatar to a player who is an enemy, use a different avatar instead of the bro one
                     if (Main.currentlyEnemy[playerNum])
                     {
@@ -1371,7 +1418,15 @@ namespace Control_Enemies_Mod
                             }
                             else
                             {
-                                __instance.Lives = Main.settings.heroLives;
+                                // Give hero extra lives for win attempt
+                                if ( Main.anyAttemptingWin )
+                                {
+                                    __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel;
+                                }
+                                else
+                                {
+                                    __instance.Lives = Main.settings.heroLives;
+                                }
                             }
                         }
                         else
@@ -1779,7 +1834,15 @@ namespace Control_Enemies_Mod
                         }
                         else
                         {
-                            __instance.Lives = Main.settings.heroLives;
+                            // Give hero extra lives for win attempt
+                            if (Main.anyAttemptingWin)
+                            {
+                                __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel;
+                            }
+                            else
+                            {
+                                __instance.Lives = Main.settings.heroLives;
+                            }
                         }
                     }
                     else
@@ -2026,7 +2089,7 @@ namespace Control_Enemies_Mod
 
                 if (__instance.playerNum >= 0 && __instance.playerNum < 4)
                 {
-                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives, damage);
+                    Main.PlayerDiedInCompetitiveMode(__instance, damage);
                 }
             }
         }
@@ -2044,10 +2107,7 @@ namespace Control_Enemies_Mod
 
                 if ( __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
                 {
-                    // Manually remove life because it doesn't count normally for some reason
-                    HeroController.players[__instance.playerNum].RemoveLife();
-
-                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
+                    Main.PlayerDiedInCompetitiveMode(__instance);
                 }    
             }
         }
@@ -2065,10 +2125,7 @@ namespace Control_Enemies_Mod
 
                 if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
                 {
-                    // Manually remove life because it doesn't count normally for some reason
-                    HeroController.players[__instance.playerNum].RemoveLife();
-
-                    Main.PlayerDiedInCompetitiveMode(__instance, HeroController.players[__instance.playerNum].Lives);
+                    Main.PlayerDiedInCompetitiveMode(__instance);
                 }
             }
         }
@@ -2166,11 +2223,12 @@ namespace Control_Enemies_Mod
                 if ( ScoreManager.CanWin(__instance.playerNum) )
                 {
                     Main.anyAttemptingWin = true;
-                    Main.attemptingWin[__instance.playerNum] = true;
+                    Main.attemptingWin = __instance.playerNum;
                 }
             }
         }
 
+        // Go to boss level for win attempt or return to level we were previously on after a failed attempt
         [HarmonyPatch(typeof(GameModeController), "LoadNextScene")]
         static class GameModeController_LoadNextScene_Patch
         {
@@ -2181,19 +2239,48 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if (Main.anyAttemptingWin )
+                if ( Main.anyAttemptingWin )
                 {
+                    Main.previousSceneName = GameState.Instance.sceneToLoad;
+                    Main.previousCampaignName = GameState.Instance.campaignName;
+                    Main.previousLevel = LevelSelectionController.CurrentLevelNum;                    
+
                     LevelSelectionController.ResetLevelAndGameModeToDefault();
                     GameState.Instance.ResetToDefault();
 
-                    int chosenBoss = UnityEngine.Random.Range(0, 0);
+                    int chosenBoss = UnityEngine.Random.Range(0, 5);
 
                     switch (chosenBoss)
                     {
-                        // CR666
+                        // CR666 (Campaign 6 Level 4)
                         case 0:
                             GameState.Instance.campaignName = "WM_Village1(mouse)";
                             LevelSelectionController.CurrentLevelNum = 3;
+                            break;
+                        // Sky Fortress (Campaign 8 Level 4)
+                        case 1:
+                            GameState.Instance.campaignName = "WM_Bombardment2(mouse)";
+                            LevelSelectionController.CurrentLevelNum = 3;
+                            break;
+                        // Terrorbot (Campaign 10 Level 4)
+                        case 2:
+                            GameState.Instance.campaignName = "WM_KazakhstanRainy(mouse)";
+                            LevelSelectionController.CurrentLevelNum = 3;
+                            break;
+                        // Humongocrawler (Campaign 12 Level 5)
+                        case 3:
+                            GameState.Instance.campaignName = "WM_AlienMission2(mouse)";
+                            LevelSelectionController.CurrentLevelNum = 4;
+                            break;
+                        // Double Bone Wurms (Campaign 15 Level 11)
+                        case 4:
+                            GameState.Instance.campaignName = "WM_Hell";
+                            LevelSelectionController.CurrentLevelNum = 10;
+                            break;
+                        // Satan (Campaign 15 Level 12)
+                        case 5:
+                            GameState.Instance.campaignName = "WM_Hell";
+                            LevelSelectionController.CurrentLevelNum = 11;
                             break;
                     }
 
@@ -2201,8 +2288,102 @@ namespace Control_Enemies_Mod
                     GameState.Instance.gameMode = GameMode.Campaign;
                     GameState.Instance.returnToWorldMap = true;
                     GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
-                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;   
+                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+                    Main.onWinAttempt = true;
                 }
+                else if ( Main.returnToPreviousLevel )
+                {
+                    LevelSelectionController.ResetLevelAndGameModeToDefault();
+                    GameState.Instance.ResetToDefault();
+
+                    GameState.Instance.sceneToLoad = Main.previousSceneName;
+                    GameState.Instance.campaignName = Main.previousCampaignName;
+                    LevelSelectionController.CurrentLevelNum = Main.previousLevel;
+
+                    GameState.Instance.loadMode = MapLoadMode.Campaign;
+                    GameState.Instance.gameMode = GameMode.Campaign;
+                    GameState.Instance.returnToWorldMap = true;
+                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+
+                    Main.returnToPreviousLevel = false;
+                    // Reset mod
+                    if ( Main.playerWon )
+                    {
+                        Main.ResetAll();
+                    }
+                }
+            }
+        }
+
+        // Handle winning / losing boss level
+        [HarmonyPatch(typeof(GameModeController), "DetermineLevelOutcome")]
+        static class GameModeController_DetermineLevelOutcome_Patch
+        {
+            public static void Prefix(GameModeController __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                if ( Main.onWinAttempt )
+                {
+                    LevelResult result = (LevelResult)Traverse.Create(__instance).GetFieldValue("levelResult");
+                    // Win and show success screen
+                    if ( result == LevelResult.Success )
+                    {
+                        Main.onWinAttempt = false;
+                        Main.anyAttemptingWin = false;
+                        Main.playerWon = true;
+                        // Return to main menu
+                        Main.previousSceneName = GameState.Instance.sceneToLoad = LevelSelectionController.MainMenuScene;
+                        Main.returnToPreviousLevel = true;
+
+                    }
+                    // Fail and return to previous level
+                    else
+                    {
+                        Main.onWinAttempt = false;
+                        Main.anyAttemptingWin = false;
+                        Main.returnToPreviousLevel = true;
+                        Main.requiredScore[Main.attemptingWin] += Main.settings.scoreIncrement;
+                        Main.attemptingWin = -1;
+                    }
+                }
+            }
+        }
+
+        // Show win screen if player won boss level
+        [HarmonyPatch(typeof(LevelOverScreen), "Show")]
+        static class LevelOverScreen_Show_Patch
+        {
+            public static PlayerScoreDisplay[] scoreDisplays;
+
+            public static bool Prefix(LevelOverScreen __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+                
+                if ( Main.playerWon )
+                {
+                    ScoreScreen scoreScreen = Traverse.Create(typeof(ScoreScreen)).GetFieldValue("instance") as ScoreScreen;
+                    scoreDisplays = Traverse.Create(scoreScreen).GetFieldValue("scoredisplays") as PlayerScoreDisplay[];
+                    string text = string.Format(BitCode.Singleton<LanguageManager>.Instance.GetLocalisedString("RESULT_PLAYER_WINS"), HeroController.GetHeroColorName(Main.attemptingWin));
+                    // Set herotype of winning hero so their avatar can be displayed
+                    GameModeController.deathmatchHero[Main.attemptingWin] = HeroController.players[Main.attemptingWin].heroType;
+                    ScoreScreen.Appear(20f, text, true, true, Main.attemptingWin, false);
+                    for ( int i = 0; i < 4; ++i )
+                    {
+                        if ( HeroController.IsPlaying(i) )
+                        {
+                            ScoreManager.SetupFinalScoreSprites(i, scoreDisplays[i].deathObjectBase);
+                        }
+                    }
+                    return false;
+                }
+                return true;
             }
         }
         #endregion
