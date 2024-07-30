@@ -151,31 +151,6 @@ namespace Control_Enemies_Mod
 
         static void ShowGeneralOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
-            if ( GUILayout.Button("debug"))
-            {
-                try
-                {
-                    LevelSelectionController.ResetLevelAndGameModeToDefault();
-                    GameState.Instance.ResetToDefault();
-                    GameState.Instance.campaignName = "WM_Village1(mouse)";
-                    GameState.Instance.loadMode = MapLoadMode.Campaign;
-                    GameState.Instance.gameMode = GameMode.Campaign;
-                    GameState.Instance.returnToWorldMap = true;
-                    GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
-                    GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
-                    LevelSelectionController.CurrentLevelNum = 1;
-                    HeroUnlockController.Initialize();
-                    MissionScreenController.SetVariables(string.Empty, WeatherType.Evil, RainType.None);
-                    MissionScreenController.SetMissionDescription(string.Empty);
-                    GameModeController.LoadNextSceneFade(GameState.Instance);
-                    RPCBatcher.FlushQueue();
-                }
-                catch ( Exception ex )
-                {
-                    Main.Log("exception: " + ex.ToString());
-                }
-            }
-
             GUILayout.BeginHorizontal();
             settings.allowWallClimbing = GUILayout.Toggle(settings.allowWallClimbing, new GUIContent("Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations"));
 
@@ -529,6 +504,10 @@ namespace Control_Enemies_Mod
 
             settings.scoreIncrement = RGUI.HorizontalSliderInt("Score Increase on Failed Win Attempt: ", settings.scoreIncrement, 0, 10, 500);
 
+            GUILayout.Space(15);
+
+            settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt("Extra Hero Lives for Win Attempts: ", settings.extraLiveOnBossLevel, 0, 10, 500);
+
             GUILayout.Space(25);
 
             settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", settings.heroLives, 0, 10, 500);
@@ -538,6 +517,20 @@ namespace Control_Enemies_Mod
             settings.ghostLives = RGUI.HorizontalSliderInt("Ghost Lives at Level Start (0 = unlimited): ", settings.ghostLives, 0, 10, 500);
 
             GUILayout.Space(15);
+
+            if ( GUILayout.Button("Reset Score") )
+            {
+                ResetAll();
+                for ( int i = 0; i < 4; ++i )
+                {
+                    if (ScoreManager.spriteSetup[i])
+                    {
+                        ScoreManager.UpdateScore(i);
+                    }
+                }
+            }
+
+            GUILayout.Space(10);
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -597,7 +590,14 @@ namespace Control_Enemies_Mod
         public static int[] requiredScore;
         public static bool openedPortal = false;
         public static bool anyAttemptingWin = false;
-        public static bool[] attemptingWin = new bool[] { false, false, false, false };
+        public static bool onWinAttempt = false;
+        public static int attemptingWin = -1;
+        public static bool returnToPreviousLevel = false;
+        public static bool playerWon = false;
+        public static string previousSceneName;
+        public static string previousCampaignName;
+        public static int previousLevel;
+        public static float switchCounter = 0f; 
 
         #region General
         // Update Everything
@@ -632,6 +632,18 @@ namespace Control_Enemies_Mod
                             // Restore previous character
                             HeroController.players[i].character = previousCharacter[i];
                             HidePlayer(i, true);
+                        }
+
+                        // Check for player winning
+                        if ( playerWon )
+                        {
+                            switchCounter += dt;
+                            if ( switchCounter > 20f )
+                            {
+                                Log("switching");
+                                GameModeController.SetSwitchDelay(1f);
+                                switchCounter = 0;
+                            }
                         }
                     }
 
@@ -761,6 +773,7 @@ namespace Control_Enemies_Mod
             ScoreManager.spriteSetup = new bool[] { false, false, false, false };
             everyoneDead = false;
             openedPortal = false;
+            HarmonyPatches.Player_RemoveLife_Patch.allowLifeLoss = false;
         }
 
         // Controlling Units
@@ -1340,20 +1353,28 @@ namespace Control_Enemies_Mod
                 }
             }
         }
-        public static bool TrySetAvatarToSwitch(TestVanDammeAnim character)
+        public static bool TrySetAvatarToSwitch(TestVanDammeAnim character, int playerNum)
         {
             if ( character is ICustomHero )
             {
                 LoadHero.tryReplaceAvatar = true;
+                if ( playerNum != -1 )
+                {
+                    LoadHero.playerNum = playerNum;
+                }
+                else
+                {
+                    LoadHero.playerNum = character.playerNum;
+                }
                 return true;
             }
             return false;
         }
-        public static bool SetAvatarToSwitch(TestVanDammeAnim character)
+        public static bool SetAvatarToSwitch(TestVanDammeAnim character, int playerNum = -1)
         {
             try
             {
-                return TrySetAvatarToSwitch(character);
+                return TrySetAvatarToSwitch(character, playerNum);
             }
             catch
             {
@@ -1599,7 +1620,7 @@ namespace Control_Enemies_Mod
 
         #region Competitive
         // Called whenever a player character (ghost or hero) dies in competitive mode
-        public static void PlayerDiedInCompetitiveMode(TestVanDammeAnim character, int remainingLives, DamageObject damage = null )
+        public static void PlayerDiedInCompetitiveMode(TestVanDammeAnim character, DamageObject damage = null )
         {
             // Character has already died so ignore this repeat death
             if ( character.name == "dead" )
@@ -1617,6 +1638,12 @@ namespace Control_Enemies_Mod
 
             try
             {
+                HarmonyPatches.Player_RemoveLife_Patch.allowLifeLoss = true;
+                // Manually handle removing lifes since Broforce is terrible at it
+                HeroController.players[playerNum].RemoveLife();
+
+                int remainingLives = HeroController.players[playerNum].Lives;
+
                 // Check if all players are dead
                 bool livingPlayer = false;
                 for (int i = 0; i < 4; ++i)
@@ -1659,21 +1686,53 @@ namespace Control_Enemies_Mod
                 // Hero player died
                 else if (playerNum == Main.currentHeroNum)
                 {
-                    // Killed by ghost player
-                    if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
+                    if ( !Main.anyAttemptingWin )
                     {
-                        TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
-                        Main.ResurrectGhost(killer.playerNum);
-
-                        if (remainingLives > 0)
+                        // Killed by ghost player
+                        if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
                         {
-                            if (Main.settings.spawnMode == SpawnMode.Automatic)
+                            TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
+                            Main.ResurrectGhost(killer.playerNum);
+
+                            if (remainingLives > 0)
                             {
-                                Main.findNewEnemyCooldown[playerNum] = 2f;
-                                Main.waitingToBecomeEnemy.Add(playerNum);
+                                if (Main.settings.spawnMode == SpawnMode.Automatic)
+                                {
+                                    Main.findNewEnemyCooldown[playerNum] = 2f;
+                                    Main.waitingToBecomeEnemy.Add(playerNum);
+                                }
+                                else
+                                {
+                                    // Only adjust spawn point upwards if the ghost has already spawned
+                                    if (currentGhosts[playerNum] != null)
+                                    {
+                                        Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                    }
+                                    else
+                                    {
+                                        Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                                    }
+                                    HeroController.players[playerNum].RespawnBro(false);
+                                }
                             }
-                            else
+                        }
+                        // Died from other stuff
+                        else
+                        {
+                            List<int> players = new List<int>();
+                            for (int i = 0; i < 4; ++i)
                             {
+                                if (i != Main.currentHeroNum && HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0)
+                                {
+                                    players.Add(i);
+                                }
+                            }
+
+                            // If other ghost players have lives, respawn one of them
+                            if (players.Count > 0)
+                            {
+                                int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
+                                Main.ResurrectGhost(chosenPlayer);
                                 // Only adjust spawn point upwards if the ghost has already spawned
                                 if (currentGhosts[playerNum] != null)
                                 {
@@ -1683,55 +1742,40 @@ namespace Control_Enemies_Mod
                                 {
                                     Main.ghostSpawnPoint[playerNum] = character.transform.position;
                                 }
+
                                 HeroController.players[playerNum].RespawnBro(false);
                             }
+                            // Otherwise respawn the hero player
+                            else
+                            {
+                                // Life hasn't been subtracted yet
+                                if (remainingLives > 0)
+                                {
+                                    Main.countdownToRespawn[playerNum] = 1.25f;
+                                }
+                                else
+                                {
+                                    GameModeController.LevelFinish(LevelResult.ForcedFail);
+                                }
+                            }
                         }
                     }
-                    // Died from other stuff
+                    // On win attempts, don't let ghosts take control from hero player
                     else
                     {
-                        List<int> players = new List<int>();
-                        for (int i = 0; i < 4; ++i)
+                        // Life hasn't been subtracted yet
+                        --remainingLives;
+                        Main.Log("remaining lives: " + remainingLives);
+                        if (remainingLives > 0)
                         {
-                            if (i != Main.currentHeroNum && HeroController.PlayerIsAlive(i) && HeroController.players[i].Lives > 0)
-                            {
-                                players.Add(i);
-                            }
+                            Main.countdownToRespawn[playerNum] = 1.25f;
                         }
-                        
-                        // If other ghost players have lives, respawn one of them
-                        if ( players.Count > 0 )
-                        {
-                            int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
-                            Main.ResurrectGhost(chosenPlayer);
-                            // Only adjust spawn point upwards if the ghost has already spawned
-                            if (currentGhosts[playerNum] != null)
-                            {
-                                Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
-                            }
-                            else
-                            {
-                                Main.ghostSpawnPoint[playerNum] = character.transform.position;
-                            }
-
-                            HeroController.players[playerNum].RemoveLife();
-                            HeroController.players[playerNum].RespawnBro(false);
-                        }
-                        // Otherwise respawn the hero player
                         else
                         {
-                            // Life hasn't been subtracted yet
-                            --remainingLives;
-                            if ( remainingLives > 0 )
-                            {
-                                Main.countdownToRespawn[playerNum] = 1.25f;
-                            }
-                            else
-                            {
-                                everyoneDead = true;
-                            }
+                            GameModeController.LevelFinish(LevelResult.ForcedFail);
                         }
                     }
+                    
                 }
 
                 if (character != null)
@@ -1866,6 +1910,17 @@ namespace Control_Enemies_Mod
             {
                 Log("Exception finding new unit: " + e.ToString());
             }
+        }
+
+        public static void ResetAll()
+        {
+            ClearVariables();
+            ScoreManager.currentScore = new int[] { 0, 0, 0, 0 };
+            attemptingWin = -1;
+            playerWon = false;
+            onWinAttempt = false;
+            requiredScore = new int[] { settings.scoreToWin, settings.scoreToWin, settings.scoreToWin, settings.scoreToWin };
+            switchCounter = 0f;
         }
         #endregion
         #endregion

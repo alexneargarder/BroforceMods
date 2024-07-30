@@ -37,6 +37,9 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="BitCode">
+      <HintPath>..\..\libs\Extra Libs\BitCode.dll</HintPath>
+    </Reference>
     <Reference Include="BroMakerLib">
       <HintPath>..\..\..\Bro-Maker\BroMakerLib.UnityMod\bin\Debug\BroMakerLib.dll</HintPath>
     </Reference>
