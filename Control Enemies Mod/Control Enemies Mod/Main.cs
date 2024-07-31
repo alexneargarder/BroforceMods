@@ -12,6 +12,7 @@ using RocketLib.Utils;
 using System.IO;
 using static RocketLib.Utils.TestVanDammeAnimTypes;
 using BroMakerLib.CustomObjects;
+using JetBrains.Annotations;
 
 namespace Control_Enemies_Mod
 {
@@ -95,10 +96,6 @@ namespace Control_Enemies_Mod
 
             // Load sprites for score
             ScoreManager.LoadSprites();
-
-            // Initialize score
-            requiredScore = new int[] { settings.scoreToWin, settings.scoreToWin, settings.scoreToWin, settings.scoreToWin };
-
             return true;
         }
 
@@ -189,7 +186,13 @@ namespace Control_Enemies_Mod
         static void ShowPossessionModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
-            settings.possessionModeEnabled = GUILayout.Toggle(settings.possessionModeEnabled, "Enable Possessing Enemies");
+            if ( settings.possessionModeEnabled != (settings.possessionModeEnabled = GUILayout.Toggle(settings.possessionModeEnabled, "Enable Possessing Enemies")) )
+            {
+                if ( settings.possessionModeEnabled )
+                {
+                    settings.competitiveModeEnabled = false;
+                }
+            }
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 500;
@@ -267,7 +270,13 @@ namespace Control_Enemies_Mod
             }
 
             GUILayout.BeginHorizontal();
-            settings.spawnAsEnemyEnabled = GUILayout.Toggle(settings.spawnAsEnemyEnabled, "Enable Spawning as Enemies");
+            if ( settings.spawnAsEnemyEnabled != (settings.spawnAsEnemyEnabled = GUILayout.Toggle(settings.spawnAsEnemyEnabled, "Enable Spawning as Enemies")) )
+            {
+                if ( settings.spawnAsEnemyEnabled )
+                {
+                    settings.competitiveModeEnabled = false;
+                }
+            }
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 500;
@@ -463,7 +472,14 @@ namespace Control_Enemies_Mod
         static void ShowCompetitiveModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
             GUILayout.BeginHorizontal();
-            settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player"));
+            if ( settings.competitiveModeEnabled != (settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player")) ) )
+            {
+                if ( settings.competitiveModeEnabled )
+                {
+                    settings.spawnAsEnemyEnabled = false;
+                    settings.possessionModeEnabled = false;
+                }
+            }
             
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
@@ -478,7 +494,7 @@ namespace Control_Enemies_Mod
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(15);
+            GUILayout.Space(20);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent("Spawn Mode:", "Controls whether you spawn as a ghost and fly towards enemies to possess them, or if you are automatically given enemies to control."), GUILayout.Width(225));
@@ -502,19 +518,23 @@ namespace Control_Enemies_Mod
 
             GUILayout.Space(15);
 
-            settings.scoreIncrement = RGUI.HorizontalSliderInt("Score Increase on Failed Win Attempt: ", settings.scoreIncrement, 0, 10, 500);
+            settings.scoreIncrement = RGUI.HorizontalSliderInt("Required Score Increase on Failed Win Attempt: ", settings.scoreIncrement, 0, 10, 500);
 
             GUILayout.Space(15);
 
             settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt("Extra Hero Lives for Win Attempts: ", settings.extraLiveOnBossLevel, 0, 10, 500);
 
-            GUILayout.Space(25);
+            GUILayout.Space(30);
 
             settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", settings.heroLives, 0, 10, 500);
 
             GUILayout.Space(15);
 
             settings.ghostLives = RGUI.HorizontalSliderInt("Ghost Lives at Level Start (0 = unlimited): ", settings.ghostLives, 0, 10, 500);
+
+            GUILayout.Space(30);
+
+            settings.startingHeroPlayer = RGUI.HorizontalSliderInt("Starting Hero Player (0 = Random): ", settings.startingHeroPlayer, 0, 4, 500);
 
             GUILayout.Space(15);
 
@@ -579,7 +599,11 @@ namespace Control_Enemies_Mod
         public static bool[] wasFirstDeployment = { false, false, false, false };
 
         // Competitive Mode
-        public static int currentHeroNum = 0;
+        public static int currentHeroNum
+        {
+            get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum;
+            set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum = value;
+        }
         public static bool[] revealed = { false, false, false, false };
         public static float[] findNewEnemyCooldown = { 0f, 0f, 0f, 0f };
         public static List<int> waitingToBecomeEnemy = new List<int>();
@@ -587,7 +611,6 @@ namespace Control_Enemies_Mod
         public static Vector3[] ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
         public static GhostPlayer ghostPrefab;
         public static bool everyoneDead = false;
-        public static int[] requiredScore;
         public static bool openedPortal = false;
         public static bool anyAttemptingWin = false;
         public static bool onWinAttempt = false;
@@ -597,7 +620,9 @@ namespace Control_Enemies_Mod
         public static string previousSceneName;
         public static string previousCampaignName;
         public static int previousLevel;
-        public static float switchCounter = 0f; 
+        public static float switchCounter = 0f;
+        public static float disableElevatorCounter = 0f;
+        public static bool isBurning = false;
 
         #region General
         // Update Everything
@@ -626,12 +651,23 @@ namespace Control_Enemies_Mod
                     {
                         if (leaveEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && previousCharacter[i] != null && currentlyEnemy[i])
                         {
-                            // Set ghost spawn to 
-                            ghostSpawnPoint[i] = HeroController.players[i].character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
-                            LeaveUnit(HeroController.players[i].character, i, true);
-                            // Restore previous character
-                            HeroController.players[i].character = previousCharacter[i];
-                            HidePlayer(i, true);
+                            if (settings.spawnMode == SpawnMode.Automatic)
+                            {
+                                LeaveUnit(HeroController.players[i].character, i, true);
+                                // Restore previous character
+                                HeroController.players[i].character = previousCharacter[i];
+                                HidePlayer(i, true);
+                                findNewEnemyCooldown[i] = settings.automaticallyFindEnemyCooldown;
+                            }
+                            else
+                            {
+                                // Set ghost spawn to 
+                                ghostSpawnPoint[i] = HeroController.players[i].character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                LeaveUnit(HeroController.players[i].character, i, true);
+                                // Restore previous character
+                                HeroController.players[i].character = previousCharacter[i];
+                                HidePlayer(i, true);
+                            }
                         }
 
                         // Check for player winning
@@ -640,10 +676,14 @@ namespace Control_Enemies_Mod
                             switchCounter += dt;
                             if ( switchCounter > 20f )
                             {
-                                Log("switching");
                                 GameModeController.SetSwitchDelay(1f);
                                 switchCounter = 0;
                             }
+                        }
+
+                        if ( disableElevatorCounter > 0f )
+                        {
+                            disableElevatorCounter -= dt;
                         }
                     }
 
@@ -774,6 +814,8 @@ namespace Control_Enemies_Mod
             everyoneDead = false;
             openedPortal = false;
             HarmonyPatches.Player_RemoveLife_Patch.allowLifeLoss = false;
+            disableElevatorCounter = 0f;
+            isBurning = false;
         }
 
         // Controlling Units
@@ -781,8 +823,15 @@ namespace Control_Enemies_Mod
         {
             try
             {
-                if (HeroController.players[playerNum].character != null && HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
+                TestVanDammeAnim currentCharacter = HeroController.players[playerNum].character;
+                if (currentCharacter != null && currentCharacter.IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
                 {
+                    
+                    // Don't allow swap while player is piloting another unit, unless they are a mech, in which case pilotted unit refers to the mook inside the mech
+                    if ( currentCharacter.pilottedUnit != null && !(currentCharacter is MookArmouredGuy) )
+                    {
+                        return;
+                    }
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
                     currentUnitType[playerNum] = unit.GetUnitType();
@@ -801,12 +850,18 @@ namespace Control_Enemies_Mod
                         unit.enemyAI.enabled = true;
                     }
                     unit.SpecialAmmo = 0;
-                    if (unit is Mook)
+                    Mook mook = unit as Mook;
+                    if (mook != null)
                     {
-                        Mook mook = unit as Mook;
                         mook.firingPlayerNum = playerNum;
                         mook.canWallClimb = settings.allowWallClimbing;
                         mook.canDash = settings.enableSprinting;
+                        MookArmouredGuy mech = unit as MookArmouredGuy;
+                        // Fix mechs shooting themselves
+                        if ( mech != null )
+                        {
+                            mech.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
+                        }
                     }
                     // Make sure held buttons aren't carried over
                     specialWasDown[playerNum] = false;
@@ -818,17 +873,17 @@ namespace Control_Enemies_Mod
                     waitingToBecomeEnemy.Remove(playerNum);
 
                     // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
-                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(HeroController.players[playerNum].character is BroBase))
+                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(currentCharacter is BroBase))
                     {
-                        SwitchUnit(HeroController.players[playerNum].character as TestVanDammeAnim, playerNum, gentleLeave, erasePreviousCharacter);
+                        SwitchUnit(currentCharacter, playerNum, gentleLeave, erasePreviousCharacter);
                     }
                     // Hide previous character
                     else
                     {
-                        HeroController.players[playerNum].character.gameObject.SetActive(false);
+                        currentCharacter.gameObject.SetActive(false);
                         if (savePreviousCharacter)
                         {
-                            previousCharacter[playerNum] = HeroController.players[playerNum].character;
+                            previousCharacter[playerNum] = currentCharacter;
                         }
                         else
                         {
@@ -840,15 +895,15 @@ namespace Control_Enemies_Mod
                     revealed[playerNum] = false;
 
                     // Set avatar to enemy one
-                    HeroController.players[playerNum].hud.SetAvatar(mookAvatarMat);
+                    SetEnemyAvatar(playerNum, currentUnitType[playerNum]);
 
-                    HeroController.players[playerNum].character = unit as TestVanDammeAnim;
+                    HeroController.players[playerNum].character = unit;
                     currentlyEnemy[playerNum] = true;
                 }
             }
             catch (Exception ex)
             {
-                Log("Exception playerNum " + playerNum + " controlling unit: " + ex.ToString());
+                Log("Exception playerNum " + playerNum + " controlling unit " + unit.name + ": " + ex.ToString());
             }
         }
         public static void ReaffirmControl(int playerNum)
@@ -1009,6 +1064,18 @@ namespace Control_Enemies_Mod
             catch ( Exception ex )
             {
                 Log("Exception leaving unit: " + ex.ToString());
+            }
+        }
+        public static void SetEnemyAvatar(int playerNum, UnitType type)
+        {
+            switch (type)
+            {
+                case UnitType.CR666:
+                    HeroController.players[playerNum].hud.SetAvatar(cr666AvatarMat);
+                    break;
+                default:
+                    HeroController.players[playerNum].hud.SetAvatar(mookAvatarMat);
+                    break;
             }
         }
 
@@ -1674,43 +1741,55 @@ namespace Control_Enemies_Mod
                 // Ghost controlled enemy died
                 if (character.name == "c")
                 {
-                    ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset, 0f);
+                    if ( settings.spawnMode == SpawnMode.Automatic)
+                    {
+                        // Respawn player and allow them to look for a new character to possess
+                        findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
+                        HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                        HeroController.players[playerNum].RespawnBro(false);
+                    }
+                    else
+                    {
+                        ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset, 0f);
 
-                    // Leave previous unit
-                    LeaveUnit(character, playerNum, true);
+                        // Leave previous unit
+                        LeaveUnit(character, playerNum, true);
 
-                    // Restore previous character if we still have remaining lives, otherwise stay as dead mook
-                    HeroController.players[playerNum].character = previousCharacter[playerNum];
-                    HidePlayer(playerNum);
+                        // Restore previous character if we still have remaining lives, otherwise stay as dead mook
+                        HeroController.players[playerNum].character = previousCharacter[playerNum];
+                        HidePlayer(playerNum);
+                    }
                 }
                 // Hero player died
-                else if (playerNum == Main.currentHeroNum)
+                else if (playerNum == currentHeroNum)
                 {
-                    if ( !Main.anyAttemptingWin )
+                    if ( !anyAttemptingWin )
                     {
                         // Killed by ghost player
                         if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
                         {
                             TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
-                            Main.ResurrectGhost(killer.playerNum);
+                            ResurrectGhost(killer.playerNum);
 
                             if (remainingLives > 0)
                             {
-                                if (Main.settings.spawnMode == SpawnMode.Automatic)
+                                if (settings.spawnMode == SpawnMode.Automatic)
                                 {
-                                    Main.findNewEnemyCooldown[playerNum] = 2f;
-                                    Main.waitingToBecomeEnemy.Add(playerNum);
+                                    // Respawn player and allow them to look for a new character to possess
+                                    findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
+                                    HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                                    HeroController.players[playerNum].RespawnBro(false);
                                 }
                                 else
                                 {
                                     // Only adjust spawn point upwards if the ghost has already spawned
                                     if (currentGhosts[playerNum] != null)
                                     {
-                                        Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                        ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
                                     }
                                     else
                                     {
-                                        Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                                        ghostSpawnPoint[playerNum] = character.transform.position;
                                     }
                                     HeroController.players[playerNum].RespawnBro(false);
                                 }
@@ -1731,27 +1810,37 @@ namespace Control_Enemies_Mod
                             // If other ghost players have lives, respawn one of them
                             if (players.Count > 0)
                             {
-                                int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count - 1)];
-                                Main.ResurrectGhost(chosenPlayer);
-                                // Only adjust spawn point upwards if the ghost has already spawned
-                                if (currentGhosts[playerNum] != null)
+                                int chosenPlayer = players[UnityEngine.Random.Range(0, players.Count)];
+
+                                ResurrectGhost(chosenPlayer);
+
+                                if (settings.spawnMode == SpawnMode.Automatic)
                                 {
-                                    Main.ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                    // Respawn player and allow them to look for a new character to possess
+                                    findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
+                                    HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                                    HeroController.players[playerNum].RespawnBro(false);
                                 }
                                 else
                                 {
-                                    Main.ghostSpawnPoint[playerNum] = character.transform.position;
+                                    // Only adjust spawn point upwards if the ghost has already spawned
+                                    if (currentGhosts[playerNum] != null)
+                                    {
+                                        ghostSpawnPoint[playerNum] = character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
+                                    }
+                                    else
+                                    {
+                                        ghostSpawnPoint[playerNum] = character.transform.position;
+                                    }
+                                    HeroController.players[playerNum].RespawnBro(false);
                                 }
-
-                                HeroController.players[playerNum].RespawnBro(false);
                             }
                             // Otherwise respawn the hero player
                             else
                             {
-                                // Life hasn't been subtracted yet
                                 if (remainingLives > 0)
                                 {
-                                    Main.countdownToRespawn[playerNum] = 1.25f;
+                                    countdownToRespawn[playerNum] = 1.25f;
                                 }
                                 else
                                 {
@@ -1763,12 +1852,9 @@ namespace Control_Enemies_Mod
                     // On win attempts, don't let ghosts take control from hero player
                     else
                     {
-                        // Life hasn't been subtracted yet
-                        --remainingLives;
-                        Main.Log("remaining lives: " + remainingLives);
                         if (remainingLives > 0)
                         {
-                            Main.countdownToRespawn[playerNum] = 1.25f;
+                            countdownToRespawn[playerNum] = 1.25f;
                         }
                         else
                         {
@@ -1864,9 +1950,18 @@ namespace Control_Enemies_Mod
                 // Resurrect ghost
                 else
                 {
-                    HeroController.players[playerNum].character.SetXY(currentGhosts[playerNum].transform.position.x, currentGhosts[playerNum].transform.position.y);
-                    currentGhosts[playerNum].SetCanReviveCharacter();
-                    currentHeroNum = playerNum;
+                    if ( settings.spawnMode == SpawnMode.Automatic )
+                    {
+                        currentHeroNum = playerNum;
+                        HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                        HeroController.players[playerNum].RespawnBro(false);
+                    }
+                    else
+                    {
+                        HeroController.players[playerNum].character.SetXY(currentGhosts[playerNum].transform.position.x, currentGhosts[playerNum].transform.position.y);
+                        currentGhosts[playerNum].SetCanReviveCharacter();
+                        currentHeroNum = playerNum;
+                    }   
                 }
             }
             catch ( Exception ex )
@@ -1892,6 +1987,12 @@ namespace Control_Enemies_Mod
         {
             try
             {
+                if ( playerNum == currentHeroNum )
+                {
+                    findNewEnemyCooldown[playerNum] = 0f;
+                    return;
+                }
+
                 for (int i = 0; i < Map.units.Count; ++i)
                 {
                     // Find a valid unit to control
@@ -1919,7 +2020,7 @@ namespace Control_Enemies_Mod
             attemptingWin = -1;
             playerWon = false;
             onWinAttempt = false;
-            requiredScore = new int[] { settings.scoreToWin, settings.scoreToWin, settings.scoreToWin, settings.scoreToWin };
+            ScoreManager.requiredScore = new int[] { settings.scoreToWin, settings.scoreToWin, settings.scoreToWin, settings.scoreToWin };
             switchCounter = 0f;
         }
         #endregion

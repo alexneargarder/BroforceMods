@@ -20,6 +20,28 @@ namespace Control_Enemies_Mod
         Automatic = 1
     }
 
+    public class SaveGame
+    {
+        public SaveGame(int[] currentScore, int[] requiredScore, int currentHeroNum)
+        {
+            this.currentScore = currentScore;
+            this.requiredScore = requiredScore;
+            this.currentHeroNum = currentHeroNum;
+        }
+
+        public SaveGame()
+        {
+            this.currentScore = new int[] { 0, 0, 0, 0 };
+            this.requiredScore = new int[] { 0, 0, 0, 0 };
+            this.currentHeroNum = 0;
+        }
+
+        public int[] currentScore;
+        public int[] requiredScore;
+        public int currentHeroNum;
+    }
+
+
     public class Settings : UnityModManager.ModSettings
     {
         // Show / Hide sections
@@ -46,8 +68,8 @@ namespace Control_Enemies_Mod
         public float fireRate = 0.5f;
 
         // Spawn as Enemy Settings
-        public float spawnAsEnemyChance = 100f;
         public bool spawnAsEnemyEnabled = false;
+        public float spawnAsEnemyChance = 100f;
         public bool alwaysChosen = false;
         public bool filterEnemies = false;
         public int[] selGridInt = { 0, 0, 0, 0 };
@@ -62,9 +84,14 @@ namespace Control_Enemies_Mod
         public bool ghostControlledEnemiesAffectCamera = true;
         public int scoreToWin = 10;
         public int scoreIncrement = 5;
-        public int heroLives = 5;
-        public int ghostLives = 5;
-        public int extraLiveOnBossLevel = 2;
+        public int heroLives = 4;
+        public int ghostLives = 4;
+        public int extraLiveOnBossLevel = 1;
+        public int startingHeroPlayer = 0;
+        public float automaticallyFindEnemyCooldown = 3f;
+
+        // Save info
+        public SaveGame[] saveGames = new SaveGame[] { new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame() };
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {

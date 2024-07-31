@@ -7,6 +7,8 @@ using UnityEngine;
 using static UnityEngine.UI.ContentSizeFitter;
 using Net = Networking.Networking;
 using BitCode;
+using BroMakerLib.Loggers;
+using BroMakerLib;
 
 namespace Control_Enemies_Mod
 {
@@ -441,7 +443,7 @@ namespace Control_Enemies_Mod
                     if (__instance.name == "c" && __instance.IsHeavy())
                     {
                         __result = false;
-                        if (__instance.playerNum >= 0 && __instance.playerNum < 5)
+                        if (__instance.playerNum >= 0 && __instance.playerNum < 4)
                         {
                             IsOverFinish(__instance, ref ladderXPos, ref __result);
                         }
@@ -617,6 +619,12 @@ namespace Control_Enemies_Mod
                 }
 
                 Main.ClearVariables();
+
+                // Randomize hero num among starting players
+                if ( Main.settings.competitiveModeEnabled && Main.currentHeroNum == -1 )
+                {
+                    Main.currentHeroNum = UnityEngine.Random.Range(0, HeroController.NumberOfPlayers());
+                }
             }
         }
         #endregion
@@ -1276,6 +1284,92 @@ namespace Control_Enemies_Mod
             }
         }
         #endregion
+
+        // Fix issues with controlling mechs
+        #region Mech
+        // Take control of discharged unit if the mech is being controlled
+        [HarmonyPatch(typeof(MookArmouredGuy), "DisChargePilotRPC")]
+        static class MookArmouredGuy_DisChargePilotRPC_Patch
+        {
+            public static void Prefix(MookArmouredGuy __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                // Mech itself is being controlled
+                if ( __instance.name == "c" )
+                {   
+                    // Take control of discharged unit
+                    TestVanDammeAnim pilotUnit = __instance.pilotUnit as TestVanDammeAnim;
+                    if ( pilotUnit != null && Main.AvailableToPossess(pilotUnit) )
+                    {
+                        Main.StartControllingUnit(__instance.playerNum, pilotUnit, true, false, false);
+                    }
+                }
+            }
+        }
+
+        // Patched to remove damage to controlled mooks who are discharged
+        [HarmonyPatch(typeof(Mook), "DischargePilotingUnit")]
+        static class Mook_DischargePilotingUnit_Patch
+        {
+            public static bool Prefix(Mook __instance, ref float x, ref float y, ref float xI, ref float yI, ref bool stunUnit)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Prevent mook from taking damage if it's a player controlled enemy
+                if ( __instance.name == "c" )
+                {
+                    Traverse trav = Traverse.Create(__instance);
+                    __instance.SetInvulnerable(0.1f, false, false);
+                    if (__instance.gunSprite != null)
+                    {
+                        __instance.gunSprite.enabled = true;
+                        __instance.gunSprite.GetComponent<Renderer>().enabled = true;
+                    }
+                    __instance.GetComponent<Renderer>().enabled = true;
+                    trav.SetFieldValue("ignoreHighFivePressTime", 0.1f);
+                    trav.SetFieldValue("jumpTime", 0.13f);
+                    __instance.enabled = true;
+                    __instance.health = 1;
+                    __instance.pilottedUnit = null;
+                    __instance.SpecialAmmo = __instance.SpecialAmmo;
+                    __instance.SetXY(x, y);
+                    __instance.yI = yI;
+                    if (!stunUnit)
+                    {
+                        __instance.xIBlast = xI;
+                    }
+                    else
+                    {
+                        __instance.xIBlast = xI * 0.5f;
+                        __instance.xI = xI * 0.5f;
+                    }
+                    __instance.ShowStartBubble();
+                    __instance.gameObject.SetActive(true);
+                    if (stunUnit)
+                    {
+                        __instance.Stun(1f);
+                    }
+                    else
+                    {
+                        trav.SetFieldValue("stunTime", 0f);
+                    }
+
+                    __instance.xI = xI;
+                    __instance.xIBlast = 0f;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        #endregion
         #endregion // End Enemy Specific Patches
 
         #region Spawning As Enemy Patches
@@ -1324,7 +1418,7 @@ namespace Control_Enemies_Mod
                         if ( !Main.settings.alwaysChosen )
                         {
                             // Randomize unit
-                            Main.settings.selGridInt[__instance.playerNum] = UnityEngine.Random.Range(0, Main.currentUnitList.Length - 1);
+                            Main.settings.selGridInt[__instance.playerNum] = UnityEngine.Random.Range(0, Main.currentUnitList.Length);
                         }
                         GameObject obj = Main.SpawnUnit(Main.GetSelectedUnit(__instance.playerNum), new Vector3(0f, 0f, 0f));
                         TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
@@ -1345,7 +1439,7 @@ namespace Control_Enemies_Mod
                 }
                 catch (Exception e)
                 {
-                    Main.Log("Exception Replacing Bro: " + e.ToString());
+                    Main.Log("Exception replacing bro: " + e.ToString());
                 }
             }
         }
@@ -1522,7 +1616,7 @@ namespace Control_Enemies_Mod
                             }
                             catch (Exception ex)
                             {
-                                Main.Log("Exception: " + ex.ToString());
+                                Main.Log("Exception switching unit: " + ex.ToString());
                             }
                             return;
                         }
@@ -1622,7 +1716,12 @@ namespace Control_Enemies_Mod
                 {
                     if (Main.waitingToBecomeEnemy.Count > 0)
                     {
-                        int chosenPlayer = Main.waitingToBecomeEnemy[UnityEngine.Random.Range(0, Main.waitingToBecomeEnemy.Count - 1)];
+                        int chosenPlayer = Main.waitingToBecomeEnemy[UnityEngine.Random.Range(0, Main.waitingToBecomeEnemy.Count)];
+                        if ( chosenPlayer == Main.currentHeroNum )
+                        {
+                            Main.waitingToBecomeEnemy.Remove(chosenPlayer);
+                            return;
+                        }
                         if ( !(__instance.playerNum >= 0 && __instance.playerNum < 4) && __instance.name != "c" && __instance.name != "Hobro")
                         {
                             Main.StartControllingUnit(chosenPlayer, __instance, false, true, false);
@@ -1993,7 +2092,7 @@ namespace Control_Enemies_Mod
         {
             public static bool Prefix(Map __instance, ref float xRange, ref float yRange, ref float x, ref float y, ref int direction, ref bool canBeDead, ref Mook __result)
             {
-                if (!Main.enabled)
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
                 {
                     return true;
                 }
@@ -2165,7 +2264,7 @@ namespace Control_Enemies_Mod
         {
             public static bool Prefix(TestVanDammeAnim __instance)
             {
-                if (!Main.enabled)
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
                 {
                     return true;
                 }
@@ -2179,7 +2278,7 @@ namespace Control_Enemies_Mod
             }
         }
 
-        // Create exit portal on level finish if 
+        // Create exit portal on level finish if this is a victory helicopter
         [HarmonyPatch(typeof(Helicopter), "Enter")]
         static class Helicopter_Enter_Patch
         {
@@ -2206,6 +2305,47 @@ namespace Control_Enemies_Mod
                         }
                     }
                 }
+            }
+        }
+
+        // Create exit portal on level finish for alien levels that use elevators
+        [HarmonyPatch(typeof(GiantElevator), "StartMoving")]
+        static class GiantElevator_StartMoving_Patch
+        {
+            public static bool Prefix(GiantElevator __instance)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return true;
+                }
+
+                // Prevent the elevator from being hit for a few seconds to give the portal time to spawn
+                if ( Main.disableElevatorCounter > 0f )
+                {
+                    return false;
+                }
+
+                Traverse trav = Traverse.Create(__instance);
+                float floorY = (float) trav.GetFieldValue("floorY");
+                bool hasDoneVictory = (bool) trav.GetFieldValue("hasDoneVictory");
+                if ( !Main.openedPortal && floorY < 0f && !hasDoneVictory )
+                {
+                    // Check if any players are able to win
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        if (ScoreManager.CanWin(i))
+                        {
+                            Main.openedPortal = true;
+                            Main.disableElevatorCounter = 5f;
+                            Vector2 portalLocation = new Vector2(__instance.transform.position.x, __instance.transform.position.y + 20f);
+                            Map.CreateExitPortal(portalLocation);
+                            return false;
+                        }
+                    }
+                }
+                
+
+                return true;
             }
         }
 
@@ -2239,7 +2379,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( Main.anyAttemptingWin )
+                if ( Main.anyAttemptingWin && !Main.onWinAttempt )
                 {
                     Main.previousSceneName = GameState.Instance.sceneToLoad;
                     Main.previousCampaignName = GameState.Instance.campaignName;
@@ -2248,7 +2388,7 @@ namespace Control_Enemies_Mod
                     LevelSelectionController.ResetLevelAndGameModeToDefault();
                     GameState.Instance.ResetToDefault();
 
-                    int chosenBoss = UnityEngine.Random.Range(0, 5);
+                    int chosenBoss = UnityEngine.Random.Range(0, 6);
 
                     switch (chosenBoss)
                     {
@@ -2346,7 +2486,7 @@ namespace Control_Enemies_Mod
                         Main.onWinAttempt = false;
                         Main.anyAttemptingWin = false;
                         Main.returnToPreviousLevel = true;
-                        Main.requiredScore[Main.attemptingWin] += Main.settings.scoreIncrement;
+                        ScoreManager.requiredScore[Main.attemptingWin] += Main.settings.scoreIncrement;
                         Main.attemptingWin = -1;
                     }
                 }
@@ -2384,6 +2524,61 @@ namespace Control_Enemies_Mod
                     return false;
                 }
                 return true;
+            }
+        }
+
+        // Check if weather is burning to set red player to different color
+        [HarmonyPatch(typeof(WeatherController), "SwitchWeather", new Type[] { typeof(WeatherType), typeof(bool) } )]
+        static class WeatherController_SwitchWeather_Patch
+        {
+            public static void Prefix(WeatherController __instance, ref WeatherType newWeatherType)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                Main.isBurning = newWeatherType == WeatherType.Burning;
+
+                // Update red player's color
+                if ( Main.isBurning && Main.currentGhosts[1] != null )
+                {
+                    Main.currentGhosts[1].playerColor = GhostPlayer.burningColor;
+                    Main.currentGhosts[1].sprite.SetColor(new Color(GhostPlayer.burningColor.r, GhostPlayer.burningColor.g, GhostPlayer.burningColor.b, Main.currentGhosts[1].currentTransparency));
+                }
+            }
+        }
+
+        // Handle creating and loading saves
+        [HarmonyPatch(typeof(SaveSlotsMenu), "SelectSlot")]
+        static class SaveSlotsMenu_SelectSlot_Patch
+        {
+            public static void Prefix(SaveSlotsMenu __instance, ref int slot)
+            {
+                if (SaveSlotsMenu.createNewGame)
+                {
+                    try
+                    {
+                        // If a new save is being created, clear previous save data
+                        Main.settings.saveGames[slot] = new SaveGame();
+
+                        // Randomize player
+                        if ( Main.settings.startingHeroPlayer == 0 )
+                        {
+                            Main.settings.saveGames[slot].currentHeroNum = -1;
+                        }
+                        else
+                        {
+                            Main.settings.saveGames[slot].currentHeroNum = Main.settings.startingHeroPlayer - 1;
+                        }
+
+                        Main.settings.saveGames[slot].requiredScore = new int[] { Main.settings.scoreToWin, Main.settings.scoreToWin, Main.settings.scoreToWin, Main.settings.scoreToWin };
+                    }
+                    catch (Exception ex)
+                    {
+                        Main.Log("Exception creating save game: " + ex.ToString());
+                    }
+                }
             }
         }
         #endregion
