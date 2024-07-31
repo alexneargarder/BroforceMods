@@ -47,7 +47,8 @@ namespace Control_Enemies_Mod
         protected const float spriteHeight = 32f;
         protected Color reviveColor = new Color(1f, 0.8431f, 0f);
         //protected Color[] playerColors = new Color[] { new Color(0.15f, 0.47f, 0.92f), new Color(1f, 0.17f, 0.17f), new Color(1f, 0.64f, 0f), new Color(0.56f, 0f, 1f) };
-        protected Color[] playerColors = new Color[] { new Color(0f, 0.5f, 1f), new Color(1f, 0f, 0f), new Color(1f, 0.45f, 0f), new Color(0.55f, 0f, 1f) };
+        public static Color[] playerColors = new Color[] { new Color(0f, 0.5f, 1f), new Color(1f, 0f, 0f), new Color(1f, 0.45f, 0f), new Color(0.55f, 0f, 1f) };
+        public static Color burningColor = new Color(0.53f, 0.05f, 0.15f);
 
         // Movement
         public bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
@@ -102,6 +103,12 @@ namespace Control_Enemies_Mod
         {
             this.player = HeroController.players[playerNum];
             this.playerColor = playerColors[playerNum];
+
+            // Change red player on burning levels to an easier to see color
+            if ( Main.isBurning && playerNum == 1 )
+            {
+                this.playerColor = burningColor;
+            }
 
             if ( this.player.controllerNum > 3 )
             {

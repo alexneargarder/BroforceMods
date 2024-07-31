@@ -16,7 +16,16 @@ namespace Control_Enemies_Mod
         public static SpriteSM scorePrefab = null;
         public static List<List<SpriteSM>> scoreSprites = new List<List<SpriteSM>>() { new List<SpriteSM>() { null, null, null, null } };
         public static bool[] spriteSetup = new bool[] { false, false, false, false };
-        public static int[] currentScore = new int[] { 0, 0, 0, 0 };
+        public static int[] currentScore
+        {
+            get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentScore;
+            set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentScore = value;
+        }
+        public static int[] requiredScore
+        {
+            get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].requiredScore;
+            set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].requiredScore = value;
+        }
         public const float spriteWidth = 32f;
         public const float spriteHeight = 32f;
 
@@ -168,7 +177,7 @@ namespace Control_Enemies_Mod
 
         public static bool CanWin(int playerNum)
         {
-            return currentScore[playerNum] >= Main.requiredScore[playerNum];
+            return currentScore[playerNum] >= ScoreManager.requiredScore[playerNum];
         }
 
         public static void SetupFinalScoreSprites(int playerNum, Transform parentTransform)
