@@ -1,18 +1,17 @@
-﻿using BroMakerLib.Loaders;
+﻿using BroMakerLib.CustomObjects;
+using BroMakerLib.Loaders;
 using HarmonyLib;
 using RocketLib;
+using RocketLib.Utils;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
-using BSett = BroMakerLib.Settings;
-using RocketLib.Utils;
-using System.IO;
 using static RocketLib.Utils.TestVanDammeAnimTypes;
-using BroMakerLib.CustomObjects;
-using JetBrains.Annotations;
+using BSett = BroMakerLib.Settings;
 
 namespace Control_Enemies_Mod
 {
@@ -623,6 +622,7 @@ namespace Control_Enemies_Mod
         public static float switchCounter = 0f;
         public static float disableElevatorCounter = 0f;
         public static bool isBurning = false;
+        public static float brokenCheckTimer = 0.25f;
 
         #region General
         // Update Everything
@@ -644,6 +644,7 @@ namespace Control_Enemies_Mod
                         if (leaveEnemy.IsDown(i) && HeroController.PlayerIsAlive(i) && previousCharacter[i] != null && !previousCharacter[i].destroyed)
                         {
                             LeaveUnit(HeroController.players[i].character, i, false);
+                            FixAvatar(i);
                         }
                     }
                     // Check for leaving enemy in competitive mode
@@ -668,22 +669,6 @@ namespace Control_Enemies_Mod
                                 HeroController.players[i].character = previousCharacter[i];
                                 HidePlayer(i, true);
                             }
-                        }
-
-                        // Check for player winning
-                        if ( playerWon )
-                        {
-                            switchCounter += dt;
-                            if ( switchCounter > 20f )
-                            {
-                                GameModeController.SetSwitchDelay(1f);
-                                switchCounter = 0;
-                            }
-                        }
-
-                        if ( disableElevatorCounter > 0f )
-                        {
-                            disableElevatorCounter -= dt;
                         }
                     }
 
@@ -729,8 +714,45 @@ namespace Control_Enemies_Mod
                             FindNewEnemyOnMap(i);
                         }
                     }
-
                     currentSpawnCooldown[i] -= dt;
+                }
+
+                if ( settings.competitiveModeEnabled )
+                {
+                    // Check for player winning
+                    if (playerWon)
+                    {
+                        switchCounter += dt;
+                        if (switchCounter > 8f)
+                        {
+                            GameModeController.SetSwitchDelay(1f);
+                            switchCounter = 0;
+                        }
+                    }
+
+                    // Countdown to reenable elevators
+                    if (disableElevatorCounter > 0f)
+                    {
+                        disableElevatorCounter -= dt;
+                    }
+
+                    brokenCheckTimer -= dt;
+                    if (brokenCheckTimer <= 0f)
+                    {
+                        brokenCheckTimer = 0.25f;
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            if (i != currentHeroNum && HeroController.IsPlayerPlaying(i))
+                            {
+                                // If player is not respawning, isn't alive, and isn't a ghost, respawn them
+                                if (countdownToRespawn[i] <= 0f && !(HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf) && !(Main.currentGhosts[i] != null && Main.currentGhosts[i].gameObject.activeSelf))
+                                {
+                                    HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                                    HeroController.players[i].RespawnBro(false);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -824,9 +846,8 @@ namespace Control_Enemies_Mod
             try
             {
                 TestVanDammeAnim currentCharacter = HeroController.players[playerNum].character;
-                if (currentCharacter != null && currentCharacter.IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
+                if (currentCharacter != null && HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
                 {
-                    
                     // Don't allow swap while player is piloting another unit, unless they are a mech, in which case pilotted unit refers to the mook inside the mech
                     if ( currentCharacter.pilottedUnit != null && !(currentCharacter is MookArmouredGuy) )
                     {
@@ -877,10 +898,13 @@ namespace Control_Enemies_Mod
                     {
                         SwitchUnit(currentCharacter, playerNum, gentleLeave, erasePreviousCharacter);
                     }
-                    // Hide previous character
                     else
                     {
-                        currentCharacter.gameObject.SetActive(false);
+                        // Hide previous character
+                        if ( !gentleLeave )
+                        {
+                            currentCharacter.gameObject.SetActive(false);
+                        }
                         if (savePreviousCharacter)
                         {
                             previousCharacter[playerNum] = currentCharacter;
@@ -895,7 +919,7 @@ namespace Control_Enemies_Mod
                     revealed[playerNum] = false;
 
                     // Set avatar to enemy one
-                    SetEnemyAvatar(playerNum, currentUnitType[playerNum]);
+                    SwitchToEnemyAvatar(playerNum, currentUnitType[playerNum]);
 
                     HeroController.players[playerNum].character = unit;
                     currentlyEnemy[playerNum] = true;
@@ -1066,7 +1090,7 @@ namespace Control_Enemies_Mod
                 Log("Exception leaving unit: " + ex.ToString());
             }
         }
-        public static void SetEnemyAvatar(int playerNum, UnitType type)
+        public static void SwitchToEnemyAvatar(int playerNum, UnitType type)
         {
             switch (type)
             {
@@ -1076,6 +1100,28 @@ namespace Control_Enemies_Mod
                 default:
                     HeroController.players[playerNum].hud.SetAvatar(mookAvatarMat);
                     break;
+            }
+        }
+        public static void SwitchToHeroAvatar(int playerNum)
+        {
+            if (isBroMakerInstalled && SetAvatarToSwitch(HeroController.players[playerNum].character))
+            {
+                HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroType.None);
+            }
+            else
+            {
+                HeroController.players[playerNum].hud.SwitchAvatarAndGrenadeMaterial(HeroController.players[playerNum].heroType);
+            }
+        }
+        public static void FixAvatar(int playerNum)
+        {
+            if (HeroController.players[playerNum].character.name == "c")
+            {
+                SwitchToEnemyAvatar(playerNum, currentUnitType[playerNum]);
+            }
+            else
+            {
+                SwitchToHeroAvatar(playerNum);
             }
         }
 
@@ -1449,6 +1495,27 @@ namespace Control_Enemies_Mod
                 return false;
             }
         }
+        public static bool TryOverrideSpawn(int playerNum)
+        {
+            if (LoadHero.willReplaceBro[playerNum])
+            {
+                LoadHero.previousSpawnInfo[playerNum] = Player.SpawnType.CheckpointRespawn;
+                return true;
+            }
+            return false;
+        }
+        public static bool OverrideSpawn(int playerNum)
+        {
+            try
+            {
+                return TryOverrideSpawn(playerNum);
+            }
+            catch
+            {
+                isBroMakerInstalled = false;
+                return false;
+            }
+        }
         #endregion
 
         #region Possessing Enemies
@@ -1509,7 +1576,7 @@ namespace Control_Enemies_Mod
 
         public static bool AvailableToPossess(TestVanDammeAnim character)
         {
-            return character.name != "c" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
+            return character.name != "c" && character.name != "p" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
         }
         #endregion
 
@@ -1967,18 +2034,6 @@ namespace Control_Enemies_Mod
             catch ( Exception ex )
             {
                 Log("Exception resurrecting ghost: " + ex.ToString());
-            }
-        }
-
-        public static void SwitchToHeroAvatar(int playerNum)
-        {
-            if ( isBroMakerInstalled && SetAvatarToSwitch(HeroController.players[playerNum].character) )
-            {
-                HeroController.SwitchAvatarMaterial(HeroController.players[playerNum].hud.avatar, HeroType.None);
-            }
-            else
-            {
-                HeroController.players[playerNum].hud.SwitchAvatarAndGrenadeMaterial(HeroController.players[playerNum].heroType);
             }
         }
 
