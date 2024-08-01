@@ -4,11 +4,8 @@ using RocketLib.Collections;
 using System;
 using System.Reflection;
 using UnityEngine;
-using static UnityEngine.UI.ContentSizeFitter;
 using Net = Networking.Networking;
-using BitCode;
-using BroMakerLib.Loggers;
-using BroMakerLib;
+using static RocketLib.Utils.TestVanDammeAnimTypes;
 
 namespace Control_Enemies_Mod
 {
@@ -1185,7 +1182,15 @@ namespace Control_Enemies_Mod
                 // Automatically assume control of alien that spawned from facehugger that was controlled by a player
                 if (controlNextAlien)
                 {
-                    Main.StartControllingUnit(controllerPlayerNum, __instance, true);
+                    // If previous character is null, that means we are in spawn as enemy mode, so we shouldn't save the previous character again
+                    if (Main.previousCharacter[controllerPlayerNum] == null)
+                    {
+                        Main.StartControllingUnit(controllerPlayerNum, __instance, true, false);
+                    }
+                    else
+                    {
+                        Main.StartControllingUnit(controllerPlayerNum, __instance, true);
+                    }
                     controlNextAlien = false;
                     Main.countdownToRespawn[controllerPlayerNum] = -1f;
                 }
@@ -1424,6 +1429,14 @@ namespace Control_Enemies_Mod
                         TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
                         Main.StartControllingUnit(__instance.playerNum, newUnit, false, false, true);
                         Main.WorkOutSpawnPosition(__instance, newUnit);
+                        // Move lost soul up a bit
+                        if (Main.GetSelectedUnit(__instance.playerNum) == UnitType.LostSoul)
+                        {
+                            Traverse.Create(newUnit).SetFieldValue("flying", true);
+                            newUnit.yI += 30f;
+                            newUnit.xI += 30f;
+                            newUnit.Y += 10f;
+                        }
                     }
                     else
                     {
@@ -1539,6 +1552,10 @@ namespace Control_Enemies_Mod
                     if (forceCheckpointSpawn)
                     {
                         __result = Player.SpawnType.CheckpointRespawn;
+                        if (Main.isBroMakerInstalled)
+                        {
+                            Main.OverrideSpawn(__instance.playerNum);
+                        }
                         forceCheckpointSpawn = false;
                     }
                 }
@@ -1612,6 +1629,14 @@ namespace Control_Enemies_Mod
 
                                 __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
                                 __instance.character.SetInvulnerable(0f, false);
+                                // Move lost soul up a bit
+                                if (Main.GetSelectedUnit(__instance.playerNum) == UnitType.LostSoul)
+                                {
+                                    Traverse.Create(newUnit).SetFieldValue("flying", true);
+                                    newUnit.yI += 30f;
+                                    newUnit.xI += 30f;
+                                    newUnit.Y += 10f;
+                                }
                                 Main.switched[playerNum] = false;
                             }
                             catch (Exception ex)
@@ -1645,6 +1670,14 @@ namespace Control_Enemies_Mod
 
                             __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
                             __instance.character.SetInvulnerable(0f, false);
+                            // Move lost soul up a bit
+                            if (Main.GetSelectedUnit(__instance.playerNum) == UnitType.LostSoul)
+                            {
+                                Traverse.Create(newUnit).SetFieldValue("flying", true);
+                                newUnit.yI += 30f;
+                                newUnit.xI += 30f;
+                                newUnit.Y += 10f;
+                            }
 
                             Main.currentSpawnCooldown[playerNum] = Main.settings.spawnSwapCooldown;
                         }
