@@ -162,6 +162,8 @@ namespace Control_Enemies_Mod
 
             settings.extraControlsToggle = GUILayout.Toggle(settings.extraControlsToggle, new GUIContent("Keybindings Toggleable", "When enabled, makes the Special 2 and Special 3 buttons function as toggles rather than requiring that you hold them."));
 
+            settings.noLifeLossOnSuicide = GUILayout.Toggle(settings.noLifeLossOnSuicide, new GUIContent("No Life Loss On Suicide", "When enabled, makes suicide enemies not cost lives when you die as them."));
+
             GUI.Label(lastRect, GUI.tooltip);
             previousToolTip = GUI.tooltip;
 
@@ -573,11 +575,13 @@ namespace Control_Enemies_Mod
         // General options
         public static List<Unit> currentUnit = new List<Unit>() { null, null, null, null };
         public static UnitType[] currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
+        public static float[] currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
+        public static float[] currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
         public static bool[] currentlyEnemy = { false, false, false, false };
         public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
         public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
         public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
-        public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat;
+        public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat, pigAvatarMat, bruiserAvatarMat;
         public static bool[] specialWasDown = { false, false, false, false };
         public static bool[] holdingSpecial = { false, false, false, false };
         public static bool[] holdingSpecial2 = { false, false, false, false };
@@ -780,6 +784,8 @@ namespace Control_Enemies_Mod
             ghostAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_ghost.png");
             mookAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_mook.png");
             cr666AvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_CR666.png");
+            pigAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_pig.png");
+            bruiserAvatarMat = ResourcesController.GetMaterial(directoryPath, "avatar_bruiser.png");
 
             // Create ghost prefab
             if ( ghostPrefab == null )
@@ -807,6 +813,8 @@ namespace Control_Enemies_Mod
             HarmonyPatches.overrideNextVisibilityCheck = false;
             HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = false;
             createdSandworms = false;
+            currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
+            currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
 
             // Possessing Enemy
             fireDelay = new float[] { 0f, 0f, 0f, 0f };
@@ -846,16 +854,18 @@ namespace Control_Enemies_Mod
             try
             {
                 TestVanDammeAnim currentCharacter = HeroController.players[playerNum].character;
-                if (currentCharacter != null && HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
+                if (HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive())
                 {
                     // Don't allow swap while player is piloting another unit, unless they are a mech, in which case pilotted unit refers to the mook inside the mech
-                    if ( currentCharacter.pilottedUnit != null && !(currentCharacter is MookArmouredGuy) )
+                    if (currentCharacter != null && currentCharacter.pilottedUnit != null && !(currentCharacter is MookArmouredGuy) )
                     {
                         return;
                     }
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
                     currentUnitType[playerNum] = unit.GetUnitType();
+                    currentSpriteWidth[playerNum] = currentUnitType[playerNum].GetSpriteWidth();
+                    currentSpriteHeight[playerNum] = currentUnitType[playerNum].GetSpriteHeight();
                     unit.playerNum = playerNum;
                     Traverse trav = Traverse.Create(unit);
                     trav.SetFieldValue("isHero", true);
@@ -893,25 +903,28 @@ namespace Control_Enemies_Mod
 
                     waitingToBecomeEnemy.Remove(playerNum);
 
-                    // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
-                    if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(currentCharacter is BroBase))
+                    if ( currentCharacter != null )
                     {
-                        SwitchUnit(currentCharacter, playerNum, gentleLeave, erasePreviousCharacter);
-                    }
-                    else
-                    {
-                        // Hide previous character
-                        if ( !gentleLeave )
+                        // Release currently controlled unit, previousCharacter not being null indicates that we have a bro in storage
+                        if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive() && !(currentCharacter is BroBase))
                         {
-                            currentCharacter.gameObject.SetActive(false);
-                        }
-                        if (savePreviousCharacter)
-                        {
-                            previousCharacter[playerNum] = currentCharacter;
+                            SwitchUnit(currentCharacter, playerNum, gentleLeave, erasePreviousCharacter);
                         }
                         else
                         {
-                            previousCharacter[playerNum] = null;
+                            // Hide previous character
+                            if (!gentleLeave)
+                            {
+                                currentCharacter.gameObject.SetActive(false);
+                            }
+                            if (savePreviousCharacter)
+                            {
+                                previousCharacter[playerNum] = currentCharacter;
+                            }
+                            else
+                            {
+                                previousCharacter[playerNum] = null;
+                            }
                         }
                     }
 
@@ -1096,6 +1109,15 @@ namespace Control_Enemies_Mod
             {
                 case UnitType.CR666:
                     HeroController.players[playerNum].hud.SetAvatar(cr666AvatarMat);
+                    break;
+                case UnitType.Bruiser:
+                case UnitType.SuicideBruiser:
+                case UnitType.EliteBruiser:
+                    HeroController.players[playerNum].hud.SetAvatar(bruiserAvatarMat);
+                    break;
+                case UnitType.Pig:
+                case UnitType.RottenPig:
+                    HeroController.players[playerNum].hud.SetAvatar(pigAvatarMat);
                     break;
                 default:
                     HeroController.players[playerNum].hud.SetAvatar(mookAvatarMat);
