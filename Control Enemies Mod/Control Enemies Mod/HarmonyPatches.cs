@@ -271,6 +271,12 @@ namespace Control_Enemies_Mod
                     return false;
                 }
 
+                // Disable life loss for suicide enemies
+                if ( Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() )
+                {
+                    return false;
+                }
+
                 if ( Main.settings.competitiveModeEnabled )
                 {
                     // Disable life loss for ghosts if they have infinite lives
@@ -622,6 +628,69 @@ namespace Control_Enemies_Mod
                 {
                     Main.currentHeroNum = UnityEngine.Random.Range(0, HeroController.NumberOfPlayers());
                 }
+            }
+        }
+
+        // Remove buggy animation when wall climbing
+        [HarmonyPatch(typeof(TestVanDammeAnim), "AnimateWallAnticipation")]
+        static class TestVanDammeAnim_AnimateWallAnticipation_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (__instance.name == "c")
+                {
+                    __instance.GetComponent<SpriteSM>().SetLowerLeftPixel(0f, Main.currentSpriteHeight[__instance.playerNum]);
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Remove buggy animation when wall climbing
+        [HarmonyPatch(typeof(TestVanDammeAnim), "AnimateWallClimb")]
+        static class TestVanDammeAnim_AnimateWallClimb_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+                
+                if ( __instance.name == "c" )
+                {
+                    __instance.GetComponent<SpriteSM>().SetLowerLeftPixel(0f, Main.currentSpriteHeight[__instance.playerNum]);
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Remove buggy animation when wall climbing
+        [HarmonyPatch(typeof(TestVanDammeAnim), "AnimateWallDrag")]
+        static class TestVanDammeAnim_AnimateWallDrag_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if (__instance.name == "c")
+                {
+                    __instance.GetComponent<SpriteSM>().SetLowerLeftPixel(0f, Main.currentSpriteHeight[__instance.playerNum]);
+                    return false;
+                }
+
+                return true;
             }
         }
         #endregion
@@ -1208,8 +1277,9 @@ namespace Control_Enemies_Mod
         }
         #endregion
 
-        // Prevent Jetpack mooks from automatically flying up
+        // Fix issues with jetpack
         #region Jetpack Mooks
+        // Prevent Jetpack mooks from automatically flying up
         [HarmonyPatch(typeof(MookJetpack), "StartJetPacks")]
         public static class MookJetpack_StartJetPacks_Patch
         {
@@ -1238,6 +1308,24 @@ namespace Control_Enemies_Mod
                 }
 
                 return true;
+            }
+        }
+
+        // Change Jetpack Mook's jetpackHeight as you're playing them to make the jetpack more useful
+        [HarmonyPatch(typeof(MookJetpack), "Land")]
+        static class MookJetpack_Land_Patch
+        {
+            public static void Postfix(MookJetpack __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if ( __instance.name == "c")
+                {
+                    __instance.jetPackHeight = __instance.groundHeight + 48f;
+                }
             }
         }
         #endregion
@@ -1310,7 +1398,14 @@ namespace Control_Enemies_Mod
                     TestVanDammeAnim pilotUnit = __instance.pilotUnit as TestVanDammeAnim;
                     if ( pilotUnit != null && Main.AvailableToPossess(pilotUnit) )
                     {
-                        Main.StartControllingUnit(__instance.playerNum, pilotUnit, true, false, false);
+                        int playerNum = __instance.playerNum;
+                        Main.LeaveUnit(__instance, playerNum, true);
+                        // Force IsAlive to be true
+                        Main.countdownToRespawn[playerNum] = 1f;
+                        Main.StartControllingUnit(playerNum, pilotUnit, true, false, false);
+                        Main.countdownToRespawn[playerNum] = 0f;
+                        // Make sure unit isn't a child of the mech anymore
+                        pilotUnit.transform.parent = Map.Instance.transform;
                     }
                 }
             }
@@ -1371,6 +1466,31 @@ namespace Control_Enemies_Mod
                     return false;
                 }
 
+                return true;
+            }
+        }
+        #endregion
+
+        // Make enemies spawned by Mook General friendly
+        #region Mook General
+        [HarmonyPatch(typeof(MookGeneral), "SpawnMook")]
+        static class MookGeneral_SpawnMook_Patch
+        {
+            public static bool Prefix(MookGeneral __instance, ref Mook prefab, ref float x, ref float y)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                if ( __instance.name == "c" )
+                {
+                    Mook mook = MapController.SpawnMook_Networked(prefab, x, y, 0f, 0f, false, false, true, false, true);
+                    mook.playerNum = __instance.playerNum;
+                    mook.firingPlayerNum = __instance.firingPlayerNum;
+                    return false;
+                }
+                
                 return true;
             }
         }

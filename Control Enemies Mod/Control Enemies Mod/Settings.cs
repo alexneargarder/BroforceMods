@@ -56,6 +56,7 @@ namespace Control_Enemies_Mod
         public bool disableTaunting = true;
         public bool enableSprinting = true;
         public bool extraControlsToggle = false;
+        public bool noLifeLossOnSuicide = false;
 
         // Possession Settings
         public bool possessionModeEnabled = true;
