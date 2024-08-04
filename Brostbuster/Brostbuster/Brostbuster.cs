@@ -171,7 +171,7 @@ namespace Brostbuster
                 this.currentBrosCount = currentBros.Count + 1;
                 this.acknowledgedCount = BrostbusterCount;
             }
-            catch ( Exception ex )
+            catch
             {
             }
         }
