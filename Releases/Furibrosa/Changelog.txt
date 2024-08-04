@@ -1,6 +1,6 @@
-v1.0.3 (unreleased)
+v1.0.3
 Fixed bug with Furiosa being unable to pilot War Rig in multiplayer in some cases.
-Fixed issues caused by BroMaker update.
+Changes for BroMaker update.
 
 v1.0.2
 Improved load time.
