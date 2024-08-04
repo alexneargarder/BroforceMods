@@ -252,7 +252,7 @@ namespace Utility_Mod
                     return;
                 }
 
-                if (Main.settings.endingSkip && (result == LevelResult.Success))
+                if (Main.settings.endingSkip && (result == LevelResult.Success) && !(GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4))
                 {
                     GameModeController.MakeFinishInstant();
                 }

@@ -1,5 +1,6 @@
 v2.3.1
 Fixed spawned enemies not being initialized properly
+Fixed skip ending setting breaking level finish on a specific boss level
 
 v2.3.0
 Added debug options for:
