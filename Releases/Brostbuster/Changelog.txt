@@ -1,6 +1,6 @@
-v1.0.3 (unreleased)
+v1.0.3
 Fixed Ghost Trap being unable to hit players even if they can damage each other in the current gamemode.
-Fixed issues caused by BroMaker update.
+Changes for BroMaker update.
 
 v1.0.2
 Improved load time.
