@@ -537,6 +537,13 @@ namespace Control_Enemies_Mod
 
             settings.startingHeroPlayer = RGUI.HorizontalSliderInt("Starting Hero Player (0 = Random): ", settings.startingHeroPlayer, 0, 4, 500);
 
+            GUILayout.Space(30);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(String.Format("Cooldown Between Spawns for Automatic Mode: {0:0.00}s", settings.automaticallyFindEnemyCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            settings.automaticallyFindEnemyCooldown = GUILayout.HorizontalSlider(settings.automaticallyFindEnemyCooldown, 0.1f, 10f);
+            GUILayout.EndHorizontal();
+
             GUILayout.Space(15);
 
             if ( GUILayout.Button("Reset Score") )
@@ -743,18 +750,24 @@ namespace Control_Enemies_Mod
                     brokenCheckTimer -= dt;
                     if (brokenCheckTimer <= 0f)
                     {
-                        brokenCheckTimer = 0.25f;
-                        for (int i = 0; i < 4; ++i)
+                        try
                         {
-                            if (i != currentHeroNum && HeroController.IsPlayerPlaying(i))
+                            brokenCheckTimer = 0.25f;
+                            for (int i = 0; i < 4; ++i)
                             {
-                                // If player is not respawning, isn't alive, and isn't a ghost, respawn them
-                                if (countdownToRespawn[i] <= 0f && !(HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf) && !(Main.currentGhosts[i] != null && Main.currentGhosts[i].gameObject.activeSelf))
+                                if (i != currentHeroNum && HeroController.IsPlayerPlaying(i))
                                 {
-                                    HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                                    HeroController.players[i].RespawnBro(false);
+                                    // If player is not respawning, isn't alive, and isn't a ghost, respawn them
+                                    if (countdownToRespawn[i] <= 0f && !(HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf) && !(Main.currentGhosts[i] != null && Main.currentGhosts[i].gameObject.activeSelf))
+                                    {
+                                        HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
+                                        HeroController.players[i].RespawnBro(false);
+                                    }
                                 }
                             }
+                        }
+                        catch
+                        {
                         }
                     }
                 }
@@ -815,6 +828,7 @@ namespace Control_Enemies_Mod
             createdSandworms = false;
             currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
             currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
+            HarmonyPatches.Player_RemoveLife_Patch.deathType = DeathType.None;
 
             // Possessing Enemy
             fireDelay = new float[] { 0f, 0f, 0f, 0f };
@@ -846,6 +860,8 @@ namespace Control_Enemies_Mod
             HarmonyPatches.Player_RemoveLife_Patch.allowLifeLoss = false;
             disableElevatorCounter = 0f;
             isBurning = false;
+            HarmonyPatches.GameModeController_LevelFinish_Patch.finishedThisLevel = false;
+            HarmonyPatches.Helicopter_Enter_Patch.helicopterDroppingOff = false;
         }
 
         // Controlling Units
@@ -881,18 +897,23 @@ namespace Control_Enemies_Mod
                         unit.enemyAI.enabled = true;
                     }
                     unit.SpecialAmmo = 0;
+                    unit.canWallClimb = settings.allowWallClimbing;
+                    unit.canDash = settings.enableSprinting;
                     Mook mook = unit as Mook;
                     if (mook != null)
                     {
                         mook.firingPlayerNum = playerNum;
-                        mook.canWallClimb = settings.allowWallClimbing;
-                        mook.canDash = settings.enableSprinting;
                         MookArmouredGuy mech = unit as MookArmouredGuy;
                         // Fix mechs shooting themselves
                         if ( mech != null )
                         {
                             mech.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
                         }
+                    }
+                    // Fix suicide mooks being unable to wall climb
+                    if (currentUnitType[playerNum] == UnitType.SuicideMook)
+                    {
+                        unit.SetFieldValue("halfWidth", 6f);
                     }
                     // Make sure held buttons aren't carried over
                     specialWasDown[playerNum] = false;
@@ -957,19 +978,20 @@ namespace Control_Enemies_Mod
             {
                 Mook mook = unit as Mook;
                 mook.firingPlayerNum = playerNum;
-                mook.canWallClimb = Main.settings.allowWallClimbing;
-                mook.canDash = Main.settings.enableSprinting;
             }
+            unit.canWallClimb = settings.allowWallClimbing;
+            unit.canDash = settings.enableSprinting;
         }
         public static void SwitchUnit(TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter)
         {
             previous.playerNum = previousPlayerNum[playerNum];
-            if (previous is Mook)
+            Mook previousMook = previous as Mook;
+            if (previousMook != null)
             {
-                Mook previousMook = previous as Mook;
                 previousMook.firingPlayerNum = previousPlayerNum[playerNum];
             }
-            Traverse.Create(previous).Field("isHero").SetValue(true);
+            Traverse previousTrav = Traverse.Create(previous);
+            previousTrav.Field("isHero").SetValue(false);
             previous.name = "Enemy";
             previous.canWallClimb = false;
             previous.canDash = false;
@@ -977,6 +999,10 @@ namespace Control_Enemies_Mod
             if (disableWhenOffCamera != null)
             {
                 disableWhenOffCamera.enabled = true;
+            }
+            if ( previous.GetUnitType() == UnitType.SuicideMook )
+            {
+                previousTrav.SetFieldValue("halfWidth", 4f);
             }
 
             if (erasePreviousCharacter)
@@ -1021,7 +1047,8 @@ namespace Control_Enemies_Mod
                     {
                         previousMook.firingPlayerNum = previousPlayerNum[playerNum];
                     }
-                    Traverse.Create(previous).Field("isHero").SetValue(false);
+                    Traverse previousTrav = Traverse.Create(previous);
+                    previousTrav.Field("isHero").SetValue(false);
                     previous.name = "Enemy";
                     previous.canWallClimb = false;
                     previous.canDash = false;
@@ -1029,6 +1056,10 @@ namespace Control_Enemies_Mod
                     if (disableWhenOffCamera != null)
                     {
                         disableWhenOffCamera.enabled = true;
+                    }
+                    if (previous.GetUnitType() == UnitType.SuicideMook)
+                    {
+                        previousTrav.SetFieldValue("halfWidth", 4f);
                     }
 
                     if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive())
@@ -1779,7 +1810,7 @@ namespace Control_Enemies_Mod
         public static void PlayerDiedInCompetitiveMode(TestVanDammeAnim character, DamageObject damage = null )
         {
             // Character has already died so ignore this repeat death
-            if ( character.name == "dead" )
+            if ( character == null || character.name == "dead" )
             {
                 return;
             }
@@ -1855,7 +1886,7 @@ namespace Control_Enemies_Mod
                     if ( !anyAttemptingWin )
                     {
                         // Killed by ghost player
-                        if (damage != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
+                        if (damage != null && damage.damageSender != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c")
                         {
                             TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
                             ResurrectGhost(killer.playerNum);

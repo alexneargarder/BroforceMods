@@ -51,12 +51,12 @@ namespace Control_Enemies_Mod
         public bool showCompetitiveOptions = false;
 
         // General Settings
-        public bool allowWallClimbing = false;
+        public bool allowWallClimbing = true;
         public bool disableFallDamage = true;
         public bool disableTaunting = true;
         public bool enableSprinting = true;
         public bool extraControlsToggle = false;
-        public bool noLifeLossOnSuicide = false;
+        public bool noLifeLossOnSuicide = true;
 
         // Possession Settings
         public bool possessionModeEnabled = true;
@@ -65,7 +65,7 @@ namespace Control_Enemies_Mod
         public bool respawnFromCorpse = true;
         public SwapBehavior leavingEnemy = SwapBehavior.KillEnemy;
         public SwapBehavior swappingEnemies = SwapBehavior.DeleteEnemy;
-        public float swapCooldown = 2f;
+        public float swapCooldown = 1f;
         public float fireRate = 0.5f;
 
         // Spawn as Enemy Settings
