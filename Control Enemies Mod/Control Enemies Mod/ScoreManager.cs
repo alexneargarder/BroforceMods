@@ -58,7 +58,7 @@ namespace Control_Enemies_Mod
         {
             if (!spriteSetup[playerNum])
             {
-                int rows = (int)Mathf.Ceil(currentScore[playerNum] / 5);
+                int rows = (int)Mathf.Ceil(currentScore[playerNum] / 5f);
                 if ( rows == 0 )
                 {
                     rows = 1;
@@ -167,7 +167,7 @@ namespace Control_Enemies_Mod
                         scoreSprites[i][playerNum].SetLowerLeftPixel((scoreForThisRow - 1) * spriteWidth, spriteHeight);
                     }
 
-                    if ( CanWin(i) )
+                    if ( CanWin(playerNum) )
                     {
                         scoreSprites[i][playerNum].SetColor(new Color(1f, 0.8431f, 0f));
                     }
@@ -182,7 +182,7 @@ namespace Control_Enemies_Mod
 
         public static void SetupFinalScoreSprites(int playerNum, Transform parentTransform)
         {
-            int rows = (int)Mathf.Ceil(currentScore[playerNum] / 5);
+            int rows = (int)Mathf.Ceil(currentScore[playerNum] / 5f);
             if (rows == 0)
             {
                 rows = 1;

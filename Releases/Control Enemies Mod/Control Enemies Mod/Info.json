@@ -1,0 +1,11 @@
+{
+	"Id": "Control Enemies Mod",
+	"DisplayName": "Control Enemies Mod",
+	"Author": "AlexN",
+	"Version": "1.0.0",
+	"Requirements": [ "RocketLib-2.3.0" ],
+	"LoadAfter": [ "RocketLib", "BroMaker", "Swap Bros Mod" ],
+	"AssemblyName": "Control Enemies Mod.dll",
+	"EntryMethod": "Control_Enemies_Mod.Main.Load",
+	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+}

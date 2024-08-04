@@ -64,6 +64,7 @@ namespace Control_Enemies_Mod
         // Possession
         TestVanDammeAnim characterToPossess = null;
         Vector3 frozenPosition = Vector3.zero;
+        float frozenXI, frozenYI;
 
         public void Setup()
         {
@@ -207,6 +208,8 @@ namespace Control_Enemies_Mod
             {
                 characterToPossess.X = frozenPosition.x;
                 characterToPossess.Y = frozenPosition.y;
+                characterToPossess.xI = frozenXI;
+                characterToPossess.yI = frozenYI;
             }
         }
 
@@ -710,6 +713,8 @@ namespace Control_Enemies_Mod
                 characterToPossess.name = "p";
                 this.transform.localScale = new Vector3( Mathf.Sign(characterToPossess.X - this.transform.position.x), 1f, 1f);
                 this.frozenPosition = characterToPossess.transform.position;
+                this.frozenXI = characterToPossess.xI;
+                this.frozenYI = characterToPossess.yI;
                 this.transform.position = new Vector3(characterToPossess.X - base.transform.localScale.x * 11f, characterToPossess.Y + characterToPossess.height + 3f, 0f);
                 this.state = GhostState.Attacking;
                 this.frame = 0;

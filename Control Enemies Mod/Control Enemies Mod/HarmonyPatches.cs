@@ -149,12 +149,16 @@ namespace Control_Enemies_Mod
                             Main.PlayerDiedInCompetitiveMode(__instance, damage);
                         }
                     }
-                    else if (__instance.name == "c")
+                    else if (__instance.name == "c" && __instance.playerNum >= 0 && __instance.playerNum < 4)
                     {
                         // If we're not respawning from a corpse or we don't have enough lives left, release the unit
-                        if (!(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null))
+                        if ( !(Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null) )
                         {
-                            Main.LeaveUnit(__instance, __instance.playerNum, true);
+                            SatanMiniboss satan = __instance as SatanMiniboss;
+                            if ( satan == null || satan.IsInStage2() )
+                            {
+                                Main.LeaveUnit(__instance, __instance.playerNum, true);
+                            }
                         }
                     }
                 }
@@ -178,9 +182,16 @@ namespace Control_Enemies_Mod
 
                 try
                 {
-                    if (Main.settings.competitiveModeEnabled && __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                    if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
                     {
-                        Main.PlayerDiedInCompetitiveMode(__instance);
+                        if (Main.settings.competitiveModeEnabled)
+                        {
+                            Main.PlayerDiedInCompetitiveMode(__instance);
+                        }
+                        else if ( __instance.name == "c" )
+                        {
+                            typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -242,7 +253,8 @@ namespace Control_Enemies_Mod
 
                         return false;
                     }
-                    else if (!Main.settings.loseLifeOnDeath)
+                    // Don't lose life if the setting is enabled and we're controlling a character
+                    else if (!Main.settings.loseLifeOnDeath && Main.previousCharacter[__instance.playerNum] != null)
                     {
                         ignoreNextLifeLoss = true;
                     }
@@ -252,10 +264,28 @@ namespace Control_Enemies_Mod
             }
         }
 
+        [HarmonyPatch(typeof(Mook), "NotifyDeathType")]
+        static class Mook_NotifyDeathType_Patch
+        {
+            public static void Prefix(Mook __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if ( __instance.name == "c" && Player_RemoveLife_Patch.deathType != DeathType.Suicide )
+                {
+                    Player_RemoveLife_Patch.deathType = (DeathType)Traverse.Create(__instance).GetFieldValue("deathType");
+                }
+            }
+        }
+
         // Prevent life loss when controlling enemy if life loss is disabled
         [HarmonyPatch(typeof(Player), "RemoveLife")]
         public static class Player_RemoveLife_Patch
         {
+            public static DeathType deathType = DeathType.None;
             public static bool allowLifeLoss = false;
 
             public static bool Prefix(Player __instance)
@@ -268,14 +298,19 @@ namespace Control_Enemies_Mod
                 if ( TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss )
                 {
                     TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss = false;
+                    deathType = DeathType.None;
                     return false;
                 }
 
+
                 // Disable life loss for suicide enemies
-                if ( Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() )
+                if (Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() && deathType == DeathType.Suicide)
                 {
+                    deathType = DeathType.None;
                     return false;
                 }
+
+                deathType = DeathType.None;
 
                 if ( Main.settings.competitiveModeEnabled )
                 {
@@ -1188,6 +1223,248 @@ namespace Control_Enemies_Mod
         }
         #endregion
 
+        // Fix various death functions
+        #region Death Fixes
+        // Fix suicide mook death being ignored
+        [HarmonyPatch(typeof(MookSuicide), "Gib")]
+        static class MookSuicide_Gib_Patch
+        {
+            public static void Prefix(MookSuicide __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix jetpack mook deaths being ignored
+        [HarmonyPatch(typeof(MookJetpack), "Gib")]
+        static class MookJetpack_Gib_Patch
+        {
+            public static void Prefix(MookJetpack __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix alien melter deaths being ignored
+        [HarmonyPatch(typeof(AlienMelter), "Gib")]
+        static class AlienMelter_Gib_Patch
+        {
+            public static void Prefix(AlienMelter __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix alien mosquito deaths being ignored
+        [HarmonyPatch(typeof(AlienMosquito), "Gib")]
+        static class AlienMosquito_Gib_Patch
+        {
+            public static void Prefix(AlienMosquito __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix undead suicide mook deaths being ignored
+        [HarmonyPatch(typeof(MookSuicideUndead), "Gib")]
+        static class MookSuicideUndead_Gib_Patch
+        {
+            public static void Prefix(MookSuicideUndead __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Death")]
+        static class Villager_Death_Patch
+        {
+            public static void Prefix(Villager __instance, ref DamageObject damage)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance, damage);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Gib", new Type[] { typeof(DamageType), typeof(float), typeof(float) })]
+        static class Villager_Gib_Patch
+        {
+            public static void Prefix(Villager __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Fix villager deaths being ignored
+        [HarmonyPatch(typeof(Villager), "Gib", new Type[] { })]
+        static class Villager_Gib2_Patch
+        {
+            public static void Prefix(Villager __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
+                {
+                    if (Main.settings.competitiveModeEnabled)
+                    {
+                        Main.PlayerDiedInCompetitiveMode(__instance);
+                    }
+                    // Ensure controlled enemies cause life loss on death
+                    else if (__instance.name == "c")
+                    {
+                        typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                    }
+                }
+            }
+        }
+
+        // Make sure we leave satan when he dies
+        [HarmonyPatch(typeof(SatanMiniboss), "StartDeathRattle")]
+        static class SatanMiniboss_StartDeathRattle_Patch
+        {
+            public static void Prefix(SatanMiniboss __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (!Main.settings.competitiveModeEnabled)
+                {
+                    if (__instance.name == "c")
+                    {
+                        Main.LeaveUnit(__instance, __instance.playerNum, true);
+                    }
+                    else if (__instance.name == "Enemy")
+                    {
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            if (HeroController.IsPlaying(i) && HeroController.players[i].character == __instance)
+                            {
+                                HeroController.players[i].character = null;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        #endregion
+
         // Make spawned helldogs friendly
         #region HellDog
         [HarmonyPatch(typeof(HellDogEgg), "MakeEffects")]
@@ -1492,6 +1769,27 @@ namespace Control_Enemies_Mod
                 }
                 
                 return true;
+            }
+        }
+        #endregion
+
+        // Fix suicide mooks being unable to wall climb
+        #region Suicide Mook
+        [HarmonyPatch(typeof(MookSuicide), "Start")]
+        static class MookSuicide_Start_Patch
+        {
+            public static void Postfix(MookSuicide __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                // Fix suicide mooks being unable to wall climb
+                if ( __instance.name == "c" )
+                {
+                    Traverse.Create(__instance).SetFieldValue("halfWidth", 6f);
+                }
             }
         }
         #endregion
@@ -2310,8 +2608,9 @@ namespace Control_Enemies_Mod
 
         // Keep score
         [HarmonyPatch(typeof(GameModeController), "LevelFinish")]
-        static class GameModeController_LevelFinish_Patch
+        public static class GameModeController_LevelFinish_Patch
         {
+            public static bool finishedThisLevel = false;
             public static void Prefix(GameModeController __instance, ref LevelResult result)
             {
                 if (!Main.enabled || !Main.settings.competitiveModeEnabled)
@@ -2319,65 +2618,12 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( result == LevelResult.Success )
+                if (result == LevelResult.Success && !finishedThisLevel)
                 {
+                    // Make sure this level isn't finishing multiple times
+                    finishedThisLevel = true;
                     ++ScoreManager.currentScore[Main.currentHeroNum];
                     ScoreManager.UpdateScore(Main.currentHeroNum);
-
-                }
-            }
-        }
-
-        // Fix villager deaths being ignored
-        [HarmonyPatch(typeof(Villager), "Death")]
-        static class Villager_Death_Patch
-        {
-            public static void Prefix(Villager __instance, ref DamageObject damage)
-            {
-                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
-                {
-                    return;
-                }
-
-                if (__instance.playerNum >= 0 && __instance.playerNum < 4)
-                {
-                    Main.PlayerDiedInCompetitiveMode(__instance, damage);
-                }
-            }
-        }
-
-        // Fix villager deaths being ignored
-        [HarmonyPatch(typeof(Villager), "Gib", new Type[] { typeof(DamageType), typeof(float), typeof(float) })]
-        static class Villager_Gib_Patch
-        {
-            public static void Prefix(Villager __instance)
-            {
-                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
-                {
-                    return;
-                }
-
-                if ( __instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
-                {
-                    Main.PlayerDiedInCompetitiveMode(__instance);
-                }    
-            }
-        }
-
-        // Fix villager deaths being ignored
-        [HarmonyPatch(typeof(Villager), "Gib", new Type[] {} )]
-        static class Villager_Gib2_Patch
-        {
-            public static void Prefix(Villager __instance)
-            {
-                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
-                {
-                    return;
-                }
-
-                if (__instance.playerNum >= 0 && __instance.playerNum < 4 && HeroController.players[__instance.playerNum].character == __instance)
-                {
-                    Main.PlayerDiedInCompetitiveMode(__instance);
                 }
             }
         }
@@ -2398,12 +2644,14 @@ namespace Control_Enemies_Mod
                     if (__instance.fatAnimal)
                     {
                         __instance.invulnerable = true;
+                        // Make sure we can hit players for competitive mode
                         if (Map.HitLivingUnits(__instance, __instance.playerNum, 3, DamageType.Crush, __instance.squashRange, __instance.X, __instance.Y + 2f, __instance.transform.localScale.x * 100f, 30f, false, true, true, false))
                         {
                             __instance.PlaySpecialAttackSound(0.25f);
                             __instance.yI = 160f;
                         }
                         __instance.invulnerable = false;
+                        return false;
                     }
                 }
 
@@ -2431,10 +2679,25 @@ namespace Control_Enemies_Mod
             }
         }
 
+        [HarmonyPatch(typeof(Map), "CallInTransport_RPC")]
+        static class Map_CallInTransport_RPC_Patch
+        {
+            public static void Prefix(Map __instance, ref bool ArriveByHelicopter)
+            {
+                if (!Main.enabled || !Main.settings.competitiveModeEnabled)
+                {
+                    return;
+                }
+
+                Helicopter_Enter_Patch.helicopterDroppingOff = ArriveByHelicopter;
+            }
+        }
+
         // Create exit portal on level finish if this is a victory helicopter
         [HarmonyPatch(typeof(Helicopter), "Enter")]
-        static class Helicopter_Enter_Patch
+        public static class Helicopter_Enter_Patch
         {
+            public static bool helicopterDroppingOff = false;
             public static void Postfix(Helicopter __instance, ref Vector2 Target)
             {
                 if (!Main.enabled || !Main.settings.competitiveModeEnabled )
@@ -2443,7 +2706,7 @@ namespace Control_Enemies_Mod
                 }
                 
                 // Make sure this isn't a dropoff helicopter
-                if ( !__instance.DroppingHeroesOff && !Main.openedPortal )
+                if ( !helicopterDroppingOff && !Main.openedPortal )
                 {
                     // Check if any players are able to win
                     for (int i = 0; i < 4; ++i)
@@ -2458,6 +2721,8 @@ namespace Control_Enemies_Mod
                         }
                     }
                 }
+
+                helicopterDroppingOff = false;
             }
         }
 
