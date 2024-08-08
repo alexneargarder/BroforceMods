@@ -67,7 +67,7 @@ namespace Control_Enemies_Mod
             base.Fire(x, y, xI, yI, _zOffset, playerNum, FiredBy);
         }
 
-        public static Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool knock, bool canGib, bool firedLocally, bool checkIfUnitIsLocallyOwned, bool hitDead = true)
+        public Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool knock, bool canGib, bool firedLocally, bool checkIfUnitIsLocallyOwned)
         {
             if (Map.units == null)
             {
@@ -92,16 +92,15 @@ namespace Control_Enemies_Mod
                             float num4 = Mathf.Abs(f) + Mathf.Abs(f2);
                             if (num4 < num2)
                             {
-                                if (unit3.health <= 0 && unit == null && hitDead)
+                                if (unit3.health > 0)
                                 {
-                                    if (num4 < num3)
+                                    // Check if unit is a facehugger that is facehugging our current unit
+                                    AlienFaceHugger facehugger = unit3 as AlienFaceHugger;
+                                    if ( facehugger != null && (bool)facehugger.GetFieldValue("connectedToFace") && facehugger.inseminatedUnit == this.firedBy )
                                     {
-                                        num3 = num4;
-                                        unit2 = unit3;
-                                    }
-                                }
-                                else if (unit3.health > 0)
-                                {
+                                        // Skip this facehugger since they're facehugging us
+                                        continue;
+                                    }    
                                     unit = unit3;
                                     num2 = num4;
                                 }
@@ -130,7 +129,7 @@ namespace Control_Enemies_Mod
 
         protected override void TryHitUnitsAtSpawn()
         {
-            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
+            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false);
             if ( hitUnit != null )
             {
                 this.hasHit = true;
@@ -148,7 +147,7 @@ namespace Control_Enemies_Mod
         {
             float xI = this.xI;
             this.xI *= 0.3333334f;
-            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false, false);
+            Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false);
             //if (Map.HitLivingUnits(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false))
             if ( hitUnit != null )
             {
@@ -168,7 +167,7 @@ namespace Control_Enemies_Mod
         {
             if (!this.hasHitUnit)
             {
-                Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false, false);
+                Unit hitUnit = HitClosestUnit(this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false);
                 if (hitUnit != null && hitUnit is TestVanDammeAnim)
                 {
                     Main.StartControllingUnit(playerNum, hitUnit as TestVanDammeAnim);

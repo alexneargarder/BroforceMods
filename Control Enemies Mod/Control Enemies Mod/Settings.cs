@@ -57,6 +57,7 @@ namespace Control_Enemies_Mod
         public bool enableSprinting = true;
         public bool extraControlsToggle = false;
         public bool noLifeLossOnSuicide = true;
+        public bool buffJumpForce = true;
 
         // Possession Settings
         public bool possessionModeEnabled = true;

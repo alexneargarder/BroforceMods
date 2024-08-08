@@ -150,10 +150,6 @@ namespace Control_Enemies_Mod
             GUILayout.BeginHorizontal();
             settings.allowWallClimbing = GUILayout.Toggle(settings.allowWallClimbing, new GUIContent("Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations"));
 
-            Rect lastRect = GUILayoutUtility.GetLastRect();
-            lastRect.y += 20;
-            lastRect.width += 600;
-
             settings.disableFallDamage = GUILayout.Toggle(settings.disableFallDamage, new GUIContent("Disable Fall Damage", "Disables fall damage for controlled enemies."));
 
             settings.disableTaunting = GUILayout.Toggle(settings.disableTaunting, new GUIContent("Disable Taunting", "Disables taunting for controlled enemies. They don't have animations so most enemies go invisible if you taunt."));
@@ -164,12 +160,23 @@ namespace Control_Enemies_Mod
 
             settings.noLifeLossOnSuicide = GUILayout.Toggle(settings.noLifeLossOnSuicide, new GUIContent("No Life Loss On Suicide", "When enabled, makes suicide enemies not cost lives when you die as them."));
 
-            GUI.Label(lastRect, GUI.tooltip);
-            previousToolTip = GUI.tooltip;
-
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(25);
+            GUILayout.Space(10);
+
+            GUILayout.BeginHorizontal();
+
+            settings.buffJumpForce = GUILayout.Toggle(settings.buffJumpForce, new GUIContent("Buff Jump Force", "Gives certain heavier enemies higher jumps so they can climb walls better"));
+
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 22;
+            lastRect.width += 600;
+
+            GUI.Label(lastRect, GUI.tooltip);
+            previousToolTip = GUI.tooltip;
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(30);
 
             special2.OnGUI(out _, true, true, ref previousToolTip);
 
@@ -596,6 +603,8 @@ namespace Control_Enemies_Mod
         public static bool[] holdingGesture = { false, false, false, false };
         public static bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
         public static bool createdSandworms = false;
+        public static DeathType[] previousDeathType = new DeathType[] { DeathType.None, DeathType.None, DeathType.None, DeathType.None };
+        public static float[] previousJumpForce = new float[] { 0f, 0f, 0f, 0f };
 
         // Possessing Enemy
         public static MindControlBullet bulletPrefab = null;
@@ -673,7 +682,7 @@ namespace Control_Enemies_Mod
                             }
                             else
                             {
-                                // Set ghost spawn to 
+                                // Set ghost spawn to dead player
                                 ghostSpawnPoint[i] = HeroController.players[i].character.transform.position + new Vector3(0f, GhostPlayer.ghostSpawnOffset);
                                 LeaveUnit(HeroController.players[i].character, i, true);
                                 // Restore previous character
@@ -828,7 +837,8 @@ namespace Control_Enemies_Mod
             createdSandworms = false;
             currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
             currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
-            HarmonyPatches.Player_RemoveLife_Patch.deathType = DeathType.None;
+            previousDeathType = new DeathType[] { DeathType.None, DeathType.None, DeathType.None, DeathType.None };
+            previousJumpForce = new float[] { 0f, 0f, 0f, 0f };
 
             // Possessing Enemy
             fireDelay = new float[] { 0f, 0f, 0f, 0f };
@@ -877,11 +887,16 @@ namespace Control_Enemies_Mod
                     {
                         return;
                     }
+
+                    // Store previous info
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
                     currentUnitType[playerNum] = unit.GetUnitType();
                     currentSpriteWidth[playerNum] = currentUnitType[playerNum].GetSpriteWidth();
                     currentSpriteHeight[playerNum] = currentUnitType[playerNum].GetSpriteHeight();
+                    previousDeathType[playerNum] = DeathType.None;
+
+                    // Overwrite unit's info
                     unit.playerNum = playerNum;
                     Traverse trav = Traverse.Create(unit);
                     trav.SetFieldValue("isHero", true);
@@ -899,6 +914,7 @@ namespace Control_Enemies_Mod
                     unit.SpecialAmmo = 0;
                     unit.canWallClimb = settings.allowWallClimbing;
                     unit.canDash = settings.enableSprinting;
+                    unit.canPushBlocks = true;
                     Mook mook = unit as Mook;
                     if (mook != null)
                     {
@@ -910,10 +926,32 @@ namespace Control_Enemies_Mod
                             mech.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer("FriendlyBarriers");
                         }
                     }
-                    // Fix suicide mooks being unable to wall climb
-                    if (currentUnitType[playerNum] == UnitType.SuicideMook)
+                    // Fix heavy units having too low of a jump
+                    if ( settings.buffJumpForce )
                     {
-                        unit.SetFieldValue("halfWidth", 6f);
+                        switch (currentUnitType[playerNum])
+                        {
+                            case UnitType.Bruiser:
+                            case UnitType.SuicideBruiser:
+                            case UnitType.StrongBruiser:
+                            case UnitType.Boomer:
+                            case UnitType.SoulCatcher:
+                                previousJumpForce[playerNum] = unit.jumpForce;
+                                unit._jumpForce = 215;
+                                break;
+                        }
+                    }
+                    // Fix suicide mooks being unable to wall climb
+                    switch (currentUnitType[playerNum])
+                    {
+                        case UnitType.SuicideMook:
+                            unit.SetFieldValue("halfWidth", 6f);
+                            break;
+                        case UnitType.RCCar:
+                            // Set life to infinite and fix soundholder
+                            trav.SetFieldValue("maxLife", 10000000);
+                            unit.soundHolder = (HeroController.GetHeroPrefab(HeroType.Rambro) as Rambro).soundHolder;
+                            break;
                     }
                     // Make sure held buttons aren't carried over
                     specialWasDown[playerNum] = false;
@@ -995,6 +1033,7 @@ namespace Control_Enemies_Mod
             previous.name = "Enemy";
             previous.canWallClimb = false;
             previous.canDash = false;
+            previous.canPushBlocks = false;
             DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
             if (disableWhenOffCamera != null)
             {
@@ -1003,6 +1042,20 @@ namespace Control_Enemies_Mod
             if ( previous.GetUnitType() == UnitType.SuicideMook )
             {
                 previousTrav.SetFieldValue("halfWidth", 4f);
+            }
+            // Fix heavy units having too low of a jump
+            if (settings.buffJumpForce)
+            {
+                switch (currentUnitType[playerNum])
+                {
+                    case UnitType.Bruiser:
+                    case UnitType.SuicideBruiser:
+                    case UnitType.StrongBruiser:
+                    case UnitType.Boomer:
+                    case UnitType.SoulCatcher:
+                        previous.jumpForce = previousJumpForce[playerNum];
+                        break;
+                }
             }
 
             if (erasePreviousCharacter)
@@ -1052,6 +1105,7 @@ namespace Control_Enemies_Mod
                     previous.name = "Enemy";
                     previous.canWallClimb = false;
                     previous.canDash = false;
+                    previous.canPushBlocks = false;
                     DisableWhenOffCamera disableWhenOffCamera = previous.gameObject.GetComponent<DisableWhenOffCamera>();
                     if (disableWhenOffCamera != null)
                     {
@@ -1061,6 +1115,20 @@ namespace Control_Enemies_Mod
                     {
                         previousTrav.SetFieldValue("halfWidth", 4f);
                     }
+                    // Fix heavy units having too low of a jump
+                    if (settings.buffJumpForce)
+                    {
+                        switch (currentUnitType[playerNum])
+                        {
+                            case UnitType.Bruiser:
+                            case UnitType.SuicideBruiser:
+                            case UnitType.StrongBruiser:
+                            case UnitType.Boomer:
+                            case UnitType.SoulCatcher:
+                                previous.jumpForce = previousJumpForce[playerNum];
+                                break;
+                        }
+                    }
 
                     if (previousCharacter[playerNum] != null && !previousCharacter[playerNum].destroyed && previousCharacter[playerNum].IsAlive())
                     {
@@ -1068,6 +1136,15 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim originalCharacter = previousCharacter[playerNum];
                             HeroController.players[playerNum].character = originalCharacter;
+                            // If originalCharacter is also an enemy, set the current unit type back
+                            if ( originalCharacter.name == "c" )
+                            {
+                                currentUnitType[playerNum] = originalCharacter.GetUnitType();
+                            }
+                            else
+                            {
+                                currentUnitType[playerNum] = UnitType.Bro;
+                            }
                             originalCharacter.X = previous.X;
                             originalCharacter.Y = previous.Y;
                             originalCharacter.transform.localScale = new Vector3(Mathf.Sign(previous.transform.localScale.x) * originalCharacter.transform.localScale.x, originalCharacter.transform.localScale.y, originalCharacter.transform.localScale.z);
@@ -1416,6 +1493,32 @@ namespace Control_Enemies_Mod
                 // Make flying enemies dive
                 case UnitType.Baneling:
                 case UnitType.LostSoul:
+                    Vector3 diveTarget = character.transform.position;
+                    Vector3 diveDirection = new Vector3(0f, 0f, 0f);
+                    if ( character.left )
+                    {
+                        diveTarget += Vector3.left * 500f;
+                        diveDirection = Vector3.left;
+                    }
+                    else if ( character.right )
+                    {
+                        diveTarget += Vector3.right * 500f;
+                        diveDirection = Vector3.right;
+                    }
+                    
+                    if ( character.up )
+                    {
+                        diveTarget += Vector3.up * 500f;
+                        diveDirection += Vector3.up;
+                    }
+                    else if ( character.down )
+                    {
+                        diveTarget += Vector3.down * 500f;
+                        diveDirection += Vector3.down;
+                    }
+                    trav.SetFieldValue("diveDelay", 0.65f);
+                    trav.SetFieldValue("diveDirection", diveDirection);
+                    trav.SetFieldValue("divingTarget", diveTarget);
                     trav.SetFieldValue("diving", true);
                     break;
 
@@ -1448,6 +1551,7 @@ namespace Control_Enemies_Mod
                 case UnitType.Baneling:
                 case UnitType.LostSoul:
                     trav.SetFieldValue("diving", false);
+                    trav.SetFieldValue("deathCounter", 0f);
                     break;
 
                 case UnitType.CR666:
@@ -1698,7 +1802,7 @@ namespace Control_Enemies_Mod
         {
             if (settings.selGridInt[playerNum] >= 0 && settings.selGridInt[playerNum] < currentUnitList.Length)
             {
-                return (UnitType)settings.selGridInt[playerNum] + 2;
+                return ToUnitType(currentUnitList[settings.selGridInt[playerNum]]);
             }
             else
             {

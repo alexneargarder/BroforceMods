@@ -6,6 +6,7 @@ using System.Reflection;
 using UnityEngine;
 using Net = Networking.Networking;
 using static RocketLib.Utils.TestVanDammeAnimTypes;
+using System.Runtime.CompilerServices;
 
 namespace Control_Enemies_Mod
 {
@@ -129,7 +130,10 @@ namespace Control_Enemies_Mod
                 if (__instance.name == "c")
                 {
                     // Track whether we're dying from out-of-bounds to know if we should be able to respawn from corpse
-                    outOfBounds = damage.damageType == DamageType.OutOfBounds;
+                    if ( damage != null )
+                    {
+                        outOfBounds = damage.damageType == DamageType.OutOfBounds;
+                    }
                 }
             }
 
@@ -190,6 +194,10 @@ namespace Control_Enemies_Mod
                         }
                         else if ( __instance.name == "c" )
                         {
+                            if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
+                            {
+                                TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                            }
                             typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                         }
                     }
@@ -235,7 +243,7 @@ namespace Control_Enemies_Mod
                     // If we're respawning from corpse and didn't die from out of bounds or if we're spawning from a chestburster
                     if ((Main.settings.respawnFromCorpse && !TestVanDammeAnim_Death_Patch.outOfBounds && Main.previousCharacter[__instance.playerNum] != null) || chestBurstDeath)
                     {
-                        if (Main.settings.loseLifeOnDeath && !chestBurstDeath)
+                        if (Main.settings.loseLifeOnDeath && !chestBurstDeath && !(Main.previousDeathType[__instance.playerNum] == DeathType.Suicide && Main.settings.noLifeLossOnSuicide))
                         {
                             HeroController.players[__instance.playerNum].RemoveLife();
                         }
@@ -274,9 +282,9 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" && Player_RemoveLife_Patch.deathType != DeathType.Suicide )
+                if ( __instance.name == "c" && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
                 {
-                    Player_RemoveLife_Patch.deathType = (DeathType)Traverse.Create(__instance).GetFieldValue("deathType");
+                    Main.previousDeathType[__instance.playerNum] = (DeathType)Traverse.Create(__instance).GetFieldValue("deathType");
                 }
             }
         }
@@ -285,7 +293,6 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Player), "RemoveLife")]
         public static class Player_RemoveLife_Patch
         {
-            public static DeathType deathType = DeathType.None;
             public static bool allowLifeLoss = false;
 
             public static bool Prefix(Player __instance)
@@ -298,19 +305,19 @@ namespace Control_Enemies_Mod
                 if ( TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss )
                 {
                     TestVanDammeAnim_ReduceLives_Patch.ignoreNextLifeLoss = false;
-                    deathType = DeathType.None;
+                    Main.previousDeathType[__instance.playerNum] = DeathType.None;
                     return false;
                 }
 
 
                 // Disable life loss for suicide enemies
-                if (Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() && deathType == DeathType.Suicide)
+                if (Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() && Main.previousDeathType[__instance.playerNum] == DeathType.Suicide)
                 {
-                    deathType = DeathType.None;
+                    Main.previousDeathType[__instance.playerNum] = DeathType.None;
                     return false;
                 }
 
-                deathType = DeathType.None;
+                Main.previousDeathType[__instance.playerNum] = DeathType.None;
 
                 if ( Main.settings.competitiveModeEnabled )
                 {
@@ -722,6 +729,49 @@ namespace Control_Enemies_Mod
                 if (__instance.name == "c")
                 {
                     __instance.GetComponent<SpriteSM>().SetLowerLeftPixel(0f, Main.currentSpriteHeight[__instance.playerNum]);
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Make sure enemies don't play confused noise when dancing
+        [HarmonyPatch(typeof(TestVanDammeAnim), "PlayStunnedSound")]
+        static class TestVanDammeAnim_PlayStunnedSound_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Play laugh instead of confused sound
+                if (__instance.name == "c" && Main.holdingGesture[__instance.playerNum])
+                {
+                    __instance.PlayLaughterSound();
+                    __instance.SetFieldValue("stunVocalDelay", 0.4f + UnityEngine.Random.Range(0.3f, 0.9f));
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Disable grenadier mook throwing back grenade crashing the game
+        [HarmonyPatch(typeof(TestVanDammeAnim), "ThrowBackGrenade")]
+        static class TestVanDammeAnim_ThrowBackGrenade_Patch
+        {
+            public static bool Prefix(TestVanDammeAnim __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+                
+                if ( __instance.name == "c" && Main.currentUnitType[__instance.playerNum] == UnitType.GrenadierMook )
+                {
                     return false;
                 }
 
@@ -1229,7 +1279,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookSuicide), "Gib")]
         static class MookSuicide_Gib_Patch
         {
-            public static void Prefix(MookSuicide __instance)
+            public static void Prefix(MookSuicide __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1245,6 +1295,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1255,7 +1309,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookJetpack), "Gib")]
         static class MookJetpack_Gib_Patch
         {
-            public static void Prefix(MookJetpack __instance)
+            public static void Prefix(MookJetpack __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1271,6 +1325,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1281,7 +1339,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(AlienMelter), "Gib")]
         static class AlienMelter_Gib_Patch
         {
-            public static void Prefix(AlienMelter __instance)
+            public static void Prefix(AlienMelter __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1297,6 +1355,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1307,7 +1369,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(AlienMosquito), "Gib")]
         static class AlienMosquito_Gib_Patch
         {
-            public static void Prefix(AlienMosquito __instance)
+            public static void Prefix(AlienMosquito __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1323,6 +1385,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1333,7 +1399,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookSuicideUndead), "Gib")]
         static class MookSuicideUndead_Gib_Patch
         {
-            public static void Prefix(MookSuicideUndead __instance)
+            public static void Prefix(MookSuicideUndead __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1349,6 +1415,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1375,6 +1445,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds && damage != null)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damage.damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1385,7 +1459,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Villager), "Gib", new Type[] { typeof(DamageType), typeof(float), typeof(float) })]
         static class Villager_Gib_Patch
         {
-            public static void Prefix(Villager __instance)
+            public static void Prefix(Villager __instance, ref DamageType damageType)
             {
                 if (!Main.enabled)
                 {
@@ -1401,6 +1475,10 @@ namespace Control_Enemies_Mod
                     // Ensure controlled enemies cause life loss on death
                     else if (__instance.name == "c")
                     {
+                        if (!TestVanDammeAnim_Death_Patch.outOfBounds)
+                        {
+                            TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
+                        }
                         typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
                     }
                 }
@@ -1460,6 +1538,88 @@ namespace Control_Enemies_Mod
                             }
                         }
                     }
+                }
+            }
+        }
+        #endregion
+
+        // Disable explosive deaths when recalling
+        #region Explosive Deaths
+        [HarmonyPatch(typeof(MookSuicide), "MakeEffects")]
+        static class MookSuicide_MakeEffects_Patch
+        {
+            public static bool Prefix(MookSuicide __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+                
+                // Don't explode if recalling
+                if ( __instance.name == "c" && (bool)__instance.GetFieldValue("recalling"))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(MookSuicideUndead), "MakeEffects")]
+        static class MookSuicideUndead_MakeEffects_Patch
+        {
+            public static bool Prefix(MookSuicideUndead __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return true;
+                }
+
+                // Don't explode if recalling
+                if (__instance.name == "c" && (bool)__instance.GetFieldValue("recalling"))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        #endregion
+
+        // Make sure suicide deaths are counted as suicides
+        #region Suicide Deaths
+        [HarmonyPatch(typeof(HellLostSoul), "MakeEffects")]
+        static class HellLostSoul_MakeEffects_Patch
+        {
+            public static void Prefix(HellLostSoul __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                // Deathtype is set to suicide if the game thinks you're attacking
+                if ( __instance.name == "c" && (bool)__instance.GetFieldValue("diving") )
+                {
+                    __instance.fire = true;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(AlienMosquito), "MakeEffects")]
+        static class AlienMosquito_MakeEffects_Patch
+        {
+            public static void Prefix(AlienMosquito __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                // Deathtype is set to suicide if the game thinks you're attacking
+                if (__instance.name == "c" && (bool)__instance.GetFieldValue("diving"))
+                {
+                    __instance.fire = true;
                 }
             }
         }
@@ -1793,6 +1953,67 @@ namespace Control_Enemies_Mod
             }
         }
         #endregion
+
+        // Fix RC Car not checking input
+        #region RCCar
+        // Get base method of TestVanDammeAnim CheckInput
+        [HarmonyPatch]
+        static class RemoteControlExplosiveCar_CheckInput_Patch
+        {
+            [HarmonyReversePatch]
+            [HarmonyPatch(typeof(TestVanDammeAnim), "CheckInput")]
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static void CheckInput(RemoteControlExplosiveCar instance) { }
+
+            // Make sure we check input for controlled RC Cars
+            [HarmonyPatch(typeof(RemoteControlExplosiveCar), "CheckInput")]
+            static void Prefix(RemoteControlExplosiveCar __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if (__instance.name == "c")
+                {
+                    CheckInput(__instance);
+                }
+
+                // Blow up on using special
+                if ( __instance.fire || __instance.special )
+                {
+                    RemoteControlExplosiveCar_Explode_Patch.manualActivation = true;
+                    __instance.fire = __instance.special = false;
+                    __instance.Explode();
+                }
+            }
+        }
+
+        // Make sure we lose a life on death
+        [HarmonyPatch(typeof(RemoteControlExplosiveCar), "Explode")]
+        public static class RemoteControlExplosiveCar_Explode_Patch
+        {
+            public static bool manualActivation = false;
+            public static void Prefix(RemoteControlExplosiveCar __instance)
+            {
+                if (!Main.enabled)
+                {
+                    return;
+                }
+
+                if ( __instance.name == "c")
+                {
+                    if ( manualActivation && Main.settings.noLifeLossOnSuicide )
+                    {
+                        manualActivation = false;
+                        return;
+                    }
+
+                    typeof(TestVanDammeAnim).GetMethod("ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(__instance, new object[] { false });
+                }
+            }
+        }
+        #endregion
         #endregion // End Enemy Specific Patches
 
         #region Spawning As Enemy Patches
@@ -2015,7 +2236,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Player), "GetInput")]
         static class Player_GetInput_Patch
         {
-            public static void Postfix(Player __instance, ref bool fire, ref bool special, ref bool buttonGesture, ref bool left, ref bool right)
+            public static void Postfix(Player __instance, ref bool up, ref bool down, ref bool left, ref bool right, ref bool fire, ref bool buttonJump, ref bool special, ref bool highFive, ref bool buttonGesture, ref bool sprint )
             {
                 if (!Main.enabled)
                 {
@@ -2120,19 +2341,27 @@ namespace Control_Enemies_Mod
 
                     #region Taunting
                     // Started dancing
-                    if ( buttonGesture && !Main.holdingGesture[playerNum] )
+                    if ( buttonGesture && !Main.holdingGesture[playerNum] && Main.currentUnitType[playerNum].CanDance() )
                     {
                         Main.holdingGesture[playerNum] = true;
                         character.Dance(10000000f);
                     }
-                    
                     #endregion
 
                     #region Competitive
                     // Check if enemy should be revealed if in competitive mode
-                    if (Main.settings.competitiveModeEnabled && fire && Main.currentHeroNum != playerNum)
+                    if (Main.settings.competitiveModeEnabled)
                     {
-                        Main.revealed[playerNum] = true;
+                        if (fire && Main.currentHeroNum != playerNum)
+                        {
+                            Main.revealed[playerNum] = true;
+                        }
+                        
+                        // Don't allow enemies to move when stunned
+                        if (character.IsIncapacitated() || character.IsBlind())
+                        {
+                            up = down = left = right = fire = buttonJump = special = highFive = buttonGesture = sprint = false;
+                        }
                     }
                     #endregion
                 }
