@@ -1,2 +1,7 @@
+v1.0.1
+Various bug fixes.
+Added option for increasing heavy enemy jump height.
+Added options for applying handicaps in competitive mode.
+
 v1.0.0
 Release
