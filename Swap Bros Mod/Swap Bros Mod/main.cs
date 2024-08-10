@@ -322,8 +322,8 @@ namespace Swap_Bros_Mod
 
                     GUILayout.BeginHorizontal();
 
-                    if (GUILayout.Button(new GUIContent(changingEnabledBros ? "Save Changes" : "Enter Filtering Mode",
-                                               "Enable or disable bros for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
+                    if (GUILayout.Button(changingEnabledBros ? new GUIContent("Save Changes", "") : new GUIContent( "Enter Filtering Mode",
+                                               "Enable or disable bros for all players"), GUILayout.ExpandWidth(false), GUILayout.Width(300)) )
                     {
                         changingEnabledBros = !changingEnabledBros;
                         if ( changingEnabledBros )
