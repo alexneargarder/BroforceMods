@@ -2158,6 +2158,7 @@ namespace Control_Enemies_Mod
                     {
                         if ( __instance.playerNum == Main.currentHeroNum )
                         {
+                            // Infinite lives
                             if ( Main.settings.heroLives == 0 )
                             {
                                 __instance.Lives = 10;
@@ -2167,23 +2168,24 @@ namespace Control_Enemies_Mod
                                 // Give hero extra lives for win attempt
                                 if ( Main.anyAttemptingWin )
                                 {
-                                    __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel;
+                                    __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel + Main.settings.livesHandicap[__instance.playerNum];
                                 }
                                 else
                                 {
-                                    __instance.Lives = Main.settings.heroLives;
+                                    __instance.Lives = Main.settings.heroLives + Main.settings.livesHandicap[__instance.playerNum];
                                 }
                             }
                         }
                         else
                         {
+                            // Infinite lives
                             if ( Main.settings.ghostLives == 0 )
                             {
                                 __instance.Lives = 10;
                             }
                             else
                             {
-                                __instance.Lives = Main.settings.ghostLives;
+                                __instance.Lives = Main.settings.ghostLives + Main.settings.livesHandicap[__instance.playerNum];
                             }
                         }   
                     }
@@ -2607,6 +2609,7 @@ namespace Control_Enemies_Mod
                     // Fix lives
                     if (__instance.playerNum == Main.currentHeroNum)
                     {
+                        // Infinite lives
                         if (Main.settings.heroLives == 0)
                         {
                             __instance.Lives = 10;
@@ -2616,23 +2619,24 @@ namespace Control_Enemies_Mod
                             // Give hero extra lives for win attempt
                             if (Main.anyAttemptingWin)
                             {
-                                __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel;
+                                __instance.Lives = Main.settings.heroLives + Main.settings.extraLiveOnBossLevel + Main.settings.livesHandicap[__instance.playerNum];
                             }
                             else
                             {
-                                __instance.Lives = Main.settings.heroLives;
+                                __instance.Lives = Main.settings.heroLives + Main.settings.livesHandicap[__instance.playerNum];
                             }
                         }
                     }
                     else
                     {
+                        // Infinite lives
                         if (Main.settings.ghostLives == 0)
                         {
                             __instance.Lives = 10;
                         }
                         else
                         {
-                            __instance.Lives = Main.settings.ghostLives;
+                            __instance.Lives = Main.settings.ghostLives + Main.settings.livesHandicap[__instance.playerNum];
                         }
                     }
                 }
@@ -3133,7 +3137,7 @@ namespace Control_Enemies_Mod
                         Main.onWinAttempt = false;
                         Main.anyAttemptingWin = false;
                         Main.returnToPreviousLevel = true;
-                        ScoreManager.requiredScore[Main.attemptingWin] += Main.settings.scoreIncrement;
+                        ScoreManager.requiredScore[Main.attemptingWin] += Main.settings.scoreIncrement + Main.settings.scoreIncreaseHandicap[Main.attemptingWin];
                         Main.attemptingWin = -1;
                     }
                 }
@@ -3219,7 +3223,7 @@ namespace Control_Enemies_Mod
                             Main.settings.saveGames[slot].currentHeroNum = Main.settings.startingHeroPlayer - 1;
                         }
 
-                        Main.settings.saveGames[slot].requiredScore = new int[] { Main.settings.scoreToWin, Main.settings.scoreToWin, Main.settings.scoreToWin, Main.settings.scoreToWin };
+                        Main.settings.saveGames[slot].requiredScore = new int[] { Main.settings.scoreToWin + Main.settings.scoreHandicap[0], Main.settings.scoreToWin + Main.settings.scoreHandicap[1], Main.settings.scoreToWin + Main.settings.scoreHandicap[2], Main.settings.scoreToWin + Main.settings.scoreHandicap[3] };
                     }
                     catch (Exception ex)
                     {

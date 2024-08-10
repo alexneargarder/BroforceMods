@@ -91,6 +91,10 @@ namespace Control_Enemies_Mod
         public int extraLiveOnBossLevel = 1;
         public int startingHeroPlayer = 0;
         public float automaticallyFindEnemyCooldown = 3f;
+        // Handicap Settings
+        public int[] livesHandicap = new int[] { 0, 0, 0, 0 };
+        public int[] scoreHandicap = new int[] { 0, 0, 0, 0 };
+        public int[] scoreIncreaseHandicap = new int[] { 0, 0, 0, 0 };
 
         // Save info
         public SaveGame[] saveGames = new SaveGame[] { new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame() };

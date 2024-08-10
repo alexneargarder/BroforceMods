@@ -32,7 +32,7 @@ namespace Control_Enemies_Mod
         public static bool isSwapBrosModInstalled = false;
 
         // UI
-        public static GUIStyle headerStyle, buttonStyle, warningStyle;
+        public static GUIStyle headerStyle, buttonStyle, warningStyle, centeredTextStyle;
         public static bool changingEnabledUnits = false;
         public static bool creatingUnitList = false;
         public static float displayWarningTime = 0f;
@@ -148,7 +148,7 @@ namespace Control_Enemies_Mod
         static void ShowGeneralOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
-            settings.allowWallClimbing = GUILayout.Toggle(settings.allowWallClimbing, new GUIContent("Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations"));
+            settings.allowWallClimbing = GUILayout.Toggle(settings.allowWallClimbing, new GUIContent("Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations."));
 
             settings.disableFallDamage = GUILayout.Toggle(settings.disableFallDamage, new GUIContent("Disable Fall Damage", "Disables fall damage for controlled enemies."));
 
@@ -166,35 +166,84 @@ namespace Control_Enemies_Mod
 
             GUILayout.BeginHorizontal();
 
-            settings.buffJumpForce = GUILayout.Toggle(settings.buffJumpForce, new GUIContent("Buff Jump Force", "Gives certain heavier enemies higher jumps so they can climb walls better"));
+            settings.buffJumpForce = GUILayout.Toggle(settings.buffJumpForce, new GUIContent("Buff Jump Force", "Gives certain heavier enemies higher jumps so they can climb walls better."));
 
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 22;
             lastRect.width += 600;
 
-            GUI.Label(lastRect, GUI.tooltip);
-            previousToolTip = GUI.tooltip;
+            if ( GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;    
+            }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space(30);
 
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Used for certain additional abilities some enemies have."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(0f);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 42;
+            lastRect.width += 800;
+            // Ensure keybinding gui function doesn't display the tooltip for the box
+            bool showAfter = (previousToolTip != GUI.tooltip);
+            previousToolTip = GUI.tooltip;
             special2.OnGUI(out _, true, true, ref previousToolTip);
+            GUILayout.EndHorizontal();
 
-            GUILayout.Space(10);
+            if (showAfter)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
+            GUILayout.Space(20);
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Used for certain additional abilities some enemies have."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(0f);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 42;
+            lastRect.width += 800;
+            // Ensure keybinding gui function doesn't display the tooltip for the box
+            showAfter = (previousToolTip != GUI.tooltip);
+            previousToolTip = GUI.tooltip;
             special3.OnGUI(out _, true, true, ref previousToolTip);
+            GUILayout.EndHorizontal();
 
-            GUILayout.Space(10);
+            if (showAfter)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
+            GUILayout.Space(20);
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Press to leave the enemy you are currently controlling. This doesn't work if you spawned as an enemy however."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(0f);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 42;
+            lastRect.width += 800;
+            // Ensure keybinding gui function doesn't display the tooltip for the box
+            showAfter = (previousToolTip != GUI.tooltip);
+            previousToolTip = GUI.tooltip;
             leaveEnemy.OnGUI(out _, true, true, ref previousToolTip);
+            GUILayout.EndHorizontal();
 
-            GUILayout.Space(10);
+            if (showAfter)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(20);
         }
 
         static void ShowPossessionModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
-            if ( settings.possessionModeEnabled != (settings.possessionModeEnabled = GUILayout.Toggle(settings.possessionModeEnabled, "Enable Possessing Enemies")) )
+            if ( settings.possessionModeEnabled != (settings.possessionModeEnabled = GUILayout.Toggle(settings.possessionModeEnabled, new GUIContent("Enable Possessing Enemies", "Allows players to press a button to fire a bullet that can take control of enemies. This cannot be enabled while playing the competitive mode."))) )
             {
                 if ( settings.possessionModeEnabled )
                 {
@@ -203,13 +252,13 @@ namespace Control_Enemies_Mod
             }
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
-            lastRect.width += 500;
+            lastRect.width += 700;
 
             settings.loseLifeOnDeath = GUILayout.Toggle(settings.loseLifeOnDeath, new GUIContent("Lose Life On Death", "Removes a life when you die while controlling an enemy"));
 
             settings.loseLifeOnSwitch = GUILayout.Toggle(settings.loseLifeOnSwitch, new GUIContent("Lose Life On Switch", "Removes a life when you switch from one enemy to another"));
 
-            settings.respawnFromCorpse = GUILayout.Toggle(settings.respawnFromCorpse, new GUIContent("Respawn from corpse", "Respawn at the corpse of the enemy you were controlling when you die as them"));
+            settings.respawnFromCorpse = GUILayout.Toggle(settings.respawnFromCorpse, new GUIContent("Respawn from Corpse", "Respawn at the corpse of the enemy you were controlling when you die as them"));
 
             if ( GUI.tooltip != previousToolTip )
             {
@@ -221,34 +270,89 @@ namespace Control_Enemies_Mod
             GUILayout.Space(20);
 
             // Display keybinding options
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Press to fire a bullet that takes control of enemies it hits."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(0f);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 42;
+            lastRect.width += 800;
+            // Ensure keybinding gui function doesn't display the tooltip for the box
+            bool showAfter = (previousToolTip != GUI.tooltip);
+            previousToolTip = GUI.tooltip;
             possessEnemy.OnGUI(out _, true, true, ref previousToolTip);
+            GUILayout.EndHorizontal();
+
+            if ( showAfter )
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
             GUILayout.Space(25);
-            
-            GUILayout.BeginHorizontal();
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Decides what happens to the enemy you were controlling when you press the Leave Enemy key"), GUIStyle.none, new GUILayoutOption[] { });
             GUILayout.Label("When Leaving a Controlled Enemy:", GUILayout.Width(225));
-            settings.leavingEnemy = (SwapBehavior)GUILayout.SelectionGrid((int)settings.leavingEnemy, swapBehaviorList, 3);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
+            settings.leavingEnemy = (SwapBehavior)GUILayout.SelectionGrid((int)settings.leavingEnemy, swapBehaviorList, 4);
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(15);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("When Swapping to a New Enemy:", GUILayout.Width(225));
-            settings.swappingEnemies = (SwapBehavior)GUILayout.SelectionGrid((int)settings.swappingEnemies, swapBehaviorList, 3);
-            GUILayout.EndHorizontal();
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
             GUILayout.Space(25);
 
-            GUILayout.BeginHorizontal();
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Decides what happens to the enemy you were controlling when you start controlling a new enemy."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label("When Swapping to a New Enemy:", GUILayout.Width(225));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
+            settings.swappingEnemies = (SwapBehavior)GUILayout.SelectionGrid((int)settings.swappingEnemies, swapBehaviorList, 4);
+            GUILayout.EndHorizontal();
+
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(35);
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Cooldown after you start controlling a new enemy before you can start firing bullets again."), GUIStyle.none, new GUILayoutOption[] { });
             GUILayout.Label(String.Format("Cooldown Between Swaps: {0:0.00}s", settings.swapCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
             settings.swapCooldown = GUILayout.HorizontalSlider(settings.swapCooldown, 0, 2);
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(15);
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
-            GUILayout.BeginHorizontal();
+            GUILayout.Space(25);
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Cooldown between firing each bullet."), GUIStyle.none, new GUILayoutOption[] { });
             GUILayout.Label(String.Format("Mind Control Bullet Firerate: {0:0.00}s", settings.fireRate), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
+            settings.swapCooldown = GUILayout.HorizontalSlider(settings.swapCooldown, 0, 2);
             settings.fireRate = GUILayout.HorizontalSlider(settings.fireRate, 0, 2);
             GUILayout.EndHorizontal();
+
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(20);
         }
 
         static void ShowSpawnAsEnemyOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
@@ -278,7 +382,7 @@ namespace Control_Enemies_Mod
             }
 
             GUILayout.BeginHorizontal();
-            if ( settings.spawnAsEnemyEnabled != (settings.spawnAsEnemyEnabled = GUILayout.Toggle(settings.spawnAsEnemyEnabled, "Enable Spawning as Enemies")) )
+            if ( settings.spawnAsEnemyEnabled != (settings.spawnAsEnemyEnabled = GUILayout.Toggle(settings.spawnAsEnemyEnabled, new GUIContent("Enable Spawning as Enemies", "Allows players to automatically spawn as enemies. This cannot be enabled while playing the competitive mode."))) )
             {
                 if ( settings.spawnAsEnemyEnabled )
                 {
@@ -289,11 +393,15 @@ namespace Control_Enemies_Mod
             lastRect.y += 20;
             lastRect.width += 500;
 
-            settings.filterEnemies = GUILayout.Toggle(settings.filterEnemies, new GUIContent("Filter Enemies", "Limits the enemies you can spawn as to the enabled ones"));
+            if ( settings.filterEnemies != (settings.filterEnemies = GUILayout.Toggle(settings.filterEnemies, new GUIContent("Filter Enemies", "Limits the enemies you can spawn as to the enabled ones."))))
+            {
+                // Remake filtered list
+                CreateUnitList();
+            }
 
-            settings.alwaysChosen = GUILayout.Toggle(settings.alwaysChosen, new GUIContent("Always Spawn as Chosen Enemy"));
+            settings.alwaysChosen = GUILayout.Toggle(settings.alwaysChosen, new GUIContent("Always Spawn as Chosen Enemy", "Always spawn as the selected enemy rather than a random one from the current list."));
 
-            settings.clickingSwapEnabled = GUILayout.Toggle(settings.clickingSwapEnabled, new GUIContent("Swap On Click", "Swaps to a new enemy when you click one in the menu"));
+            settings.clickingSwapEnabled = GUILayout.Toggle(settings.clickingSwapEnabled, new GUIContent("Swap On Click", "Swaps to a new enemy when you click one in the menu."));
 
             if (GUI.tooltip != previousToolTip)
             {
@@ -305,18 +413,27 @@ namespace Control_Enemies_Mod
             GUILayout.Space(20);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Chance to Spawn as an Enemy: " + settings.spawnAsEnemyChance.ToString("0.00") + "%", GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            GUILayout.Label("Chance to Spawn as an Enemy: " + settings.spawnAsEnemyChance.ToString("0.00") + "%", GUILayout.Width(275), GUILayout.ExpandWidth(false));
             settings.spawnAsEnemyChance = GUILayout.HorizontalSlider(settings.spawnAsEnemyChance, 0, 100);
             GUILayout.EndHorizontal();
 
             GUILayout.Space(10);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(String.Format("Cooldown Between Swaps: {0:0.00}s", settings.spawnSwapCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Cooldown between when the player is allowed to swap to a new enemy by pressing the Swap Left or Swap Right keys."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label(String.Format("Cooldown Between Swaps: {0:0.00}s", settings.spawnSwapCooldown), GUILayout.Width(275), GUILayout.ExpandWidth(false));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 700;
             settings.spawnSwapCooldown = GUILayout.HorizontalSlider(settings.spawnSwapCooldown, 0, 2);
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(20);
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(25);
 
             GUILayout.BeginVertical();
             for (int i = 0; i < 4; ++i)
@@ -339,8 +456,8 @@ namespace Control_Enemies_Mod
 
                     GUILayout.BeginHorizontal();
 
-                    if (GUILayout.Button(new GUIContent(changingEnabledUnits ? "Save Changes" : "Enter Filtering Mode",
-                                               "Enable or disable enemies for this player"), GUILayout.ExpandWidth(false), GUILayout.Width(300)))
+                    if (GUILayout.Button(changingEnabledUnits ? new GUIContent("Save Changes", "") : new GUIContent( "Enter Filtering Mode",
+                                               "Enable or disable enemies for all players"), GUILayout.ExpandWidth(false), GUILayout.Width(300)))
                     {
                         changingEnabledUnits = !changingEnabledUnits;
                         if (changingEnabledUnits)
@@ -351,7 +468,7 @@ namespace Control_Enemies_Mod
                         }
                         else
                         {
-                            // Check that at least one bro is enabled
+                            // Check that at least one enemy is enabled
                             bool atleastOne = false;
                             for (int x = 0; x < filteredUnitList.Length; ++x)
                             {
@@ -479,6 +596,12 @@ namespace Control_Enemies_Mod
 
         static void ShowCompetitiveModeOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
+            if ( centeredTextStyle == null )
+            {
+                centeredTextStyle = new GUIStyle(GUI.skin.label);
+                centeredTextStyle.alignment = TextAnchor.MiddleCenter;
+            }
+
             GUILayout.BeginHorizontal();
             if ( settings.competitiveModeEnabled != (settings.competitiveModeEnabled = GUILayout.Toggle(settings.competitiveModeEnabled, new GUIContent("Enable Competitive Mode", "Allows players to control enemies and fight against another player")) ) )
             {
@@ -502,16 +625,16 @@ namespace Control_Enemies_Mod
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(20);
+            GUILayout.Space(25);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Spawn Mode:", "Controls whether you spawn as a ghost and fly towards enemies to possess them, or if you are automatically given enemies to control."), GUILayout.Width(225));
+            GUILayout.BeginHorizontal(new GUIContent("", "Controls whether you spawn as a ghost and fly towards enemies to possess them, or if you are automatically given enemies to control."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label("Spawn Mode:", GUILayout.Width(225));
 
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 600;
 
-            settings.spawnMode = (SpawnMode)GUILayout.SelectionGrid((int)settings.spawnMode, spawnBehaviorList, 3);
+            settings.spawnMode = (SpawnMode)GUILayout.SelectionGrid((int)settings.spawnMode, spawnBehaviorList, 2);
 
             if ( previousToolTip != GUI.tooltip )
             {
@@ -520,43 +643,225 @@ namespace Control_Enemies_Mod
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(20);
+            GUILayout.Space(30);
 
-            settings.scoreToWin = RGUI.HorizontalSliderInt("Score Required to Attempt a Win (0 = unlimited): ", settings.scoreToWin, 0, 10, 500);
+            settings.scoreToWin = RGUI.HorizontalSliderInt("Score Required to Attempt a Win (0 = unlimited): ", "Sets the initial score players have to reach to be able to spawn a portal and go to the boss level in order to try and win.", settings.scoreToWin, 0, 10, 500);
 
             GUILayout.Space(15);
 
-            settings.scoreIncrement = RGUI.HorizontalSliderInt("Required Score Increase on Failed Win Attempt: ", settings.scoreIncrement, 0, 10, 500);
+            settings.scoreIncrement = RGUI.HorizontalSliderInt("Required Score Increase on Failed Win Attempt: ", "Sets the increase in score required to win when a player goes to the boss level and fails.", settings.scoreIncrement, 0, 10, 500);
 
             GUILayout.Space(15);
 
-            settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt("Extra Hero Lives for Win Attempts: ", settings.extraLiveOnBossLevel, 0, 10, 500);
+            settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt("Extra Hero Lives for Win Attempts: ", "Gives the hero player extra lives when they go to the boss level and attempt to win.", settings.extraLiveOnBossLevel, 0, 10, 500);
 
-            GUILayout.Space(30);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 800;
 
-            settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", settings.heroLives, 0, 10, 500);
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(40);
+
+            settings.heroLives = RGUI.HorizontalSliderInt("Hero Lives at Level Start (0 = unlimited):   ", "Sets the lives the current hero player will have when they start the level.", settings.heroLives, 0, 10, 500);
 
             GUILayout.Space(15);
 
-            settings.ghostLives = RGUI.HorizontalSliderInt("Ghost Lives at Level Start (0 = unlimited): ", settings.ghostLives, 0, 10, 500);
+            settings.ghostLives = RGUI.HorizontalSliderInt("Ghost Lives at Level Start (0 = unlimited): ", "Sets the lives the ghost players will have when they start the level.", settings.ghostLives, 0, 10, 500);
 
-            GUILayout.Space(30);
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 800;
 
-            settings.startingHeroPlayer = RGUI.HorizontalSliderInt("Starting Hero Player (0 = Random): ", settings.startingHeroPlayer, 0, 4, 500);
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
 
-            GUILayout.Space(30);
+            GUILayout.Space(40);
 
-            GUILayout.BeginHorizontal();
+            settings.startingHeroPlayer = RGUI.HorizontalSliderInt("Starting Hero Player (0 = Random): ", "Sets the starting hero player to the specified player number.", settings.startingHeroPlayer, 0, 4, 500);
+
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 800;
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(40);
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Sets the cooldown for players to automatically take control of a new enemy when the Spawn Mode is set to Automatically Spawn as Enemies"), GUIStyle.none, new GUILayoutOption[] { } );
             GUILayout.Label(String.Format("Cooldown Between Spawns for Automatic Mode: {0:0.00}s", settings.automaticallyFindEnemyCooldown), GUILayout.Width(225), GUILayout.ExpandWidth(false));
+
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 35;
+            lastRect.width += 800;
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
             settings.automaticallyFindEnemyCooldown = GUILayout.HorizontalSlider(settings.automaticallyFindEnemyCooldown, 0.1f, 10f);
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(15);
+            GUILayout.Space(30f);
 
-            if ( GUILayout.Button("Reset Score") )
+            // Lives handicap
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the starting lives for each player."), GUIStyle.none, new GUILayoutOption[] { } );
+            GUILayout.Space(195f);
+            GUILayout.Label("Player 1", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 2", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 3", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 4", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the starting lives for each player."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label("Lives Handicap: ", GUILayout.Width(135f));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 800;
+            for ( int i = 0; i < 4; ++i )
+            {
+                if (i == 0)
+                    GUILayout.Space(15f);
+                else
+                    GUILayout.Space(50f);
+                if (GUILayout.Button("-", GUILayout.Width(50f)))
+                    --settings.livesHandicap[i];
+                
+                GUILayout.Label(settings.livesHandicap[i].ToString(), centeredTextStyle, GUILayout.Width(20f));
+
+                if (GUILayout.Button("+", GUILayout.Width(50f)))
+                    ++settings.livesHandicap[i];
+            }
+
+            GUILayout.Space(25f);
+            if ( GUILayout.Button(new GUIContent("Reset", "Resets the lives handicap for all players."), GUILayout.ExpandWidth(false)) )
+            {
+                settings.livesHandicap = new int[] { 0, 0, 0, 0 };
+            }
+            GUILayout.EndHorizontal();
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(25f);
+
+            // Score handicap
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the initial required score to win for each player."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(195f);
+            GUILayout.Label("Player 1", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 2", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 3", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 4", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the initial required score to win for each player."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label("Required Score Handicap: ", GUILayout.Width(135f));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 32;
+            lastRect.width += 800;
+            for (int i = 0; i < 4; ++i)
+            {
+                if (i == 0)
+                    GUILayout.Space(15f);
+                else
+                    GUILayout.Space(50f);
+                if (GUILayout.Button("-", GUILayout.Width(50f)))
+                    --settings.scoreHandicap[i];
+
+                GUILayout.Label(settings.scoreHandicap[i].ToString(), centeredTextStyle, GUILayout.Width(20f));
+
+                if (GUILayout.Button("+", GUILayout.Width(50f)))
+                    ++settings.scoreHandicap[i];
+            }
+
+            GUILayout.Space(25f);
+            if (GUILayout.Button(new GUIContent("Reset", "Resets the score handicap for all players."), GUILayout.ExpandWidth(false)))
+            {
+                settings.scoreHandicap = new int[] { 0, 0, 0, 0 };
+            }
+            GUILayout.EndHorizontal();
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(25);
+
+            // Score Increase handicap
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the required score to win increase after a failed win attempt for each player."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Space(195f);
+            GUILayout.Label("Player 1", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 2", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 3", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.Space(129f);
+            GUILayout.Label("Player 4", centeredTextStyle, GUILayout.Width(50f));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal(new GUIContent(string.Empty, "Increase or decrease the required score to win increase after a failed win attempt for each player."), GUIStyle.none, new GUILayoutOption[] { });
+            GUILayout.Label("Required Score Increase Handicap: ", GUILayout.Width(135f));
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 32;
+            lastRect.width += 800;
+            for (int i = 0; i < 4; ++i)
+            {
+                if (i == 0)
+                    GUILayout.Space(15f);
+                else
+                    GUILayout.Space(50f);
+                if (GUILayout.Button("-", GUILayout.Width(50f)))
+                    --settings.scoreIncreaseHandicap[i];
+
+                GUILayout.Label(settings.scoreIncreaseHandicap[i].ToString(), centeredTextStyle, GUILayout.Width(20f));
+
+                if (GUILayout.Button("+", GUILayout.Width(50f)))
+                    ++settings.scoreIncreaseHandicap[i];
+            }
+
+            GUILayout.Space(25f);
+            if (GUILayout.Button(new GUIContent("Reset", "Resets the score increase handicap for all players."), GUILayout.ExpandWidth(false)))
+            {
+                settings.scoreIncreaseHandicap = new int[] { 0, 0, 0, 0 };
+            }
+            GUILayout.EndHorizontal();
+
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(25);
+
+            if (GUILayout.Button(new GUIContent("Reset Score", "Resets the score for the current game.")))
             {
                 ResetAll();
-                for ( int i = 0; i < 4; ++i )
+                for (int i = 0; i < 4; ++i)
                 {
                     if (ScoreManager.spriteSetup[i])
                     {
@@ -564,8 +869,17 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 800;
 
-            GUILayout.Space(10);
+            if (previousToolTip != GUI.tooltip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+
+            GUILayout.Space(20);
         }
 
         static void OnSaveGUI(UnityModManager.ModEntry modEntry)
@@ -2225,6 +2539,7 @@ namespace Control_Enemies_Mod
             }
         }
 
+        // Resets the game
         public static void ResetAll()
         {
             ClearVariables();
