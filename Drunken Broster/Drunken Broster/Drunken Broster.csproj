@@ -82,4 +82,7 @@
   <PropertyGroup>
     <PostBuildEvent>del "%25BROPATH%25\Drunken Broster\*.cache"</PostBuildEvent>
   </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
+  </PropertyGroup>
 </Project>
