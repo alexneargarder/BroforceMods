@@ -453,10 +453,6 @@ namespace Utility_Mod
                 settings.cameraShake = GUILayout.Toggle(settings.cameraShake, new GUIContent("Camera Shake",
                     "Disable this to have camera shake automatically set to 0 at the start of a level"), GUILayout.Width(100f));
 
-                Rect lastRect = GUILayoutUtility.GetLastRect();
-                lastRect.y += 20;
-                lastRect.width += 500;
-
                 settings.enableSkip = GUILayout.Toggle(settings.enableSkip, new GUIContent("Helicopter Skip",
                     "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(120f));
 
@@ -469,6 +465,20 @@ namespace Utility_Mod
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginHorizontal();
+            {
+                settings.skipBreakingCutscenes = GUILayout.Toggle(settings.skipBreakingCutscenes, new GUIContent("Disable Broken Cutscenes", "Prevents cutscenes that destroy the mod window from playing, includes all the flex powerup and ammo crate unlock cutscenes."), GUILayout.Width(170f));
+
+                Rect lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 800;
+
+                settings.skipAllCutscenes = GUILayout.Toggle(settings.skipAllCutscenes, new GUIContent("Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes."), GUILayout.Width(170f));
 
                 GUI.Label(lastRect, GUI.tooltip);
                 previousToolTip = GUI.tooltip;

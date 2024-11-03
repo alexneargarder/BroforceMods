@@ -2,7 +2,7 @@
 	"Id": "Utility Mod",
 	"DisplayName": "Utility Mod",
 	"Author": "AlexN",
-	"Version": "2.3.1",
+	"Version": "2.3.2",
 	"AssemblyName": "Utility Mod.dll",
 	"EntryMethod": "Utility_Mod.Main.Load",
 	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"

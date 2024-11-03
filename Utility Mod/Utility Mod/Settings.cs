@@ -49,6 +49,8 @@ namespace Utility_Mod
         public bool disableConfirm = true;
         public bool quickMainMenu = false;
         public bool helicopterWait = false;
+        public bool skipBreakingCutscenes = true;
+        public bool skipAllCutscenes = false;
 
         // Level Controls
         public bool loopCurrent = false;

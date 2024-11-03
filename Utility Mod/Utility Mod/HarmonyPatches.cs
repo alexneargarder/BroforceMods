@@ -252,7 +252,7 @@ namespace Utility_Mod
                     return;
                 }
 
-                if (Main.settings.endingSkip && (result == LevelResult.Success) && !(GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4))
+                if (Main.settings.endingSkip && (result == LevelResult.Success) && !((GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4) || (GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 5)))
                 {
                     GameModeController.MakeFinishInstant();
                 }
@@ -726,6 +726,36 @@ namespace Utility_Mod
                     GameModeController.LevelFinish(LevelResult.Success);
                 }
 
+            }
+        }
+
+        [HarmonyPatch(typeof(CutsceneController), "LoadCutScene")]
+        static class CutsceneController_LoadCutScene_Patch
+        {
+            public static bool Prefix(CutsceneController __instance, ref CutsceneName name)
+            {
+                if ( !Main.enabled )
+                {
+                    return true;
+                }
+
+                if ( Main.settings.skipBreakingCutscenes && (name == CutsceneName.FlexAir || name == CutsceneName.FlexGolden || name == CutsceneName.FlexInvincible || name == CutsceneName.FlexTeleport ) )
+                {
+                    return false;
+                }
+                else if ( Main.settings.skipBreakingCutscenes && (name == CutsceneName.AmmoAirstrike || name == CutsceneName.AmmoMechDrop || name == CutsceneName.AmmoPheromones || name == CutsceneName.AmmoRCCar || name == CutsceneName.AmmoStandard || name == CutsceneName.AmmoSteroids || name == CutsceneName.AmmoTimeSlow) )
+                {
+                    string sceneToLoad = GameModeController.FinishCampaignFromCutscene(true);
+                    GameState.Instance.sceneToLoad = sceneToLoad;
+                    GameModeController.LoadNextScene(GameState.Instance);
+                    return false;
+                }
+                else if ( Main.settings.skipAllCutscenes )
+                {
+                    return false;
+                }
+
+                return true;
             }
         }
     }

@@ -99,4 +99,7 @@
   <PropertyGroup>
     <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - utility\*.cache"</PostBuildEvent>
   </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
+  </PropertyGroup>
 </Project>
