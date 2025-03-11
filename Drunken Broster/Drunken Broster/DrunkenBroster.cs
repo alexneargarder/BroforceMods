@@ -76,6 +76,7 @@ namespace Drunken_Broster
         public MeleeItem currentItem = MeleeItem.None;
 
         // Special
+        public bool wasDrunk = false; // Was drunk before starting special
         public bool drunk = false;
         protected const float maxDrunkTime = 15f;
         public float drunkCounter = 0f;
@@ -105,6 +106,9 @@ namespace Drunken_Broster
             // Load sounds
             directoryPath = Path.Combine(directoryPath, "sounds");
             slurp = ResourcesController.CreateAudioClip(directoryPath, "slurp.wav");
+
+            // FIXME: enable rolling
+            doRollOnLand = false;
         }
 
         protected override void Update()
@@ -148,12 +152,13 @@ namespace Drunken_Broster
             }
 
             // Count down to becoming sober
-            if ( this.drunkCounter > 0 )
+            if ( this.drunk )
             {
                 this.drunkCounter -= this.t;
+                // If drunk counter has run out, try to start becoming sober animation
                 if ( this.drunkCounter <= 0 )
                 {
-                    this.BecomeSober();
+                    this.TryToBecomeSober();
                 }
             }
 
@@ -335,6 +340,15 @@ namespace Drunken_Broster
             base.RunMovement();
         }
 
+        protected override void CheckFacingDirection()
+        {
+            // Don't allow changing directions when using a forwards attack
+            if ( !this.attackForwards )
+            {
+                base.CheckFacingDirection();
+            }
+        }
+
         protected override void SetGunPosition(float xOffset, float yOffset)
         {
             this.gunSprite.transform.localPosition = new Vector3(xOffset, yOffset, -1f);
@@ -391,7 +405,8 @@ namespace Drunken_Broster
 
         protected override void AddSpeedLeft()
         {
-            if (this.CanAddXSpeed())
+            // Don't add speed left if attacking forward facing right
+            if (!(this.attackForwards && this.attackDirection == 1) && this.CanAddXSpeed())
             {
                 base.AddSpeedLeft();
                 if (this.attackForwards && this.attackFrames > 4 && this.xI < -this.speed * 0.5f)
@@ -403,7 +418,8 @@ namespace Drunken_Broster
 
         protected override void AddSpeedRight()
         {
-            if (this.CanAddXSpeed())
+            // Don't add speed right if attacking forward facing left
+            if (!(this.attackForwards && this.attackDirection == -1) && this.CanAddXSpeed())
             {
                 base.AddSpeedRight();
                 if (this.attackForwards && this.attackFrames > 4 && this.xI > this.speed * 0.5f)
@@ -1254,7 +1270,7 @@ namespace Drunken_Broster
                 this.DeactivateGun();
                 if (this.attackFrames < this.attackUpwardsStrikeFrame)
                 {
-                    this.frameRate = 0.09f;
+                    this.frameRate = 0.1f;
                 }
                 else if (this.attackFrames < 5)
                 {
@@ -1754,6 +1770,7 @@ namespace Drunken_Broster
             {
                 if ( this.SpecialAmmo > 0 )
                 {
+                    this.wasDrunk = false;
                     base.PressSpecial();
                 }
                 else
@@ -1772,30 +1789,66 @@ namespace Drunken_Broster
         {
             this.SetSpriteOffset(0f, 0f);
             this.DeactivateGun();
-            this.frameRate = 0.09f;
-            this.sprite.SetLowerLeftPixel((float)(this.usingSpecialFrame * this.spritePixelWidth), (float)(this.spritePixelHeight * 8));
-            if (this.usingSpecialFrame < 10 && this.IsWalking())
+            // Animate drinking to become drunk
+            if ( !this.wasDrunk )
             {
-                this.speed = 0f;
+                this.frameRate = 0.1f;
+                this.sprite.SetLowerLeftPixel((float)(this.usingSpecialFrame * this.spritePixelWidth), (float)(this.spritePixelHeight * 8));
+                if (this.usingSpecialFrame < 10 && this.IsWalking())
+                {
+                    this.speed = 0f;
+                }
+                else
+                {
+                    this.speed = this.originalSpeed;
+                }
+                if (this.usingSpecialFrame == 4)
+                {
+                    this.frameRate = 0.35f;
+                    this.PlayDrinkingSound();
+                }
+                else if (this.usingSpecialFrame == 6)
+                {
+                    this.frameRate = 0.15f;
+                    this.UseSpecial();
+                }
+                else if (this.usingSpecialFrame >= 7)
+                {
+                    this.frameRate = 0.2f;
+                    this.StopUsingSpecial();
+                    return;
+                }
+                this.usingSpecialFrame++;
             }
+            // Animate becoming sober
             else
             {
-                this.speed = this.originalSpeed;
+                this.frameRate = 0.11f;
+                this.sprite.SetLowerLeftPixel((float)(this.usingSpecialFrame * this.spritePixelWidth), (float)(this.spritePixelHeight * 10));
+                if (this.usingSpecialFrame < 11 && this.IsWalking())
+                {
+                    this.speed = 0f;
+                }
+                else
+                {
+                    this.speed = this.originalSpeed;
+                }
+
+                if (this.usingSpecialFrame == 1)
+                {
+                    this.frameRate = 0.2f;
+                }
+                else if (this.usingSpecialFrame == 6)
+                {
+                    this.UseSpecial();
+                }
+                else if (this.usingSpecialFrame >= 10)
+                {
+                    this.StopUsingSpecial();
+                    return;
+                }
+                this.usingSpecialFrame++;
             }
-            if (this.usingSpecialFrame == 4)
-            {
-                this.frameRate = 0.35f;
-                this.PlayDrinkingSound();
-            }
-            else if (this.usingSpecialFrame == 6)
-            {
-                this.UseSpecial();
-            }
-            else if (this.usingSpecialFrame >= 7)
-            {
-                this.StopUsingSpecial();
-            }
-            this.usingSpecialFrame++;
         }
 
         protected void PlayDrinkingSound()
@@ -1805,8 +1858,15 @@ namespace Drunken_Broster
 
         protected override void UseSpecial()
         {
-            this.BecomeDrunk();
-            --this.SpecialAmmo;
+            if ( !this.wasDrunk )
+            {
+                this.BecomeDrunk();
+                --this.SpecialAmmo;
+            }
+            else
+            {
+                this.BecomeSober();
+            }
         }
 
         protected void StopUsingSpecial()
@@ -1822,12 +1882,25 @@ namespace Drunken_Broster
         protected void BecomeDrunk()
         {
             base.GetComponent<Renderer>().material = this.drunkSprite;
-            //this.drunkCounter = maxDrunkTime;
-            this.drunkCounter = 1000;
+            this.drunkCounter = maxDrunkTime;
+            //this.drunkCounter = 1000;
             this.drunk = true;
             this.speed = this.originalSpeed = 110;
             this.enemyFistDamage = 11;
             this.groundFistDamage = 3;
+        }
+
+        protected bool TryToBecomeSober()
+        {
+            if (!hasBeenCoverInAcid && !doingMelee && !usingSpecial)
+            {
+                this.wasDrunk = true;
+                this.usingSpecial = true;
+                base.frame = 0;
+                this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                return true;
+            }
+            return false;
         }
 
         protected void BecomeSober()
