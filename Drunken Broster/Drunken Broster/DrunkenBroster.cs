@@ -51,7 +51,7 @@ namespace Drunken_Broster
         protected int attackForwardsStrikeFrame = 2;
         protected bool attackHasHit = false;
         protected int enemyFistDamage = 5;
-        protected int groundFistDamage = 1;
+        protected int groundFistDamage = 5;
         public Shrapnel shrapnelSpark;
         public FlickerFader hitPuff;
         protected float lastAttackingTime = 0;
@@ -429,6 +429,63 @@ namespace Drunken_Broster
             }
         }
 
+        public bool HitUnitsStationaryAttack(MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits)
+        {
+            if (Map.units == null)
+            {
+                return false;
+            }
+            bool result = false;
+            bool flag = false;
+            int num = 999999;
+            for (int i = Map.units.Count - 1; i >= 0; i--)
+            {
+                Unit unit = Map.units[i];
+                if (unit != null && GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) && !unit.invulnerable && unit.health <= num)
+                {
+                    float f = unit.X - x;
+                    if (Mathf.Abs(f) - xRange < unit.width)
+                    {
+                        float num2 = unit.Y + unit.height / 2f + 3f - y;
+                        if (Mathf.Abs(num2) - yRange < unit.height && !alreadyHitUnits.Contains(unit))
+                        {
+                            alreadyHitUnits.Add(unit);
+                            if (!penetrates && unit.health > 0)
+                            {
+                                num = 0;
+                                flag = true;
+                            }
+                            // Send units hit in midair away rather than up
+                            if (!unit.IsOnGround())
+                            {
+                                yI *= this.drunk ? 1.5f : 1.25f;
+                                xI = yI * base.transform.localScale.x * 0.7f;
+                                yI *= 0.25f;
+                            }
+                            if (!canGib && unit.health <= 0)
+                            {
+                                Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                            }
+                            else if (unit.health <= 0)
+                            {
+                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(corpseDamage, playerNum), damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                            }
+                            else
+                            {
+                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(damage, playerNum), damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                            }
+                            result = true;
+                            if (flag)
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         public bool HitUnits(MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
         {
             if (Map.units == null)
@@ -458,7 +515,7 @@ namespace Drunken_Broster
                             // Send units hit in midair further
                             if ( !unit.IsOnGround() )
                             {
-                                xI *= this.drunk ? 2f : 1.5f;
+                                xI *= this.drunk ? 3.0f : 2.5f;
                                 yI *= this.drunk ? 1.5f : 1.25f;
                             }
                             if (!canGib && unit.health <= 0)
@@ -471,7 +528,13 @@ namespace Drunken_Broster
                             }
                             else
                             {
-                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(damage, playerNum), damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                                damage = ValueOrchestrator.GetModifiedDamage(damage, playerNum);
+                                // Don't allow instagibs
+                                if ( damage > unit.health )
+                                {
+                                    damage = unit.health;
+                                }
+                                Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
                             }
                             result = true;
                             if (flag)
@@ -527,6 +590,7 @@ namespace Drunken_Broster
             {
                 this.startNewAttack = true;
             }
+            // Upward Attack Start
             else if (this.up && !this.hasAttackedUpwards)
             {
                 if (base.actionState == ActionState.ClimbingLadder)
@@ -545,10 +609,10 @@ namespace Drunken_Broster
                 this.attackFrames = 0;
                 this.attackUpwards = true;
                 this.ChangeFrame();
-                this.groundFistDamage = 5;
                 this.airdashDirection = DirectionEnum.Up;
                 this.ClearCurrentAttackVariables();
             }
+            // Downward Attack Start
             else if (this.down && !this.hasAttackedDownwards)
             {
                 base.actionState = ActionState.Jumping;
@@ -570,10 +634,10 @@ namespace Drunken_Broster
                 this.attackDownwards = true;
                 this.jumpTime = 0f;
                 this.ChangeFrame();
-                this.groundFistDamage = 5;
                 this.airdashDirection = DirectionEnum.Down;
                 this.ClearCurrentAttackVariables();
             }
+            // Forward Attack Left Start
             else if (this.left && !this.hasAttackedForwards)
             {
                 this.FireFlashAvatar();
@@ -617,10 +681,10 @@ namespace Drunken_Broster
                 this.jumpTime = 0f;
                 this.ChangeFrame();
                 this.CreateFaderTrailInstance();
-                this.groundFistDamage = 5;
                 this.airdashDirection = DirectionEnum.Left;
                 this.ClearCurrentAttackVariables();
             }
+            // Forward Attack Right Start
             else if (this.right && !this.hasAttackedForwards)
             {
                 this.attackSpriteRow = (this.attackSpriteRow + 1) % 2;
@@ -664,11 +728,10 @@ namespace Drunken_Broster
                 this.jumpTime = 0f;
                 this.ChangeFrame();
                 this.CreateFaderTrailInstance();
-                this.groundFistDamage = 5;
                 this.airdashDirection = DirectionEnum.Right;
                 this.ClearCurrentAttackVariables();
             }
-            // Stationary Attack
+            // Stationary Attack Start
             else if ( !this.up && !this.down && !this.left && !this.right )
             {
                 this.FireFlashAvatar();
@@ -680,12 +743,10 @@ namespace Drunken_Broster
                 this.MakeKungfuSound();
                 this.postAttackHitPauseTime = 0f;
                 this.attackFrames = 0;
-                this.yI = 0f;
                 this.attackStationary = true;
                 this.jumpTime = 0f;
                 this.ChangeFrame();
                 //this.CreateFaderTrailInstance();
-                this.groundFistDamage = 5;
                 this.ClearCurrentAttackVariables();
             }
         }
@@ -717,38 +778,47 @@ namespace Drunken_Broster
                         this.DeflectProjectiles();
                     }
                 }
+                // Stationary Attack
                 if (this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame && this.attackFrames <= 5)
                 {
                     bool flag;
                     Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
                     this.lastAttackingTime = Time.time;
-                    //if (Map.HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 0f, 400f, true, true, true, this.alreadyHit, false))
-                    if (HitUnits(this, base.playerNum, this.enemyFistDamage + 1, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 0f, 550f, true, true, true, this.alreadyHit))
+                    // Sober Attack
+                    if (!this.drunk)
                     {
-                        if (!this.hasHitWithFists)
+                        if (HitUnitsStationaryAttack(this, base.playerNum, this.enemyFistDamage + 1, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit))
                         {
-                            this.PlayFistSound();
-                        }
-                        this.hasHitWithFists = true;
-                        this.attackHasHit = true;
-                        this.hasAttackedDownwards = false;
-                        this.hasAttackedUpwards = false;
-                        this.hasAttackedForwards = false;
-                        this.hasHitThisAttack = true;
-                        this.TimeBump();
-                        this.xIAttackExtra = 0f;
-                        this.postAttackHitPauseTime = 0.2f;
-                        if (this.drunk)
-                        {
-                            HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                        }
-                        this.xI = 0f;
-                        this.yI = 0f;
-                        for (int i = 0; i < this.alreadyHit.Count; i++)
-                        {
-                            this.alreadyHit[i].FrontSomersault();
+                            if (!this.hasHitWithFists)
+                            {
+                                this.PlayFistSound();
+                            }
+                            this.hasHitWithFists = true;
+                            this.attackHasHit = true;
+                            this.hasAttackedDownwards = false;
+                            this.hasAttackedUpwards = false;
+                            this.hasAttackedForwards = false;
+                            this.hasHitThisAttack = true;
+                            this.TimeBump();
+                            this.xIAttackExtra = 0f;
+                            this.postAttackHitPauseTime = 0.2f;
+                            //if (this.drunk)
+                            //{
+                            //    HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
+                            //}
+                            this.xI = 0f;
+                            this.yI = 0f;
+                            for (int i = 0; i < this.alreadyHit.Count; i++)
+                            {
+                                this.alreadyHit[i].FrontSomersault();
+                            }
                         }
                     }
+                    else
+                    {
+                        // FIXME: decide what to do for drunk stationary attack
+                    }
+                    
                     if (!this.attackHasHit)
                     {
                         this.DeflectProjectiles();
@@ -759,7 +829,8 @@ namespace Drunken_Broster
                         this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3(base.transform.localScale.x, 0f, 0f), 9f, base.transform.localScale.x * 180f, 80f);
                     }
                 }
-                else if (this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame && this.attackFrames <= 5)
+                // Forwards Attack
+                else if (this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame - 1 && this.attackFrames <= 5)
                 {
                     bool flag;
                     Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
@@ -822,7 +893,7 @@ namespace Drunken_Broster
                         // Fist attack
                         else
                         {
-                            if (HitUnits(this, base.playerNum, this.enemyFistDamage + 4, 1, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit))
+                            if (HitUnits(this, base.playerNum, this.enemyFistDamage + 4, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit))
                             {
                                 if (!this.hasHitWithFists)
                                 {
@@ -961,7 +1032,8 @@ namespace Drunken_Broster
 
         protected override void Jump(bool wallJump)
         {
-            if (!this.attackUpwards && this.attackFrames < this.attackUpwardsStrikeFrame && (!this.attackForwards || this.attackFrames > this.attackForwardsStrikeFrame))
+            // Allow jumping after strike frame on upwards, forwards, and stationary attacks
+            if ((!this.attackUpwards || this.attackFrames > this.attackUpwardsStrikeFrame) && (!this.attackForwards || this.attackFrames > this.attackForwardsStrikeFrame) && (!this.attackStationary || this.attackFrames > this.attackStationaryStrikeFrame || this.hasHitThisAttack))
             {
                 base.Jump(wallJump);
             }
@@ -1887,7 +1959,7 @@ namespace Drunken_Broster
             this.drunk = true;
             this.speed = this.originalSpeed = 110;
             this.enemyFistDamage = 11;
-            this.groundFistDamage = 3;
+            this.groundFistDamage = 10;
         }
 
         protected bool TryToBecomeSober()
@@ -1910,7 +1982,7 @@ namespace Drunken_Broster
             this.drunk = false;
             this.speed = this.originalSpeed = 130;
             this.enemyFistDamage = 5;
-            this.groundFistDamage = 1;
+            this.groundFistDamage = 5;
         }
         #endregion
     }
