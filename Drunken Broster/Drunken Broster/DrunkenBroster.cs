@@ -11,7 +11,7 @@ using HarmonyLib;
 
 namespace Drunken_Broster
 {
-    [HeroPreset("Drunken Broster", HeroType.Rambro)]
+    [HeroPreset( "Drunken Broster", HeroType.Rambro )]
     public class DrunkenBroster : CustomHero
     {
         // General
@@ -40,6 +40,7 @@ namespace Drunken_Broster
         protected bool attackUpwards = false;
         protected bool attackDownwards = false;
         protected bool attackForwards = false;
+        protected int stationaryAttackCounter = -1;
         protected int attackDirection = 0;
         protected bool hasAttackedUpwards = false;
         protected bool hasAttackedDownwards = false;
@@ -93,19 +94,19 @@ namespace Drunken_Broster
             this.meleeType = MeleeType.Disembowel;
 
             this.originalSpeed = this.speed;
-            this.faderSpritePrefab = (HeroController.GetHeroPrefab(HeroType.BroLee) as BroLee).faderSpritePrefab;
+            this.faderSpritePrefab = ( HeroController.GetHeroPrefab( HeroType.BroLee ) as BroLee ).faderSpritePrefab;
 
             // Load sprites
-            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
             this.normalSprite = base.GetComponent<Renderer>().material;
-            this.drunkSprite = ResourcesController.GetMaterial(directoryPath, "drunkSprite.png");
+            this.drunkSprite = ResourcesController.GetMaterial( directoryPath, "drunkSprite.png" );
 
 
             // Setup throwables
 
             // Load sounds
-            directoryPath = Path.Combine(directoryPath, "sounds");
-            slurp = ResourcesController.CreateAudioClip(directoryPath, "slurp.wav");
+            directoryPath = Path.Combine( directoryPath, "sounds" );
+            slurp = ResourcesController.CreateAudioClip( directoryPath, "slurp.wav" );
 
             // TODO: enable rolling
             doRollOnLand = false;
@@ -115,9 +116,9 @@ namespace Drunken_Broster
         {
             base.Update();
             // Don't run any code past this point if the character is dead
-            if (this.acceptedDeath)
+            if ( this.acceptedDeath )
             {
-                if (this.health <= 0 && !this.WillReviveAlready)
+                if ( this.health <= 0 && !this.WillReviveAlready )
                 {
                     return;
                 }
@@ -128,24 +129,24 @@ namespace Drunken_Broster
                 }
             }
 
-            if (this.invulnerable)
+            if ( this.invulnerable )
             {
                 this.wasInvulnerable = true;
             }
 
             // Check if invulnerability ran out
-            if (this.wasInvulnerable && !this.invulnerable)
+            if ( this.wasInvulnerable && !this.invulnerable )
             {
                 // Fix any not currently displayed textures
                 this.wasInvulnerable = false;
-                this.normalSprite.SetColor("_TintColor", Color.gray);
-                this.drunkSprite.SetColor("_TintColor", Color.gray);
+                this.normalSprite.SetColor( "_TintColor", Color.gray );
+                this.drunkSprite.SetColor( "_TintColor", Color.gray );
             }
 
             // Check if character has died
-            if (base.actionState == ActionState.Dead && !this.acceptedDeath)
+            if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
             {
-                if (!this.WillReviveAlready)
+                if ( !this.WillReviveAlready )
                 {
                     this.acceptedDeath = true;
                 }
@@ -163,10 +164,10 @@ namespace Drunken_Broster
             }
 
             this.postAttackHitPauseTime -= this.t;
-            if ((this.attackForwards || this.attackUpwards || this.attackDownwards) && this.xIAttackExtra != 0f)
+            if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.xIAttackExtra != 0f )
             {
                 this.faderTrailDelay -= this.t / Time.timeScale;
-                if (this.faderTrailDelay < 0f)
+                if ( this.faderTrailDelay < 0f )
                 {
                     this.CreateFaderTrailInstance();
                     this.faderTrailDelay = 0.034f;
@@ -178,60 +179,549 @@ namespace Drunken_Broster
         #region Primary
         protected override void RunGun()
         {
-            if (!this.WallDrag && this.gunFrame > 0)
+            if ( !this.WallDrag && this.gunFrame > 0 )
             {
                 this.gunCounter += this.t;
-                if (this.gunCounter > 0.015f)
+                if ( this.gunCounter > 0.015f )
                 {
                     this.gunCounter -= 0.015f;
                     this.gunFrame--;
-                    if (this.gunFrame < 0)
+                    if ( this.gunFrame < 0 )
                     {
                         this.gunFrame = 0;
                     }
-                    this.SetGunSprite(0, 0);
+                    this.SetGunSprite( 0, 0 );
                 }
             }
-        }
-
-        protected override void AnimateZipline()
-        {
-            base.AnimateZipline();
-            this.SetGunSprite(this.gunFrame, 0);
-        }
-
-        protected override void SetGunSprite(int spriteFrame, int spriteRow)
-        {
-            base.SetGunSprite(spriteFrame, spriteRow);
         }
 
         protected override void UseFire()
         {
             this.alreadyHit.Clear();
             this.gunFrame = 11;
-            this.SetGunSprite(this.gunFrame, 0);
+            this.SetGunSprite( this.gunFrame, 0 );
             this.hasPlayedAttackHitSound = false;
-            this.FireWeapon(base.X + base.transform.localScale.x * 10f, base.Y + 6.5f, base.transform.localScale.x * 400f, (float)(UnityEngine.Random.Range(0, 40) - 20));
+            this.FireWeapon( base.X + base.transform.localScale.x * 10f, base.Y + 6.5f, base.transform.localScale.x * 400f, (float)( UnityEngine.Random.Range( 0, 40 ) - 20 ) );
             this.PlayAttackSound();
-            Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+            Map.DisturbWildLife( base.X, base.Y, 60f, base.playerNum );
         }
 
-        protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
+        protected override void StartFiring()
         {
-            Map.HurtWildLife(x + base.transform.localScale.x * 13f, y + 5f, 12f);
-            this.DeflectProjectiles();
-            this.SetGunSprite(this.gunFrame, 0);
-            bool flag;
-            Map.DamageDoodads(3, DamageType.Knifed, x + (float)(base.Direction * 4), y, 0f, 0f, 6f, base.playerNum, out flag, null);
-            float num = base.transform.localScale.x * 12f;
-            this.ConstrainToFragileBarriers(ref num, 16f);
-            if (Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 5.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer) || Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 10.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer))
+            // Don't allow attacking while drinking / becoming sober
+            if ( this.usingSpecial )
             {
-                this.MakeEffects(this.raycastHit.point.x, this.raycastHit.point.y);
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y);
-                if (!this.hasHitWithWall)
+                return;
+            }
+            this.startNewAttack = false;
+            this.hasPlayedAttackHitSound = false;
+            this.hasHitWithWall = false;
+            this.hasHitWithFists = false;
+            // Buffering attack
+            if ( this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary )
+            {
+                this.startNewAttack = true;
+            }
+            // Upward Attack Start
+            else if ( this.up && !this.hasAttackedUpwards )
+            {
+                this.StartAttackUpwards();
+            }
+            // Downward Attack Start
+            else if ( this.down && !this.hasAttackedDownwards )
+            {
+                this.StartAttackDownwards();
+            }
+            // Forward Attack Left Start
+            else if ( this.left && !this.hasAttackedForwards )
+            {
+                this.StartAttackForwardsLeft();
+            }
+            // Forward Attack Right Start
+            else if ( this.right && !this.hasAttackedForwards )
+            {
+                this.StartAttackForwardsRight();
+            }
+            // Stationary Attack Start
+            else if ( !this.up && !this.down && !this.left && !this.right )
+            {
+                this.StartAttackStationary();
+            }
+        }
+
+        protected void StartAttackUpwards()
+        {
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
+            this.FireFlashAvatar();
+            this.MakeKungfuSound();
+            this.StopAttack();
+            if ( this.yI > 50f )
+            {
+                this.yI = 50f;
+            }
+            this.jumpTime = 0f;
+            this.hasAttackedUpwards = true;
+            this.attackFrames = 0;
+            this.attackUpwards = true;
+            this.ChangeFrame();
+            this.airdashDirection = DirectionEnum.Up;
+            this.ClearCurrentAttackVariables();
+        }
+
+        protected void StartAttackDownwards()
+        {
+            base.actionState = ActionState.Jumping;
+            this.StopAttack();
+            this.FireFlashAvatar();
+            if ( !this.drunk )
+            {
+                this.yI = 150f;
+                this.xI = base.transform.localScale.x * 80f;
+            }
+            else
+            {
+                this.yI = 200f;
+                this.xI = base.transform.localScale.x * 80f;
+                this.canWallClimb = false;
+            }
+            this.MakeKungfuSound();
+            this.hasAttackedDownwards = true;
+            this.attackFrames = 0;
+            this.attackDownwards = true;
+            this.jumpTime = 0f;
+            this.ChangeFrame();
+            this.airdashDirection = DirectionEnum.Down;
+            this.ClearCurrentAttackVariables();
+        }
+
+        protected void StartAttackForwardsLeft()
+        {
+            this.FireFlashAvatar();
+            this.attackSpriteRow = ( this.attackSpriteRow + 1 ) % 2;
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
+            if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && !this.hasHitThisAttack )
+            {
+                this.StopAttack();
+                if ( !this.drunk )
                 {
-                    SortOfFollow.Shake(0.15f);
+                    this.xIAttackExtra = 20f;
+                }
+            }
+            else if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.hasHitThisAttack )
+            {
+                this.StopAttack();
+                if ( !this.drunk )
+                {
+                    this.xIAttackExtra = -300f;
+                }
+                this.MakeKungfuSound();
+            }
+            else
+            {
+                this.StopAttack();
+                if ( !this.drunk )
+                {
+                    this.xIAttackExtra = -200f;
+                }
+                this.MakeKungfuSound();
+            }
+            this.postAttackHitPauseTime = 0f;
+            this.hasAttackedForwards = true;
+            this.attackFrames = 0;
+            this.yI = 0f;
+            this.attackForwards = true;
+            this.attackDirection = -1;
+            this.jumpTime = 0f;
+            this.ChangeFrame();
+            this.CreateFaderTrailInstance();
+            this.airdashDirection = DirectionEnum.Left;
+            this.ClearCurrentAttackVariables();
+        }
+
+        protected void StartAttackForwardsRight()
+        {
+            this.attackSpriteRow = ( this.attackSpriteRow + 1 ) % 2;
+            this.FireFlashAvatar();
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
+            if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && !this.hasHitThisAttack )
+            {
+                this.StopAttack();
+                if ( !this.drunk )
+                {
+                    this.xIAttackExtra = -20f;
+                }
+            }
+            else if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.hasHitThisAttack )
+            {
+                this.StopAttack();
+                if ( !this.drunk )
+                {
+                    this.xIAttackExtra = 300f;
+                }
+                this.MakeKungfuSound();
+            }
+            else
+            {
+                this.StopAttack();
+                if ( !this.drunk )
+                {
+                    this.xIAttackExtra = 200f;
+                }
+                this.MakeKungfuSound();
+            }
+            this.hasAttackedForwards = true;
+            this.postAttackHitPauseTime = 0f;
+            this.attackFrames = 0;
+            this.yI = 0f;
+            this.attackForwards = true;
+            this.attackDirection = 1;
+            this.jumpTime = 0f;
+            this.ChangeFrame();
+            this.CreateFaderTrailInstance();
+            this.airdashDirection = DirectionEnum.Right;
+            this.ClearCurrentAttackVariables();
+        }
+
+        protected void StartAttackStationary()
+        {
+            this.FireFlashAvatar();
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
+            this.StopAttack();
+            this.MakeKungfuSound();
+            this.postAttackHitPauseTime = 0f;
+            this.attackFrames = 0;
+            this.attackStationary = true;
+            this.jumpTime = 0f;
+            ++this.stationaryAttackCounter;
+            this.ChangeFrame();
+            //this.CreateFaderTrailInstance();
+            this.ClearCurrentAttackVariables();
+        }
+
+        protected override void RunFiring()
+        {
+            if ( this.fire )
+            {
+                this.rollingFrames = 0;
+            }
+            if ( this.attackStationary || this.attackUpwards || this.attackForwards || this.attackDownwards )
+            {
+                if ( !this.attackHasHit )
+                {
+                    if ( this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame - 1 )
+                    {
+                        this.DeflectProjectiles();
+                    }
+                    else if ( this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame - 1 )
+                    {
+                        this.DeflectProjectiles();
+                    }
+                    else if ( this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame - 1 )
+                    {
+                        this.DeflectProjectiles();
+                    }
+                    else if ( this.attackDownwards && this.attackFrames >= this.attackDownwardsStrikeFrame - 1 )
+                    {
+                        this.DeflectProjectiles();
+                    }
+                }
+                // Stationary Attack
+                if ( this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame && this.attackFrames <= 5 )
+                {
+                    this.PerformAttackStationary();
+                }
+                // Forwards Attack
+                else if ( this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame - 1 && this.attackFrames <= 5 )
+                {
+                    this.PerformAttackForwards();
+                }
+                // Upwards Attack
+                else if ( this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame && this.attackFrames <= 5 )
+                {
+                    this.PerformAttackUpwards();
+                }
+                // Downwards Attack
+                else if ( this.attackDownwards && this.attackFrames >= this.attackDownwardsStrikeFrame && this.attackFrames <= 6 )
+                {
+                    this.PerformAttackDownwards();
+                }
+            }
+        }
+
+        protected void PerformAttackStationary()
+        {
+            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+            this.lastAttackingTime = Time.time;
+            // Leg Sweep Attack
+            if ( this.stationaryAttackCounter % 2 == 0 )
+            {
+                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit ) )
+                {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayFistSound();
+                    }
+                    this.hasHitWithFists = true;
+                    this.attackHasHit = true;
+                    this.hasAttackedDownwards = false;
+                    this.hasAttackedUpwards = false;
+                    this.hasAttackedForwards = false;
+                    this.hasHitThisAttack = true;
+                    this.TimeBump();
+                    this.xIAttackExtra = 0f;
+                    this.postAttackHitPauseTime = 0.2f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                    for ( int i = 0; i < this.alreadyHit.Count; i++ )
+                    {
+                        this.alreadyHit[i].FrontSomersault();
+                    }
+                }
+            }
+            // Perform Forward Fist Attack
+            else
+            {
+                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
+                {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayFistSound();
+                    }
+                    this.hasHitWithFists = true;
+                    this.attackHasHit = true;
+                    this.hasAttackedDownwards = false;
+                    this.hasAttackedUpwards = false;
+                    this.hasAttackedForwards = false;
+                    this.hasHitThisAttack = true;
+                    this.TimeBump();
+                    this.xIAttackExtra = 0f;
+                    this.postAttackHitPauseTime = 0.2f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                    for ( int i = 0; i < this.alreadyHit.Count; i++ )
+                    {
+                        this.alreadyHit[i].FrontSomersault();
+                    }
+                }
+            }
+
+            if ( !this.attackHasHit )
+            {
+                this.DeflectProjectiles();
+            }
+            if ( !this.attackHasHit )
+            {
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f, base.transform.localScale.x * 180f, 80f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f, base.transform.localScale.x * 180f, 80f );
+            }
+        }
+
+        protected void PerformAttackForwards()
+        {
+            bool flag;
+            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null );
+            this.lastAttackingTime = Time.time;
+            // Sober attack
+            if ( !this.drunk )
+            {
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 8f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
+                {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayFistSound();
+                    }
+                    this.hasHitWithFists = true;
+                    this.attackHasHit = true;
+                    this.hasAttackedDownwards = false;
+                    this.hasAttackedUpwards = false;
+                    this.hasAttackedForwards = false;
+                    this.hasHitThisAttack = true;
+                    this.TimeBump();
+                    this.xIAttackExtra = 0f;
+                    this.postAttackHitPauseTime = 0.2f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                    for ( int i = 0; i < this.alreadyHit.Count; i++ )
+                    {
+                        this.alreadyHit[i].BackSomersault( false );
+                    }
+                }
+            }
+            // Drunk attack
+            else
+            {
+                // Spin attack
+                if ( this.attackSpriteRow == 0 )
+                {
+                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 4f, 10f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 220f, 450f, true, true, false, this.alreadyHit ) )
+                    {
+                        if ( !this.hasHitWithFists )
+                        {
+                            this.PlayFistSound();
+                        }
+                        this.hasHitWithFists = true;
+                        this.attackHasHit = true;
+                        this.hasAttackedDownwards = false;
+                        this.hasAttackedUpwards = false;
+                        this.hasAttackedForwards = false;
+                        this.hasHitThisAttack = true;
+                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                        for ( int i = 0; i < this.alreadyHit.Count; i++ )
+                        {
+                            this.alreadyHit[i].BackSomersault( false );
+                        }
+                    }
+                }
+                // Fist attack
+                else
+                {
+                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 4, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit ) )
+                    {
+                        if ( !this.hasHitWithFists )
+                        {
+                            this.PlayFistSound();
+                        }
+                        this.hasHitWithFists = true;
+                        this.attackHasHit = true;
+                        this.hasAttackedDownwards = false;
+                        this.hasAttackedUpwards = false;
+                        this.hasAttackedForwards = false;
+                        this.hasHitThisAttack = true;
+                        this.TimeBump();
+                        this.xIAttackExtra = 0f;
+                        this.postAttackHitPauseTime = 0.2f;
+                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                        this.xI = 0f;
+                        this.yI = 0f;
+                        for ( int i = 0; i < this.alreadyHit.Count; i++ )
+                        {
+                            this.alreadyHit[i].BackSomersault( false );
+                        }
+                    }
+                }
+
+            }
+            if ( !this.attackHasHit )
+            {
+                this.DeflectProjectiles();
+            }
+            if ( !this.attackHasHit )
+            {
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f, base.transform.localScale.x * 180f, 80f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f, base.transform.localScale.x * 180f, 80f );
+            }
+        }
+
+        protected void PerformAttackUpwards()
+        {
+            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+            this.lastAttackingTime = Time.time;
+            if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit ) )
+            {
+                if ( !this.hasHitWithFists )
+                {
+                    this.PlayFistSound();
+                }
+                this.hasHitWithFists = true;
+                this.attackHasHit = true;
+                this.hasAttackedDownwards = false;
+                this.hasAttackedForwards = false;
+                this.hasHitThisAttack = true;
+                this.TimeBump();
+                if ( this.drunk )
+                {
+                    HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                }
+            }
+            if ( !this.attackHasHit )
+            {
+                this.DeflectProjectiles();
+            }
+            if ( !this.attackHasHit )
+            {
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.5f, 1f, 0f ), 12f, base.transform.localScale.x * 80f, 280f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0.5f, 0f ), 12f, base.transform.localScale.x * 80f, 280f );
+            }
+        }
+
+        protected void PerformAttackDownwards()
+        {
+            // Sober Attack
+            if ( !this.drunk )
+            {
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+                this.lastAttackingTime = Time.time;
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 4f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit ) )
+                {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayFistSound();
+                    }
+                    this.hasHitWithFists = true;
+                    this.attackHasHit = true;
+                    this.hasAttackedForwards = false;
+                    this.hasAttackedUpwards = false;
+                    this.hasHitThisAttack = true;
+                    this.xIAttackExtra = 0f;
+                    this.TimeBump();
+                    this.postAttackHitPauseTime = 0.25f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                    if ( this.drunk )
+                    {
+                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                    }
+                }
+                if ( !this.attackHasHit )
+                {
+                    this.DeflectProjectiles();
+                }
+                if ( !this.attackHasHit )
+                {
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.4f, -1f, 0f ), 14f, base.transform.localScale.x * 80f, -180f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.8f, -0.2f, 0f ), 12f, base.transform.localScale.x * 80f, -180f );
+                }
+            }
+            // Drunk Attack
+            else
+            {
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+                this.lastAttackingTime = Time.time;
+                if ( !this.attackHasHit )
+                {
+                    this.DeflectProjectiles();
+                }
+            }
+        }
+
+        protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
+        {
+            Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
+            this.DeflectProjectiles();
+            this.SetGunSprite( this.gunFrame, 0 );
+            bool flag;
+            Map.DamageDoodads( 3, DamageType.Knifed, x + (float)( base.Direction * 4 ), y, 0f, 0f, 6f, base.playerNum, out flag, null );
+            float num = base.transform.localScale.x * 12f;
+            this.ConstrainToFragileBarriers( ref num, 16f );
+            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer ) )
+            {
+                this.MakeEffects( this.raycastHit.point.x, this.raycastHit.point.y );
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
+                if ( !this.hasHitWithWall )
+                {
+                    SortOfFollow.Shake( 0.15f );
                 }
                 this.hasHitWithWall = true;
                 this.SwingFistsGround();
@@ -244,33 +734,43 @@ namespace Drunken_Broster
             }
         }
 
-        protected void FireWeaponGround(float x, float y, Vector3 raycastDirection, float distance, float xSpeed, float ySpeed)
+        protected void FireWeaponGround( float x, float y, Vector3 raycastDirection, float distance, float xSpeed, float ySpeed )
         {
-            if (Physics.Raycast(new Vector3(x, y, 0f), raycastDirection, out this.raycastHit, distance, this.groundLayer))
+            if ( Physics.Raycast( new Vector3( x, y, 0f ), raycastDirection, out this.raycastHit, distance, this.groundLayer ) )
             {
-                if (!this.hasHitWithWall)
+                if ( !this.hasHitWithWall )
                 {
-                    SortOfFollow.Shake(0.15f);
-                    this.MakeEffects(this.raycastHit.point.x, this.raycastHit.point.y);
+                    SortOfFollow.Shake( 0.15f );
+                    this.MakeEffects( this.raycastHit.point.x, this.raycastHit.point.y );
                 }
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y);
-                this.hasHitWithWall = true;
-                this.attackHasHit = true;
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
+                // If we hit a steelblock, then don't allow further hits
+                if ( this.drunk && this.raycastHit.collider.gameObject.GetComponent<SteelBlock>() != null )
+                {
+                    this.hasHitWithWall = true;
+                    this.attackHasHit = true;
+                }
+                // If we're not drunk then let the hit register, otherwise allow hits to continue in drunk mode
+                else if ( !this.drunk )
+                {
+                    this.hasHitWithWall = true;
+                    this.attackHasHit = true;
+                }
                 this.PlayWallSound();
             }
         }
 
-        protected void FireWeapon(float x, float y, Vector3 raycastDirection, float xSpeed, float ySpeed)
+        protected void FireWeapon( float x, float y, Vector3 raycastDirection, float xSpeed, float ySpeed )
         {
-            Map.HurtWildLife(x + base.transform.localScale.x * 13f, y + 5f, 12f);
-            Map.DamageDoodads(3, DamageType.Knifed, x + (float)(base.Direction * 4), y, 0f, 0f, 6f, base.playerNum, out _, null);
-            this.SetGunSprite(this.gunFrame, 0);
+            Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
+            Map.DamageDoodads( 3, DamageType.Knifed, x + (float)( base.Direction * 4 ), y, 0f, 0f, 6f, base.playerNum, out _, null );
+            this.SetGunSprite( this.gunFrame, 0 );
             float num = base.transform.localScale.x * 12f;
-            this.ConstrainToFragileBarriers(ref num, 16f);
-            if (Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 5.5f, 0f), raycastDirection, out this.raycastHit, 19f, this.groundLayer) || Physics.Raycast(new Vector3(x - Mathf.Sign(base.transform.localScale.x) * 12f, y + 10.5f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 19f, this.groundLayer))
+            this.ConstrainToFragileBarriers( ref num, 16f );
+            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), raycastDirection, out this.raycastHit, 19f, this.groundLayer ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer ) )
             {
-                this.MakeEffects(this.raycastHit.point.x, this.raycastHit.point.y);
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Bullet, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y);
+                this.MakeEffects( this.raycastHit.point.x, this.raycastHit.point.y );
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Bullet, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
                 this.hasHitWithWall = true;
                 this.SwingFistsGround();
                 this.attackHasHit = true;
@@ -284,11 +784,11 @@ namespace Drunken_Broster
 
         protected virtual void SwingFistsGround()
         {
-            if (Map.HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 5f, base.X, base.Y, base.transform.localScale.x * 420f, 360f, true, true, true, this.alreadyHit, false))
+            if ( Map.HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 5f, base.X, base.Y, base.transform.localScale.x * 420f, 360f, true, true, true, this.alreadyHit, false ) )
             {
-                if (!this.hasHitWithFists)
+                if ( !this.hasHitWithFists )
                 {
-                    SortOfFollow.Shake(0.15f);
+                    SortOfFollow.Shake( 0.15f );
                 }
                 this.hasHitWithFists = true;
                 this.attackHasHit = true;
@@ -301,11 +801,11 @@ namespace Drunken_Broster
 
         protected virtual void SwingFistsEnemies()
         {
-            if (Map.HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, base.X, base.Y, base.transform.localScale.x * 420f, 360f, true, true, true, this.alreadyHit, false))
+            if ( Map.HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, base.X, base.Y, base.transform.localScale.x * 420f, 360f, true, true, true, this.alreadyHit, false ) )
             {
-                if (!this.hasHitWithFists)
+                if ( !this.hasHitWithFists )
                 {
-                    SortOfFollow.Shake(0.15f);
+                    SortOfFollow.Shake( 0.15f );
                 }
                 this.hasHitWithFists = true;
                 this.attackHasHit = true;
@@ -316,13 +816,1185 @@ namespace Drunken_Broster
             }
         }
 
-        protected virtual void MakeEffects(float x, float y)
+        protected virtual void MakeEffects( float x, float y )
         {
             // TODO: Load shrapnelspark and hitpuff from brolee or brocsnipes prefab
             //EffectsController.CreateShrapnel(this.shrapnelSpark, this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f, 4f, 30f, 3f, this.raycastHit.normal.x * 60f, this.raycastHit.normal.y * 30f);
             //EffectsController.CreateEffect(this.hitPuff, this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f);
         }
 
+        protected override void SetGunPosition( float xOffset, float yOffset )
+        {
+            this.gunSprite.transform.localPosition = new Vector3( xOffset, yOffset, -1f );
+        }
+
+        public bool HitUnitsStationaryAttack( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
+        {
+            if ( Map.units == null )
+            {
+                return false;
+            }
+            bool result = false;
+            bool flag = false;
+            int num = 999999;
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
+            {
+                Unit unit = Map.units[i];
+                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num )
+                {
+                    float f = unit.X - x;
+                    if ( Mathf.Abs( f ) - xRange < unit.width )
+                    {
+                        float num2 = unit.Y + unit.height / 2f + 3f - y;
+                        if ( Mathf.Abs( num2 ) - yRange < unit.height && !alreadyHitUnits.Contains( unit ) )
+                        {
+                            alreadyHitUnits.Add( unit );
+                            if ( !penetrates && unit.health > 0 )
+                            {
+                                num = 0;
+                                flag = true;
+                            }
+                            // Send units hit in midair away rather than up
+                            if ( !unit.IsOnGround() )
+                            {
+                                xI *= this.drunk ? 1.75f : 1.25f;
+                                yI *= this.drunk ? 1.75f : 1.25f;
+                            }
+                            else
+                            {
+                                xI *= this.drunk ? 1.5f : 1f;
+                                yI *= this.drunk ? 1.5f : 1f;
+                            }
+                            if ( !canGib && unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else if ( unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( corpseDamage, playerNum ), damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            result = true;
+                            if ( flag )
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        public bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
+        {
+            if ( Map.units == null )
+            {
+                return false;
+            }
+            bool result = false;
+            bool flag = false;
+            int num = 999999;
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
+            {
+                Unit unit = Map.units[i];
+                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num )
+                {
+                    float f = unit.X - x;
+                    if ( Mathf.Abs( f ) - xRange < unit.width )
+                    {
+                        float num2 = unit.Y + unit.height / 2f + 3f - y;
+                        if ( Mathf.Abs( num2 ) - yRange < unit.height && !alreadyHitUnits.Contains( unit ) )
+                        {
+                            alreadyHitUnits.Add( unit );
+                            if ( !penetrates && unit.health > 0 )
+                            {
+                                num = 0;
+                                flag = true;
+                            }
+                            // Send units hit in midair further
+                            if ( !unit.IsOnGround() )
+                            {
+                                xI *= this.drunk ? 3.0f : 2.5f;
+                                yI *= this.drunk ? 1.5f : 1.25f;
+                            }
+                            if ( !canGib && unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else if ( unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( corpseDamage, playerNum ), damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else
+                            {
+                                damage = ValueOrchestrator.GetModifiedDamage( damage, playerNum );
+                                // Don't allow instagibs
+                                if ( damage > unit.health )
+                                {
+                                    damage = unit.health;
+                                }
+                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            result = true;
+                            if ( flag )
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        protected void DeflectProjectiles()
+        {
+            if ( Map.DeflectProjectiles( this, base.playerNum, 10f, base.X + Mathf.Sign( base.transform.localScale.x ) * 6f, base.Y + 6f, Mathf.Sign( base.transform.localScale.x ) * 200f, true ) )
+            {
+                if ( !this.hasHitWithWall )
+                {
+                    this.PlayWallSound();
+                }
+                this.hasHitWithWall = true;
+                this.attackHasHit = true;
+            }
+        }
+
+        protected override void HitCeiling( RaycastHit ceilingHit )
+        {
+            if ( !this.drunk )
+            {
+                base.HitCeiling( ceilingHit );
+                if ( this.attackUpwards )
+                {
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
+                    {
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+                    }
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
+                    {
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+                    }
+                    this.attackUpwards = false;
+                    this.attackFrames = 0;
+                }
+            }
+            else
+            {
+                if ( this.attackUpwards )
+                {
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
+                    {
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+                    }
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
+                    {
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+                    }
+                }
+                this.HitCeilingDrunk( ceilingHit );
+            }
+        }
+
+        protected virtual void HitCeilingDrunk( RaycastHit ceilingHit )
+        {
+            if ( up || buttonJump )
+            {
+                ceilingHit.collider.SendMessage( "StepOn", this, SendMessageOptions.DontRequireReceiver );
+            }
+
+            if ( !chimneyFlip && yI > 100f && ceilingHit.collider != null )
+            {
+                currentFootStepGroundType = ceilingHit.collider.tag;
+                PlayFootStepSound( 0.2f, 0.6f );
+            }
+
+            BroforceObject hitBlock = ceilingHit.collider.gameObject.GetComponent<BroforceObject>();
+            if ( hitBlock != null && hitBlock.health > 0 )
+            {
+                yIT = ceilingHit.point.y - headHeight - base.Y;
+                yI = 0f;
+                jumpTime = 0f;
+            }
+
+            if ( ( canCeilingHang && CanCheckClimbAlongCeiling() && ( up || buttonJump ) ) || hangGrace > 0f )
+            {
+                StartHanging();
+            }
+        }
+
+        protected void StopAttack()
+        {
+            this.hasHitThisAttack = false;
+            this.attackStationary = ( this.attackUpwards = ( this.attackDownwards = ( this.attackForwards = false ) ) );
+            this.attackFrames = 0;
+            base.frame = 0;
+            this.xIAttackExtra = 0f;
+            if ( base.Y > this.groundHeight + 1f )
+            {
+                base.actionState = ActionState.Jumping;
+            }
+            else if ( this.right || this.left )
+            {
+                base.actionState = ActionState.Running;
+            }
+            else
+            {
+                base.actionState = ActionState.Idle;
+            }
+            if ( this.startNewAttack )
+            {
+                this.startNewAttack = false;
+                this.StartFiring();
+            }
+            if ( base.Y < this.groundHeight + 1f )
+            {
+                this.StopAirDashing();
+            }
+            this.canWallClimb = true;
+        }
+
+        protected void AnimateAttackStationary()
+        {
+            // Leg Sweep
+            if ( this.stationaryAttackCounter % 2 == 0 )
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackStationaryStrikeFrame )
+                {
+                    this.frameRate = 0.0667f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.055f;
+                }
+                else
+                {
+                    this.frameRate = 0.055f;
+                }
+                if ( this.attackFrames == 8 )
+                {
+                    if ( this.startNewAttack )
+                    {
+                        this.startNewAttack = false;
+                        this.StartFiring();
+                    }
+                }
+                if ( this.attackFrames == this.attackStationaryStrikeFrame )
+                {
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f, base.transform.localScale.x * 180f, 80f );
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames == this.attackStationaryStrikeFrame + 1 )
+                {
+                    this.xIAttackExtra = 0f;
+                }
+                if ( this.attackFrames >= 8 )
+                {
+                    this.StopAttack();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( num * this.spritePixelWidth, this.spritePixelHeight * 6 );
+                }
+            }
+            // Punch forward
+            else
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackStationaryStrikeFrame )
+                {
+                    this.frameRate = 0.075f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.055f;
+                }
+                else
+                {
+                    this.frameRate = 0.055f;
+                }
+                if ( this.attackFrames == 8 )
+                {
+                    if ( this.startNewAttack )
+                    {
+                        this.startNewAttack = false;
+                        this.StartFiring();
+                    }
+                }
+                if ( this.attackFrames == this.attackStationaryStrikeFrame )
+                {
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f, base.transform.localScale.x * 180f, 80f );
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames == this.attackStationaryStrikeFrame + 1 )
+                {
+                    this.xIAttackExtra = 0f;
+                }
+                if ( this.attackFrames >= 8 )
+                {
+                    this.StopAttack();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( num * this.spritePixelWidth, this.spritePixelHeight * 7 );
+                }
+            }
+        }
+
+        protected void AnimateAttackForwards()
+        {
+            // Sober animation
+            if ( !this.drunk )
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackForwardsStrikeFrame )
+                {
+                    this.frameRate = 0.055f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.065f;
+                }
+                else
+                {
+                    this.frameRate = 0.055f;
+                }
+
+                if ( this.attackFrames < this.attackForwardsStrikeFrame + 1 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+                else if ( this.attackFrames == 8 )
+                {
+                    if ( this.startNewAttack )
+                    {
+                        this.startNewAttack = false;
+                        this.StartFiring();
+                    }
+                }
+
+                if ( this.attackFrames == this.attackForwardsStrikeFrame )
+                {
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f, base.transform.localScale.x * 180f, 80f );
+                    this.PlayAttackSound();
+                }
+                else if ( this.attackFrames == this.attackForwardsStrikeFrame + 1 )
+                {
+                    this.xIAttackExtra = 0f;
+                }
+                if ( this.attackFrames >= 8 )
+                {
+                    this.StopAttack();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * ( 8 + this.attackSpriteRow ) ) );
+                }
+            }
+            // Drunk animation
+            else
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackForwardsStrikeFrame )
+                {
+                    this.frameRate = 0.11f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.075f;
+                }
+                else
+                {
+                    this.frameRate = 0.075f;
+                }
+
+                if ( this.attackFrames < this.attackForwardsStrikeFrame + 1 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+                else if ( this.attackFrames == 8 )
+                {
+                    if ( this.startNewAttack )
+                    {
+                        this.startNewAttack = false;
+                        this.StartFiring();
+                    }
+                }
+
+                // Spin attack
+                if ( this.attackSpriteRow == 0 )
+                {
+                    if ( this.attackFrames > 2 && this.attackFrames < 8 )
+                    {
+                        this.xIAttackExtra = attackDirection * 275f;
+                    }
+                    else
+                    {
+                        this.xIAttackExtra = 0f;
+                    }
+                }
+                // Fist attack
+                else
+                {
+                    if ( this.attackFrames > 1 && this.attackFrames < 7 && !this.attackHasHit )
+                    {
+                        this.xIAttackExtra = attackDirection * 275f;
+                    }
+                    else
+                    {
+                        this.xIAttackExtra = 0f;
+                    }
+                }
+
+
+                if ( this.attackFrames == this.attackForwardsStrikeFrame )
+                {
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 3f, base.transform.localScale.x * 180f, 80f );
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames >= 8 )
+                {
+                    this.StopAttack();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * ( 8 + this.attackSpriteRow ) ) );
+                }
+            }
+        }
+
+        protected void AnimateAttackUpwards()
+        {
+            // Sober animation
+            if ( !this.drunk )
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackUpwardsStrikeFrame )
+                {
+                    this.frameRate = 0.075f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.065f;
+                }
+                else
+                {
+                    this.frameRate = 0.065f;
+                }
+                if ( this.attackFrames == this.attackUpwardsStrikeFrame )
+                {
+                    this.xI = base.transform.localScale.x * 50f;
+                    this.yI = 240f;
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames < this.attackUpwardsStrikeFrame + 2 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+                if ( this.startNewAttack && this.attackFrames == this.attackUpwardsStrikeFrame + 1 )
+                {
+                    this.startNewAttack = false;
+                    this.StartFiring();
+                }
+                if ( this.hasHitThisAttack && this.attackFrames == 6 )
+                {
+                    this.xIAttackExtra = 0f;
+                    this.postAttackHitPauseTime = 0.25f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                if ( this.attackFrames >= 10 || ( this.attackFrames == 8 && this.startNewAttack ) )
+                {
+                    this.StopAttack();
+                    this.ChangeFrame();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
+                }
+            }
+            // Drunk animation
+            else
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackUpwardsStrikeFrame )
+                {
+                    this.frameRate = 0.1f;
+                }
+                else if ( this.attackFrames < 5 )
+                {
+                    this.frameRate = 0.11f;
+                }
+                else
+                {
+                    this.frameRate = 0.075f;
+                }
+                if ( this.attackFrames == this.attackUpwardsStrikeFrame )
+                {
+                    this.xI = base.transform.localScale.x * 50f;
+                    this.yI = 325f;
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames < this.attackUpwardsStrikeFrame + 2 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+                if ( this.startNewAttack && this.attackFrames == this.attackUpwardsStrikeFrame + 1 )
+                {
+                    this.startNewAttack = false;
+                    this.StartFiring();
+                }
+                if ( this.hasHitThisAttack && this.attackFrames == 6 )
+                {
+                    this.xIAttackExtra = 0f;
+                    this.postAttackHitPauseTime = 0.25f;
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                if ( this.attackFrames >= 10 || ( this.attackFrames == 8 && this.startNewAttack ) )
+                {
+                    this.StopAttack();
+                    this.ChangeFrame();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
+                }
+            }
+        }
+
+        protected void AnimateAttackDownwards()
+        {
+            if ( !this.drunk )
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackDownwardsStrikeFrame )
+                {
+                    this.frameRate = 0.0767f;
+                }
+                else if ( this.attackFrames <= 5 )
+                {
+                    this.frameRate = 0.0767f;
+                }
+                else
+                {
+                    this.frameRate = 0.06f;
+                }
+                if ( this.attackFrames < this.attackDownwardsStrikeFrame + 2 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+                if ( this.startNewAttack && this.attackFrames == this.attackDownwardsStrikeFrame + 1 )
+                {
+                    this.startNewAttack = false;
+                    this.StartFiring();
+                }
+                if ( this.attackFrames == this.attackDownwardsStrikeFrame )
+                {
+                    if ( !this.usingSpecial || !this.hasHitThisAttack )
+                    {
+                        this.yI = -250f;
+                    }
+                    this.xI = base.transform.localScale.x * 60f;
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames >= 9 || ( this.attackFrames == 6 && this.startNewAttack ) )
+                {
+                    this.StopAttack();
+                    this.ChangeFrame();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 11 ) );
+                }
+                if ( this.attackFrames == 7 && this.usingSpecial )
+                {
+                    if ( !this.hasHitThisAttack )
+                    {
+                        this.usingSpecial = false;
+                    }
+                    if ( this.usingSpecial )
+                    {
+                        this.UseSpecial();
+                    }
+                }
+            }
+            else
+            {
+                this.DeactivateGun();
+                if ( this.attackFrames < this.attackDownwardsStrikeFrame )
+                {
+                    this.frameRate = 0.19f;
+                }
+                else if ( this.attackFrames <= 5 )
+                {
+                    this.frameRate = 0.08f;
+                }
+                else
+                {
+                    this.frameRate = 0.08f;
+                }
+                if ( this.attackFrames < this.attackDownwardsStrikeFrame + 2 )
+                {
+                    this.CreateFaderTrailInstance();
+                }
+
+                // Hold frame until hitting ground
+                if ( !this.hasHitThisAttack && this.attackFrames > 5 )
+                {
+                    this.attackFrames = 5;
+                }
+
+                if ( this.attackFrames == this.attackDownwardsStrikeFrame )
+                {
+                    if ( !this.usingSpecial || !this.hasHitThisAttack )
+                    {
+                        this.yI = -300f;
+                    }
+                    this.xI = base.transform.localScale.x * 60f;
+                    this.PlayAttackSound();
+                }
+                if ( this.attackFrames >= 9 )
+                {
+                    this.StopAttack();
+                    this.ChangeFrame();
+                }
+                else
+                {
+                    int num = 24 + Mathf.Clamp( this.attackFrames, 0, 7 );
+                    this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 11 ) );
+                }
+            }
+        }
+
+        protected override void IncreaseFrame()
+        {
+            base.IncreaseFrame();
+            if ( this.attackStationary || this.attackUpwards || this.attackDownwards || this.attackForwards )
+            {
+                this.attackFrames++;
+            }
+        }
+
+        protected override void ChangeFrame()
+        {
+            if ( this.health <= 0 || this.chimneyFlip )
+            {
+                base.ChangeFrame();
+            }
+            else if ( this.attackStationary )
+            {
+                this.AnimateAttackStationary();
+            }
+            else if ( this.attackUpwards )
+            {
+                this.AnimateAttackUpwards();
+            }
+            else if ( this.attackDownwards )
+            {
+                this.AnimateAttackDownwards();
+            }
+            else if ( this.attackForwards )
+            {
+                this.AnimateAttackForwards();
+            }
+            else
+            {
+                base.ChangeFrame();
+            }
+        }
+
+        protected override void AnimateZipline()
+        {
+            base.AnimateZipline();
+            this.SetGunSprite( this.gunFrame, 0 );
+        }
+
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
+        {
+            base.SetGunSprite( spriteFrame, spriteRow );
+        }
+
+        protected override void CreateFaderTrailInstance()
+        {
+            FaderSprite component = this.faderSpritePrefab.GetComponent<FaderSprite>();
+            FaderSprite faderSprite = EffectsController.InstantiateEffect( component, base.transform.position, base.transform.rotation ) as FaderSprite;
+            if ( faderSprite != null )
+            {
+                faderSprite.transform.localScale = base.transform.localScale;
+                faderSprite.SetMaterial( base.GetComponent<Renderer>().material, this.sprite.lowerLeftPixel, this.sprite.pixelDimensions, this.sprite.offset );
+                faderSprite.fadeM = 0.15f;
+                faderSprite.maxLife = 0.15f;
+                faderSprite.moveForwards = true;
+            }
+        }
+
+        protected override void FireFlashAvatar()
+        {
+            // Call base FlashAvatar to cause rumble
+            base.FireFlashAvatar();
+            this.avatarGunFireTime = 0.1f;
+            HeroController.SetAvatarFireFrame( base.playerNum, UnityEngine.Random.Range( 5, 8 ) );
+        }
+
+        protected override void RunAvatarFiring()
+        {
+            if ( this.health > 0 )
+            {
+                if ( this.avatarGunFireTime > 0f )
+                {
+                    this.avatarGunFireTime -= this.t;
+                    if ( this.avatarGunFireTime <= 0f )
+                    {
+                        if ( this.avatarAngryTime > 0f )
+                        {
+                            HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                        }
+                        else
+                        {
+                            HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
+                        }
+                    }
+                }
+                if ( this.fire )
+                {
+                    if ( !this.wasFire && this.avatarGunFireTime <= 0f )
+                    {
+                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                    }
+                    if ( this.fire )
+                    {
+                        if ( this.gunFrame > 0 || this.attackFrames > 0 )
+                        {
+                            this.avatarAngryTime = 0.1f;
+                        }
+                        else
+                        {
+                            this.avatarAngryTime = 0f;
+                            HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
+                        }
+                    }
+                }
+                else if ( this.avatarAngryTime > 0f )
+                {
+                    this.avatarAngryTime -= this.t;
+                    if ( this.avatarAngryTime <= 0f )
+                    {
+                        HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
+                    }
+                }
+            }
+        }
+
+        protected void ClearCurrentAttackVariables()
+        {
+            this.alreadyHit.Clear();
+            this.hasHitWithFists = false;
+            this.attackHasHit = false;
+            this.hasHitWithWall = false;
+        }
+
+        private void TimeBump()
+        {
+            TimeController.StopTime( 0.025f, 0.1f, 0f, false, false, false );
+        }
+
+        private void MakeKungfuSound()
+        {
+            if ( Time.time - this.lastSoundTime > 0.3f )
+            {
+                this.lastSoundTime = Time.time;
+                // TODO: Add kung fu noises from bro lee
+                //Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
+            }
+        }
+
+        protected override void PlayAttackSound()
+        {
+            // TODO: Add attack sound
+            //base.PlayAttackSound();
+        }
+
+        public void PlayFistSound()
+        {
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            if ( this.sound != null )
+            {
+                // TODO: Add fist hit sound
+                //this.sound.PlaySoundEffectAt(this.soundHolder.special2Sounds, this.sliceVolume, base.transform.position, 1f, true, false, false, 0f);
+            }
+        }
+
+        public void PlayWallSound()
+        {
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            if ( this.sound != null )
+            {
+                // TODO: Add wall sound, whatever that is, check brocsnipes or bro lee's attack2sounds 
+                //this.sound.PlaySoundEffectAt(this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f);
+            }
+        }
+
+        protected override void PlayAidDashSound()
+        {
+            // TODO: Add air dash sound
+            //this.PlaySpecialAttackSound(0.5f);
+        }
+        #endregion
+
+        #region Melee
+        protected void ThrowHeldItem()
+        {
+
+        }
+
+        protected override void StartCustomMelee()
+        {
+            if ( this.CanStartNewMelee() )
+            {
+                base.frame = 1;
+                base.counter = -0.05f;
+                this.AnimateMelee();
+            }
+            else if ( this.CanStartMeleeFollowUp() )
+            {
+                this.meleeFollowUp = true;
+            }
+            if ( !this.jumpingMelee )
+            {
+                this.dashingMelee = true;
+                this.xI = (float)base.Direction * this.speed;
+            }
+            this.StartMeleeCommon();
+        }
+
+        protected override void AnimateCustomMelee()
+        {
+            this.AnimateMeleeCommon();
+            int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
+            int num2 = 1;
+            if ( !this.standingMelee )
+            {
+                if ( this.jumpingMelee )
+                {
+                    num = 17 + Mathf.Clamp( base.frame, 0, 6 );
+                    num2 = 6;
+                }
+                else if ( this.dashingMelee )
+                {
+                    num = 17 + Mathf.Clamp( base.frame, 0, 6 );
+                    num2 = 6;
+                    if ( base.frame == 4 )
+                    {
+                        base.counter -= 0.0334f;
+                    }
+                    else if ( base.frame == 5 )
+                    {
+                        base.counter -= 0.0334f;
+                    }
+                }
+            }
+            this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
+            if ( base.frame == 3 )
+            {
+                base.counter -= 0.066f;
+                this.PerformKnifeMeleeAttack( true, true );
+            }
+            else if ( base.frame > 3 && !this.meleeHasHit )
+            {
+                this.PerformKnifeMeleeAttack( false, false );
+            }
+            if ( base.frame >= 6 )
+            {
+                base.frame = 0;
+                this.CancelMelee();
+            }
+        }
+
+        protected override void RunCustomMeleeMovement()
+        {
+            if ( !this.useNewKnifingFrames )
+            {
+                if ( base.Y > this.groundHeight + 1f )
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if ( this.jumpingMelee )
+            {
+                this.ApplyFallingGravity();
+                if ( this.yI < this.maxFallSpeed )
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+            }
+            else if ( this.dashingMelee )
+            {
+                if ( base.frame <= 1 )
+                {
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                else if ( base.frame <= 3 )
+                {
+                    if ( this.meleeChosenUnit == null )
+                    {
+                        if ( !this.isInQuicksand )
+                        {
+                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                        }
+                        this.yI = 0f;
+                    }
+                    else if ( !this.isInQuicksand )
+                    {
+                        this.xI = this.speed * 0.5f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 6f;
+                    }
+                }
+                else if ( base.frame <= 5 )
+                {
+                    if ( !this.isInQuicksand )
+                    {
+                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
+                    }
+                    this.ApplyFallingGravity();
+                }
+                else
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if ( base.Y > this.groundHeight + 1f )
+            {
+                this.CancelMelee();
+            }
+        }
+        #endregion
+
+        #region Special
+        // Animate drunk idle
+        public override void AnimateActualIdleFrames()
+        {
+            if ( this.drunk && this.gunFrame <= 0 && !this.fire )
+            {
+                this.SetSpriteOffset( 0f, 0f );
+                this.DeactivateGun();
+                this.frameRate = 0.14f;
+                int num = base.frame % 7;
+                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 9 ) );
+            }
+            else
+            {
+                base.AnimateActualIdleFrames();
+            }
+        }
+
+        protected override void AnimateActualNewRunningFrames()
+        {
+            this.frameRate = ( this.isInQuicksand ? ( this.runningFrameRate * 3f ) : this.runningFrameRate );
+            if ( this.IsSurroundedByBarbedWire() )
+            {
+                this.frameRate *= 2f;
+            }
+            if ( this.drunk && !this.dashing )
+            {
+                this.frameRate = 0.07f;
+            }
+            int num = base.frame % 8;
+            if ( base.frame % 4 == 0 && !FluidController.IsSubmerged( this ) )
+            {
+                EffectsController.CreateFootPoofEffect( base.X, base.Y + 2f, 0f, Vector3.up * 1f - Vector3.right * base.transform.localScale.x * 60.5f, this.GetFootPoofColor() );
+            }
+            if ( base.frame % 4 == 0 && !this.ledgeGrapple )
+            {
+                this.PlayFootStepSound();
+            }
+            this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( ( !this.dashing || !this.useDashFrames ) ? ( this.spritePixelHeight * 2 ) : ( this.spritePixelHeight * 4 ) ) );
+            if ( this.gunFrame <= 0 && !this.doingMelee )
+            {
+                this.SetGunSprite( num, 1 );
+            }
+        }
+
+        private bool IsWalking()
+        {
+            return base.Y < this.groundHeight + 0.5f && this.yI < 10f;
+        }
+
+        protected override void PressSpecial()
+        {
+            // Make sure we aren't holding anything before drinking
+            if ( this.currentItem == MeleeItem.None )
+            {
+                if ( this.SpecialAmmo > 0 )
+                {
+                    this.wasDrunk = false;
+                    base.PressSpecial();
+                }
+                else
+                {
+                    HeroController.FlashSpecialAmmo( base.playerNum );
+                }
+            }
+            // Throw held item
+            else
+            {
+                this.ThrowHeldItem();
+            }
+        }
+
+        protected override void AnimateSpecial()
+        {
+            this.SetSpriteOffset( 0f, 0f );
+            this.DeactivateGun();
+            this.invulnerable = true;
+            this.invulnerableTime = 0.3f;
+            // Animate drinking to become drunk
+            if ( !this.wasDrunk )
+            {
+                this.frameRate = 0.1f;
+                this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
+                if ( this.usingSpecialFrame < 10 && this.IsWalking() )
+                {
+                    this.speed = 0f;
+                }
+                else
+                {
+                    this.speed = this.originalSpeed;
+                }
+                if ( this.usingSpecialFrame == 4 )
+                {
+                    this.frameRate = 0.35f;
+                    this.PlayDrinkingSound();
+                }
+                else if ( this.usingSpecialFrame == 6 )
+                {
+                    this.frameRate = 0.15f;
+                    this.UseSpecial();
+                }
+                else if ( this.usingSpecialFrame >= 7 )
+                {
+                    this.frameRate = 0.2f;
+                    this.StopUsingSpecial();
+                    return;
+                }
+                this.usingSpecialFrame++;
+            }
+            // Animate becoming sober
+            else
+            {
+                this.frameRate = 0.11f;
+                this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
+                if ( this.usingSpecialFrame < 11 && this.IsWalking() )
+                {
+                    this.speed = 0f;
+                }
+                else
+                {
+                    this.speed = this.originalSpeed;
+                }
+
+                if ( this.usingSpecialFrame == 1 )
+                {
+                    this.frameRate = 0.2f;
+                }
+                else if ( this.usingSpecialFrame == 6 )
+                {
+                    this.UseSpecial();
+                }
+                else if ( this.usingSpecialFrame >= 10 )
+                {
+                    this.StopUsingSpecial();
+                    return;
+                }
+                this.usingSpecialFrame++;
+            }
+        }
+
+        protected void PlayDrinkingSound()
+        {
+            this.sound.PlaySoundEffectAt( this.slurp, 0.35f, base.transform.position, 1f, true, false, true, 0f );
+        }
+
+        protected override void UseSpecial()
+        {
+            if ( !this.wasDrunk )
+            {
+                this.BecomeDrunk();
+                --this.SpecialAmmo;
+            }
+            else
+            {
+                this.BecomeSober();
+            }
+        }
+
+        protected void StopUsingSpecial()
+        {
+            base.frame = 0;
+            this.usingSpecialFrame = 0;
+            this.usingSpecial = false;
+            this.ActivateGun();
+            this.ChangeFrame();
+            this.speed = this.originalSpeed;
+        }
+
+        protected void BecomeDrunk()
+        {
+            base.GetComponent<Renderer>().material = this.drunkSprite;
+            // TODO: revert drunk counter
+            //this.drunkCounter = maxDrunkTime;
+            this.drunkCounter = 1000;
+            this.drunk = true;
+            this.speed = this.originalSpeed = 110;
+            this.enemyFistDamage = 11;
+            this.groundFistDamage = 10;
+            this.attackDownwardsStrikeFrame = 2;
+        }
+
+        protected bool TryToBecomeSober()
+        {
+            if ( !hasBeenCoverInAcid && !doingMelee && !usingSpecial )
+            {
+                this.wasDrunk = true;
+                this.usingSpecial = true;
+                base.frame = 0;
+                this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                return true;
+            }
+            return false;
+        }
+
+        protected void BecomeSober()
+        {
+            base.GetComponent<Renderer>().material = this.normalSprite;
+            this.drunkCounter = 0;
+            this.drunk = false;
+            this.speed = this.originalSpeed = 130;
+            this.enemyFistDamage = 5;
+            this.groundFistDamage = 5;
+            this.attackDownwardsStrikeFrame = 3;
+        }
+        #endregion
+
+        #region Movement
         protected override void StopAirDashing()
         {
             base.StopAirDashing();
@@ -333,7 +2005,7 @@ namespace Drunken_Broster
 
         protected override void RunMovement()
         {
-            if (this.health <= 0)
+            if ( this.health <= 0 )
             {
                 this.xIAttackExtra = 0f;
             }
@@ -349,26 +2021,21 @@ namespace Drunken_Broster
             }
         }
 
-        protected override void SetGunPosition(float xOffset, float yOffset)
-        {
-            this.gunSprite.transform.localPosition = new Vector3(xOffset, yOffset, -1f);
-        }
-
         protected override void ApplyFallingGravity()
         {
-            if (this.postAttackHitPauseTime < 0f)
+            if ( this.postAttackHitPauseTime < 0f )
             {
-                if (this.chimneyFlip || this.isInQuicksand)
+                if ( this.chimneyFlip || this.isInQuicksand )
                 {
                     base.ApplyFallingGravity();
                 }
-                else if (!this.attackForwards)
+                else if ( !this.attackForwards )
                 {
-                    if (this.attackDownwards && this.attackFrames < this.attackDownwardsStrikeFrame)
+                    if ( this.attackDownwards && this.attackFrames < this.attackDownwardsStrikeFrame )
                     {
                         this.yI -= 1100f * this.t * 0.3f;
                     }
-                    else if (this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame)
+                    else if ( this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame )
                     {
                         this.yI -= 1100f * this.t * 0.5f;
                     }
@@ -406,10 +2073,10 @@ namespace Drunken_Broster
         protected override void AddSpeedLeft()
         {
             // Don't add speed left if attacking forward facing right
-            if (!(this.attackForwards && this.attackDirection == 1) && this.CanAddXSpeed())
+            if ( !( this.attackForwards && this.attackDirection == 1 ) && this.CanAddXSpeed() )
             {
                 base.AddSpeedLeft();
-                if (this.attackForwards && this.attackFrames > 4 && this.xI < -this.speed * 0.5f)
+                if ( this.attackForwards && this.attackFrames > 4 && this.xI < -this.speed * 0.5f )
                 {
                     this.xI = -this.speed * 0.5f;
                 }
@@ -419,696 +2086,48 @@ namespace Drunken_Broster
         protected override void AddSpeedRight()
         {
             // Don't add speed right if attacking forward facing left
-            if (!(this.attackForwards && this.attackDirection == -1) && this.CanAddXSpeed())
+            if ( !( this.attackForwards && this.attackDirection == -1 ) && this.CanAddXSpeed() )
             {
                 base.AddSpeedRight();
-                if (this.attackForwards && this.attackFrames > 4 && this.xI > this.speed * 0.5f)
+                if ( this.attackForwards && this.attackFrames > 4 && this.xI > this.speed * 0.5f )
                 {
                     this.xI = this.speed * 0.5f;
                 }
             }
         }
 
-        public bool HitUnitsStationaryAttack(MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits)
-        {
-            if (Map.units == null)
-            {
-                return false;
-            }
-            bool result = false;
-            bool flag = false;
-            int num = 999999;
-            for (int i = Map.units.Count - 1; i >= 0; i--)
-            {
-                Unit unit = Map.units[i];
-                if (unit != null && GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) && !unit.invulnerable && unit.health <= num)
-                {
-                    float f = unit.X - x;
-                    if (Mathf.Abs(f) - xRange < unit.width)
-                    {
-                        float num2 = unit.Y + unit.height / 2f + 3f - y;
-                        if (Mathf.Abs(num2) - yRange < unit.height && !alreadyHitUnits.Contains(unit))
-                        {
-                            alreadyHitUnits.Add(unit);
-                            if (!penetrates && unit.health > 0)
-                            {
-                                num = 0;
-                                flag = true;
-                            }
-                            // Send units hit in midair away rather than up
-                            if (!unit.IsOnGround())
-                            {
-                                yI *= this.drunk ? 1.5f : 1.25f;
-                                xI = yI * base.transform.localScale.x * 0.7f;
-                                yI *= 0.25f;
-                            }
-                            if (!canGib && unit.health <= 0)
-                            {
-                                Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            else if (unit.health <= 0)
-                            {
-                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(corpseDamage, playerNum), damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            else
-                            {
-                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(damage, playerNum), damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            result = true;
-                            if (flag)
-                            {
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
-        public bool HitUnits(MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
-        {
-            if (Map.units == null)
-            {
-                return false;
-            }
-            bool result = false;
-            bool flag = false;
-            int num = 999999;
-            for (int i = Map.units.Count - 1; i >= 0; i--)
-            {
-                Unit unit = Map.units[i];
-                if (unit != null && GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) && !unit.invulnerable && unit.health <= num)
-                {
-                    float f = unit.X - x;
-                    if (Mathf.Abs(f) - xRange < unit.width)
-                    {
-                        float num2 = unit.Y + unit.height / 2f + 3f - y;
-                        if (Mathf.Abs(num2) - yRange < unit.height && !alreadyHitUnits.Contains(unit))
-                        {
-                            alreadyHitUnits.Add(unit);
-                            if (!penetrates && unit.health > 0)
-                            {
-                                num = 0;
-                                flag = true;
-                            }
-                            // Send units hit in midair further
-                            if ( !unit.IsOnGround() )
-                            {
-                                xI *= this.drunk ? 3.0f : 2.5f;
-                                yI *= this.drunk ? 1.5f : 1.25f;
-                            }
-                            if (!canGib && unit.health <= 0)
-                            {
-                                Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            else if (unit.health <= 0)
-                            {
-                                Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(corpseDamage, playerNum), damageType, xI, 1.25f * yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            else
-                            {
-                                damage = ValueOrchestrator.GetModifiedDamage(damage, playerNum);
-                                // Don't allow instagibs
-                                if ( damage > unit.health )
-                                {
-                                    damage = unit.health;
-                                }
-                                Map.KnockAndDamageUnit(damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
-                            }
-                            result = true;
-                            if (flag)
-                            {
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
-        protected void DeflectProjectiles()
-        {
-            if (Map.DeflectProjectiles(this, base.playerNum, 10f, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 6f, Mathf.Sign(base.transform.localScale.x) * 200f, true))
-            {
-                if (!this.hasHitWithWall)
-                {
-                    this.PlayWallSound();
-                }
-                this.hasHitWithWall = true;
-                this.attackHasHit = true;
-            }
-        }
-
-        protected override void HitCeiling(RaycastHit ceilingHit)
-        {
-            base.HitCeiling(ceilingHit);
-            if (this.attackUpwards)
-            {
-                if (!this.attackHasHit && this.attackFrames < 7)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs(this.yI * this.t), base.transform.localScale.x * 80f, 100f);
-                }
-                if (!this.attackHasHit && this.attackFrames < 7)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs(this.yI * this.t), base.transform.localScale.x * 80f, 100f);
-                }
-                this.attackUpwards = false;
-                this.attackFrames = 0;
-            }
-        }
-        
-        protected override void StartFiring()
-        {
-            // Don't allow attacking while drinking / becoming sober
-            if ( this.usingSpecial )
-            {
-                return;
-            }
-            this.startNewAttack = false;
-            this.hasPlayedAttackHitSound = false;
-            this.hasHitWithWall = false;
-            this.hasHitWithFists = false;
-            // Buffering attack
-            if (this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary )
-            {
-                this.startNewAttack = true;
-            }
-            // Upward Attack Start
-            else if (this.up && !this.hasAttackedUpwards)
-            {
-                this.StartAttackUpwards();
-            }
-            // Downward Attack Start
-            else if (this.down && !this.hasAttackedDownwards)
-            {
-                this.StartAttackDownwards();
-            }
-            // Forward Attack Left Start
-            else if (this.left && !this.hasAttackedForwards)
-            {
-                this.StartAttackForwardsLeft();
-            }
-            // Forward Attack Right Start
-            else if (this.right && !this.hasAttackedForwards)
-            {
-                this.StartAttackForwardsRight();
-            }
-            // Stationary Attack Start
-            else if ( !this.up && !this.down && !this.left && !this.right )
-            {
-                this.StartAttackStationary();
-            }
-        }
-
-        protected void StartAttackUpwards()
-        {
-            if (base.actionState == ActionState.ClimbingLadder)
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            this.FireFlashAvatar();
-            this.MakeKungfuSound();
-            this.StopAttack();
-            if (this.yI > 50f)
-            {
-                this.yI = 50f;
-            }
-            this.jumpTime = 0f;
-            this.hasAttackedUpwards = true;
-            this.attackFrames = 0;
-            this.attackUpwards = true;
-            this.ChangeFrame();
-            this.airdashDirection = DirectionEnum.Up;
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected void StartAttackDownwards()
-        {
-            base.actionState = ActionState.Jumping;
-            this.StopAttack();
-            this.FireFlashAvatar();
-            if (!this.drunk)
-            {
-                this.yI = 150f;
-                this.xI = base.transform.localScale.x * 80f;
-            }
-            else
-            {
-                this.yI = 200f;
-                this.xI = base.transform.localScale.x * 80f;
-                this.canWallClimb = false;
-            }
-            this.MakeKungfuSound();
-            this.hasAttackedDownwards = true;
-            this.attackFrames = 0;
-            this.attackDownwards = true;
-            this.jumpTime = 0f;
-            this.ChangeFrame();
-            this.airdashDirection = DirectionEnum.Down;
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected void StartAttackForwardsLeft()
-        {
-            this.FireFlashAvatar();
-            this.attackSpriteRow = (this.attackSpriteRow + 1) % 2;
-            if (base.actionState == ActionState.ClimbingLadder)
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            if ((this.attackForwards || this.attackUpwards || this.attackDownwards) && !this.hasHitThisAttack)
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = 20f;
-                }
-            }
-            else if ((this.attackForwards || this.attackUpwards || this.attackDownwards) && this.hasHitThisAttack)
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = -300f;
-                }
-                this.MakeKungfuSound();
-            }
-            else
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = -200f;
-                }
-                this.MakeKungfuSound();
-            }
-            this.postAttackHitPauseTime = 0f;
-            this.hasAttackedForwards = true;
-            this.attackFrames = 0;
-            this.yI = 0f;
-            this.attackForwards = true;
-            this.attackDirection = -1;
-            this.jumpTime = 0f;
-            this.ChangeFrame();
-            this.CreateFaderTrailInstance();
-            this.airdashDirection = DirectionEnum.Left;
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected void StartAttackForwardsRight()
-        {
-            this.attackSpriteRow = (this.attackSpriteRow + 1) % 2;
-            this.FireFlashAvatar();
-            if (base.actionState == ActionState.ClimbingLadder)
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            if ((this.attackForwards || this.attackUpwards || this.attackDownwards) && !this.hasHitThisAttack)
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = -20f;
-                }
-            }
-            else if ((this.attackForwards || this.attackUpwards || this.attackDownwards) && this.hasHitThisAttack)
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = 300f;
-                }
-                this.MakeKungfuSound();
-            }
-            else
-            {
-                this.StopAttack();
-                if (!this.drunk)
-                {
-                    this.xIAttackExtra = 200f;
-                }
-                this.MakeKungfuSound();
-            }
-            this.hasAttackedForwards = true;
-            this.postAttackHitPauseTime = 0f;
-            this.attackFrames = 0;
-            this.yI = 0f;
-            this.attackForwards = true;
-            this.attackDirection = 1;
-            this.jumpTime = 0f;
-            this.ChangeFrame();
-            this.CreateFaderTrailInstance();
-            this.airdashDirection = DirectionEnum.Right;
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected void StartAttackStationary()
-        {
-            this.FireFlashAvatar();
-            if (base.actionState == ActionState.ClimbingLadder)
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            this.StopAttack();
-            this.MakeKungfuSound();
-            this.postAttackHitPauseTime = 0f;
-            this.attackFrames = 0;
-            this.attackStationary = true;
-            this.jumpTime = 0f;
-            this.ChangeFrame();
-            //this.CreateFaderTrailInstance();
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected override void RunFiring()
-        {
-            if (this.fire)
-            {
-                this.rollingFrames = 0;
-            }
-            if (this.attackStationary || this.attackUpwards || this.attackForwards || this.attackDownwards)
-            {
-                if (!this.attackHasHit)
-                {
-                    if (this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame - 1)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    else if (this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame - 1)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    else if (this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame - 1)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    else if (this.attackDownwards && this.attackFrames >= this.attackDownwardsStrikeFrame - 1)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                }
-                // Stationary Attack
-                if (this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame && this.attackFrames <= 5)
-                {
-                    bool flag;
-                    Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
-                    this.lastAttackingTime = Time.time;
-                    // Sober Attack
-                    if (!this.drunk)
-                    {
-                        if (HitUnitsStationaryAttack(this, base.playerNum, this.enemyFistDamage + 1, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit))
-                        {
-                            if (!this.hasHitWithFists)
-                            {
-                                this.PlayFistSound();
-                            }
-                            this.hasHitWithFists = true;
-                            this.attackHasHit = true;
-                            this.hasAttackedDownwards = false;
-                            this.hasAttackedUpwards = false;
-                            this.hasAttackedForwards = false;
-                            this.hasHitThisAttack = true;
-                            this.TimeBump();
-                            this.xIAttackExtra = 0f;
-                            this.postAttackHitPauseTime = 0.2f;
-                            //if (this.drunk)
-                            //{
-                            //    HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                            //}
-                            this.xI = 0f;
-                            this.yI = 0f;
-                            for (int i = 0; i < this.alreadyHit.Count; i++)
-                            {
-                                this.alreadyHit[i].FrontSomersault();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // TODO: decide what to do for drunk stationary attack
-                    }
-                    
-                    if (!this.attackHasHit)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    if (!this.attackHasHit)
-                    {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 9f, base.transform.localScale.x * 180f, 80f);
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3(base.transform.localScale.x, 0f, 0f), 9f, base.transform.localScale.x * 180f, 80f);
-                    }
-                }
-                // Forwards Attack
-                else if (this.attackForwards && this.attackFrames >= this.attackForwardsStrikeFrame - 1 && this.attackFrames <= 5)
-                {
-                    bool flag;
-                    Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null);
-                    this.lastAttackingTime = Time.time;
-                    // Sober attack
-                    if (!this.drunk)
-                    {
-                        if (HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 8f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit))
-                        {
-                            if (!this.hasHitWithFists)
-                            {
-                                this.PlayFistSound();
-                            }
-                            this.hasHitWithFists = true;
-                            this.attackHasHit = true;
-                            this.hasAttackedDownwards = false;
-                            this.hasAttackedUpwards = false;
-                            this.hasAttackedForwards = false;
-                            this.hasHitThisAttack = true;
-                            this.TimeBump();
-                            this.xIAttackExtra = 0f;
-                            this.postAttackHitPauseTime = 0.2f;
-                            this.xI = 0f;
-                            this.yI = 0f;
-                            for (int i = 0; i < this.alreadyHit.Count; i++)
-                            {
-                                this.alreadyHit[i].BackSomersault(false);
-                            }
-                        }
-                    }
-                    // Drunk attack
-                    else
-                    {
-                        // Spin attack
-                        if (this.attackSpriteRow == 0)
-                        {
-                            if (HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 4f, 10f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 220f, 450f, true, true, false, this.alreadyHit))
-                            {
-                                if (!this.hasHitWithFists)
-                                {
-                                    this.PlayFistSound();
-                                }
-                                this.hasHitWithFists = true;
-                                this.attackHasHit = true;
-                                this.hasAttackedDownwards = false;
-                                this.hasAttackedUpwards = false;
-                                this.hasAttackedForwards = false;
-                                this.hasHitThisAttack = true;
-                                //this.TimeBump();
-                                //this.postAttackHitPauseTime = 0.1f;
-                                HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                                //this.xI = 0f;
-                                //this.yI = 0f;
-                                for (int i = 0; i < this.alreadyHit.Count; i++)
-                                {
-                                    this.alreadyHit[i].BackSomersault(false);
-                                }
-                            }
-                        }
-                        // Fist attack
-                        else
-                        {
-                            if (HitUnits(this, base.playerNum, this.enemyFistDamage + 4, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit))
-                            {
-                                if (!this.hasHitWithFists)
-                                {
-                                    this.PlayFistSound();
-                                }
-                                this.hasHitWithFists = true;
-                                this.attackHasHit = true;
-                                this.hasAttackedDownwards = false;
-                                this.hasAttackedUpwards = false;
-                                this.hasAttackedForwards = false;
-                                this.hasHitThisAttack = true;
-                                this.TimeBump();
-                                this.xIAttackExtra = 0f;
-                                this.postAttackHitPauseTime = 0.2f;
-                                HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                                this.xI = 0f;
-                                this.yI = 0f;
-                                for (int i = 0; i < this.alreadyHit.Count; i++)
-                                {
-                                    this.alreadyHit[i].BackSomersault(false);
-                                }
-                            }
-                        }
-
-                    }
-                    if (!this.attackHasHit)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    if (!this.attackHasHit)
-                    {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 9f, base.transform.localScale.x * 180f, 80f);
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3(base.transform.localScale.x, 0f, 0f), 9f, base.transform.localScale.x * 180f, 80f);
-                    }
-                }
-                // Upwards Attack
-                else if (this.attackUpwards && this.attackFrames >= this.attackUpwardsStrikeFrame && this.attackFrames <= 5)
-                {
-                    bool flag2;
-                    Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out flag2, null);
-                    this.lastAttackingTime = Time.time;
-                    if (HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit))
-                    {
-                        if (!this.hasHitWithFists)
-                        {
-                            this.PlayFistSound();
-                        }
-                        this.hasHitWithFists = true;
-                        this.attackHasHit = true;
-                        this.hasAttackedDownwards = false;
-                        this.hasAttackedForwards = false;
-                        this.hasHitThisAttack = true;
-                        this.TimeBump();
-                        if (this.drunk)
-                        {
-                            HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                        }
-                    }
-                    if (!this.attackHasHit)
-                    {
-                        this.DeflectProjectiles();
-                    }
-                    if (!this.attackHasHit)
-                    {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x * 0.5f, 1f, 0f), 12f, base.transform.localScale.x * 80f, 280f);
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0.5f, 0f), 12f, base.transform.localScale.x * 80f, 280f);
-                    }
-                }
-                // Downwards Attack
-                else if (this.attackDownwards && this.attackFrames >= this.attackDownwardsStrikeFrame && this.attackFrames <= 6)
-                {
-                    // Sober Attack
-                    if ( !this.drunk )
-                    {
-                        Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out _, null);
-                        this.lastAttackingTime = Time.time;
-                        if (HitUnits(this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 4f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit))
-                        {
-                            if (!this.hasHitWithFists)
-                            {
-                                this.PlayFistSound();
-                            }
-                            this.hasHitWithFists = true;
-                            this.attackHasHit = true;
-                            this.hasAttackedForwards = false;
-                            this.hasAttackedUpwards = false;
-                            this.hasHitThisAttack = true;
-                            this.xIAttackExtra = 0f;
-                            this.TimeBump();
-                            this.postAttackHitPauseTime = 0.25f;
-                            this.xI = 0f;
-                            this.yI = 0f;
-                            if (this.drunk)
-                            {
-                                HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                            }
-                        }
-                        if (!this.attackHasHit)
-                        {
-                            this.DeflectProjectiles();
-                        }
-                        if (!this.attackHasHit)
-                        {
-                            this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x * 0.4f, -1f, 0f), 14f, base.transform.localScale.x * 80f, -180f);
-                            this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3(base.transform.localScale.x * 0.8f, -0.2f, 0f), 12f, base.transform.localScale.x * 80f, -180f);
-                        }
-                    }
-                    // Drunk Attack
-                    else
-                    {
-                        Map.DamageDoodads(3, DamageType.Knifed, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 6f, base.playerNum, out _, null);
-                        this.lastAttackingTime = Time.time;
-                        if (!this.attackHasHit)
-                        {
-                            this.DeflectProjectiles();
-                        }
-                    }
-                }
-            }
-        }
-
-        protected void StopAttack()
-        {
-            this.hasHitThisAttack = false;
-            this.attackStationary = (this.attackUpwards = (this.attackDownwards = (this.attackForwards = false)));
-            this.attackFrames = 0;
-            base.frame = 0;
-            this.xIAttackExtra = 0f;
-            if (base.Y > this.groundHeight + 1f)
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            else if (this.right || this.left)
-            {
-                base.actionState = ActionState.Running;
-            }
-            else
-            {
-                base.actionState = ActionState.Idle;
-            }
-            if (this.startNewAttack)
-            {
-                this.startNewAttack = false;
-                this.StartFiring();
-            }
-            if (base.Y < this.groundHeight + 1f)
-            {
-                this.StopAirDashing();
-            }
-            this.canWallClimb = true;
-        }
-
-        protected override void Jump(bool wallJump)
+        protected override void Jump( bool wallJump )
         {
             // Allow jumping after strike frame on upwards, forwards, and stationary attacks
-            if ((!this.attackUpwards || this.attackFrames > this.attackUpwardsStrikeFrame) && (!this.attackForwards || this.attackFrames > this.attackForwardsStrikeFrame) && (!this.attackStationary || this.attackFrames > this.attackStationaryStrikeFrame || this.hasHitThisAttack))
+            if ( ( !this.attackUpwards || this.attackFrames > this.attackUpwardsStrikeFrame ) && ( !this.attackForwards || this.attackFrames > this.attackForwardsStrikeFrame ) && ( !this.attackStationary || this.attackFrames > this.attackStationaryStrikeFrame || this.hasHitThisAttack ) )
             {
                 // Don't allow jumping during drunk downwards attack
-                if ( !(this.drunk && this.attackDownwards) )
+                if ( !( this.drunk && this.attackDownwards ) )
                 {
-                    base.Jump(wallJump);
+                    base.Jump( wallJump );
                 }
             }
         }
 
         protected override void Land()
         {
-            if (this.attackDownwards)
+            if ( this.attackDownwards )
             {
-                if (!this.drunk)
+                if ( !this.drunk )
                 {
-                    if (!this.attackHasHit && this.attackFrames < 7)
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs(this.yI * this.t), base.transform.localScale.x * 80f, 100f);
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
                     }
-                    if (!this.attackHasHit && this.attackFrames < 7)
+                    if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs(this.yI * this.t), base.transform.localScale.x * 80f, 100f);
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
                     }
                     this.attackDownwards = false;
                     this.attackFrames = 0;
                     base.Land();
                 }
-                else if (!this.hasHitThisAttack)
+                else if ( !this.hasHitThisAttack )
                 {
                     // Fast forward frames if landed early
                     if ( this.attackFrames < 5 )
@@ -1119,17 +2138,17 @@ namespace Drunken_Broster
                     this.attackHasHit = true;
                     this.hasHitThisAttack = true;
                     this.canWallClimb = true;
-                    ExplosionGroundWave explosionGroundWave = EffectsController.CreateShockWave(base.X, base.Y + 4f, 50f);
+                    ExplosionGroundWave explosionGroundWave = EffectsController.CreateShockWave( base.X, base.Y + 4f, 50f );
                     explosionGroundWave.playerNum = 15;
                     explosionGroundWave.avoidObject = this;
                     explosionGroundWave.origins = this;
                     this.invulnerable = true;
-                    if (Map.HitUnits(this, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false))
+                    if ( Map.HitUnits( this, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false ) )
                     {
                     }
-                    MapController.DamageGround(this, 25, DamageType.Crush, 40f, base.X, base.Y + 8f, null, false);
+                    MapController.DamageGround( this, 25, DamageType.Crush, 40f, base.X, base.Y + 8f, null, false );
                     this.invulnerable = false;
-                    this.xI = (this.xIBlast = 0f);
+                    this.xI = ( this.xIBlast = 0f );
                 }
                 else
                 {
@@ -1143,939 +2162,15 @@ namespace Drunken_Broster
         }
 
         // Don't grab laddeer when doing drunk downwards attack
-        protected override bool IsOverLadder(ref float ladderXPos)
+        protected override bool IsOverLadder( ref float ladderXPos )
         {
-            return !(this.drunk && this.attackDownwards) && base.IsOverLadder(ref ladderXPos);
+            return !( this.drunk && this.attackDownwards ) && base.IsOverLadder( ref ladderXPos );
         }
 
         // Don't grab laddeer when doing drunk downwards attack
-        protected override bool IsOverLadder(float xOffset, ref float ladderXPos)
+        protected override bool IsOverLadder( float xOffset, ref float ladderXPos )
         {
-            return !(this.drunk && this.attackDownwards) && base.IsOverLadder(xOffset, ref ladderXPos);
-        }
-
-        protected override void CreateFaderTrailInstance()
-        {
-            FaderSprite component = this.faderSpritePrefab.GetComponent<FaderSprite>();
-            FaderSprite faderSprite = EffectsController.InstantiateEffect(component, base.transform.position, base.transform.rotation) as FaderSprite;
-            if (faderSprite != null)
-            {
-                faderSprite.transform.localScale = base.transform.localScale;
-                faderSprite.SetMaterial(base.GetComponent<Renderer>().material, this.sprite.lowerLeftPixel, this.sprite.pixelDimensions, this.sprite.offset);
-                faderSprite.fadeM = 0.15f;
-                faderSprite.maxLife = 0.15f;
-                faderSprite.moveForwards = true;
-            }
-        }
-
-        protected void AnimateAttackStationary()
-        {
-            // Sober animation
-            if ( !this.drunk )
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackStationaryStrikeFrame)
-                {
-                    this.frameRate = 0.0667f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.055f;
-                }
-                else
-                {
-                    this.frameRate = 0.055f;
-                }
-                if (this.attackFrames == 8)
-                {
-                    if (this.startNewAttack)
-                    {
-                        this.startNewAttack = false;
-                        this.StartFiring();
-                    }
-                }
-                if (this.attackFrames == this.attackStationaryStrikeFrame)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 8f, base.transform.localScale.x * 180f, 80f);
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames == this.attackStationaryStrikeFrame + 1)
-                {
-                    this.xIAttackExtra = 0f;
-                }
-                if (this.attackFrames >= 8)
-                {
-                    this.StopAttack();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel(num * this.spritePixelWidth, this.spritePixelHeight * 7);
-                }
-            }
-            // Drunk animation
-            else
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackStationaryStrikeFrame)
-                {
-                    this.frameRate = 0.075f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.055f;
-                }
-                else
-                {
-                    this.frameRate = 0.055f;
-                }
-                if (this.attackFrames == 8)
-                {
-                    if (this.startNewAttack)
-                    {
-                        this.startNewAttack = false;
-                        this.StartFiring();
-                    }
-                }
-                if (this.attackFrames == this.attackStationaryStrikeFrame)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 8f, base.transform.localScale.x * 180f, 80f);
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames == this.attackStationaryStrikeFrame + 1)
-                {
-                    this.xIAttackExtra = 0f;
-                }
-                if (this.attackFrames >= 8)
-                {
-                    this.StopAttack();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel(num * this.spritePixelWidth, this.spritePixelHeight * 7);
-                }
-            }
-        }
-
-        protected void AnimateAttackForwards()
-        {
-            // Sober animation
-            if (!this.drunk)
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackForwardsStrikeFrame)
-                {
-                    this.frameRate = 0.055f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.065f;
-                }
-                else
-                {
-                    this.frameRate = 0.055f;
-                }
-
-                if (this.attackFrames < this.attackForwardsStrikeFrame + 1)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-                else if (this.attackFrames == 8)
-                {
-                    if (this.startNewAttack)
-                    {
-                        this.startNewAttack = false;
-                        this.StartFiring();
-                    }
-                }
-
-                if (this.attackFrames == this.attackForwardsStrikeFrame)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 8f, base.transform.localScale.x * 180f, 80f);
-                    this.PlayAttackSound();
-                }
-                else if (this.attackFrames == this.attackForwardsStrikeFrame + 1)
-                {
-                    this.xIAttackExtra = 0f;
-                }
-                if (this.attackFrames >= 8)
-                {
-                    this.StopAttack();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * (8 + this.attackSpriteRow)));
-                }
-            }
-            // Drunk animation
-            else
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackForwardsStrikeFrame)
-                {
-                    this.frameRate = 0.11f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.075f;
-                }
-                else
-                {
-                    this.frameRate = 0.075f;
-                }
-
-                if (this.attackFrames < this.attackForwardsStrikeFrame + 1)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-                else if (this.attackFrames == 8)
-                {
-                    if (this.startNewAttack)
-                    {
-                        this.startNewAttack = false;
-                        this.StartFiring();
-                    }
-                }
-
-                // Spin attack
-                if ( this.attackSpriteRow == 0 )
-                {
-                    if (this.attackFrames > 2 && this.attackFrames < 8)
-                    {
-                        this.xIAttackExtra = attackDirection * 275f;
-                    }
-                    else
-                    {
-                        this.xIAttackExtra = 0f;
-                    }
-                }
-                // Fist attack
-                else
-                {
-                    if (this.attackFrames > 1 && this.attackFrames < 7 && !this.attackHasHit)
-                    {
-                        this.xIAttackExtra = attackDirection * 275f;
-                    }
-                    else
-                    {
-                        this.xIAttackExtra = 0f;
-                    }
-                }
-                
-
-                if (this.attackFrames == this.attackForwardsStrikeFrame)
-                {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3(base.transform.localScale.x, 0f, 0f), 3f, base.transform.localScale.x * 180f, 80f);
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames >= 8)
-                {
-                    this.StopAttack();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * (8 + this.attackSpriteRow)));
-                }
-            }
-        }
-
-        protected void AnimateAttackUpwards()
-        {
-            // Sober animation
-            if (!this.drunk)
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackUpwardsStrikeFrame)
-                {
-                    this.frameRate = 0.075f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.065f;
-                }
-                else
-                {
-                    this.frameRate = 0.065f;
-                }
-                if (this.attackFrames == this.attackUpwardsStrikeFrame)
-                {
-                    this.xI = base.transform.localScale.x * 50f;
-                    this.yI = 240f;
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames < this.attackUpwardsStrikeFrame + 2)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-                if (this.startNewAttack && this.attackFrames == this.attackUpwardsStrikeFrame + 1)
-                {
-                    this.startNewAttack = false;
-                    this.StartFiring();
-                }
-                if (this.hasHitThisAttack && this.attackFrames == 6)
-                {
-                    this.xIAttackExtra = 0f;
-                    this.postAttackHitPauseTime = 0.25f;
-                    this.xI = 0f;
-                    this.yI = 0f;
-                }
-                if (this.attackFrames >= 10 || (this.attackFrames == 8 && this.startNewAttack))
-                {
-                    this.StopAttack();
-                    this.ChangeFrame();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 10));
-                }
-            }
-            // Drunk animation
-            else
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackUpwardsStrikeFrame)
-                {
-                    this.frameRate = 0.1f;
-                }
-                else if (this.attackFrames < 5)
-                {
-                    this.frameRate = 0.11f;
-                }
-                else
-                {
-                    this.frameRate = 0.075f;
-                }
-                if (this.attackFrames == this.attackUpwardsStrikeFrame)
-                {
-                    this.xI = base.transform.localScale.x * 50f;
-                    this.yI = 325f;
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames < this.attackUpwardsStrikeFrame + 2)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-                if (this.startNewAttack && this.attackFrames == this.attackUpwardsStrikeFrame + 1)
-                {
-                    this.startNewAttack = false;
-                    this.StartFiring();
-                }
-                if (this.hasHitThisAttack && this.attackFrames == 6)
-                {
-                    this.xIAttackExtra = 0f;
-                    this.postAttackHitPauseTime = 0.25f;
-                    this.xI = 0f;
-                    this.yI = 0f;
-                }
-                if (this.attackFrames >= 10 || (this.attackFrames == 8 && this.startNewAttack))
-                {
-                    this.StopAttack();
-                    this.ChangeFrame();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 10));
-                }
-            }
-        }
-
-        protected void AnimateAttackDownwards()
-        {
-            if (!this.drunk)
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackDownwardsStrikeFrame)
-                {
-                    this.frameRate = 0.0767f;
-                }
-                else if (this.attackFrames <= 5)
-                {
-                    this.frameRate = 0.0767f;
-                }
-                else
-                {
-                    this.frameRate = 0.06f;
-                }
-                if (this.attackFrames < this.attackDownwardsStrikeFrame + 2)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-                if (this.startNewAttack && this.attackFrames == this.attackDownwardsStrikeFrame + 1)
-                {
-                    this.startNewAttack = false;
-                    this.StartFiring();
-                }
-                if (this.attackFrames == this.attackDownwardsStrikeFrame)
-                {
-                    if (!this.usingSpecial || !this.hasHitThisAttack)
-                    {
-                        this.yI = -250f;
-                    }
-                    this.xI = base.transform.localScale.x * 60f;
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames >= 9 || (this.attackFrames == 6 && this.startNewAttack))
-                {
-                    this.StopAttack();
-                    this.ChangeFrame();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 11));
-                }
-                if (this.attackFrames == 7 && this.usingSpecial)
-                {
-                    if (!this.hasHitThisAttack)
-                    {
-                        this.usingSpecial = false;
-                    }
-                    if (this.usingSpecial)
-                    {
-                        this.UseSpecial();
-                    }
-                }
-            }
-            else
-            {
-                this.DeactivateGun();
-                if (this.attackFrames < this.attackDownwardsStrikeFrame)
-                {
-                    this.frameRate = 0.19f;
-                }
-                else if (this.attackFrames <= 5)
-                {
-                    this.frameRate = 0.08f;
-                }
-                else
-                {
-                    this.frameRate = 0.08f;
-                }
-                if (this.attackFrames < this.attackDownwardsStrikeFrame + 2)
-                {
-                    this.CreateFaderTrailInstance();
-                }
-
-                // Hold frame until hitting ground
-                if ( !this.hasHitThisAttack && this.attackFrames > 5 )
-                {
-                    this.attackFrames = 5;
-                }
-
-                if (this.attackFrames == this.attackDownwardsStrikeFrame)
-                {
-                    if (!this.usingSpecial || !this.hasHitThisAttack)
-                    {
-                        this.yI = -300f;
-                    }
-                    this.xI = base.transform.localScale.x * 60f;
-                    this.PlayAttackSound();
-                }
-                if (this.attackFrames >= 9)
-                {
-                    this.StopAttack();
-                    this.ChangeFrame();
-                }
-                else
-                {
-                    int num = 24 + Mathf.Clamp(this.attackFrames, 0, 7);
-                    this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 11));
-                }
-            }
-        }
-
-        protected override void IncreaseFrame()
-        {
-            base.IncreaseFrame();
-            if (this.attackStationary || this.attackUpwards || this.attackDownwards || this.attackForwards)
-            {
-                this.attackFrames++;
-            }
-        }
-
-        protected override void ChangeFrame()
-        {
-            if (this.health <= 0 || this.chimneyFlip)
-            {
-                base.ChangeFrame();
-            }
-            else if (this.attackStationary)
-            {
-                this.AnimateAttackStationary();
-            }
-            else if (this.attackUpwards)
-            {
-                this.AnimateAttackUpwards();
-            }
-            else if (this.attackDownwards)
-            {
-                this.AnimateAttackDownwards();
-            }
-            else if (this.attackForwards)
-            {
-                this.AnimateAttackForwards();
-            }
-            else
-            {
-                base.ChangeFrame();
-            }
-        }
-
-        protected override void FireFlashAvatar()
-        {
-            // Call base FlashAvatar to cause rumble
-            base.FireFlashAvatar();
-            this.avatarGunFireTime = 0.1f;
-            HeroController.SetAvatarFireFrame(base.playerNum, UnityEngine.Random.Range(5, 8));
-        }
-
-        protected override void RunAvatarFiring()
-        {
-            if (this.health > 0)
-            {
-                if (this.avatarGunFireTime > 0f)
-                {
-                    this.avatarGunFireTime -= this.t;
-                    if (this.avatarGunFireTime <= 0f)
-                    {
-                        if (this.avatarAngryTime > 0f)
-                        {
-                            HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                        }
-                        else
-                        {
-                            HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
-                        }
-                    }
-                }
-                if (this.fire)
-                {
-                    if (!this.wasFire && this.avatarGunFireTime <= 0f)
-                    {
-                        HeroController.SetAvatarAngry(base.playerNum, this.usePrimaryAvatar);
-                    }
-                    if (this.fire)
-                    {
-                        if (this.gunFrame > 0 || this.attackFrames > 0)
-                        {
-                            this.avatarAngryTime = 0.1f;
-                        }
-                        else
-                        {
-                            this.avatarAngryTime = 0f;
-                            HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
-                        }
-                    }
-                }
-                else if (this.avatarAngryTime > 0f)
-                {
-                    this.avatarAngryTime -= this.t;
-                    if (this.avatarAngryTime <= 0f)
-                    {
-                        HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
-                    }
-                }
-            }
-        }
-
-        protected void ClearCurrentAttackVariables()
-        {
-            this.alreadyHit.Clear();
-            this.hasHitWithFists = false;
-            this.attackHasHit = false;
-            this.hasHitWithWall = false;
-        }
-
-        private void TimeBump()
-        {
-            TimeController.StopTime(0.025f, 0.1f, 0f, false, false, false);
-        }
-
-        private void MakeKungfuSound()
-        {
-            if (Time.time - this.lastSoundTime > 0.3f)
-            {
-                this.lastSoundTime = Time.time;
-                // TODO: Add kung fu noises from bro lee
-                //Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
-            }
-        }
-
-        protected override void PlayAttackSound()
-        {
-            // TODO: Add attack sound
-            //base.PlayAttackSound();
-        }
-
-        public void PlayFistSound()
-        {
-            if (this.sound == null)
-            {
-                this.sound = Sound.GetInstance();
-            }
-            if (this.sound != null)
-            {
-                // TODO: Add fist hit sound
-                //this.sound.PlaySoundEffectAt(this.soundHolder.special2Sounds, this.sliceVolume, base.transform.position, 1f, true, false, false, 0f);
-            }
-        }
-
-        public void PlayWallSound()
-        {
-            if (this.sound == null)
-            {
-                this.sound = Sound.GetInstance();
-            }
-            if (this.sound != null)
-            {
-                // TODO: Add wall sound, whatever that is, check brocsnipes or bro lee's attack2sounds 
-                //this.sound.PlaySoundEffectAt(this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f);
-            }
-        }
-
-        protected override void PlayAidDashSound()
-        {
-            // TODO: Add air dash sound
-            //this.PlaySpecialAttackSound(0.5f);
-        }
-        #endregion
-
-        #region Melee
-        protected void ThrowHeldItem()
-            {
-
-            }
-
-            protected override void StartCustomMelee()
-            {
-                if (this.CanStartNewMelee())
-                {
-                    base.frame = 1;
-                    base.counter = -0.05f;
-                    this.AnimateMelee();
-                }
-                else if (this.CanStartMeleeFollowUp())
-                {
-                    this.meleeFollowUp = true;
-                }
-                if (!this.jumpingMelee)
-                {
-                    this.dashingMelee = true;
-                    this.xI = (float)base.Direction * this.speed;
-                }
-                this.StartMeleeCommon();
-            }
-
-            protected override void AnimateCustomMelee()
-            {
-                this.AnimateMeleeCommon();
-                int num = 25 + Mathf.Clamp(base.frame, 0, 6);
-                int num2 = 1;
-                if (!this.standingMelee)
-                {
-                    if (this.jumpingMelee)
-                    {
-                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
-                        num2 = 6;
-                    }
-                    else if (this.dashingMelee)
-                    {
-                        num = 17 + Mathf.Clamp(base.frame, 0, 6);
-                        num2 = 6;
-                        if (base.frame == 4)
-                        {
-                            base.counter -= 0.0334f;
-                        }
-                        else if (base.frame == 5)
-                        {
-                            base.counter -= 0.0334f;
-                        }
-                    }
-                }
-                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
-                if (base.frame == 3)
-                {
-                    base.counter -= 0.066f;
-                    this.PerformKnifeMeleeAttack(true, true);
-                }
-                else if (base.frame > 3 && !this.meleeHasHit)
-                {
-                    this.PerformKnifeMeleeAttack(false, false);
-                }
-                if (base.frame >= 6)
-                {
-                    base.frame = 0;
-                    this.CancelMelee();
-                }
-            }
-
-            protected override void RunCustomMeleeMovement()
-            {
-                if (!this.useNewKnifingFrames)
-                {
-                    if (base.Y > this.groundHeight + 1f)
-                    {
-                        this.ApplyFallingGravity();
-                    }
-                }
-                else if (this.jumpingMelee)
-                {
-                    this.ApplyFallingGravity();
-                    if (this.yI < this.maxFallSpeed)
-                    {
-                        this.yI = this.maxFallSpeed;
-                    }
-                }
-                else if (this.dashingMelee)
-                {
-                    if (base.frame <= 1)
-                    {
-                        this.xI = 0f;
-                        this.yI = 0f;
-                    }
-                    else if (base.frame <= 3)
-                    {
-                        if (this.meleeChosenUnit == null)
-                        {
-                            if (!this.isInQuicksand)
-                            {
-                                this.xI = this.speed * 1f * base.transform.localScale.x;
-                            }
-                            this.yI = 0f;
-                        }
-                        else if (!this.isInQuicksand)
-                        {
-                            this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
-                        }
-                    }
-                    else if (base.frame <= 5)
-                    {
-                        if (!this.isInQuicksand)
-                        {
-                            this.xI = this.speed * 0.3f * base.transform.localScale.x;
-                        }
-                        this.ApplyFallingGravity();
-                    }
-                    else
-                    {
-                        this.ApplyFallingGravity();
-                    }
-                }
-                else if (base.Y > this.groundHeight + 1f)
-                {
-                    this.CancelMelee();
-                }
-            }
-            #endregion
-
-        #region Special
-        // Animate drunk idle
-        public override void AnimateActualIdleFrames()
-        {
-            if ( this.drunk && this.gunFrame <= 0 && !this.fire)
-            {
-                this.SetSpriteOffset(0f, 0f);
-                this.DeactivateGun();
-                this.frameRate = 0.14f;
-                int num = base.frame % 7;
-                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(this.spritePixelHeight * 9));
-            }
-            else
-            {
-                base.AnimateActualIdleFrames();
-            }
-        }
-
-        protected override void AnimateActualNewRunningFrames()
-        {
-            this.frameRate = (this.isInQuicksand ? (this.runningFrameRate * 3f) : this.runningFrameRate);
-            if (this.IsSurroundedByBarbedWire())
-            {
-                this.frameRate *= 2f;
-            }
-            if (this.drunk && !this.dashing)
-            {
-                this.frameRate = 0.07f;
-            }
-            int num = base.frame % 8;
-            if (base.frame % 4 == 0 && !FluidController.IsSubmerged(this))
-            {
-                EffectsController.CreateFootPoofEffect(base.X, base.Y + 2f, 0f, Vector3.up * 1f - Vector3.right * base.transform.localScale.x * 60.5f, this.GetFootPoofColor());
-            }
-            if (base.frame % 4 == 0 && !this.ledgeGrapple)
-            {
-                this.PlayFootStepSound();
-            }
-            this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)((!this.dashing || !this.useDashFrames) ? (this.spritePixelHeight * 2) : (this.spritePixelHeight * 4)));
-            if (this.gunFrame <= 0 && !this.doingMelee)
-            {
-                this.SetGunSprite(num, 1);
-            }
-        }
-
-        private bool IsWalking()
-        {
-            return base.Y < this.groundHeight + 0.5f && this.yI < 10f;
-        }
-
-        protected override void PressSpecial()
-        {
-            // Make sure we aren't holding anything before drinking
-            if ( this.currentItem == MeleeItem.None )
-            {
-                if ( this.SpecialAmmo > 0 )
-                {
-                    this.wasDrunk = false;
-                    base.PressSpecial();
-                }
-                else
-                {
-                    HeroController.FlashSpecialAmmo(base.playerNum);
-                }    
-            }
-            // Throw held item
-            else
-            {
-                this.ThrowHeldItem();
-            }
-        }
-
-        protected override void AnimateSpecial()
-        {
-            this.SetSpriteOffset(0f, 0f);
-            this.DeactivateGun();
-            this.invulnerable = true;
-            this.invulnerableTime = 0.3f;
-            // Animate drinking to become drunk
-            if ( !this.wasDrunk )
-            {
-                this.frameRate = 0.1f;
-                this.sprite.SetLowerLeftPixel((float)(this.usingSpecialFrame * this.spritePixelWidth), (float)(this.spritePixelHeight * 8));
-                if (this.usingSpecialFrame < 10 && this.IsWalking())
-                {
-                    this.speed = 0f;
-                }
-                else
-                {
-                    this.speed = this.originalSpeed;
-                }
-                if (this.usingSpecialFrame == 4)
-                {
-                    this.frameRate = 0.35f;
-                    this.PlayDrinkingSound();
-                }
-                else if (this.usingSpecialFrame == 6)
-                {
-                    this.frameRate = 0.15f;
-                    this.UseSpecial();
-                }
-                else if (this.usingSpecialFrame >= 7)
-                {
-                    this.frameRate = 0.2f;
-                    this.StopUsingSpecial();
-                    return;
-                }
-                this.usingSpecialFrame++;
-            }
-            // Animate becoming sober
-            else
-            {
-                this.frameRate = 0.11f;
-                this.sprite.SetLowerLeftPixel((float)(this.usingSpecialFrame * this.spritePixelWidth), (float)(this.spritePixelHeight * 10));
-                if (this.usingSpecialFrame < 11 && this.IsWalking())
-                {
-                    this.speed = 0f;
-                }
-                else
-                {
-                    this.speed = this.originalSpeed;
-                }
-
-                if (this.usingSpecialFrame == 1)
-                {
-                    this.frameRate = 0.2f;
-                }
-                else if (this.usingSpecialFrame == 6)
-                {
-                    this.UseSpecial();
-                }
-                else if (this.usingSpecialFrame >= 10)
-                {
-                    this.StopUsingSpecial();
-                    return;
-                }
-                this.usingSpecialFrame++;
-            }
-        }
-
-        protected void PlayDrinkingSound()
-        {
-            this.sound.PlaySoundEffectAt(this.slurp, 0.35f, base.transform.position, 1f, true, false, true, 0f);
-        }
-
-        protected override void UseSpecial()
-        {
-            if ( !this.wasDrunk )
-            {
-                this.BecomeDrunk();
-                --this.SpecialAmmo;
-            }
-            else
-            {
-                this.BecomeSober();
-            }
-        }
-
-        protected void StopUsingSpecial()
-        {
-            base.frame = 0;
-            this.usingSpecialFrame = 0;
-            this.usingSpecial = false;
-            this.ActivateGun();
-            this.ChangeFrame();
-            this.speed = this.originalSpeed;
-        }
-
-        protected void BecomeDrunk()
-        {
-            base.GetComponent<Renderer>().material = this.drunkSprite;
-            // TODO: revert drunk counter
-            this.drunkCounter = maxDrunkTime;
-            //this.drunkCounter = 1000;
-            this.drunk = true;
-            this.speed = this.originalSpeed = 110;
-            this.enemyFistDamage = 11;
-            this.groundFistDamage = 10;
-            this.attackDownwardsStrikeFrame = 2;
-        }
-
-        protected bool TryToBecomeSober()
-        {
-            if (!hasBeenCoverInAcid && !doingMelee && !usingSpecial)
-            {
-                this.wasDrunk = true;
-                this.usingSpecial = true;
-                base.frame = 0;
-                this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
-                return true;
-            }
-            return false;
-        }
-
-        protected void BecomeSober()
-        {
-            base.GetComponent<Renderer>().material = this.normalSprite;
-            this.drunkCounter = 0;
-            this.drunk = false;
-            this.speed = this.originalSpeed = 130;
-            this.enemyFistDamage = 5;
-            this.groundFistDamage = 5;
-            this.attackDownwardsStrikeFrame = 3;
+            return !( this.drunk && this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
         }
         #endregion
     }
