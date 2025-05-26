@@ -43,6 +43,10 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="RocketLib, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\Development - RocketLib\RocketLib.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -76,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DrunkenBroster.cs" />
+    <Compile Include="MeleeItems\Crate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

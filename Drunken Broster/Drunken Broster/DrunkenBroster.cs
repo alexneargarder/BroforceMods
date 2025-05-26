@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using BroMakerLib;
+﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.Loggers;
+using Drunken_Broster.MeleeItems;
+using HarmonyLib;
+using Rogueforce;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
-using Rogueforce;
-using HarmonyLib;
 
 namespace Drunken_Broster
 {
@@ -75,6 +76,9 @@ namespace Drunken_Broster
             Tire = 8
         }
         public MeleeItem currentItem = MeleeItem.None;
+        public bool holdingItem = false;
+        public Projectile[] projectilePrefabs = new Projectile[9];
+        MeshRenderer gunSpriteMelee;
 
         // Special
         public bool wasDrunk = false; // Was drunk before starting special
@@ -101,8 +105,28 @@ namespace Drunken_Broster
             this.normalSprite = base.GetComponent<Renderer>().material;
             this.drunkSprite = ResourcesController.GetMaterial( directoryPath, "drunkSprite.png" );
 
+            // Setup melee gunsprite
+            gunSpriteMelee = new GameObject( "GunSpriteMelee", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
+            gunSpriteMelee.transform.parent = this.transform;
+            gunSpriteMelee.gameObject.SetActive( false );
+            gunSpriteMelee.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteMelee.png" );
+            SpriteSM holdingArmSprite = gunSpriteMelee.gameObject.GetComponent<SpriteSM>();
+            holdingArmSprite.RecalcTexture();
+            holdingArmSprite.SetTextureDefaults();
+            holdingArmSprite.lowerLeftPixel = new Vector2( 0, 32 );
+            holdingArmSprite.pixelDimensions = new Vector2( 32, 32 );
+            holdingArmSprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            holdingArmSprite.width = 32;
+            holdingArmSprite.height = 32;
+            holdingArmSprite.transform.localPosition = new Vector3( 0, 0, -0.9f );
+            holdingArmSprite.CalcUVs();
+            holdingArmSprite.UpdateUVs();
+            holdingArmSprite.offset = new Vector3( 0f, 15f, 0f );
 
             // Setup throwables
+            projectilePrefabs[1] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<CrateProjectile>();
+            projectilePrefabs[1].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[1].enabled = false;
 
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
@@ -1663,7 +1687,8 @@ namespace Drunken_Broster
         #region Melee
         protected void ThrowHeldItem()
         {
-
+            Projectile lastFiredProjectile = ProjectileController.SpawnProjectileLocally( this.projectilePrefabs[1], this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+            lastFiredProjectile.enabled = true;
         }
 
         protected override void StartCustomMelee()
@@ -1716,11 +1741,7 @@ namespace Drunken_Broster
             if ( base.frame == 3 )
             {
                 base.counter -= 0.066f;
-                this.PerformKnifeMeleeAttack( true, true );
-            }
-            else if ( base.frame > 3 && !this.meleeHasHit )
-            {
-                this.PerformKnifeMeleeAttack( false, false );
+                this.ThrowHeldItem();
             }
             if ( base.frame >= 6 )
             {
