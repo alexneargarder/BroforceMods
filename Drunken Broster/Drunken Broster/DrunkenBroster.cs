@@ -65,20 +65,26 @@ namespace Drunken_Broster
         // Melee
         public enum MeleeItem
         {
-            None = 0,
-            AlienEgg = 1,
+            Tire = 0,
+            AcidEgg = 1,
             Beehive = 2,
             Bottle = 3,
-            Coconut = 4,
-            Crate = 5,
-            ExplosiveBarrel = 6,
+            Crate = 4,
+            Coconut = 5,
+            ExplosiveBarrel = 6,                     
             SoccerBall = 7,
-            Tire = 8
+            AlienEgg = 8,
+            Skull = 9,
+            None = 10,
         }
-        public MeleeItem currentItem = MeleeItem.None;
-        public bool holdingItem = false;
+        protected MeleeItem chosenItem = MeleeItem.None;
+        protected MeleeItem heldItem = MeleeItem.None;
+        protected bool holdingItem = false;
         public Projectile[] projectilePrefabs = new Projectile[9];
-        MeshRenderer gunSpriteMelee;
+        protected MeshRenderer gunSpriteMelee;
+        protected SpriteSM gunSpriteMeleeSprite;
+        protected Material meleeSpriteGrabThrowing;
+        protected bool throwingHeldItem = false;
 
         // Special
         public bool wasDrunk = false; // Was drunk before starting special
@@ -110,18 +116,21 @@ namespace Drunken_Broster
             gunSpriteMelee.transform.parent = this.transform;
             gunSpriteMelee.gameObject.SetActive( false );
             gunSpriteMelee.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteMelee.png" );
-            SpriteSM holdingArmSprite = gunSpriteMelee.gameObject.GetComponent<SpriteSM>();
-            holdingArmSprite.RecalcTexture();
-            holdingArmSprite.SetTextureDefaults();
-            holdingArmSprite.lowerLeftPixel = new Vector2( 0, 32 );
-            holdingArmSprite.pixelDimensions = new Vector2( 32, 32 );
-            holdingArmSprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            holdingArmSprite.width = 32;
-            holdingArmSprite.height = 32;
-            holdingArmSprite.transform.localPosition = new Vector3( 0, 0, -0.9f );
-            holdingArmSprite.CalcUVs();
-            holdingArmSprite.UpdateUVs();
-            holdingArmSprite.offset = new Vector3( 0f, 15f, 0f );
+            gunSpriteMeleeSprite = gunSpriteMelee.gameObject.GetComponent<SpriteSM>();
+            gunSpriteMeleeSprite.RecalcTexture();
+            gunSpriteMeleeSprite.SetTextureDefaults();
+            gunSpriteMeleeSprite.lowerLeftPixel = new Vector2( 0, 32 );
+            gunSpriteMeleeSprite.pixelDimensions = new Vector2( 32, 32 );
+            gunSpriteMeleeSprite.plane = SpriteBase.SPRITE_PLANE.XY;
+            gunSpriteMeleeSprite.width = 32;
+            gunSpriteMeleeSprite.height = 32;
+            gunSpriteMeleeSprite.transform.localPosition = new Vector3( 0, 0, -0.9f );
+            gunSpriteMeleeSprite.CalcUVs();
+            gunSpriteMeleeSprite.UpdateUVs();
+            gunSpriteMeleeSprite.offset = new Vector3( 0f, 15f, 0f );
+
+            // Load melee sprite for grabbing and throwing animations
+            this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( directoryPath, "meleeSpriteGrabThrowing.png" );
 
             // Setup throwables
             projectilePrefabs[1] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<CrateProjectile>();
@@ -165,6 +174,8 @@ namespace Drunken_Broster
                 this.wasInvulnerable = false;
                 this.normalSprite.SetColor( "_TintColor", Color.gray );
                 this.drunkSprite.SetColor( "_TintColor", Color.gray );
+                this.meleeSpriteGrabThrowing.SetColor( "_TintColor", Color.gray );
+                this.gunSpriteMelee.material.SetColor( "_TintColor", Color.gray );
             }
 
             // Check if character has died
@@ -219,6 +230,62 @@ namespace Drunken_Broster
             }
         }
 
+        protected override void ActivateGun()
+        {
+            if ( this.holdingItem )
+            {
+                this.gunSpriteMelee.gameObject.SetActive( true );
+            }
+            else
+            {
+                base.ActivateGun();
+            }
+        }
+
+        protected override void DeactivateGun()
+        {
+            if ( this.holdingItem )
+            {
+                this.gunSpriteMelee.gameObject.SetActive( false );
+            }
+            else
+            {
+                base.DeactivateGun();
+            }
+        }
+
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
+        {
+            SpriteSM currentSprite;
+
+            if ( !this.holdingItem )
+            {
+                currentSprite = this.gunSprite;
+            }
+            else
+            {
+                currentSprite = this.gunSpriteMeleeSprite;
+                spriteRow += ( (int)this.heldItem ) * 2;
+            }
+
+            if ( base.actionState == ActionState.Hanging )
+            {
+                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+            }
+            else if ( base.actionState == ActionState.ClimbingLadder && hangingOneArmed )
+            {
+                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+            }
+            else if ( attachedToZipline != null && base.actionState == ActionState.Jumping )
+            {
+                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+            }
+            else
+            {
+                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * spriteFrame, gunSpritePixelHeight * ( 1 + spriteRow ) );
+            }
+        }
+
         protected override void UseFire()
         {
             this.alreadyHit.Clear();
@@ -235,8 +302,24 @@ namespace Drunken_Broster
             // Don't allow attacking while drinking / becoming sober
             if ( this.usingSpecial )
             {
+                this.fire = this.wasFire = false;
                 return;
             }
+
+            // If holding an item from melee, throw it instead
+            if ( this.holdingItem )
+            {
+                this.StartThrowingItem();
+                return;
+            }
+
+            // Don't allow attacking while using melele
+            if ( this.doingMelee )
+            {
+                this.fire = this.wasFire = false;
+                return;
+            }
+
             this.startNewAttack = false;
             this.hasPlayedAttackHitSound = false;
             this.hasHitWithWall = false;
@@ -1546,11 +1629,6 @@ namespace Drunken_Broster
             this.SetGunSprite( this.gunFrame, 0 );
         }
 
-        protected override void SetGunSprite( int spriteFrame, int spriteRow )
-        {
-            base.SetGunSprite( spriteFrame, spriteRow );
-        }
-
         protected override void CreateFaderTrailInstance()
         {
             FaderSprite component = this.faderSpritePrefab.GetComponent<FaderSprite>();
@@ -1685,64 +1763,108 @@ namespace Drunken_Broster
         #endregion
 
         #region Melee
-        protected void ThrowHeldItem()
-        {
-            Projectile lastFiredProjectile = ProjectileController.SpawnProjectileLocally( this.projectilePrefabs[1], this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
-            lastFiredProjectile.enabled = true;
-        }
-
         protected override void StartCustomMelee()
         {
-            if ( this.CanStartNewMelee() )
+            // Don't allow melees to start while doing a melee
+            if ( this.doingMelee )
             {
-                base.frame = 1;
-                base.counter = -0.05f;
-                this.AnimateMelee();
+                return;
             }
-            else if ( this.CanStartMeleeFollowUp() )
+
+            // If we're already holding an item, throw that item instead
+            if ( this.holdingItem )
             {
-                this.meleeFollowUp = true;
+                this.StartThrowingItem();
+                return;
             }
-            if ( !this.jumpingMelee )
-            {
-                this.dashingMelee = true;
-                this.xI = (float)base.Direction * this.speed;
-            }
-            this.StartMeleeCommon();
+
+            base.frame = 0;
+            base.counter = -0.05f;
+            ResetMeleeValues();
+            lerpToMeleeTargetPos = 0f;
+            doingMelee = true;
+            showHighFiveAfterMeleeTimer = 0f;
+            DeactivateGun();
+            SetMeleeType();
+            meleeStartPos = base.transform.position;
+
+            // Switch to melee sprite
+            base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
+
+            // Choose an item to throw
+            this.chosenItem = this.ChooseItem();
+
+            AnimateMelee();
+        }
+
+        protected MeleeItem ChooseItem()
+        {
+            return MeleeItem.AcidEgg;
         }
 
         protected override void AnimateCustomMelee()
         {
-            this.AnimateMeleeCommon();
-            int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
-            int num2 = 1;
-            if ( !this.standingMelee )
+            this.SetSpriteOffset( 0f, 0f );
+            this.rollingFrames = 0;
+            
+            if ( !this.throwingHeldItem )
             {
-                if ( this.jumpingMelee )
-                {
-                    num = 17 + Mathf.Clamp( base.frame, 0, 6 );
-                    num2 = 6;
-                }
-                else if ( this.dashingMelee )
-                {
-                    num = 17 + Mathf.Clamp( base.frame, 0, 6 );
-                    num2 = 6;
-                    if ( base.frame == 4 )
-                    {
-                        base.counter -= 0.0334f;
-                    }
-                    else if ( base.frame == 5 )
-                    {
-                        base.counter -= 0.0334f;
-                    }
-                }
+                this.AnimatePullingOutItem();
             }
-            this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
-            if ( base.frame == 3 )
+            else
             {
-                base.counter -= 0.066f;
+                this.AnimateThrowingHeldItem();
+            }
+        }
+
+        protected void AnimatePullingOutItem()
+        {
+            if ( base.frame == 2 && this.nearbyMook != null && this.nearbyMook.CanBeThrown() && this.highFive )
+            {
+                this.CancelMelee();
+                this.ThrowBackMook( this.nearbyMook );
+                this.nearbyMook = null;
+                return;
+            }
+
+            this.frameRate = 0.09f;
+
+            // TODO: Switch to this code when sprites are in correct places
+            //int row = ( (int)this.chosenItem ) + 1;
+            int row = 1;
+
+            this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
+
+            if ( base.frame == 4 )
+            {
+                this.PerformMeleeAttack( true, true );
+                //this.counter -= 0.0334f;
+                this.counter -= 0.0667f;
+            }
+
+            if ( base.frame >= 5 )
+            {
+                base.frame = 0;
+                this.SwitchToHeldItem();
+                this.CancelMelee();
+            }
+        }
+
+        protected void AnimateThrowingHeldItem()
+        {
+            this.frameRate = 0.09f;
+
+            // TODO: Switch to this code when sprites are in correct places
+            //int row = ( (int)this.chosenItem ) + 1;
+            int row = 1;
+
+            this.sprite.SetLowerLeftPixel( (float)( (base.frame + 5) * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
+
+            if ( base.frame == 5 )
+            {
                 this.ThrowHeldItem();
             }
+
             if ( base.frame >= 6 )
             {
                 base.frame = 0;
@@ -1750,16 +1872,130 @@ namespace Drunken_Broster
             }
         }
 
+        protected void PerformMeleeAttack( bool shouldTryHitTerrain, bool playMissSound )
+        {
+            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+            this.KickDoors( 24f );
+            this.meleeChosenUnit = null;
+            
+            // Perform attack based on item type
+            switch ( this.chosenItem )
+            {
+                // Blunt hit
+                case MeleeItem.Tire:
+                case MeleeItem.Bottle:
+                case MeleeItem.Crate:
+                case MeleeItem.Coconut:
+                case MeleeItem.ExplosiveBarrel:
+                case MeleeItem.SoccerBall:
+                    break;
+
+                // Acid hit
+                case MeleeItem.AcidEgg:
+                case MeleeItem.AlienEgg:
+                    if ( Map.HitClosestUnit( this, base.playerNum, 1, DamageType.Acid, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 8f, base.transform.localScale.x * 200f, 350f, true, false, base.IsMine, false, true ) )
+                    {
+                        // TODO: add melee sound effects
+                        //this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f );
+                        this.meleeHasHit = true;
+                    }
+                    else if ( playMissSound )
+                    {
+                        // TODO: add melee sound effects
+                        //this.sound.PlaySoundEffectAt( this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f );
+                    }
+                    break;
+
+                // Fire hit
+                case MeleeItem.Skull:
+                    break;
+
+                // Bee hit (panics units)
+                case MeleeItem.Beehive:
+                    break;
+            }
+
+            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, 2 ) )
+            {
+                this.meleeHasHit = true;
+            }
+            this.TriggerBroMeleeEvent();
+        }
+
+        protected override void CancelMelee()
+        {
+            if ( this.drunk )
+            {
+                base.GetComponent<Renderer>().material = this.drunkSprite;
+            }
+            else
+            {
+                base.GetComponent<Renderer>().material = this.normalSprite;
+            }
+
+            if ( !this.throwingHeldItem )
+            {
+                this.SwitchToHeldItem();
+            }
+            else
+            {
+                this.canChimneyFlip = true;
+                this.holdingItem = false;
+                this.heldItem = MeleeItem.None;
+                this.gunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );
+                this.gunSpriteMelee.gameObject.SetActive( false );
+            }
+            base.CancelMelee();
+        }
+
+        protected void SwitchToHeldItem()
+        {
+            this.holdingItem = true;
+            this.heldItem = this.chosenItem;
+            this.chosenItem = MeleeItem.None;
+            this.gunSpriteMelee.gameObject.SetActive( this.gunSprite.gameObject.activeSelf );
+            this.gunSprite.gameObject.SetActive( false );
+        }
+
+        protected void StartThrowingItem()
+        {
+            // Don't start a throw if we're already throwing, or doing another animation
+            if ( this.throwingHeldItem || this.doingMelee || this.chimneyFlip || this.usingSpecial )
+            {
+                return;
+            }
+            this.throwingHeldItem = true;
+            this.usingSpecial = this.fire = this.wasFire = false;
+
+            base.frame = 0;
+            base.counter = -0.05f;
+            ResetMeleeValues();
+            lerpToMeleeTargetPos = 0f;
+            doingMelee = true;
+            showHighFiveAfterMeleeTimer = 0f;
+            DeactivateGun();
+            SetMeleeType();
+            meleeStartPos = base.transform.position;
+
+            // Switch to melee sprite
+            base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
+
+            AnimateMelee();
+        }
+
+        protected void ThrowHeldItem()
+        {
+            Projectile projectile = ProjectileController.SpawnProjectileLocally( this.projectilePrefabs[(int) this.heldItem], this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+            projectile.enabled = true;
+        }
+
         protected override void RunCustomMeleeMovement()
         {
-            if ( !this.useNewKnifingFrames )
-            {
-                if ( base.Y > this.groundHeight + 1f )
-                {
-                    this.ApplyFallingGravity();
-                }
-            }
-            else if ( this.jumpingMelee )
+            this.xI = 0;
+            this.yI = 0;
+            return;
+
+            if ( this.jumpingMelee )
             {
                 this.ApplyFallingGravity();
                 if ( this.yI < this.maxFallSpeed )
@@ -1862,7 +2098,7 @@ namespace Drunken_Broster
         protected override void PressSpecial()
         {
             // Make sure we aren't holding anything before drinking
-            if ( this.currentItem == MeleeItem.None )
+            if ( this.heldItem == MeleeItem.None )
             {
                 if ( this.SpecialAmmo > 0 )
                 {
