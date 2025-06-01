@@ -1882,14 +1882,14 @@ namespace Drunken_Broster
 
             this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
 
-            if ( base.frame == 4 )
+            if ( base.frame == 3 )
             {
                 this.PerformMeleeAttack( true, true );
                 //this.counter -= 0.0334f;
                 this.counter -= 0.0667f;
             }
 
-            if ( base.frame >= 5 )
+            if ( base.frame >= 9 )
             {
                 base.frame = 0;
                 this.CancelMelee();
@@ -1904,14 +1904,16 @@ namespace Drunken_Broster
             //int row = ( (int)this.chosenItem ) + 1;
             int row = 1;
 
-            this.sprite.SetLowerLeftPixel( (float)( (base.frame + 5) * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
+            int throwStart = 9;
 
-            if ( base.frame == 5 )
+            this.sprite.SetLowerLeftPixel( (float)( (base.frame + throwStart) * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
+
+            if ( base.frame == 4 )
             {
                 this.ThrowHeldItem();
             }
 
-            if ( base.frame >= 6 )
+            if ( base.frame >= 7 )
             {
                 base.frame = 0;
                 this.CancelMelee();
@@ -2032,6 +2034,30 @@ namespace Drunken_Broster
 
         protected void ThrowHeldItem()
         {
+
+            switch ( this.heldItem )
+            {
+                case MeleeItem.Tire:
+                    break;
+                case MeleeItem.AcidEgg:
+                    break;
+                case MeleeItem.Beehive:
+                    break;
+                case MeleeItem.Bottle:
+                    break;
+                case MeleeItem.Crate:
+                    break;
+                case MeleeItem.Coconut:
+                    break;
+                case MeleeItem.ExplosiveBarrel:
+                    break;
+                case MeleeItem.SoccerBall:
+                    break;
+                case MeleeItem.AlienEgg:
+                    break;
+                case MeleeItem.Skull:
+                    break;
+            }
             Projectile projectile = ProjectileController.SpawnProjectileLocally( this.projectilePrefabs[(int) this.heldItem], this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
             projectile.enabled = true;
         }

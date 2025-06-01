@@ -45,9 +45,9 @@ namespace Drunken_Broster.MeleeItems
             sprite.plane = SpriteBase.SPRITE_PLANE.XY;
             sprite.width = 20;
             sprite.height = 20;
-            sprite.offset = new Vector3( 0, 8, 0 );
+            sprite.offset = new Vector3( 0, 5, 0 );
 
-            this.projectileSize = 13f;
+            this.projectileSize = 7f;
 
             this.damage = 5;
             this.damageInternal = this.damage;
@@ -100,7 +100,7 @@ namespace Drunken_Broster.MeleeItems
 
             // TODO: remove this
             //RocketLib.Utils.DrawDebug.DrawLine( "myline", base.transform.position + new Vector3(-5, 0, 0), new Vector3( 5, 0, 0 ), Color.red );
-            RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 5f, Color.red );
+            RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 7f, Color.red );
 
 
             base.Update();
