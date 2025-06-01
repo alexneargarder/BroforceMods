@@ -13,7 +13,7 @@ namespace Drunken_Broster.MeleeItems
     class CrateProjectile : Projectile
     {
         public static Material storedMat;
-        public SpriteSM storedSprite;
+        public SpriteSM sprite;
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
 
         protected override void Awake()
@@ -26,7 +26,7 @@ namespace Drunken_Broster.MeleeItems
             
             renderer.material = storedMat;
 
-            SpriteSM sprite = this.gameObject.GetComponent<SpriteSM>();
+            sprite = this.gameObject.GetComponent<SpriteSM>();
             sprite.lowerLeftPixel = new Vector2( 0, 16 );
             sprite.pixelDimensions = new Vector2( 16, 16 );
 
@@ -34,8 +34,6 @@ namespace Drunken_Broster.MeleeItems
             sprite.width = 16;
             sprite.height = 16;
             sprite.offset = new Vector3( 0, 0, 0 );
-
-            storedSprite = sprite;
 
             // Load shrapnel from normal crate block
             CrateBlock crateBlock = Map.Instance.activeTheme.blockPrefabWood[0] as CrateBlock;
@@ -45,7 +43,7 @@ namespace Drunken_Broster.MeleeItems
 
             this.projectileSize = 15f;
 
-            this.damage = 7;
+            this.damage = 9;
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
 
@@ -71,10 +69,6 @@ namespace Drunken_Broster.MeleeItems
         {
             this.ApplyGravity();
             base.Update();
-
-            Vector3 middle = base.transform.position;
-            Vector3 right = base.transform.position + new Vector3(this.projectileSize, 0, 0);
-            Vector3 left = base.transform.position - new Vector3( this.projectileSize, 0, 0 );
         }
 
         protected virtual void ApplyGravity()
