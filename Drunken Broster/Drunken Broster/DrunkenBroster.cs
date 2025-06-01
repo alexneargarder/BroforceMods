@@ -133,9 +133,55 @@ namespace Drunken_Broster
             this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( directoryPath, "meleeSpriteGrabThrowing.png" );
 
             // Setup throwables
-            projectilePrefabs[1] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<CrateProjectile>();
+            // TODO: Load tire
+            projectilePrefabs[0] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[0].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[0].enabled = false;
+
+            // Load acid eggg
+            projectilePrefabs[1] = new GameObject( "AcidEggProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( AcidEggProjectile ) } ).GetComponent<Projectile>();
             projectilePrefabs[1].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
             projectilePrefabs[1].enabled = false;
+
+            // TODO: Load beehive
+            projectilePrefabs[2] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[2].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[2].enabled = false;
+
+            // TODO: Load bottle
+            projectilePrefabs[3] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[3].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[3].enabled = false;
+
+            // Load crate
+            projectilePrefabs[4] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[4].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[4].enabled = false;
+
+            // TODO: Load coconut
+            projectilePrefabs[5] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[5].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[5].enabled = false;
+
+            // TODO: Load explosive barrel
+            projectilePrefabs[6] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[6].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[6].enabled = false;
+
+            // TODO: Load soccer ball
+            projectilePrefabs[7] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[7].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[7].enabled = false;
+
+            // TODO: Load alien egg
+            projectilePrefabs[8] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[8].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[8].enabled = false;
+
+            // TODO: Load skull
+            projectilePrefabs[9] = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            projectilePrefabs[9].soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            projectilePrefabs[9].enabled = false;
 
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
@@ -147,6 +193,7 @@ namespace Drunken_Broster
 
         protected override void Update()
         {
+            BMLogger.Log( "test" );
             base.Update();
             // Don't run any code past this point if the character is dead
             if ( this.acceptedDeath )
@@ -1831,7 +1878,7 @@ namespace Drunken_Broster
 
             // TODO: Switch to this code when sprites are in correct places
             //int row = ( (int)this.chosenItem ) + 1;
-            int row = 1;
+            int row = ( (int) 0 ) + 1;
 
             this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
 
@@ -1845,7 +1892,6 @@ namespace Drunken_Broster
             if ( base.frame >= 5 )
             {
                 base.frame = 0;
-                this.SwitchToHeldItem();
                 this.CancelMelee();
             }
         }
@@ -1940,6 +1986,7 @@ namespace Drunken_Broster
             else
             {
                 this.canChimneyFlip = true;
+                this.throwingHeldItem = false;
                 this.holdingItem = false;
                 this.heldItem = MeleeItem.None;
                 this.gunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );

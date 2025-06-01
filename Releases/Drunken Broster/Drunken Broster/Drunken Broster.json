@@ -1,0 +1,43 @@
+{
+  "name": "Drunken Broster",
+  "characterPreset": "Drunken Broster",
+  "parameters": {
+    "BetterAnimation": true,
+    "SpecialIcons": "special.png",
+    "Avatar": "avatar.png",
+    "GunSpriteOffset":
+    {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "cutscene": {
+    "heading": "Drunken Broster",
+    "subtitle1": "Joins the Battle!",
+    "headingScale": 0.14,
+    "spriteRect":
+    {
+     "x": 0,
+     "y": 256,
+     "width": 256,
+     "height": 256
+    },
+    "spritePath": "cutscene.png",
+    "anim": "Intro_Bro_Rambro",
+    "playCutsceneOnFirstSpawn": true
+  },
+  "beforeAwake": {
+    "speed": 130,
+    "fireRate": 0.1,
+    "canChimneyFlip": true,
+    "originalSpecialAmmo": 1
+  },
+  "afterAwake": {},
+  "beforeStart": {
+    "sprite": "sprite.png",
+    "gunSprite": "gunSprite.png"
+  },
+  "afterStart": {
+    
+  }
+}

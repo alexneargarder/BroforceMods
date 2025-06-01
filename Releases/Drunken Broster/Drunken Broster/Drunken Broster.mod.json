@@ -1,0 +1,12 @@
+{
+  "Version": "1.0.0",
+  "BroMakerVersion": "2.4.0",
+  "Name": "Drunken Broster",
+  "Author": "AlexN",
+  "CustomBros":[
+    "Drunken Broster.json"
+  ],
+  "Assemblies": [
+    "Drunken Broster.dll"
+  ]
+}
