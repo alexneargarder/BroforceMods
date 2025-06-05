@@ -82,6 +82,7 @@
     <Compile Include="DrunkenBroster.cs" />
     <Compile Include="MeleeItems\AcidEgg.cs" />
     <Compile Include="MeleeItems\Crate.cs" />
+    <Compile Include="MeleeItems\Tire.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -25,8 +25,6 @@ namespace Drunken_Broster.MeleeItems
 
         protected BloodColor bloodColor = BloodColor.Green;
         protected float explodeRange = 40f;
-        //Puff smoke1, smoke2, explosion, explosionBig;
-        //FlickerFader fire1, fire2, fire3;
 
         protected override void Awake()
         {
@@ -53,16 +51,6 @@ namespace Drunken_Broster.MeleeItems
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
 
-            //// Get effects from alien egg
-            //BarrelBlock block = Map.Instance.activeTheme.blockAlienEgg as BarrelBlock;
-            //this.smoke1 = block.smoke1;
-            //this.smoke2 = block.smoke2;
-            //this.explosion = block.explosion;
-            //this.explosionBig = block.explosionBig;
-            //this.fire1 = block.fire1;
-            //this.fire2 = block.fire2;
-            //this.fire3 = block.fire3;
-
             base.Awake();
         }
 
@@ -83,10 +71,6 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Update()
         {
-            // TODO: remove this
-            //this.xI = this.yI = 0;
-            //this.life = 1000f;
-
             this.ApplyGravity();
 
             // Change frames
@@ -98,10 +82,7 @@ namespace Drunken_Broster.MeleeItems
                 this.ChangeFrame();
             }
 
-            // TODO: remove this
-            //RocketLib.Utils.DrawDebug.DrawLine( "myline", base.transform.position + new Vector3(-5, 0, 0), new Vector3( 5, 0, 0 ), Color.red );
-            RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 7f, Color.red );
-
+            //RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 7f, Color.red );
 
             base.Update();
         }
