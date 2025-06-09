@@ -6,31 +6,38 @@
     <members>
         <member name="M:TestVanDammeAnim.Awake">
             <summary>
-            Unity lifecycle method that initializes TestVanDammeAnim. Sets up sprite systems, parachute functionality, collision layers, materials, and core physics components required for character operation.
+            Unity lifecycle method that initializes TestVanDammeAnim. Sets up sprite systems, parachute
+            functionality, collision layers, materials, and core physics components required for
+            character operation.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AddBoxCollider">
             <summary>
-            Adds or configures a BoxCollider component with character-specific collision dimensions. Sets different box sizes and centers for various enemy types (Xenomorph, FaceHugger, etc.) with default humanoid dimensions as fallback.
+            Adds or configures a BoxCollider component with character-specific collision dimensions.
+            Sets different box sizes and centers for various enemy types (Xenomorph, FaceHugger, etc.)
+            with default humanoid dimensions as fallback.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AddRigidbody">
             <summary>
-            Adds or configures a Rigidbody component for physics simulation. Sets the rigidbody to kinematic mode with gravity disabled for manual physics control.
+            Adds or configures a Rigidbody component for physics simulation. Sets the rigidbody to
+            kinematic mode with gravity disabled for manual physics control.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetDefaultGroundLayer">
             <summary>
-            Sets up the default ground collision layer mask including Ground, LargeObjects, and IndestructibleGround layers for ground detection and collision checking.
+            Sets up the default ground collision layer mask including Ground, LargeObjects, and
+            IndestructibleGround layers for ground detection and collision checking.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetStrictGroundLayer">
             <summary>
-            Sets up a strict ground collision layer mask including only Ground and IndestructibleGround layers, excluding LargeObjects for more restrictive ground detection.
+            Sets up a strict ground collision layer mask including only Ground and IndestructibleGround
+            layers, excluding LargeObjects for more restrictive ground detection.
             </summary>
         </member>
 
@@ -42,25 +49,30 @@
 
         <member name="M:TestVanDammeAnim.Start">
             <summary>
-            Unity lifecycle method that handles game mode-specific initialization. Configures special ammo based on game mode (deathmatch, procedural generation, campaign), sets up sound system, avatar states, and initial invulnerability.
+            Unity lifecycle method that handles game mode-specific initialization. Configures special
+            ammo based on game mode (deathmatch, procedural generation, campaign), sets up sound system,
+            avatar states, and initial invulnerability.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetDeltaTime">
             <summary>
-            Updates the frame delta time with clamping to prevent large time steps. Stores previous frame time and clamps current time to maximum of 0.0334 seconds.
+            Updates the frame delta time with clamping to prevent large time steps. Stores previous
+            frame time and clamps current time to maximum of 0.0334 seconds.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetHighFiveBoostDeltaTime">
             <summary>
-            Sets modified delta time during high-five boost effects. Applies different time multipliers based on time scale and special boost conditions.
+            Sets modified delta time during high-five boost effects. Applies different time multipliers
+            based on time scale and special boost conditions.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.LateUpdate">
             <summary>
-            Unity lifecycle method for post-frame updates. Handles input bit preservation, inseminator unit synchronization, map disable area extension, and quicksand checking.
+            Unity lifecycle method for post-frame updates. Handles input bit preservation, inseminator
+            unit synchronization, map disable area extension, and quicksand checking.
             </summary>
         </member>
 
@@ -72,7 +84,8 @@
 
         <member name="M:TestVanDammeAnim.Update">
             <summary>
-            Core Unity lifecycle method that executes the main update loop for TestVanDammeAnim each frame. Processes essential character systems in this execution order:
+            Core Unity lifecycle method that executes the main update loop for TestVanDammeAnim each
+            frame. Processes essential character systems in this execution order:
             1. **Acid coverage effects** - Visual and damage processing for acid-covered characters
             2. **Delta time management** - Frame timing with high-five boost support
             3. **Input processing** - Handle player input or trigger action control
@@ -88,13 +101,16 @@
             13. **Audio and visual effects** - Wall dragging sounds, trails, freeze shaders
             14. **Player management** - Kick system and recall mechanics
             15. **Parachute system** - Deployment timing and physics modification
-            This method coordinates all core character functionality and represents the main execution loop for character behavior.
+            This method coordinates all core character functionality and represents the main execution
+            loop for character behavior.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetUpHero(System.Int32,HeroType,System.Boolean)">
             <summary>
-            Configures TestVanDammeAnim as a hero character with specified player number and hero type. Optionally registers with HeroController and creates hero indicator effects based on game state conditions.
+            Configures TestVanDammeAnim as a hero character with specified player number and hero type.
+            Optionally registers with HeroController and creates hero indicator effects based on game
+            state conditions.
             </summary>
             <param name="PlayerNum">The player number to assign to this hero (0-3)</param>
             <param name="heroTypeEnum">The type of hero this character represents</param>
@@ -103,19 +119,22 @@
 
         <member name="M:TestVanDammeAnim.AttachToHeli">
             <summary>
-            Virtual method for attaching TestVanDammeAnim to helicopter. Currently empty implementation that can be overridden by derived classes.
+            Virtual method for attaching TestVanDammeAnim to helicopter. Currently empty implementation
+            that can be overridden by derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.ShowStartBubble">
             <summary>
-            Displays the starting bubble UI for heroes when HUDs are enabled and character is alive. Restarts bubble animation and flashes avatar.
+            Displays the starting bubble UI for heroes when HUDs are enabled and character is alive.
+            Restarts bubble animation and flashes avatar.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetPositionAndVelocity(System.Single,System.Single,System.Single,System.Single)">
             <summary>
-            Sets the position and velocity of TestVanDammeAnim with teleportation handling. If the distance change exceeds 6 units, directly sets position to prevent large jumps.
+            Sets the position and velocity of TestVanDammeAnim with teleportation handling. If the
+            distance change exceeds 6 units, directly sets position to prevent large jumps.
             </summary>
             <param name="newX">New X coordinate position</param>
             <param name="newY">New Y coordinate position</param>
@@ -125,104 +144,432 @@
 
         <member name="M:TestVanDammeAnim.UseAttackJumpForceForSeconds(System.Single)">
             <summary>
-            Temporarily increases jump force to attack jump force for a specified duration. Stores original jump force for restoration.
+            Temporarily increases jump force to attack jump force for a specified duration. Stores
+            original jump force for restoration.
             </summary>
             <param name="seconds">Duration in seconds to use the enhanced jump force</param>
         </member>
 
         <member name="M:TestVanDammeAnim.ResetToOriginalJumpForce">
             <summary>
-            Restores the original jump force and clears the attack jump force timer if previously modified.
+            Restores the original jump force and clears the attack jump force timer if previously
+            modified.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AttachToZipline(ZipLine)">
             <summary>
-            Attaches character to zipline for transportation. Sets zipline state and disables normal movement controls.
+            Attaches character to zipline for transportation. Sets zipline state and disables normal
+            movement controls.
             </summary>
             <param name="zipLine">ZipLine object to attach to</param>
         </member>
 
+        <member name="M:TestVanDammeAnim.StopDashing">
+            <summary>
+            Manages dash speed multiplier cleanup when ending dash sequences. Resets dash speed to 1.0
+            for grounded characters while preserving last dash speed for airborne characters to maintain
+            momentum.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CanAirDash(DirectionEnum)">
+            <summary>
+            Determines if character can perform air dash in specified direction based on character state
+            and directional availability. Returns true if character can air dash or is on ground, false
+            if dead, acid-covered, or direction unavailable.
+            </summary>
+            <param name="direction">Direction to check for air dash availability (Up, Down, Left, Right)</param>
+            <returns>True if air dash is possible in the specified direction, false otherwise</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CalculateMovement">
+            <summary>
+            Core movement calculation method that processes all character input and physics. Handles
+            wind effects, sandstorm damage, firing input, dash detection, directional movement with
+            double-tap dash triggers, air dashes during high-five holds, action state transitions, edge
+            slip prevention, down input processing with parachute deactivation, and comprehensive jump
+            mechanics including wall jumps, quicksand jumps, wall climbing initiation, and air jump
+            grace periods.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CanJumpOffGround">
+            <summary>
+            Determines if character can jump from current ground position by checking for solid ground
+            contact with wall collision considerations. Accounts for directional movement restrictions
+            and quicksand movement penalties.
+            </summary>
+            <returns>True if character can jump from current position, false otherwise</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetActionstateToIdle">
+            <summary>
+            Sets the character's action state to idle. Simple state transition method that can be
+            overridden by derived classes.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.DontSlipOverEdges">
+            <summary>
+            Prevents heroes from accidentally falling off edges by detecting ground ahead and stopping
+            movement. Uses raycast detection based on facing direction to check for ground at feet width
+            distance, stopping rolling and zeroing velocity when edge detected.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CanBeAffectedByWind">
+            <summary>
+            Determines if character can be affected by wind effects. Returns false during chimney flip
+            to prevent wind interference with the maneuver.
+            </summary>
+            <returns>True if character can be affected by wind, false during chimney flip</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PressDown">
+            <summary>
+            Handles down button press input by recording the tap time for potential down-based actions.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.NotPressingJump">
+            <summary>
+            Processes jump button release by disabling wall climbing state when jump is not being
+            pressed.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ClampSpeedPressingLeft">
+            <summary>
+            Clamps horizontal velocity to -10 when pressing left without simultaneous right input to
+            ensure responsive leftward movement initiation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ClampSpeedPressingRight">
+            <summary>
+            Clamps horizontal velocity to 10 when pressing right without simultaneous left input to
+            ensure responsive rightward movement initiation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.HitRightWall">
+            <summary>
+            Virtual method called when character collides with right wall. Empty implementation that can
+            be overridden by derived classes for wall collision handling.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.HitLeftWall">
+            <summary>
+            Virtual method called when character collides with left wall. Empty implementation that can
+            be overridden by derived classes for wall collision handling.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.Tumble">
+            <summary>
+            Virtual method placeholder for tumble mechanics. Empty in base class, allows subclasses to
+            implement tumbling behavior.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.Jump(System.Boolean)">
+            <summary>
+            Handles all jump mechanics including wall jumps, grace jumping, and special surface
+            interactions. Adjusts jump force based on surface type (barbed wire reduces to 80%, bouncy
+            blocks increase to 190%) and inherits velocity from moving platforms.
+            </summary>
+            <param name="wallJump">If true, performs a wall jump with horizontal velocity reset and climb
+        sound/animation.</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AirJump">
+            <summary>
+            Virtual method placeholder for air jump/double jump mechanics. Empty in base class, allows
+            subclasses to implement air jumping behavior.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AddSpeedLeft">
+            <summary>
+            Accelerates the character leftward with speed limits and multipliers based on movement
+            state. Base acceleration is 2x, dashing provides 4x, and parachute reduces speed by 50%.
+            Includes an extra 2.6x boost when below maximum speed.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AddSpeedRight">
+            <summary>
+            Accelerates the character rightward with speed limits and multipliers based on movement
+            state. Base acceleration is 2x, dashing provides 4x, and parachute reduces speed by 50%.
+            Includes an extra 2.6x boost when below maximum speed.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsOnGround">
+            <summary>
+            Determines if the character is standing on ground by checking if Y position is within 0.5
+            units above ground height and vertical velocity is not positive.
+            </summary>
+            <returns>True if the character is on ground, false otherwise.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsNearGround(System.Single)">
+            <summary>
+            Checks if the character is within a specified distance from the ground.
+            </summary>
+            <param name="maxOffset">Maximum distance above ground to consider "near".</param>
+            <returns>True if the character's Y position is below ground height plus the offset.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CanTouchGround(System.Single)">
+            <summary>
+            Checks if the character can touch ground using multiple raycasts at different positions.
+            Performs up to 4 raycasts for regular ground and 4 additional raycasts for ladders if
+            applicable.
+            </summary>
+            <param name="xOffset">Horizontal offset for additional raycast checks.</param>
+            <returns>True if any raycast hits ground or ladder, false otherwise.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.GetGroundLayer">
+            <summary>
+            Returns the appropriate layer mask for ground detection based on whether the player is
+            holding down. When not holding down, includes platforms; when holding down, excludes
+            platforms to allow dropping through.
+            </summary>
+            <returns>LayerMask combining ground, fragile, and optionally platform layers.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.GetGroundHeightGround">
+            <summary>
+            Calculates the ground height below the character using box casts and raycasts. Checks for
+            both regular ground and ladders, updating ground references and footstep sound types based
+            on what is detected.
+            </summary>
+            <returns>The highest ground point found, or -200f if no ground is detected.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CalculateGroundHeight">
+            <summary>
+            Updates the ground height for the character by calling GetGroundHeightGround to perform
+            ground detection calculations.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunMovement">
+            <summary>
+            Central movement processing hub that orchestrates all character movement based on action
+            state. Handles dead state physics with quicksand damping, ladder and zipline mechanics, jump
+            timing and gravity application, water physics damping, comprehensive collision detection for
+            walls/ceilings/floors, out-of-bounds death triggers, and frame-based movement calculations.
+            This is the core method that drives all character physics and movement.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsOilyBelow">
+            <summary>
+            Detects if there are oily surfaces beneath the character using two raycasts from foot
+            positions. Checks 9 units down from Y+4 position with foot spread of 4 units.
+            </summary>
+            <returns>True if either foot position detects an oily block below.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsGroundBelow">
+            <summary>
+            Simple ground detection with fixed 5-unit range using two raycasts from left and right foot
+            positions.
+            </summary>
+            <returns>True if either foot detects ground within 5 units below.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsGroundBelow(System.Single)">
+            <summary>
+            Parameterized ground detection with variable range using two raycasts from foot positions.
+            </summary>
+            <param name="maxDistance">Maximum distance to check for ground below the character.</param>
+            <returns>True if either foot detects ground within the specified distance.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsGroundBelowAtXOffset(System.Single,System.Boolean)">
+            <summary>
+            Ground detection at a specific horizontal offset from the character position, useful for
+            checking ground ahead or behind.
+            </summary>
+            <param name="xOffset">Horizontal offset from character position to check.</param>
+            <param name="includeLadders">Whether to include ladder detection in addition to ground.</param>
+            <returns>True if ground (and optionally ladders) detected at the offset position.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunGroundFriction">
+            <summary>
+            Applies friction when character is on ground and idle. Normal friction rapidly decelerates
+            at 25x rate, while rolling friction is slower at 5x rate.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunAirFriction">
+            <summary>
+            Virtual method placeholder for air friction. Empty in base class, allows subclasses to
+            implement air resistance.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunDeadGravity">
+            <summary>
+            Applies physics when character is dead. In air: applies gravity or quicksand gravity unless
+            impaled, triggers falling animation at -50 velocity. On ground: applies friction using 10x
+            friction multiplier.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.EvaluateIsJumping">
+            <summary>
+            Determines if the character should be in a jumping state by checking if they are more than
+            0.1 units above the ground. Only evaluates when ground height is valid (not -100000).
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetActionStateToJumping(System.Boolean)">
+            <summary>
+            Changes the character's action state to jumping with health validation. Normal mode requires
+            positive health and not already jumping. Updates animation frame unless using special
+            ability.
+            </summary>
+            <param name="forced">If true, bypasses the check for already being in jump state (but still
+        requires health &gt; 0).</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunFalling">
+            <summary>
+            Virtual method placeholder for falling state behavior. Empty in base class, allows
+            subclasses to implement custom falling logic.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunFallen">
+            <summary>
+            Virtual method placeholder for post-fall state behavior. Empty in base class, allows
+            subclasses to implement custom fallen state logic.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunCheckHanging">
+            <summary>
+            Detects if character can hang from ceiling using upward raycasts. Requires 0.8 seconds after
+            jump, appropriate directional conditions, and ceiling detection within range. Sets vertical
+            velocity based on ceiling distance and tracks interactive ceiling objects.
+            </summary>
+            <returns>True if hanging conditions are met and ceiling is detected.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunHanging">
+            <summary>
+            Manages movement and physics while hanging from ceiling. Provides slight upward movement
+            with up/jump input, applies horizontal speed clamping based on animation frame, increases
+            friction when not moving, and continuously checks for ceiling presence. Automatically stops
+            hanging when ceiling is lost or down is pressed.
+            </summary>
+        </member>
+
         <member name="P:TestVanDammeAnim.jumpForce">
             <summary>
-            Gets or sets the force applied when the character jumps. This value can be temporarily modified for special attack jumps.
+            Gets or sets the force applied when the character jumps. This value can be temporarily
+            modified for special attack jumps.
             </summary>
             <value>The upward force in physics units applied during jump actions.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.IsStandingStill">
             <summary>
-            Gets a value indicating whether the character is completely stationary. Returns true when the character is on the ground and both X and Y velocities are below 0.5.
+            Gets a value indicating whether the character is completely stationary. Returns true when
+            the character is on the ground and both X and Y velocities are below 0.5.
             </summary>
             <value>true if the character is on ground and not moving; otherwise, false.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.GetSpeed">
             <summary>
-            Gets the effective movement speed considering all active modifiers and environmental effects. Speed is reduced by 50% when surrounded by barbed wire.
+            Gets the effective movement speed considering all active modifiers and environmental
+            effects. Speed is reduced by 50% when surrounded by barbed wire.
             </summary>
-            <value>The calculated movement speed including ValueOrchestrator modifiers and environmental penalties.</value>
+            <value>The calculated movement speed including ValueOrchestrator modifiers and environmental
+        penalties.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.XY">
             <summary>
-            Gets or sets the character's position as a Vector2. This override provides network synchronization hooks for the base class position property.
+            Gets or sets the character's position as a Vector2. This override provides network
+            synchronization hooks for the base class position property.
             </summary>
             <value>The character's X and Y coordinates in world space.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.TempInvulnerability(System.Single)">
             <summary>
-            Grants temporary invulnerability to TestVanDammeAnim for a specified duration. Sets invulnerable state and resets fired-while-invulnerable tracking.
+            Grants temporary invulnerability to TestVanDammeAnim for a specified duration. Sets
+            invulnerable state and resets fired-while-invulnerable tracking.
             </summary>
-            <param name="time">Duration of invulnerability in seconds. If 0 or negative, uses default duration of 1.2 times the current frame delta time (very brief)</param>
+            <param name="time">Duration of invulnerability in seconds. If 0 or negative, uses default
+        duration of 1.2 times the current frame delta time (very brief)</param>
         </member>
 
         <member name="M:TestVanDammeAnim.CreateSkeleton">
             <summary>
-            Creates appropriate skeleton prefab based on character type (BigGuy, HellLostSoul, Grenadier, etc.) for death/melting animations. Only creates if skeleton doesn't already exist.
+            Creates appropriate skeleton prefab based on character type (BigGuy, HellLostSoul,
+            Grenadier, etc.) for death/melting animations. Only creates if skeleton doesn't already
+            exist.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.Melt">
             <summary>
-            Initiates melting animation sequence using character-specific melting prefabs. Sets melted state and creates appropriate melting effects for different enemy types and states.
+            Initiates melting animation sequence using character-specific melting prefabs. Sets melted
+            state and creates appropriate melting effects for different enemy types and states.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckNotifyDeathType">
             <summary>
-            Checks if enough time has passed since death to notify death type. Calls NotifyDeathType after 0.33 second delay.
+            Checks if enough time has passed since death to notify death type. Calls NotifyDeathType
+            after 0.33 second delay.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.StopBeingStunned">
             <summary>
-            Virtual method for ending stun effects. Empty implementation that can be overridden by derived classes.
+            Virtual method for ending stun effects. Empty implementation that can be overridden by
+            derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AlertNearbyMooks">
             <summary>
-            Alerts nearby enemy units to player presence within 8x8 unit area. Updates last alert time for tracking alert frequency.
+            Alerts nearby enemy units to player presence within 8x8 unit area. Updates last alert time
+            for tracking alert frequency.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckFacingDirection">
             <summary>
-            Manages character facing direction based on movement, input, and special abilities. Prevents direction changes during chimney flips, air dashes, or when configured to maintain special facing direction.
+            Manages character facing direction based on movement, input, and special abilities. Prevents
+            direction changes during chimney flips, air dashes, or when configured to maintain special
+            facing direction.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckDestroyed">
             <summary>
-            Handles character destruction cleanup. Removes from map tracking, reduces lives if applicable, and triggers unit destruction.
+            Handles character destruction cleanup. Removes from map tracking, reduces lives if
+            applicable, and triggers unit destruction.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.DestroyUnit">
             <summary>
-            Virtual method that destroys the game object. Can be overridden by derived classes for custom destruction behavior.
+            Virtual method that destroys the game object. Can be overridden by derived classes for
+            custom destruction behavior.
             </summary>
         </member>
 
@@ -242,7 +589,8 @@
 
         <member name="P:TestVanDammeAnim.invulnerableTime">
             <summary>
-            Gets or sets the remaining invulnerability duration in seconds. When greater than zero, the character cannot take damage.
+            Gets or sets the remaining invulnerability duration in seconds. When greater than zero, the
+            character cannot take damage.
             </summary>
             <value>The duration in seconds the character remains invulnerable to damage.</value>
         </member>
@@ -263,78 +611,94 @@
 
         <member name="P:TestVanDammeAnim.WillReviveAlready">
             <summary>
-            Gets a value indicating whether this unit will be automatically revived. This base implementation always returns false.
+            Gets a value indicating whether this unit will be automatically revived. This base
+            implementation always returns false.
             </summary>
-            <value>Always false for TestVanDammeAnim. Derived classes can override to implement revival mechanics.</value>
+            <value>Always false for TestVanDammeAnim. Derived classes can override to implement revival
+        mechanics.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.IsPerformanceEnhanced">
             <summary>
-            Gets a value indicating whether performance enhancement effects are currently active. This base implementation always returns false.
+            Gets a value indicating whether performance enhancement effects are currently active. This
+            base implementation always returns false.
             </summary>
-            <value>Always false for TestVanDammeAnim. Derived classes can override to implement performance boost mechanics.</value>
+            <value>Always false for TestVanDammeAnim. Derived classes can override to implement
+        performance boost mechanics.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.counter">
             <summary>
-            Gets or sets the animation frame timing counter. This counter accumulates delta time and triggers the next animation frame when it exceeds the frameRate threshold (0.0334 seconds).
+            Gets or sets the animation frame timing counter. This counter accumulates delta time and
+            triggers the next animation frame when it exceeds the frameRate threshold (0.0334 seconds).
             </summary>
-            <value>The accumulated time in seconds since the last animation frame change. Resets after triggering the next frame.</value>
+            <value>The accumulated time in seconds since the last animation frame change. Resets after
+        triggering the next frame.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.impaledByTransform">
             <summary>
-            Gets or sets the Transform that is currently impaling this unit. Setting this property also updates the related Impaler component reference.
+            Gets or sets the Transform that is currently impaling this unit. Setting this property also
+            updates the related Impaler component reference.
             </summary>
             <value>The Transform of the object impaling this unit, or null if not impaled.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.IsParachuteActive">
             <summary>
-            Gets or sets a value indicating whether the parachute is currently active. Setting this property manages parachute GameObject visibility, physics effects, and landing invulnerability.
+            Gets or sets a value indicating whether the parachute is currently active. Setting this
+            property manages parachute GameObject visibility, physics effects, and landing
+            invulnerability.
             </summary>
             <value>true if the parachute is deployed and active; otherwise, false.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckForCheckPoints">
             <summary>
-            Checks if character is touching checkpoints at current position or slightly above ground level. Calls ReachedCheckPoint if checkpoint contact is detected.
+            Checks if character is touching checkpoints at current position or slightly above ground
+            level. Calls ReachedCheckPoint if checkpoint contact is detected.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.ReachedCheckPoint">
             <summary>
-            Virtual method called when character reaches a checkpoint. Empty implementation that can be overridden by derived classes.
+            Virtual method called when character reaches a checkpoint. Empty implementation that can be
+            overridden by derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.RunZombieEffects">
             <summary>
-            Handles ongoing zombie revival visual effects. Creates periodic zombie passive effects with random timing intervals.
+            Handles ongoing zombie revival visual effects. Creates periodic zombie passive effects with
+            random timing intervals.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.PickupPickupables">
             <summary>
-            Attracts nearby pickupable items when character is alive. Uses attraction radius to automatically collect items within range.
+            Attracts nearby pickupable items when character is alive. Uses attraction radius to
+            automatically collect items within range.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckRescues">
             <summary>
-            Checks for nearby heroes to rescue and grants rescue bonuses. Provides invulnerability, shows start bubble, and adds brutality grace period.
+            Checks for nearby heroes to rescue and grants rescue bonuses. Provides invulnerability,
+            shows start bubble, and adds brutality grace period.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.RunBlindStars">
             <summary>
-            Creates periodic blind star visual effects around blinded characters. Spawns shrapnel stars above character head with randomized positioning.
+            Creates periodic blind star visual effects around blinded characters. Spawns shrapnel stars
+            above character head with randomized positioning.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckForTraps(System.Single)">
             <summary>
-            Comprehensive trap detection system. Checks for acid pools, barbed wire, spikes, and mines. Handles impalement, damage, and movement constraints from environmental hazards.
+            Comprehensive trap detection system. Checks for acid pools, barbed wire, spikes, and mines.
+            Handles impalement, damage, and movement constraints from environmental hazards.
             </summary>
             <param name="yIT">Y velocity reference that may be modified by trap interactions</param>
         </member>
@@ -348,32 +712,58 @@
 
         <member name="M:TestVanDammeAnim.RunHasLeftOilTest">
             <summary>
-            Manages gradual oil level decay and material transitions when leaving oil areas. Decreases oil level over time using deltaTime, updates material opacity properties, and handles cleanup by restoring original materials when oil level reaches zero.
+            Manages gradual oil level decay and material transitions when leaving oil areas. Decreases
+            oil level over time using deltaTime, updates material opacity properties, and handles
+            cleanup by restoring original materials when oil level reaches zero.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.LandInOil">
             <summary>
-            Initializes oil effect materials and applies them to both character and gun sprites. Creates oily materials using "Unlit/Depth Cutout With Image - Oily" shader with lazy instantiation pattern. Sets up UV2 coordinates and configures sprite size vectors for proper oil effect rendering.
+            Initializes oil effect materials and applies them to both character and gun sprites. Creates
+            oily materials using "Unlit/Depth Cutout With Image - Oily" shader with lazy instantiation
+            pattern. Sets up UV2 coordinates and configures sprite size vectors for proper oil effect
+            rendering.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.LeaveOil">
             <summary>
-            Placeholder method for leaving oil areas. Actual oil cleanup logic is handled by the continuous RunHasLeftOilTest method which manages gradual oil level decay and material restoration.
+            Placeholder method for leaving oil areas. Actual oil cleanup logic is handled by the
+            continuous RunHasLeftOilTest method which manages gradual oil level decay and material
+            restoration.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.IsSubmergedInPool">
             <summary>
-            Extended submersion detection that treats quicksand and oil as equivalent to pool submersion. Overrides base class functionality by combining base pool detection with quicksand and oil state checks using logical OR operation.
+            Extended submersion detection that treats quicksand and oil as equivalent to pool
+            submersion. Overrides base class functionality by combining base pool detection with
+            quicksand and oil state checks using logical OR operation.
             </summary>
             <returns>True if character is submerged in pool, quicksand, or oil; false otherwise</returns>
         </member>
 
+        <member name="M:TestVanDammeAnim.CheckForQuicksand">
+            <summary>
+            Manages quicksand detection and transition effects. Tracks quicksand state changes, creates
+            appropriate splash and particle effects on entry/exit, plays surface-specific sounds, and
+            disables blast velocity while in quicksand.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CheckForQuicksandDeath">
+            <summary>
+            Monitors for lethal quicksand submersion and applies crush damage after 2-second delay.
+            Checks if character is deep in quicksand (16 units below surface) and deals fatal damage if
+            choke counter exceeds threshold.
+            </summary>
+        </member>
+
         <member name="P:TestVanDammeAnim.WallDrag">
             <summary>
-            Gets or sets a value indicating whether the character is sliding down a wall. Setting this property manages wall drag audio effects, knife climbing state, and parachute deactivation.
+            Gets or sets a value indicating whether the character is sliding down a wall. Setting this
+            property manages wall drag audio effects, knife climbing state, and parachute deactivation.
             </summary>
             <value>true if the character is sliding down a wall; otherwise, false.</value>
         </member>
@@ -387,13 +777,16 @@
 
         <member name="M:TestVanDammeAnim.RunOnlineBadSpawnFailSafe">
             <summary>
-            Prevents bad spawn situations in online multiplayer for hero characters. Runs periodic checks to ensure proper spawn state when not hosting.
+            Prevents bad spawn situations in online multiplayer for hero characters. Runs periodic
+            checks to ensure proper spawn state when not hosting.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SetGunPosition(System.Single,System.Single)">
             <summary>
-            Positions the gun sprite relative to the character with specified offsets. Sets gun transform position and ensures consistent scale (1,1,1) while maintaining proper rendering depth (-0.001f on Z-axis).
+            Positions the gun sprite relative to the character with specified offsets. Sets gun
+            transform position and ensures consistent scale (1,1,1) while maintaining proper rendering
+            depth (-0.001f on Z-axis).
             </summary>
             <param name="xOffset">Horizontal offset for gun positioning relative to character</param>
             <param name="yOffset">Vertical offset for gun positioning relative to character</param>
@@ -401,41 +794,49 @@
 
         <member name="M:TestVanDammeAnim.GetFootPoofColor">
             <summary>
-            Determines appropriate particle effect color based on environmental ground conditions. Uses priority-based detection: oil takes precedence over quicksand, which takes precedence over pool submersion. Returns BloodColor.None for normal ground.
+            Determines appropriate particle effect color based on environmental ground conditions. Uses
+            priority-based detection: oil takes precedence over quicksand, which takes precedence over
+            pool submersion. Returns BloodColor.None for normal ground.
             </summary>
-            <returns>BloodColor enum value representing the appropriate particle effect color for current environment</returns>
+            <returns>BloodColor enum value representing the appropriate particle effect color for current
+        environment</returns>
         </member>
 
         <member name="P:TestVanDammeAnim.HalfWidth">
             <summary>
-            Gets the half-width of the character's collision bounds. This value is used for collision detection and positioning calculations.
+            Gets the half-width of the character's collision bounds. This value is used for collision
+            detection and positioning calculations.
             </summary>
             <value>Half the width of the character's collision box in world units.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.SyncParent">
             <summary>
-            Gets or sets the parent Transform for network synchronization. This property enables synchronized parenting across multiplayer clients.
+            Gets or sets the parent Transform for network synchronization. This property enables
+            synchronized parenting across multiplayer clients.
             </summary>
             <value>The Transform that should be synchronized as this object's parent across the network.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.SyncParentedPosition">
             <summary>
-            Gets or sets the position relative to a parent Transform for network synchronization. This property manages both position and parent relationship in multiplayer scenarios.
+            Gets or sets the position relative to a parent Transform for network synchronization. This
+            property manages both position and parent relationship in multiplayer scenarios.
             </summary>
             <value>A ParentedPosition structure containing position data and parent transform reference.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.CheckHighFive">
             <summary>
-            Checks for nearby characters available for high-five interactions and manages high-five initiation timing.
+            Checks for nearby characters available for high-five interactions and manages high-five
+            initiation timing.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.TryConnectHighFive">
             <summary>
-            Attempts to connect with nearby character for high-five interaction. Returns success status for networking.
+            Attempts to connect with nearby character for high-five interaction. Returns success status
+            for networking.
             </summary>
             <returns>True if high-five connection successful, false otherwise</returns>
         </member>
@@ -449,13 +850,15 @@
 
         <member name="M:TestVanDammeAnim.CreateHighFiveEffects">
             <summary>
-            Creates visual and audio effects for successful high-five interactions including particles and screen effects.
+            Creates visual and audio effects for successful high-five interactions including particles
+            and screen effects.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CanInseminate(System.Single,System.Single)">
             <summary>
-            Checks if character can be inseminated by alien face huggers. Requires no existing inseminator, positive health, and health below 1000.
+            Checks if character can be inseminated by alien face huggers. Requires no existing
+            inseminator, positive health, and health below 1000.
             </summary>
             <param name="xI">X force component (unused in logic)</param>
             <param name="yI">Y force component (unused in logic)</param>
@@ -478,20 +881,23 @@
 
         <member name="M:TestVanDammeAnim.CalculateInseminationFrame">
             <summary>
-            Calculates the sprite frame for insemination animation based on infection progression. Returns frames 0-7 based on inseminated counter timing.
+            Calculates the sprite frame for insemination animation based on infection progression.
+            Returns frames 0-7 based on inseminated counter timing.
             </summary>
             <returns>Animation frame index for insemination state</returns>
         </member>
 
         <member name="M:TestVanDammeAnim.DisConnectFaceHugger">
             <summary>
-            Removes attached face hugger from character. Handles face hugger positioning, disconnection, and UI cleanup.
+            Removes attached face hugger from character. Handles face hugger positioning, disconnection,
+            and UI cleanup.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.Inseminate(AlienFaceHugger,System.Single,System.Single)">
             <summary>
-            Initiates alien insemination process via RPC for network synchronization. Called by face hugger units to begin infection.
+            Initiates alien insemination process via RPC for network synchronization. Called by face
+            hugger units to begin infection.
             </summary>
             <param name="unit">The alien face hugger performing the insemination</param>
             <param name="xForce">X force component for insemination</param>
@@ -501,7 +907,8 @@
 
         <member name="M:TestVanDammeAnim.InseminateRPC(AlienFaceHugger,System.Single,System.Single)">
             <summary>
-            RPC method that executes alien insemination process. Sets up face hugger attachment, initializes infection counters, updates UI, and plays muffled scream sounds.
+            RPC method that executes alien insemination process. Sets up face hugger attachment,
+            initializes infection counters, updates UI, and plays muffled scream sounds.
             </summary>
             <param name="unit">The alien face hugger performing insemination</param>
             <param name="xForce">X force component for insemination</param>
@@ -510,31 +917,39 @@
 
         <member name="M:TestVanDammeAnim.RecoverFromInsemination">
             <summary>
-            Initiates recovery from alien insemination via RPC for network synchronization. Called to cure infection before chest bursting occurs.
+            Initiates recovery from alien insemination via RPC for network synchronization. Called to
+            cure infection before chest bursting occurs.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.RecoverFromInseminatioRPC">
             <summary>
-            RPC method that executes insemination recovery. Removes face hugger, resets infection counters, grants invulnerability, and cleans up UI elements.
+            RPC method that executes insemination recovery. Removes face hugger, resets infection
+            counters, grants invulnerability, and cleans up UI elements.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.BurstChest">
             <summary>
-            Executes alien chest bursting sequence. Disconnects face hugger, spawns alien xenomorph (only for local player or local insemination), targets nearest player, triggers alien growth, gibs character, and plays sound effects.
+            Executes alien chest bursting sequence. Disconnects face hugger, spawns alien xenomorph
+            (only for local player or local insemination), targets nearest player, triggers alien
+            growth, gibs character, and plays sound effects.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.PlayKnifeClimbSound">
             <summary>
-            Plays knife climbing sound effects with automatic variation cycling. Increments sound counter and uses modulo operation to cycle through available knife wall sounds. Plays at 0.2f volume and 1f pitch with 3D positioning.
+            Plays knife climbing sound effects with automatic variation cycling. Increments sound
+            counter and uses modulo operation to cycle through available knife wall sounds. Plays at
+            0.2f volume and 1f pitch with 3D positioning.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.PlayFootStepSound(UnityEngine.AudioClip[],System.Single,System.Single)">
             <summary>
-            Core footstep sound playing method with player versus NPC audio optimization. Players hear full volume while NPCs play at 50% volume and only when visible on screen. Includes footstep delay gating to prevent audio spam.
+            Core footstep sound playing method with player versus NPC audio optimization. Players hear
+            full volume while NPCs play at 50% volume and only when visible on screen. Includes footstep
+            delay gating to prevent audio spam.
             </summary>
             <param name="clips">Array of audio clips to randomly select from for footstep sound</param>
             <param name="v">Volume level for the footstep sound</param>
@@ -543,13 +958,17 @@
 
         <member name="M:TestVanDammeAnim.PlayLandSound">
             <summary>
-            Plays appropriate landing sound based on current ground surface type. Supports six surface types (Dirt, Stone, Metal, Wood, Grass, Slime) with corresponding sound arrays. All landing sounds play at 0.6f volume and 1f pitch.
+            Plays appropriate landing sound based on current ground surface type. Supports six surface
+            types (Dirt, Stone, Metal, Wood, Grass, Slime) with corresponding sound arrays. All landing
+            sounds play at 0.6f volume and 1f pitch.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.PlayJumpSound">
             <summary>
-            Plays appropriate jumping sound based on current ground surface type. Uses identical surface detection logic as landing sounds but with jump-specific audio variants. Plays at slightly higher volume (0.65f) compared to landing sounds.
+            Plays appropriate jumping sound based on current ground surface type. Uses identical surface
+            detection logic as landing sounds but with jump-specific audio variants. Plays at slightly
+            higher volume (0.65f) compared to landing sounds.
             </summary>
         </member>
 
@@ -567,7 +986,8 @@
 
         <member name="M:TestVanDammeAnim.RunWallDraggingAudio">
             <summary>
-            Manages wall dragging audio effects for heroes with wall climb ability. Adjusts pitch and volume based on climbing state and vertical velocity.
+            Manages wall dragging audio effects for heroes with wall climb ability. Adjusts pitch and
+            volume based on climbing state and vertical velocity.
             </summary>
         </member>
 
@@ -580,7 +1000,8 @@
 
         <member name="M:TestVanDammeAnim.PlaySpecial2Sound(System.Single)">
             <summary>
-            Plays special ability 2 sound effect with specified pitch. Default overload that calls the volume/pitch variant.
+            Plays special ability 2 sound effect with specified pitch. Default overload that calls the
+            volume/pitch variant.
             </summary>
             <param name="pitch">Pitch modifier for the sound effect</param>
         </member>
@@ -609,7 +1030,8 @@
 
         <member name="M:TestVanDammeAnim.PlayPushBlockSound">
             <summary>
-            Virtual method for playing block pushing sound. Empty implementation that can be overridden by derived classes.
+            Virtual method for playing block pushing sound. Empty implementation that can be overridden
+            by derived classes.
             </summary>
         </member>
 
@@ -673,7 +1095,8 @@
 
         <member name="M:TestVanDammeAnim.PlaySpecialSound(System.Single,System.Single,System.Boolean)">
             <summary>
-            Plays special ability sound effect with full control over volume, pitch, and reverb settings.
+            Plays special ability sound effect with full control over volume, pitch, and reverb
+            settings.
             </summary>
             <param name="volume">Volume level for the sound effect</param>
             <param name="pitch">Pitch modifier for the sound effect</param>
@@ -697,14 +1120,16 @@
 
         <member name="M:TestVanDammeAnim.PlayYeahSound(System.Single)">
             <summary>
-            Plays celebration "yeah" sound effect with specified volume. Delegates to power-up sound system.
+            Plays celebration "yeah" sound effect with specified volume. Delegates to power-up sound
+            system.
             </summary>
             <param name="volume">Volume level for the sound effect</param>
         </member>
 
         <member name="M:TestVanDammeAnim.PlayYeahSound(System.Single,System.Single,System.Boolean)">
             <summary>
-            Plays celebration "yeah" sound effect with full control over volume, pitch, and reverb. Delegates to power-up sound system.
+            Plays celebration "yeah" sound effect with full control over volume, pitch, and reverb.
+            Delegates to power-up sound system.
             </summary>
             <param name="volume">Volume level for the sound effect</param>
             <param name="pitch">Pitch modifier for the sound effect</param>
@@ -713,7 +1138,8 @@
 
         <member name="M:TestVanDammeAnim.PlayFlexSound(System.Single)">
             <summary>
-            Virtual method for playing flex sound. Empty implementation that can be overridden by derived classes.
+            Virtual method for playing flex sound. Empty implementation that can be overridden by
+            derived classes.
             </summary>
             <param name="volumne">Volume level for the sound effect (note: parameter name has typo)</param>
         </member>
@@ -746,7 +1172,8 @@
 
         <member name="M:TestVanDammeAnim.PlayDizzieSound(System.Single,System.Single)">
             <summary>
-            Plays dizzy/stunned sound effect with pitch randomization in ±0.05 range plus character-specific pitch shift for natural variation.
+            Plays dizzy/stunned sound effect with pitch randomization in ±0.05 range plus
+            character-specific pitch shift for natural variation.
             </summary>
             <param name="volume">Volume level for the sound effect (default 0.33)</param>
             <param name="pitch">Base pitch value with ±0.05 random variation applied (default 1.0)</param>
@@ -774,13 +1201,15 @@
 
         <member name="M:TestVanDammeAnim.PlayLaughterSound">
             <summary>
-            Plays laughter sound effect with 2-second cooldown to prevent spam. Used for character celebration and reactions.
+            Plays laughter sound effect with 2-second cooldown to prevent spam. Used for character
+            celebration and reactions.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.PlayResurrectionSound(System.Single)">
             <summary>
-            Plays resurrection sound effect with 2-second cooldown when character is revived or respawns.
+            Plays resurrection sound effect with 2-second cooldown when character is revived or
+            respawns.
             </summary>
             <param name="volume">Volume level for the sound effect (default 0.3)</param>
         </member>
@@ -821,7 +1250,8 @@
 
         <member name="M:TestVanDammeAnim.PlayAttractedSound">
             <summary>
-            Plays attraction sound effect when character is attracted to or influenced by external forces.
+            Plays attraction sound effect when character is attracted to or influenced by external
+            forces.
             </summary>
         </member>
 
@@ -856,16 +1286,27 @@
             <param name="v">Volume level for the sound effect</param>
         </member>
 
+        <member name="M:TestVanDammeAnim.SetCurrentFootstepSound(UnityEngine.Collider)">
+            <summary>
+            Updates the current footstep sound type based on the ground collider's tag, but only if a
+            footstep sound holder exists and the collider has a tag other than "Untagged".
+            </summary>
+            <param name="collider">The ground collider the character is touching.</param>
+        </member>
+
         <member name="P:TestVanDammeAnim.ShowGesturesMenu">
             <summary>
-            Gets a value indicating whether the gestures menu should be displayed. Always false because the Gestures Menu is unimplemented.
+            Gets a value indicating whether the gestures menu should be displayed. Always false because
+            the Gestures Menu is unimplemented.
             </summary>
             <value>Always false</value>
         </member>
 
         <member name="M:TestVanDammeAnim.StartPilotingUnit(Unit)">
             <summary>
-            Initiates piloting mode by disabling character rendering and controls while transferring control to specified unit. Sets health to 10000, enables invulnerability, and stops UI bubbles.
+            Initiates piloting mode by disabling character rendering and controls while transferring
+            control to specified unit. Sets health to 10000, enables invulnerability, and stops UI
+            bubbles.
             </summary>
             <param name="pilottedUnit">The unit this character will pilot</param>
         </member>
@@ -879,7 +1320,8 @@
 
         <member name="M:TestVanDammeAnim.DischargePilotingUnit(System.Single,System.Single,System.Single,System.Single,System.Boolean)">
             <summary>
-            Exits piloting mode and restores character to normal state. Re-enables rendering, restores health, sets position/velocity, and optionally applies stun effects.
+            Exits piloting mode and restores character to normal state. Re-enables rendering, restores
+            health, sets position/velocity, and optionally applies stun effects.
             </summary>
             <param name="newX">X position to place character after discharge</param>
             <param name="newY">Y position to place character after discharge</param>
@@ -890,7 +1332,8 @@
 
         <member name="P:TestVanDammeAnim.playerBubble">
             <summary>
-            Gets the ReactionBubble instance appropriate for this player's number. Returns the corresponding bubble UI element based on the player's assigned number.
+            Gets the ReactionBubble instance appropriate for this player's number. Returns the
+            corresponding bubble UI element based on the player's assigned number.
             </summary>
             <value>The ReactionBubble UI component associated with this player's number.</value>
         </member>
@@ -905,43 +1348,51 @@
 
         <member name="M:TestVanDammeAnim.AnimateMelee">
             <summary>
-            Virtual method for melee attack animation. Empty implementation that can be overridden by derived classes.
+            Virtual method for melee attack animation. Empty implementation that can be overridden by
+            derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateThrowingHeldObject">
             <summary>
-            Handles animation for throwing held objects like grenades or mooks. Sets throwing state and manages object release timing.
+            Handles animation for throwing held objects like grenades or mooks. Sets throwing state and
+            manages object release timing.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateSpecial">
             <summary>
-            Handles special ability animation sequences. Manages timing, facing direction, and animation state for special moves.
+            Handles special ability animation sequences. Manages timing, facing direction, and animation
+            state for special moves.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimatePockettedSpecial">
             <summary>
-            Executes pocketed special ability animation sequence. Manages 10-frame animation cycle, triggers ability execution at frame 4, and handles gun deactivation/reactivation throughout the sequence.
+            Executes pocketed special ability animation sequence. Manages 10-frame animation cycle,
+            triggers ability execution at frame 4, and handles gun deactivation/reactivation throughout
+            the sequence.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateSpecial2">
             <summary>
-            Virtual method for secondary special ability animation. Empty implementation that can be overridden by derived classes.
+            Virtual method for secondary special ability animation. Empty implementation that can be
+            overridden by derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateSpecial3">
             <summary>
-            Virtual method for tertiary special ability animation. Empty implementation that can be overridden by derived classes.
+            Virtual method for tertiary special ability animation. Empty implementation that can be
+            overridden by derived classes.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateSpecial4">
             <summary>
-            Virtual method for quaternary special ability animation. Empty implementation that can be overridden by derived classes.
+            Virtual method for quaternary special ability animation. Empty implementation that can be
+            overridden by derived classes.
             </summary>
         </member>
 
@@ -977,7 +1428,8 @@
 
         <member name="M:TestVanDammeAnim.AnimateJumping">
             <summary>
-            Handles jumping animation sequences including takeoff, flight, and landing preparation phases.
+            Handles jumping animation sequences including takeoff, flight, and landing preparation
+            phases.
             </summary>
         </member>
 
@@ -1007,7 +1459,8 @@
 
         <member name="M:TestVanDammeAnim.AnimateStrungUpFrames">
             <summary>
-            Sets the sprite animation frame for when the character is strung up or hanged. Displays a static death pose frame.
+            Sets the sprite animation frame for when the character is strung up or hanged. Displays a
+            static death pose frame.
             </summary>
         </member>
 
@@ -1019,93 +1472,129 @@
 
         <member name="M:TestVanDammeAnim.AnimateActualJumpingFrames">
             <summary>
-            Manages complex jumping animation frames based on vertical and horizontal velocity. Supports three distinct velocity states: fast rising (yI > 20f), fast falling (yI < -55f), and normal jumping. Includes gun positioning and frame validation with different animations for varying movement speeds.
+            Manages complex jumping animation frames based on vertical and horizontal velocity. Supports
+            three distinct velocity states: fast rising (yI &gt; 20f), fast falling (yI &lt; -55f), and
+            normal jumping. Includes gun positioning and frame validation with different animations for
+            varying movement speeds.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateRolling">
             <summary>
-            Animates the rolling sequence using a countdown-based frame system. Sets frame rate to 0.025f, deactivates the gun during rolling, and plays landing sound at frame 7 of the sequence.
+            Animates the rolling sequence using a countdown-based frame system. Sets frame rate to
+            0.025f, deactivates the gun during rolling, and plays landing sound at frame 7 of the
+            sequence.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateImpaled">
             <summary>
-            Handles impalement animation with different frames for living versus dead characters. Living characters use a clamped frame range, while dead characters or aliens use a specific static frame. Deactivates gun and resets sprite offset during impalement.
+            Handles impalement animation with different frames for living versus dead characters. Living
+            characters use a clamped frame range, while dead characters or aliens use a specific static
+            frame. Deactivates gun and resets sprite offset during impalement.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateImpaledByChainSaw">
             <summary>
-            Sets a specific animation frame for chainsaw impalement death. Deactivates the gun and resets sprite offset. Simpler than regular impalement animation.
+            Sets a specific animation frame for chainsaw impalement death. Deactivates the gun and
+            resets sprite offset. Simpler than regular impalement animation.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateIdle">
             <summary>
-            Main idle animation dispatcher that routes to specific animations based on character state. Implements a priority hierarchy system that handles ducking versus standing states separately. Routes to appropriate sub-animations including melee, high-five, special abilities, rolling, gestures, and dancing based on current character flags.
+            Main idle animation dispatcher that routes to specific animations based on character state.
+            Implements a priority hierarchy system that handles ducking versus standing states
+            separately. Routes to appropriate sub-animations including melee, high-five, special
+            abilities, rolling, gestures, and dancing based on current character flags.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateActualIdleFrames">
             <summary>
-            Provides the base standing idle animation when the character is not performing any special actions. Activates gun, sets frame rate to 0.0667f, and displays a static pose. Conditionally sets gun sprite based on firing state.
+            Provides the base standing idle animation when the character is not performing any special
+            actions. Activates gun, sets frame rate to 0.0667f, and displays a static pose.
+            Conditionally sets gun sprite based on firing state.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateActualIdleDuckingFrames">
             <summary>
-            Provides the base ducking idle animation with adjusted gun positioning. Similar to standing idle but uses a different frame and positions gun at offset (2f, -1f) to accommodate the ducking pose.
+            Provides the base ducking idle animation with adjusted gun positioning. Similar to standing
+            idle but uses a different frame and positions gun at offset (2f, -1f) to accommodate the
+            ducking pose.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateRunning">
             <summary>
-            Main running animation dispatcher with comprehensive state priority system. Handles throwable objects, melee, special abilities, pushing, and rolling states. For base running, generates environmental effects including foot particles and sounds. Adapts frame rate for quicksand environments.
+            Main running animation dispatcher with comprehensive state priority system. Handles
+            throwable objects, melee, special abilities, pushing, and rolling states. For base running,
+            generates environmental effects including foot particles and sounds. Adapts frame rate for
+            quicksand environments.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateActualDuckingRunning">
             <summary>
-            Specialized ducking run animation that uses an 8-frame cycle with foot effects every 4 frames. Adjusts gun position to (2f, -1f) to accommodate ducking pose and includes submersion checks for particle effects.
+            Specialized ducking run animation that uses an 8-frame cycle with foot effects every 4
+            frames. Adjusts gun position to (2f, -1f) to accommodate ducking pose and includes
+            submersion checks for particle effects.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimateActualNewRunningFrames">
             <summary>
-            Running animation with environmental responsiveness. Adjusts frame rate based on quicksand (3x slower) and barbed wire (2x slower) conditions. Generates foot particle effects every 4 frames when not submerged and plays footstep sounds. Supports dash animation states.
+            Running animation with environmental responsiveness. Adjusts frame rate based on quicksand
+            (3x slower) and barbed wire (2x slower) conditions. Generates foot particle effects every 4
+            frames when not submerged and plays footstep sounds. Supports dash animation states.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AnimatePushing">
             <summary>
-            Animates character pushing objects with specialized timing and gun orientation. Uses 3x slower frame rate than normal running, flips gun sprite horizontally (scale -1f on X-axis), and uses a specific sprite sheet row. Plays footstep sounds every 4 frames.
+            Animates character pushing objects with specialized timing and gun orientation. Uses 3x
+            slower frame rate than normal running, flips gun sprite horizontally (scale -1f on X-axis),
+            and uses a specific sprite sheet row. Plays footstep sounds every 4 frames.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CreateFaderTrailInstance">
+            <summary>
+            Creates a fading trail effect sprite at character's current position and rotation.
+            Instantiates fader sprite prefab, matches character's scale and material properties, and
+            configures sprite dimensions for trail visualization.
             </summary>
         </member>
 
         <member name="P:TestVanDammeAnim.Renderer">
             <summary>
-            Gets the MeshRenderer component attached to this GameObject. Uses lazy initialization to cache the component reference for performance.
+            Gets the MeshRenderer component attached to this GameObject. Uses lazy initialization to
+            cache the component reference for performance.
             </summary>
             <value>The MeshRenderer component, cached after first access.</value>
         </member>
 
         <member name="P:TestVanDammeAnim.material">
             <summary>
-            Gets or sets the shared material of the MeshRenderer. This property provides direct access to modify the character's visual appearance.
+            Gets or sets the shared material of the MeshRenderer. This property provides direct access
+            to modify the character's visual appearance.
             </summary>
             <value>The shared Material used by the MeshRenderer component.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.ResetSpecialAmmo">
             <summary>
-            Resets special ammunition to the original maximum amount and updates the HeroController with the new value.
+            Resets special ammunition to the original maximum amount and updates the HeroController with
+            the new value.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.AddSpecialAmmo">
             <summary>
-            Increases special ammunition by 1 if below maximum capacity and updates the HeroController with the new value.
+            Increases special ammunition by 1 if below maximum capacity and updates the HeroController
+            with the new value.
             </summary>
         </member>
 
@@ -1118,21 +1607,24 @@
 
         <member name="M:TestVanDammeAnim.IsAmmoFull">
             <summary>
-            Checks if special ammunition is at maximum capacity compared to the original special ammo limit.
+            Checks if special ammunition is at maximum capacity compared to the original special ammo
+            limit.
             </summary>
             <returns>True if ammunition is at maximum, false otherwise</returns>
         </member>
 
         <member name="M:TestVanDammeAnim.SetSpecialAmmoRPC(System.Int32)">
             <summary>
-            Sets special ammunition amount via RPC for network synchronization and updates the HeroController.
+            Sets special ammunition amount via RPC for network synchronization and updates the
+            HeroController.
             </summary>
             <param name="ammo">Amount of special ammunition to set</param>
         </member>
 
         <member name="M:TestVanDammeAnim.SetHeldObjectPos(System.Single,System.Single)">
             <summary>
-            Positions held objects (grenades/mooks) relative to character with specified offset coordinates.
+            Positions held objects (grenades/mooks) relative to character with specified offset
+            coordinates.
             </summary>
             <param name="xOffset">X offset from character position</param>
             <param name="yOffset">Y offset from character position</param>
@@ -1140,32 +1632,151 @@
 
         <member name="M:TestVanDammeAnim.UseSpecial">
             <summary>
-            Uses special ability (grenade throwing). Consumes special ammo, spawns grenade projectile with position-based trajectory, or flashes ammo indicator if depleted.
+            Uses special ability (grenade throwing). Consumes special ammo, spawns grenade projectile
+            with position-based trajectory, or flashes ammo indicator if depleted.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.UsePockettedSpecial">
             <summary>
-            Virtual method for using pocketed special abilities. Resets facing direction and can be overridden by derived classes.
+            Virtual method for using pocketed special abilities. Resets facing direction and can be
+            overridden by derived classes.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetAirdashAvailable">
+            <summary>
+            Resets all directional air dash availability flags to true, allowing the character to
+            perform air dashes in all directions again.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AirDashRight">
+            <summary>
+            Initiates a rightward air dash with a two-phase execution: a charge-up delay followed by the
+            actual dash. The dash grants brief invulnerability and enables downward dashing afterwards.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AirDashLeft">
+            <summary>
+            Initiates a leftward air dash with a two-phase execution: a charge-up delay followed by the
+            actual dash. The dash grants brief invulnerability and enables downward dashing afterwards.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AirDashUp">
+            <summary>
+            Performs an instant upward air dash without charge-up delay, launching the character upward
+            with 150% jump force for a shorter duration than horizontal dashes.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AirDashDown">
+            <summary>
+            Initiates a downward slam air dash with an extended duration (5x normal), starting with a
+            slight upward movement before transitioning to a powerful downward motion.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.Airdash(System.Boolean)">
+            <summary>
+            Main air dash input handler that checks directional inputs and availability, then calls the
+            appropriate directional dash method. Processes dashes in priority order: Right, Left, Down,
+            Up.
+            </summary>
+            <param name="highFived">If true, allows horizontal dashes without requiring fresh directional
+        input.</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PlayAirDashChargeUpSound">
+            <summary>
+            Virtual method for playing the air dash charge-up sound effect. Empty in base class,
+            intended for override in derived classes.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PlayAidDashSound">
+            <summary>
+            Virtual method for playing the air dash execution sound effect. Empty in base class,
+            intended for override in derived classes. Note: Method name contains typo ("Aid" instead of
+            "Air").
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunAirDashing">
+            <summary>
+            Central air dash controller that manages dash execution based on direction. Delegates to
+            specific directional dash methods, counts down dash timer, and clamps velocities to normal
+            ranges when dash completes. Special handling for upward dashes limits velocity to 80% jump
+            force.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunLeftAirDash">
+            <summary>
+            Executes leftward air dash with two-phase implementation. Delay phase: stops vertical
+            movement and adds slight rightward anticipation movement. Dash phase: triggers animation
+            change, plays dash sound, creates rightward poof effect, and calls SetAirDashLeftSpeed.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetAirDashLeftSpeed">
+            <summary>
+            Sets velocity for leftward air dash execution. Zeroes vertical movement and sets horizontal
+            velocity to -2.3x normal speed for fast leftward movement.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunRightAirDash">
+            <summary>
+            Executes rightward air dash with two-phase implementation. Delay phase: stops vertical
+            movement and adds slight leftward anticipation movement. Dash phase: triggers animation
+            change, plays dash sound, creates leftward poof effect, and calls SetAirDashRightSpeed.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetAirDashRightSpeed">
+            <summary>
+            Sets velocity for rightward air dash execution. Zeroes vertical movement and sets horizontal
+            velocity to 2.3x normal speed for fast rightward movement.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunUpwardDash">
+            <summary>
+            Executes upward air dash immediately without delay phase. Resets jump timer, applies 150%
+            jump force for strong upward boost, and zeroes horizontal movement.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunDownwardDash">
+            <summary>
+            Executes downward slam dash with accelerating descent. Uses complex velocity calculation
+            that accelerates downward movement, triggers sound and visual effects when reaching -50
+            velocity threshold, and clamps final velocity between 1.25x max fall speed and 300 units.
             </summary>
         </member>
 
         <member name="P:TestVanDammeAnim.SpecialAmmo">
             <summary>
-            Gets or sets the current special ammunition count. Setting this property synchronizes the value across all clients when the unit is owned by the local player.
+            Gets or sets the current special ammunition count. Setting this property synchronizes the
+            value across all clients when the unit is owned by the local player.
             </summary>
             <value>The number of special ammunition units currently available.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.UseFire">
             <summary>
-            Executes primary weapon firing sequence. Cancels melee if active, calculates projectile trajectory, spawns projectile, plays attack sound, and disturbs wildlife.
+            Executes primary weapon firing sequence. Cancels melee if active, calculates projectile
+            trajectory, spawns projectile, plays attack sound, and disturbs wildlife.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.FireWeapon(System.Single,System.Single,System.Single,System.Single)">
             <summary>
-            Fires weapon projectile at specified position and velocity. Sets gun animation frame, creates muzzle flash, spawns projectile, and triggers fire events.
+            Fires weapon projectile at specified position and velocity. Sets gun animation frame,
+            creates muzzle flash, spawns projectile, and triggers fire events.
             </summary>
             <param name="x">X position for projectile spawn</param>
             <param name="y">Y position for projectile spawn</param>
@@ -1175,25 +1786,29 @@
 
         <member name="M:TestVanDammeAnim.TriggerBroFireEvent">
             <summary>
-            Triggers perk system fire event for hero characters to activate fire-related perks and bonuses.
+            Triggers perk system fire event for hero characters to activate fire-related perks and
+            bonuses.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.TriggerBroSpecialEvent">
             <summary>
-            Triggers perk system special ability event for hero characters to activate special-related perks and bonuses.
+            Triggers perk system special ability event for hero characters to activate special-related
+            perks and bonuses.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.TriggerBroMeleeEvent">
             <summary>
-            Triggers perk system melee event for hero characters to activate melee-related perks and bonuses.
+            Triggers perk system melee event for hero characters to activate melee-related perks and
+            bonuses.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.SpawnPrimaryProjectile(Projectile,System.Single,System.Single,System.Single,System.Single)">
             <summary>
-            Spawns primary weapon projectile using the ProjectileController system with specified parameters.
+            Spawns primary weapon projectile using the ProjectileController system with specified
+            parameters.
             </summary>
             <param name="projectilePrefab">Projectile prefab to spawn</param>
             <param name="x">X position for projectile spawn</param>
@@ -1205,14 +1820,17 @@
 
         <member name="M:TestVanDammeAnim.ReleaseHeldObject(System.Boolean)">
             <summary>
-            Releases currently held object (grenade or mook) with appropriate physics and networking. Handles both throwing and dropping scenarios.
+            Releases currently held object (grenade or mook) with appropriate physics and networking.
+            Handles both throwing and dropping scenarios.
             </summary>
             <param name="thrown">Whether object is being thrown (true) or dropped (false)</param>
         </member>
 
         <member name="M:TestVanDammeAnim.SetupThrownMookVelocity(System.Single@,System.Single@)">
             <summary>
-            Calculates output velocity for thrown mook objects. Sets X velocity to 210 units in facing direction plus 20% of current momentum, and Y velocity to 120 units upward plus 30% of current vertical momentum.
+            Calculates output velocity for thrown mook objects. Sets X velocity to 210 units in facing
+            direction plus 20% of current momentum, and Y velocity to 120 units upward plus 30% of
+            current vertical momentum.
             </summary>
             <param name="XI">Output X velocity for thrown mook</param>
             <param name="YI">Output Y velocity for thrown mook</param>
@@ -1242,7 +1860,8 @@
 
         <member name="M:TestVanDammeAnim.ReleaseAlien(Mook,System.Single,System.Single,System.Boolean,System.Int32)">
             <summary>
-            RPC method that handles alien release from chest bursting. Applies fire damage to spawned alien if specified.
+            RPC method that handles alien release from chest bursting. Applies fire damage to spawned
+            alien if specified.
             </summary>
             <param name="newAlien">The alien unit being released</param>
             <param name="xI">X velocity for alien spawn</param>
@@ -1251,42 +1870,117 @@
             <param name="seenPlayer">Index of player that witnessed the spawn</param>
         </member>
 
+        <member name="M:TestVanDammeAnim.StopFiring">
+            <summary>
+            Virtual method placeholder for stopping fire action. Empty in base class, allows subclasses
+            to implement fire stopping behavior.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.StartFiring">
+            <summary>
+            Initiates firing with rate control. Sets the fire counter based on fire rate: uses fireRate
+            value for fast firing (rate &lt; 0.3f) or 0 for slower rates.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunMelee">
+            <summary>
+            Executes melee attack behavior by delegating to RunKnifeMeleeMovement. Acts as the entry
+            point for melee execution.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunKnifeMeleeMovement">
+            <summary>
+            Handles movement physics during knife melee attacks with three distinct patterns. Old system
+            applies simple gravity. Jumping melee applies falling gravity with speed clamping. Dashing
+            melee uses frame-based movement: frames 0-1 stop movement, frames 2-3 dash horizontally
+            (with target tracking if available), frames 4-5 reduce speed, frames 6+ apply only gravity.
+            Quicksand disables horizontal movement.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CancelMelee">
+            <summary>
+            Cleanly exits melee state and resets all melee-related variables. Clears all melee flags,
+            removes target reference, and intelligently determines next action state based on current
+            conditions (preserves ladder climbing, sets jumping if airborne, running if moving, or
+            idle).
+            </summary>
+        </member>
+
         <member name="M:TestVanDammeAnim.AnyInput">
             <summary>
-            Checks if any input button is currently pressed (movement, fire, special, jump, or high-five).
+            Checks if any input button is currently pressed (movement, fire, special, jump, or
+            high-five).
             </summary>
             <returns>True if any input is detected, false otherwise</returns>
         </member>
 
+        <member name="M:TestVanDammeAnim.GetSprintValue">
+            <summary>
+            Returns the current sprint state of the character.
+            </summary>
+            <returns>True if the character is sprinting, false otherwise.</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CheckDashing">
+            <summary>
+            Manages dash state based on player input and sprint status. For local players, detects dash
+            button presses and releases. For remote players, creates visual and audio effects when dash
+            state changes.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PressDashButton">
+            <summary>
+            Initiates dashing when the dash button is pressed, but only if the character is not already
+            dashing and is moving left or right.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ReleaseDashButton">
+            <summary>
+            Stops dashing when the dash button is released, calling StopDashing to handle dash end
+            logic.
+            </summary>
+        </member>
+
         <member name="P:TestVanDammeAnim.InputBits">
             <summary>
-            Gets or sets the packed input states for network synchronization. This property packs 11 boolean input flags into a single short value for efficient network transmission.
+            Gets or sets the packed input states for network synchronization. This property packs 11
+            boolean input flags into a single short value for efficient network transmission.
             </summary>
             <value>A short value containing packed boolean input states for network synchronization.</value>
         </member>
 
         <member name="M:TestVanDammeAnim.Kick">
             <summary>
-            Initiates player kick process by sending RPC to all clients if character hasn't been kicked yet.
+            Initiates player kick process by sending RPC to all clients if character hasn't been kicked
+            yet.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.KickRPC">
             <summary>
-            RPC method that executes the kick sequence. Shows kick bubble, starts kick routine, and marks character as kicked.
+            RPC method that executes the kick sequence. Shows kick bubble, starts kick routine, and
+            marks character as kicked.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.KickRoutine">
             <summary>
-            Coroutine that handles the visual kick countdown sequence. Flashes kick bubble materials with decreasing intervals, then gibs character and creates explosion effects.
+            Coroutine that handles the visual kick countdown sequence. Flashes kick bubble materials
+            with decreasing intervals, then gibs character and creates explosion effects.
             </summary>
             <returns>IEnumerator for coroutine execution</returns>
         </member>
 
         <member name="M:TestVanDammeAnim.ShowKickBubble">
             <summary>
-            Creates and displays the kick player bubble UI above the character. Sets up bubble parenting and restarts bubble animation.
+            Creates and displays the kick player bubble UI above the character. Sets up bubble parenting
+            and restarts bubble animation.
             </summary>
         </member>
 
@@ -1298,7 +1992,9 @@
 
         <member name="M:TestVanDammeAnim.CheckForKick">
             <summary>
-            Checks proximity to other players and handles kick interactions. Shows kick bubble when eligible, changes bubble material based on proximity, and executes kicks when conditions are met.
+            Checks proximity to other players and handles kick interactions. Shows kick bubble when
+            eligible, changes bubble material based on proximity, and executes kicks when conditions are
+            met.
             </summary>
         </member>
 
@@ -1311,31 +2007,245 @@
 
         <member name="M:TestVanDammeAnim.RemoveAcid">
             <summary>
-            Removes acid coverage from TestVanDammeAnim by sending RPC to all clients if conditions are met.
+            Removes acid coverage from TestVanDammeAnim by sending RPC to all clients if conditions are
+            met.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.RemoveAcidRPC">
             <summary>
-            RPC method that removes acid coverage. Restores default material, enables gun sprite, and creates slime particle effects.
+            RPC method that removes acid coverage. Restores default material, enables gun sprite, and
+            creates slime particle effects.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CoverInAcid">
             <summary>
-            Covers TestVanDammeAnim in acid if not invulnerable and eligible. Sends RPC to all clients to apply acid coverage.
+            Covers TestVanDammeAnim in acid if not invulnerable and eligible. Sends RPC to all clients
+            to apply acid coverage.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.CoverInAcidRPC">
             <summary>
-            RPC method that applies acid coverage effects. Changes materials, handles alien-specific reactions, and initiates acid damage systems.
+            RPC method that applies acid coverage effects. Changes materials, handles alien-specific
+            reactions, and initiates acid damage systems.
             </summary>
         </member>
 
         <member name="M:TestVanDammeAnim.RunCoveredInAcid">
             <summary>
-            Handles ongoing acid coverage effects including cage busting damage, checkpoint recovery, melting animations, and acid particle generation.
+            Handles ongoing acid coverage effects including cage busting damage, checkpoint recovery,
+            melting animations, and acid particle generation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PlayLongGrassSound(System.Boolean)">
+            <summary>
+            Plays environment-specific footstep sounds for grass and blood surfaces with timing control.
+            Checks for jiggle doodads on the current block to determine sound type, playing blood sounds
+            at reduced volume for blood doodads or grass sounds for other doodads.
+            </summary>
+            <param name="checkTimer">Whether to respect the grass delay timer to prevent audio spam. If
+        false, plays sound immediately regardless of timer</param>
+            <returns>True if a sound was played, false otherwise</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PlayFootStepSound">
+            <summary>
+            Plays surface-appropriate footstep sounds with default volume and pitch settings (0.4
+            volume, 1.0 pitch).
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.PlayFootStepSound(System.Single,System.Single)">
+            <summary>
+            Plays surface-specific footstep sounds based on current environment and character state.
+            Automatically selects appropriate sound arrays for quicksand, ladder climbing, or ground
+            surface types (Dirt, Stone, Metal, Wood, Grass, Slime). Also triggers long grass sound
+            effects when applicable.
+            </summary>
+            <param name="v">Volume level for the footstep sound</param>
+            <param name="p">Pitch level for the footstep sound</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IncreaseFrame">
+            <summary>
+            Advances the main animation frame counter and insemination frame counter if face hugger is
+            attached. This method synchronizes both animation systems to ensure proper frame progression
+            during alien infection states.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ForceChangeFrame">
+            <summary>
+            Forces an immediate frame change by calling the ChangeFrame method. Provides public access
+            to trigger frame updates outside of the normal animation cycle.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ChangeFrame">
+            <summary>
+            Core animation frame dispatcher that routes to appropriate animation methods based on
+            character state and action. Handles priority-based animation selection including frozen
+            state, special unit states (on back, strung up, impaled), and action state-specific
+            animations (idle, running, jumping, climbing, death). Also manages gun activation, sprite
+            offsets, and frame counters for various animation systems.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateClimbingLadderTransition(System.Boolean)">
+            <summary>
+            Handles smooth transition animation between ladder climbing and normal movement states.
+            Manages transition frame progression, frame rates, and sprite positioning during the 6-frame
+            transition sequence.
+            </summary>
+            <param name="intoClimbing">True when transitioning into climbing mode, false when
+        transitioning out of climbing mode</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateClimbingLadder">
+            <summary>
+            Manages comprehensive ladder climbing animation with multiple movement states. Handles
+            transition animations, idle climbing with gun positioning, movement-based climbing with
+            footstep sounds, and specialized climbing animations for up/down movement. Includes
+            proximity detection for ladder presence and appropriate animation fallbacks.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateWallDrag">
+            <summary>
+            Handles wall sliding animation with knife-based climbing mechanics. Manages alternating
+            knife hand positions, velocity-based frame selection, sound effects, and visual particle
+            effects. Supports both new knife climbing frames and legacy animation systems.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateWallAnticipation">
+            <summary>
+            Manages wall climb anticipation animation with precise knife positioning based on vertical
+            movement. Calculates knife stab positioning relative to previous climb heights and
+            alternates between left and right knife hands for realistic climbing animation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateWallClimb">
+            <summary>
+            Executes active wall climbing animation with realistic knife stab mechanics and height
+            tracking. Manages velocity changes at specific animation frames, alternating knife hands,
+            sound effects, and precise tracking of climbing progress relative to previous stab
+            positions. Includes collision detection for wall interaction events.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.RunStepOnWalls">
+            <summary>
+            Triggers step-on events for wall surfaces during climbing or dragging. Performs raycasting
+            to detect wall colliders and sends step messages for interaction with climbable surfaces.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateFallen">
+            <summary>
+            Virtual method for fallen state animation. Empty implementation that can be overridden by
+            derived classes to provide custom fallen animation behavior.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateDeath">
+            <summary>
+            Death animation dispatcher that selects appropriate death animation based on character
+            state. Prioritizes insemination frames if infected, falling death animation if airborne and
+            not impaled, or standard ground death animation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateActualDeath">
+            <summary>
+            Displays standard ground death animation frame and deactivates gun sprite. Used for normal
+            death situations when character dies on solid ground.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateFallingDeath">
+            <summary>
+            Displays falling death animation frame for characters dying while airborne. Provides
+            different visual feedback compared to ground death.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateInseminationFrames">
+            <summary>
+            Displays alien insemination animation frames based on infection progression. Uses calculated
+            insemination frame index to show appropriate sprite frame from the insemination animation
+            sheet.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.IsGesturing">
+            <summary>
+            Checks if character is currently performing any gesture animation by verifying the current
+            gesture state is not None.
+            </summary>
+            <returns>True if character is performing a gesture, false otherwise</returns>
+        </member>
+
+        <member name="M:TestVanDammeAnim.SetGestureAnimation(GestureElement.Gestures)">
+            <summary>
+            Sets and manages gesture animation state with frame reset and multiplayer achievement
+            tracking. Blocks movement during gesture animation and awards achievement when all 4 players
+            perform gestures simultaneously.
+            </summary>
+            <param name="gesture">The gesture type to animate (None, Salute, Wave, Point, Flex, Thrust,
+        KneeDrop, Shhh)</param>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateGesture">
+            <summary>
+            Handles comprehensive gesture animation sequences including salute, wave, point, flex,
+            thrust, knee drop, and shush gestures. Manages frame progression, timing, special effects
+            (flex sounds and face hugger disconnection), and looping behavior for different gesture
+            types.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.TriggerFlexEvent">
+            <summary>
+            Triggers perk system flex event for muscle flexing gestures. Activates associated perks and
+            bonuses when character performs flex animation.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.AnimateDancingFrames">
+            <summary>
+            Displays dancing animation sequence using configurable frame cycling. Deactivates gun and
+            cycles through dancing frames from the specified sprite sheet position with consistent frame
+            rate.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.StartDashing">
+            <summary>
+            Initiates dashing movement with speed multipliers and visual effects. Manages dash
+            availability based on air state, applies speed modifiers with diminishing returns for
+            successive dashes, and creates appropriate dash effects. Handles both ground and air dash
+            scenarios.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.CheckAirDash">
+            <summary>
+            Evaluates conditions for air dash availability and triggers dash if conditions are met.
+            Checks for horizontal air dash availability, ground proximity for dash continuation, and
+            downward air dash when moving straight down.
+            </summary>
+        </member>
+
+        <member name="M:TestVanDammeAnim.ApplyWallClimbingGravity">
+            <summary>
+            Applies specialized gravity calculations during wall climbing and dragging states. Provides
+            reduced gravity during active climbing phases and maintains upward velocity during certain
+            animation frames to create realistic wall climbing physics.
             </summary>
         </member>
 

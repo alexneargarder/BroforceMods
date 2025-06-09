@@ -10,7 +10,7 @@ using UnityEngine.Windows.Speech;
 
 namespace Drunken_Broster.MeleeItems
 {
-    class CrateProjectile : Projectile
+    public class CrateProjectile : Projectile
     {
         public static Material storedMat;
         public SpriteSM sprite;

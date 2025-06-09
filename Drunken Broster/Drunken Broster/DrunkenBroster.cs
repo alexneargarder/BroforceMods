@@ -203,7 +203,6 @@ namespace Drunken_Broster
 
         protected override void Update()
         {
-            BMLogger.Log( "test" );
             base.Update();
             // Don't run any code past this point if the character is dead
             if ( this.acceptedDeath )
@@ -269,6 +268,12 @@ namespace Drunken_Broster
 
         public override void UIOptions()
         {
+        }
+
+        public override void HarmonyPatches( Harmony harmony )
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            harmony.PatchAll( assembly );
         }
         #endregion
 
@@ -345,17 +350,6 @@ namespace Drunken_Broster
             {
                 currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * spriteFrame, gunSpritePixelHeight * ( 1 + spriteRow ) );
             }
-        }
-
-        protected override void UseFire()
-        {
-            this.alreadyHit.Clear();
-            this.gunFrame = 11;
-            this.SetGunSprite( this.gunFrame, 0 );
-            this.hasPlayedAttackHitSound = false;
-            this.FireWeapon( base.X + base.transform.localScale.x * 10f, base.Y + 6.5f, base.transform.localScale.x * 400f, (float)( UnityEngine.Random.Range( 0, 40 ) - 20 ) );
-            this.PlayAttackSound();
-            Map.DisturbWildLife( base.X, base.Y, 60f, base.playerNum );
         }
 
         protected override void StartFiring()
@@ -630,11 +624,11 @@ namespace Drunken_Broster
 
         protected void PerformAttackStationary()
         {
-            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
             this.lastAttackingTime = Time.time;
             // Leg Sweep Attack
             if ( this.stationaryAttackCounter % 2 == 0 )
             {
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 10f * base.transform.localScale.x, 950f, 6f, base.playerNum, out _, null );
                 if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
@@ -661,6 +655,7 @@ namespace Drunken_Broster
             // Perform Forward Fist Attack
             else
             {
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 700f * base.transform.localScale.x, 250f, 6f, base.playerNum, out _, null );
                 if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
@@ -698,12 +693,11 @@ namespace Drunken_Broster
 
         protected void PerformAttackForwards()
         {
-            bool flag;
-            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null );
             this.lastAttackingTime = Time.time;
             // Sober attack
             if ( !this.drunk )
             {
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 420f, 200f, 6f, base.playerNum, out _, null );
                 if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 8f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
@@ -733,6 +727,7 @@ namespace Drunken_Broster
                 // Spin attack
                 if ( this.attackSpriteRow == 0 )
                 {
+                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 220f, 450f, 6f, base.playerNum, out _, null );
                     if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 4f, 10f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 220f, 450f, true, true, false, this.alreadyHit ) )
                     {
                         if ( !this.hasHitWithFists )
@@ -755,6 +750,7 @@ namespace Drunken_Broster
                 // Fist attack
                 else
                 {
+                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 520f, 200f, 6f, base.playerNum, out _, null );
                     if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 4, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit ) )
                     {
                         if ( !this.hasHitWithFists )
@@ -794,7 +790,7 @@ namespace Drunken_Broster
 
         protected void PerformAttackUpwards()
         {
-            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+            Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 80f, 1100f, 6f, base.playerNum, out _, null );
             this.lastAttackingTime = Time.time;
             if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit ) )
             {
@@ -829,7 +825,7 @@ namespace Drunken_Broster
             // Sober Attack
             if ( !this.drunk )
             {
-                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 120f, 100f, 6f, base.playerNum, out _, null );
                 this.lastAttackingTime = Time.time;
                 if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 4f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit ) )
                 {
@@ -865,7 +861,7 @@ namespace Drunken_Broster
             // Drunk Attack
             else
             {
-                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out _, null );
+                Map.DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 120f, 100f, 6f, base.playerNum, out _, null );
                 this.lastAttackingTime = Time.time;
                 if ( !this.attackHasHit )
                 {
@@ -874,32 +870,14 @@ namespace Drunken_Broster
             }
         }
 
+        // Unused
+        protected override void UseFire()
+        {
+        }
+
+        // Unused
         protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
-            Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
-            this.DeflectProjectiles();
-            this.SetGunSprite( this.gunFrame, 0 );
-            bool flag;
-            Map.DamageDoodads( 3, DamageType.Knifed, x + (float)( base.Direction * 4 ), y, 0f, 0f, 6f, base.playerNum, out flag, null );
-            float num = base.transform.localScale.x * 12f;
-            this.ConstrainToFragileBarriers( ref num, 16f );
-            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer ) )
-            {
-                this.MakeEffects( this.raycastHit.point.x, this.raycastHit.point.y );
-                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
-                if ( !this.hasHitWithWall )
-                {
-                    SortOfFollow.Shake( 0.15f );
-                }
-                this.hasHitWithWall = true;
-                this.SwingFistsGround();
-                this.attackHasHit = true;
-            }
-            else
-            {
-                this.hasHitWithWall = false;
-                this.SwingFistsEnemies();
-            }
         }
 
         protected void FireWeaponGround( float x, float y, Vector3 raycastDirection, float distance, float xSpeed, float ySpeed )
@@ -2157,7 +2135,7 @@ namespace Drunken_Broster
         // Animate drunk idle
         public override void AnimateActualIdleFrames()
         {
-            if ( this.drunk && this.gunFrame <= 0 && !this.fire )
+            if ( this.drunk && this.gunFrame <= 0 && !this.fire && !this.holdingItem )
             {
                 this.SetSpriteOffset( 0f, 0f );
                 this.DeactivateGun();
