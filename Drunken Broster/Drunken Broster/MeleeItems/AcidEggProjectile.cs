@@ -11,7 +11,7 @@ using UnityEngine.Windows.Speech;
 
 namespace Drunken_Broster.MeleeItems
 {
-    class AcidEggProjectile : Projectile
+    public class AcidEggProjectile : Projectile
     {
         public static Material storedMat;
         public SpriteSM sprite;
