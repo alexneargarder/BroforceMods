@@ -22,14 +22,15 @@ namespace Drunken_Broster.MeleeItems
         protected RaycastHit raycastHit;
         protected LayerMask groundAndLadderLayer;
         protected GibHolder gibs;
+        protected AudioClip deathSound;
 
         protected override void Awake()
         {
             MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
 
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            directoryPath = Path.Combine( directoryPath, "projectiles" );
-            storedMat = ResourcesController.GetMaterial( directoryPath, "Tire.png" );
+            string spritePath = Path.Combine( directoryPath, "projectiles" );
+            storedMat = ResourcesController.GetMaterial( spritePath, "Tire.png" );
 
             renderer.material = storedMat;
 
@@ -71,6 +72,9 @@ namespace Drunken_Broster.MeleeItems
                 this.InitializeGibs();
             }
 
+            // Load death sound
+            this.deathSound = ResourcesController.GetAudioClip( Path.Combine( directoryPath, "sounds" ), "tireDeath.wav" );
+
             base.Awake();
         }
 
@@ -93,7 +97,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected void CreateGib( string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
         {
-            BroMakerUtilities.CreateGibPrefab( name, lowerLeftPixel, pixelDimensions, width, height, new Vector3( 0f, 0f, 0f ), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 1, 7f ).transform.parent = this.gibs.transform;
+            BroMakerUtilities.CreateGibPrefab( name, lowerLeftPixel, pixelDimensions, width, height, new Vector3( 0f, 0f, 0f ), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 1, 5f ).transform.parent = this.gibs.transform;
         }
 
         protected void InitializeGibs()
@@ -101,16 +105,16 @@ namespace Drunken_Broster.MeleeItems
             this.gibs = new GameObject( "TireProjectileGibs", new Type[] { typeof( Transform ), typeof( GibHolder ) } ).GetComponent<GibHolder>();
             this.gibs.gameObject.SetActive( false );
             UnityEngine.Object.DontDestroyOnLoad( this.gibs );
-            CreateGib( "WheelHub", new Vector2( 397, 8 ), new Vector2( 10, 4 ), 10f, 4f, new Vector3( -25f, 30f, 0f ) );
-            CreateGib( "LeftPiece", new Vector2( 413, 12 ), new Vector2( 6, 6 ), 6f, 6f, new Vector3( -14f, 20f, 0f ) );
-            CreateGib( "BottomPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
-            CreateGib( "RightPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
-            CreateGib( "TopPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "TireHub", new Vector2( 22, 12 ), new Vector2( 8, 8 ), 8f, 8f, new Vector3( 0f, 0f, 0f ) );
+            CreateGib( "TireLeftPiece", new Vector2( 18, 12 ), new Vector2( 3, 8 ), 3f, 8f, new Vector3( -6f, 0f, 0f ) );
+            CreateGib( "TireBottomPiece", new Vector2( 22, 15 ), new Vector2( 8, 3 ), 8f, 3f, new Vector3( 0f, -6f, 0f ) );
+            CreateGib( "TireRightPiece", new Vector2( 31, 12 ), new Vector2( 3, 8 ), 3f, 8f, new Vector3( 6f, 0f, 0f ) );
+            CreateGib( "TireTopPiece", new Vector2( 22, 4 ), new Vector2( 8, 3 ), 8f, 3f, new Vector3( 0f, 6f, 0f ) );
 
-            CreateGib( "BottomLeft", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
-            CreateGib( "BottomRight", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
-            CreateGib( "TopLeft", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
-            CreateGib( "TopRight", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "TireBottomLeftPiece", new Vector2( 36, 4 ), new Vector2( 3, 3 ), 3f, 3f, new Vector3( -3f, -3f, 0f ) );
+            CreateGib( "TireBottomRightPiece", new Vector2( 36, 8 ), new Vector2( 3, 3 ), 3f, 3f, new Vector3( 3f, -3f, 0f ) );
+            CreateGib( "TireTopLeftPiece", new Vector2( 40, 8 ), new Vector2( 3, 3 ), 3f, 3f, new Vector3( -3f, 3f, 0f ) );
+            CreateGib( "TireTopRightPiece", new Vector2( 40, 4 ), new Vector2( 3, 3 ), 3f, 3f, new Vector3( 3f, 3f, 0f ) );
 
             // Make sure gibs are on layer 19 since the texture they're using is transparent
             for ( int i = 0; i < this.gibs.transform.childCount; ++i )
@@ -122,9 +126,9 @@ namespace Drunken_Broster.MeleeItems
         protected virtual void CreateGibs( float xI, float yI )
         {
             xI = xI * 0.25f;
-            yI = yI * 0.25f + 60f;
-            float xForce = 10f;
-            float yForce = 10f;
+            yI = yI * 0.25f + 80f;
+            float xForce = 200f;
+            float yForce = 300f;
             if ( gibs == null || gibs.transform == null )
             {
                 return;
@@ -134,7 +138,7 @@ namespace Drunken_Broster.MeleeItems
                 Transform child = gibs.transform.GetChild( i );
                 if ( child != null )
                 {
-                    EffectsController.CreateGib( child.GetComponent<Gib>(), base.GetComponent<Renderer>().sharedMaterial, base.X, base.Y, xForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), yForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), xI, yI, (int)base.transform.localScale.x );
+                    EffectsController.CreateGib( child.GetComponent<Gib>(), base.GetComponent<Renderer>().sharedMaterial, base.X, base.Y, xForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), yForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), xI, yI, 1 );
                 }
             }
         }
@@ -157,7 +161,28 @@ namespace Drunken_Broster.MeleeItems
                 this.damageCooldown -= this.t;
             }
 
-            return base.Update();
+            float previousX = this.X;
+            float previousY = this.Y;
+            if ( DrunkenBroster.freezeProjectile )
+            {
+                this.xI = 0;
+                this.yI = 0;
+            }
+            if ( DrunkenBroster.spawnGibs )
+            {
+                this.CreateGibs( 0, 0 );
+                DrunkenBroster.spawnGibs = false;
+            }
+
+            bool result = base.Update();
+
+            if (  DrunkenBroster.freezeProjectile )
+            {
+                this.X = previousX;
+                this.Y = previousY;
+            }
+
+            return result;
         }
 
         // Override check wall collisions to prevent tire from falling through ladders
@@ -404,15 +429,29 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void MakeEffects()
         {
-            float speed = 50f;
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( 0, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( 0, -speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( speed, 0 ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( -speed, 0 ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( speed, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( speed, -speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( -speed, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 2f, 0f, new Vector3( -speed, -speed ) );
+            float speed = 80f;
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( 0, speed ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( 0, -speed ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, 0 ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, 0 ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, speed ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, -speed ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, speed ) );
+            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, -speed ) );
+            this.CreateGibs( this.xI, this.yI );
+            this.PlayDeathSound();
+        }
+
+        protected override void PlayDeathSound()
+        {
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            if ( this.sound != null )
+            {
+                this.sound.PlaySoundEffectAt( this.deathSound, 0.7f, base.transform.position, 1f, true, false, false, 0f );
+            }
         }
 
         protected override void Bounce( bool bounceX, bool bounceY )

@@ -17,8 +17,10 @@ namespace Drunken_Broster
     [HeroPreset( "Drunken Broster", HeroType.Rambro )]
     public class DrunkenBroster : CustomHero
     {
-        // DEBUG
-        public static int currentItem = 2;
+        // TODO: remove this 
+        public static int currentItem = 0;
+        public static bool freezeProjectile = false;
+        public static bool spawnGibs = false;
 
         // General
         protected bool acceptedDeath = false;
@@ -155,7 +157,7 @@ namespace Drunken_Broster
             // Setup throwables
             // Load tire
             tireProjectile = new GameObject( "TireProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( TireProjectile ) } ).GetComponent<Grenade>();
-            tireProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
+            tireProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).specialGrenade.soundHolder;
             tireProjectile.enabled = false;
 
             // Load acid eggg
@@ -279,14 +281,16 @@ namespace Drunken_Broster
 
         public override void UIOptions()
         {
-            if ( GUILayout.Button( "-" ) )
+            GUILayout.BeginHorizontal();
+
+            if ( GUILayout.Button( "-", GUILayout.Width(50) ) )
             {
                 if ( DrunkenBroster.currentItem > 0 )
                 {
                     --DrunkenBroster.currentItem;
                 }
             }
-            if ( GUILayout.Button("+") )
+            if ( GUILayout.Button("+", GUILayout.Width(50) ) )
             {
                 if ( DrunkenBroster.currentItem < 9 )
                 {
@@ -295,6 +299,14 @@ namespace Drunken_Broster
             }
 
             GUILayout.Label( "Current Item: " + DrunkenBroster.currentItem );
+
+            GUILayout.EndHorizontal();
+
+            DrunkenBroster.freezeProjectile = GUILayout.Toggle( DrunkenBroster.freezeProjectile, "Freeze projectile" );
+            if ( GUILayout.Button( "Spawn Gibs", GUILayout.Width( 100 ) ) )
+            {
+                DrunkenBroster.spawnGibs = true;
+            }
         }
 
         public override void HarmonyPatches( Harmony harmony )
