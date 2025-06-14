@@ -31,6 +31,7 @@ namespace Utility_Mod
         SteroidsAmmoCrate = 12,
         PigAmmoCrate = 13,
         FlexAmmoCrate = 14,
+        BeeHive = 15,
     }
 
     public class Settings : UnityModManager.ModSettings

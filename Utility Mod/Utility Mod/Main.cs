@@ -109,7 +109,7 @@ namespace Utility_Mod
         public static string[] objectList = new string[]
         {
             "Dirt", "Explosive Barrel", "Red Explosive Barrel", "Propane Tank", "Rescue Cage", "Crate", "Ammo Crate", "Time Ammo Crate", "RC Car Ammo Crate", "Air Strike Ammo Crate", "Mech Drop Ammo Crate", "Alien Pheromones Ammo Crate", "Steroids Ammo Crate", "Pig Ammo Crate",
-            "Flex Ammo Crate"
+            "Flex Ammo Crate", "Beehive"
         };
 
         public static string teleportX = "0";
@@ -293,6 +293,7 @@ namespace Utility_Mod
                                 case CurrentObject.SteroidsAmmoCrate:
                                 case CurrentObject.PigAmmoCrate:
                                 case CurrentObject.FlexAmmoCrate:
+                                case CurrentObject.BeeHive:
                                     SpawnBlock(row, column);
                                     break;
                                 default:
@@ -1334,6 +1335,10 @@ namespace Utility_Mod
                 case CurrentObject.FlexAmmoCrate:
                     placeGroundType = GroundType.AmmoCrate;
                     currentBlock = UnityEngine.Object.Instantiate<Block>(Map.Instance.sharedObjectsReference.Asset.cratePerk, vector, Quaternion.identity);
+                    break;
+                case CurrentObject.BeeHive:
+                    placeGroundType = GroundType.Beehive;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>( Map.Instance.activeTheme.blockBeeHive, vector, Quaternion.identity );
                     break;
             }
             if (placeGroundType != GroundType.Cage && (placeGroundType != GroundType.AlienFlesh || newBlocks != Map.backGroundBlocks))
