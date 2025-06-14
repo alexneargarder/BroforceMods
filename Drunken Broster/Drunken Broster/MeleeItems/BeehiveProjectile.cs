@@ -17,6 +17,8 @@ namespace Drunken_Broster.MeleeItems
         public static Material storedMat;
         public SpriteSM sprite;
         protected GibHolder gibHolder;
+        public RealisticAngryBeeSimulator beeSimulator;
+        public RealisticFlySimulatorClass[] flies;
 
         protected override void Awake()
         {
@@ -43,8 +45,29 @@ namespace Drunken_Broster.MeleeItems
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
 
-            this.gibHolder = ( Map.Instance.activeTheme.blockBeeHive as DoodadBeehive ).gibHolder;
+            DoodadBeehive beehive = Map.Instance.activeTheme.blockBeeHive as DoodadBeehive;
+            this.gibHolder = beehive.gibHolder;
 
+            if ( this.beeSimulator == null )
+            {
+                RealisticFlySimulatorClass flyPrefab = beehive.GetComponentInChildren<RealisticFlySimulatorClass>();
+
+                this.beeSimulator = UnityEngine.Object.Instantiate( beehive.GetComponentInChildren<RealisticAngryBeeSimulator>() );
+                this.beeSimulator.transform.parent = this.transform;
+                this.beeSimulator.gameObject.SetActive( false );
+
+                this.flies = new RealisticFlySimulatorClass[18];
+                for ( int i = 0; i < 18; ++i )
+                {
+                    this.flies[i] = UnityEngine.Object.Instantiate( flyPrefab );
+                    this.flies[i].transform.parent = this.beeSimulator.transform;
+                    this.flies[i].optionalFollowTransform = this.beeSimulator.transform;
+                    this.flies[i].gameObject.SetActive( false );
+                }
+
+                this.beeSimulator.flies = this.flies;
+            }
+            
             base.Awake();
         }
 
@@ -67,8 +90,6 @@ namespace Drunken_Broster.MeleeItems
         {
             this.ApplyGravity();
 
-            //RocketLib.Utils.DrawDebug.DrawCrosshair( "beehive", base.transform.position, 8f, Color.red );
-
             base.Update();
         }
 
@@ -81,6 +102,7 @@ namespace Drunken_Broster.MeleeItems
         {
             EffectsController.CreateGibs( this.gibHolder, base.transform.position.x, base.transform.position.y, 140f, 170f, 0f, 140f );
             EffectsController.CreateDustParticles( base.transform.position.x, base.transform.position.y, 140, 6f, 130f, 0f, 100f, new Color( 0.854901969f, 0.65882355f, 0.172549024f, 0.9f ) );
+            this.beeSimulator.Restart();
         }
 
     }
