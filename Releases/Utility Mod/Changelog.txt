@@ -1,3 +1,6 @@
+v2.3.3 (unreleased)
+Add beehive to list of spawnable objects
+
 v2.3.2
 Added option for skipping cutscenes that destroy the mod window, this is enabled by default.
 Added option for skipping all cutscenes.
