@@ -17,6 +17,9 @@ namespace Drunken_Broster
     [HeroPreset( "Drunken Broster", HeroType.Rambro )]
     public class DrunkenBroster : CustomHero
     {
+        // DEBUG
+        public static int currentItem = 2;
+
         // General
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
@@ -160,10 +163,11 @@ namespace Drunken_Broster
             acidEggProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
             acidEggProjectile.enabled = false;
 
-            // TODO: Load beehive
-            beehiveProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
+            // Load beehive
+            beehiveProjectile = new GameObject( "BeehiveProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BeehiveProjectile ) } ).GetComponent<BeehiveProjectile>();
             beehiveProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
             beehiveProjectile.enabled = false;
+
 
             // TODO: Load bottle
             bottleProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
@@ -275,6 +279,20 @@ namespace Drunken_Broster
 
         public override void UIOptions()
         {
+            if ( GUILayout.Button( "-" ) )
+            {
+                if ( DrunkenBroster.currentItem > 0 )
+                {
+                    --DrunkenBroster.currentItem;
+                }
+            }
+            if ( GUILayout.Button("+") )
+            {
+                if ( DrunkenBroster.currentItem < 9 )
+                {
+                    ++DrunkenBroster.currentItem;
+                }
+            }
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -1950,8 +1968,7 @@ namespace Drunken_Broster
 
         protected MeleeItem ChooseItem()
         {
-            //return MeleeItem.AcidEgg;
-            return MeleeItem.Tire;
+            return (MeleeItem)( DrunkenBroster.currentItem );
         }
 
         protected override void AnimateCustomMelee()
@@ -1990,7 +2007,7 @@ namespace Drunken_Broster
 
             // TODO: Switch to this code when sprites are in correct places
             //int row = ( (int)this.chosenItem ) + 1;
-            int row = ( (int)0 ) + 1;
+            int row = ( (int)1) + 1;
 
             this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
 
@@ -2009,7 +2026,7 @@ namespace Drunken_Broster
                 this.progressedFarEnough = true;
             }
 
-            if ( base.frame >= 10 )
+            if ( base.frame >= 11 )
             {
                 base.frame = 0;
                 this.CancelMelee();
@@ -2022,9 +2039,9 @@ namespace Drunken_Broster
 
             // TODO: Switch to this code when sprites are in correct places
             //int row = ( (int)this.chosenItem ) + 1;
-            int row = 1;
+            int row = ( (int)1 ) + 1;
 
-            int throwStart = 10;
+            int throwStart = 11;
 
             this.sprite.SetLowerLeftPixel( (float)( ( base.frame + throwStart ) * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
 
