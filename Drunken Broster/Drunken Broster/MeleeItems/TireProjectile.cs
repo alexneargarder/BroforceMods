@@ -328,6 +328,11 @@ namespace Drunken_Broster.MeleeItems
 
         public override void Knock( float xDiff, float yDiff, float xI, float yI )
         {
+            // Boost impact if hitting it in the opposite direction to make turning it around easier
+            if ( Mathf.Sign(this.xI) != Mathf.Sign(xI) )
+            {
+                xI *= 1.5f;
+            }
             this.xI += Mathf.Sign( xI ) * Mathf.Max( Mathf.Min( Mathf.Abs( ( xI / this.weight ) ), 300f ), 100f );
             this.yI += Mathf.Sign( yI ) * Mathf.Max( Mathf.Min( Mathf.Abs( ( yI / this.weight ) ), 300f ), 0f );
         }
