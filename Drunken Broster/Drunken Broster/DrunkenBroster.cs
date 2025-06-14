@@ -293,6 +293,8 @@ namespace Drunken_Broster
                     ++DrunkenBroster.currentItem;
                 }
             }
+
+            GUILayout.Label( "Current Item: " + DrunkenBroster.currentItem );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2005,9 +2007,7 @@ namespace Drunken_Broster
                 this.frameRate = 0.06f;
             }
 
-            // TODO: Switch to this code when sprites are in correct places
-            //int row = ( (int)this.chosenItem ) + 1;
-            int row = ( (int)1) + 1;
+            int row = ( (int)this.chosenItem ) + 1;
 
             this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( row * this.spritePixelHeight ) );
 
@@ -2037,9 +2037,7 @@ namespace Drunken_Broster
         {
             this.frameRate = 0.09f;
 
-            // TODO: Switch to this code when sprites are in correct places
-            //int row = ( (int)this.chosenItem ) + 1;
-            int row = ( (int)1 ) + 1;
+            int row = ( (int)this.heldItem ) + 1;
 
             int throwStart = 11;
 
