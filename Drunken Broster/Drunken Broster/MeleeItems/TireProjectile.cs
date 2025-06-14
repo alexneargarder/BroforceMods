@@ -21,6 +21,7 @@ namespace Drunken_Broster.MeleeItems
         protected float damageCooldown = 0f;
         protected RaycastHit raycastHit;
         protected LayerMask groundAndLadderLayer;
+        protected GibHolder gibs;
 
         protected override void Awake()
         {
@@ -61,7 +62,14 @@ namespace Drunken_Broster.MeleeItems
             doodad.radius = 6f;
             doodad.owner = this;
 
+            // Make tire roll over ladders
             this.groundAndLadderLayer = ( 1 << LayerMask.NameToLayer( "Ground" ) | 1 << LayerMask.NameToLayer( "IndestructibleGround" ) | 1 << LayerMask.NameToLayer( "LargeObjects" ) | 1 << LayerMask.NameToLayer( "Ladders" ) );
+
+            // Setup gibs
+            if ( this.gibs == null )
+            {
+                this.InitializeGibs();
+            }
 
             base.Awake();
         }
@@ -81,6 +89,54 @@ namespace Drunken_Broster.MeleeItems
         // Disable warnings
         protected override void RunWarnings()
         {
+        }
+
+        protected void CreateGib( string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
+        {
+            BroMakerUtilities.CreateGibPrefab( name, lowerLeftPixel, pixelDimensions, width, height, new Vector3( 0f, 0f, 0f ), localPositionOffset, false, DoodadGibsType.Metal, 6, false, BloodColor.None, 1, true, 8, false, false, 3, 1, 1, 7f ).transform.parent = this.gibs.transform;
+        }
+
+        protected void InitializeGibs()
+        {
+            this.gibs = new GameObject( "TireProjectileGibs", new Type[] { typeof( Transform ), typeof( GibHolder ) } ).GetComponent<GibHolder>();
+            this.gibs.gameObject.SetActive( false );
+            UnityEngine.Object.DontDestroyOnLoad( this.gibs );
+            CreateGib( "WheelHub", new Vector2( 397, 8 ), new Vector2( 10, 4 ), 10f, 4f, new Vector3( -25f, 30f, 0f ) );
+            CreateGib( "LeftPiece", new Vector2( 413, 12 ), new Vector2( 6, 6 ), 6f, 6f, new Vector3( -14f, 20f, 0f ) );
+            CreateGib( "BottomPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "RightPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "TopPiece", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+
+            CreateGib( "BottomLeft", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "BottomRight", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "TopLeft", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+            CreateGib( "TopRight", new Vector2( 427, 13 ), new Vector2( 11, 10 ), 13.75f, 12.5f, new Vector3( 36f, 8f, 0f ) );
+
+            // Make sure gibs are on layer 19 since the texture they're using is transparent
+            for ( int i = 0; i < this.gibs.transform.childCount; ++i )
+            {
+                gibs.transform.GetChild( i ).gameObject.layer = 19;
+            }
+        }
+
+        protected virtual void CreateGibs( float xI, float yI )
+        {
+            xI = xI * 0.25f;
+            yI = yI * 0.25f + 60f;
+            float xForce = 10f;
+            float yForce = 10f;
+            if ( gibs == null || gibs.transform == null )
+            {
+                return;
+            }
+            for ( int i = 0; i < gibs.transform.childCount; i++ )
+            {
+                Transform child = gibs.transform.GetChild( i );
+                if ( child != null )
+                {
+                    EffectsController.CreateGib( child.GetComponent<Gib>(), base.GetComponent<Renderer>().sharedMaterial, base.X, base.Y, xForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), yForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), xI, yI, (int)base.transform.localScale.x );
+                }
+            }
         }
 
         protected override bool Update()
