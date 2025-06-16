@@ -1,15 +1,13 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
-using BroMakerLib.Loggers;
+using BroMakerLib.CustomObjects.Projectiles;
 using Drunken_Broster.MeleeItems;
 using HarmonyLib;
 using Rogueforce;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Drunken_Broster
@@ -87,16 +85,16 @@ namespace Drunken_Broster
         protected MeleeItem chosenItem = MeleeItem.None;
         protected MeleeItem heldItem = MeleeItem.None;
         protected bool holdingItem = false;
-        protected Grenade tireProjectile;
-        protected Projectile acidEggProjectile;
-        protected Projectile beehiveProjectile;
-        protected Projectile bottleProjectile;
-        protected Projectile crateProjectile;
-        protected Projectile coconutProjectile;
-        protected Projectile explosiveBarrelProjectile;
-        protected Projectile soccerBallProjectile;
-        protected Projectile alienEggProjectile;
-        protected Projectile skullProjectile;
+        protected CustomGrenade tireProjectile;
+        protected CustomProjectile acidEggProjectile;
+        protected CustomProjectile beehiveProjectile;
+        protected CustomGrenade bottleProjectile;
+        protected CustomProjectile crateProjectile;
+        protected CustomProjectile coconutProjectile;
+        protected CustomProjectile explosiveBarrelProjectile;
+        protected CustomProjectile soccerBallProjectile;
+        protected CustomProjectile alienEggProjectile;
+        protected CustomProjectile skullProjectile;
         protected MeshRenderer gunSpriteMelee;
         protected SpriteSM gunSpriteMeleeSprite;
         protected Material meleeSpriteGrabThrowing;
@@ -156,55 +154,34 @@ namespace Drunken_Broster
 
             // Setup throwables
             // Load tire
-            tireProjectile = new GameObject( "TireProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( TireProjectile ) } ).GetComponent<Grenade>();
-            tireProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).specialGrenade.soundHolder;
-            tireProjectile.enabled = false;
+            tireProjectile = CustomGrenade.CreatePrefab<TireProjectile>();
 
             // Load acid eggg
-            acidEggProjectile = new GameObject( "AcidEggProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( AcidEggProjectile ) } ).GetComponent<Projectile>();
-            acidEggProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            acidEggProjectile.enabled = false;
+            acidEggProjectile = CustomProjectile.CreatePrefab<AcidEggProjectile>();
 
             // Load beehive
-            beehiveProjectile = new GameObject( "BeehiveProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BeehiveProjectile ) } ).GetComponent<BeehiveProjectile>();
-            beehiveProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            beehiveProjectile.enabled = false;
+            beehiveProjectile = CustomProjectile.CreatePrefab<BeehiveProjectile>();
 
-
-            // TODO: Load bottle
-            bottleProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            bottleProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            bottleProjectile.enabled = false;
+            // Load bottle
+            bottleProjectile = CustomGrenade.CreatePrefab<BottleProjectile>();
 
             // Load crate
-            crateProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            crateProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            crateProjectile.enabled = false;
+            crateProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load coconut
-            coconutProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            coconutProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            coconutProjectile.enabled = false;
+            coconutProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load explosive barrel
-            explosiveBarrelProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            explosiveBarrelProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            explosiveBarrelProjectile.enabled = false;
+            explosiveBarrelProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load soccer ball
-            soccerBallProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            soccerBallProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            soccerBallProjectile.enabled = false;
+            soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load alien egg
-            alienEggProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            alienEggProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            alienEggProjectile.enabled = false;
+            alienEggProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load skull
-            skullProjectile = new GameObject( "CrateProjectile", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( CrateProjectile ) } ).GetComponent<Projectile>();
-            skullProjectile.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).projectile.soundHolder;
-            skullProjectile.enabled = false;
+            skullProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
@@ -2201,44 +2178,42 @@ namespace Drunken_Broster
 
         protected void ThrowHeldItem()
         {
-            BroforceObject projectile;
             switch ( this.heldItem )
             {
                 case MeleeItem.Tire:
-                    projectile = ProjectileController.SpawnGrenadeLocally( this.tireProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 ) as Grenade;
+                    this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AcidEgg:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.acidEggProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Beehive:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.beehiveProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Bottle:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.bottleProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Crate:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.crateProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.coconutProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.explosiveBarrelProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
                 case MeleeItem.SoccerBall:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.soccerBallProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
                 case MeleeItem.AlienEgg:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.alienEggProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
                 case MeleeItem.Skull:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.skullProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
                 default:
-                    projectile = ProjectileController.SpawnProjectileLocally( this.crateProjectile, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum ) as Projectile;
+                    
                     break;
             }
-            projectile.enabled = true;
 
             thrownItem = true;
         }

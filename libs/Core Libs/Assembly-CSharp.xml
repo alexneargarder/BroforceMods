@@ -10840,8 +10840,8 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,UnityEngine.MonoBehaviour,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean)">
             <summary>
-            Damages units within a square range using basic hit detection. Convenience overload that
-            delegates to the canGib version with gibbing enabled by default.
+            Damages units within a square range using basic hit detection. Convenience overload
+            that delegates to the canGib version with gibbing enabled by default.
             </summary>
             <param name="damageSender">The object causing the damage.</param>
             <param name="avoidID">Unit to avoid damaging (unless it catches friendly bullets)</param>
@@ -10861,7 +10861,8 @@
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,UnityEngine.MonoBehaviour,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean)">
             <summary>
             Damages units within a square range with gibbing control. Convenience overload that
-            delegates to the rectangular version with equal x/y ranges and headshots enabled by default.
+            delegates to the rectangular version with equal x/y ranges and headshots enabled by
+            default.
             </summary>
             <param name="damageSender">The object causing the damage.</param>
             <param name="avoidID">Unit to avoid damaging (unless it catches friendly bullets)</param>
@@ -10881,9 +10882,9 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,UnityEngine.MonoBehaviour,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
             <summary>
-            Damages units within a rectangular area with separate x/y ranges and headshot control.
-            Convenience overload that delegates to the full implementation with default blood color
-            tracking and no hit unit list.
+            Damages units within a rectangular area with separate x/y ranges and headshot
+            control. Convenience overload that delegates to the full implementation with default
+            blood color tracking and no hit unit list.
             </summary>
             <param name="damageSender">The object causing the damage.</param>
             <param name="avoidID">Unit to avoid damaging (unless it catches friendly bullets)</param>
@@ -10905,9 +10906,10 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,UnityEngine.MonoBehaviour,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean,System.Boolean,BloodColor@,System.Collections.Generic.List{Unit},System.Boolean)">
             <summary>
-            Core implementation of HitUnits with full parameter control. This is the main implementation
-            that handles all unit damage logic, with options for blood color tracking, hit unit lists,
-            and circular vs rectangular damage areas. Most other HitUnits overloads delegate to this method.
+            Core implementation of HitUnits with full parameter control. This is the main
+            implementation that handles all unit damage logic, with options for blood color
+            tracking, hit unit lists, and circular vs rectangular damage areas. Most other
+            HitUnits overloads delegate to this method.
             </summary>
             <param name="damageSender">The object that is causing the damage..</param>
             <param name="avoidID">Optional unit to exclude from damage, unless they have CatchFriendlyBullets enabled.</param>
@@ -10949,9 +10951,9 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.List{Unit},System.Boolean,System.Boolean)">
             <summary>
-            Damages units within a square range with hit tracking and corpse filtering. Convenience
-            overload that delegates to the corpse damage version with equal damage values for
-            living and dead units.
+            Damages units within a square range with hit tracking and corpse filtering.
+            Convenience overload that delegates to the corpse damage version with equal damage
+            values for living and dead units.
             </summary>
             <param name="damageSender">The object that is causing the damage..</param>
             <param name="playerNum">The player number dealing damage (used for team damage rules)</param>
@@ -10974,8 +10976,8 @@
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,System.Int32,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.List{Unit},System.Boolean)">
             <summary>
             Damages units with separate damage values for living and dead units. Convenience
-            overload that delegates to the rectangular version with equal x/y ranges. Useful
-            for explosions that need different corpse damage.
+            overload that delegates to the rectangular version with equal x/y ranges. Useful for
+            explosions that need different corpse damage.
             </summary>
             <param name="damageSender">The object that is causing the damage..</param>
             <param name="playerNum">The player number dealing damage (used for team damage rules)</param>
@@ -10997,9 +10999,9 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,System.Int32,System.Int32,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.List{Unit},System.Boolean,System.Boolean)">
             <summary>
-            Core implementation for damage with separate corpse damage values and rectangular areas.
-            This is a standalone implementation (not a delegation) that handles all the damage logic
-            for cases where living and dead units need different damage amounts.
+            Core implementation for damage with separate corpse damage values and rectangular
+            areas. This is a standalone implementation (not a delegation) that handles all the
+            damage logic for cases where living and dead units need different damage amounts.
             </summary>
             <param name="damageSender">The object that is causing the damage..</param>
             <param name="playerNum">The player number dealing damage (used for team damage rules)</param>
@@ -11067,9 +11069,9 @@
 
         <member name="M:Map.HitUnits(UnityEngine.MonoBehaviour,System.Int32,DamageType,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Boolean)">
             <summary>
-            Damages all units within a rectangular area regardless of team. Standalone implementation
-            without avoidID that hits all units in range. Includes special penetration logic that
-            reduces penetration chance based on unit mass.
+            Damages all units within a rectangular area regardless of team. Standalone
+            implementation without avoidID that hits all units in range. Includes special
+            penetration logic that reduces penetration chance based on unit mass.
             </summary>
             <param name="damageSender">The object that is causing the damage.</param>
             <param name="damage">The amount of damage to inflict on each hit unit</param>
@@ -16406,6 +16408,996 @@
             </summary>
         </member>
 
+        <member name="M:Player.AddPerksToHUD">
+            <summary>
+            Adds the player's current perks to their HUD display. Retrieves perks from
+            PlayerInventory and displays them on the HUD interface for the player to see their
+            active bonuses.
+            </summary>
+        </member>
+
+        <member name="M:Player.Awake">
+            <summary>
+            Initializes the player instance with network instantiation data. Sets up player
+            number, network PID, controller ID, and creates the HUD if needed. Also initializes
+            lives to 0 if the player dropped out this round (except for solo host who gets 1
+            life).
+            </summary>
+        </member>
+
+        <member name="M:Player.DisableBotBrain">
+            <summary>
+            Disables AI control for this player by setting the UsingBotBrain flag to false. The
+            player will return to normal input control after this is called. Note that this
+            doesn't remove the BotBrain component, only disables its use.
+            </summary>
+        </member>
+
+        <member name="M:Player.EnableBotBrain">
+            <summary>
+            Enables AI control for this player by adding and configuring a BotBrain component.
+            Creates a new BotBrain component if one doesn't exist, assigns the current character
+            to it, and sets the UsingBotBrain flag to true. This allows the player to be
+            controlled by AI instead of player input.
+            </summary>
+        </member>
+
+        <member name="M:Player.OnDestroy">
+            <summary>
+            Cleanup method called when the player object is destroyed. Properly disposes of the
+            player's HUD by unparenting it and destroying the game object, then destroys any
+            active character unit. This ensures proper cleanup of player-owned resources.
+            </summary>
+        </member>
+
+        <member name="M:Player.ResetPerkValuesOnLevelStart">
+            <summary>
+            Resets per-level perk values at the start of each level. Calls into PlayerInventory
+            to reset any perk effects that don't persist between levels.
+            </summary>
+        </member>
+
+        <member name="M:Player.SetBotbrainLeader(System.Int32)">
+            <summary>
+            Sets which player the bot should follow when using AI control. The bot brain will
+            attempt to follow and support the character of the specified player number. This is
+            used to coordinate AI teammates with human players.
+            </summary>
+            <param name="playerNum">The player number that this bot should follow. Use -1 for no specific leader.</param>
+        </member>
+
+        <member name="M:Player.SetupHud">
+            <summary>
+            Creates and initializes the player's HUD interface. Instantiates the PlayerHUD
+            prefab, sets it up with current lives and player number, then hides it initially
+            until needed.
+            </summary>
+        </member>
+
+        <member name="M:Player.Start">
+            <summary>
+            Performs initial player setup after instantiation. Verifies network connection, sets
+            initial lives based on game mode, requests player data from server if not host, and
+            sets up perks. Handles special cases for hardcore mode, deathmatch, and procedural
+            generation modes.
+            </summary>
+        </member>
+
+        <member name="P:Player.BotBrainLeader">
+            <summary>
+            Gets or sets the player number that this bot should follow when using AI control.
+            The bot brain will attempt to follow the character of the specified player number.
+            -1 indicates no specific leader.
+            </summary>
+        </member>
+
+        <member name="P:Player.UsingBotBrain">
+            <summary>
+            Gets or sets whether this player is being controlled by AI. When true, the BotBrain
+            component controls the player's character instead of player input. Used for
+            AI-controlled teammates or testing.
+            </summary>
+        </member>
+
+        <member name="P:Player.controllerNum">
+            <summary>
+            Gets the controller ID assigned to this player. Returns the controller ID from
+            HeroController.playerControllerIDs based on this player's playerNum. Returns -1 if
+            playerNum is invalid (less than 0).
+            </summary>
+        </member>
+
+        <member name="F:Player.playerNum">
+            <summary>
+            The player's unique identifier number in the game session. Ranges from 0-3 for the
+            four possible players. Used as an index into various player arrays like
+            HeroController.players, PlayerInventory arrays, and for network identification.
+            Initialized to -1 until properly set during Awake.
+            </summary>
+        </member>
+
+        <member name="M:Player.AssignCharacter(TestVanDammeAnim)">
+            <summary>
+            Assigns a hero character to this player and clears pending state flags. Sets the
+            character reference and resets awaitingHeroTypeFromServer and RescueInProgress flags
+            to false.
+            </summary>
+            <param name="character">The hero character to assign to this player.</param>
+        </member>
+
+        <member name="M:Player.BoostHero(System.Single)">
+            <summary>
+            Applies a speed boost to the player's hero character for the specified duration. If
+            the player has an active character, calls the character's Boost method which
+            increases movement speed temporarily. This is typically used for power-ups or
+            special abilities that enhance hero mobility.
+            </summary>
+            <param name="time">The duration in seconds for which the speed boost should last.</param>
+        </member>
+
+        <member name="M:Player.DeRegisterMinion(Unit)">
+            <summary>
+            Removes a unit from this player's minion list. If the unit is currently registered
+            as a minion, removes it from the tracking list. This is typically called when a
+            minion dies or is no longer under the player's control.
+            </summary>
+            <param name="minion">The unit to remove from this player's minion list.</param>
+        </member>
+
+        <member name="M:Player.InstantiateHero(HeroType,System.Int32,System.Int32)">
+            <summary>
+            Creates and initializes a new hero instance for the local player only. Instantiates
+            the hero prefab via networking, sets up the hero with player data, calculates spawn
+            position, configures death match HUD if needed, and applies any flex powers. Returns
+            null for non-local players. Note: ProcGenGameMode references are for an unfinished
+            feature.
+            </summary>
+            <param name="heroTypeEnum">The type of hero to instantiate.</param>
+            <param name="PlayerNum">The player number who owns this hero.</param>
+            <param name="ControllerNum">The controller number assigned to this player.</param>
+            <returns>The instantiated hero character, or null if not the local player.</returns>
+        </member>
+
+        <member name="M:Player.ReRequestHeroTypeFromMasterOnServerMigration">
+            <summary>
+            Re-requests hero type information from the new master after server migration.
+            Currently empty implementation - appears to be a stub for handling host migration
+            scenarios.
+            </summary>
+        </member>
+
+        <member name="M:Player.RegisterMinion(Unit)">
+            <summary>
+            Registers a unit as a minion controlled by this player. Adds the unit to the
+            player's minions list if not already present. Minions are AI-controlled units that
+            fight alongside the player, such as rescued animals or summoned allies.
+            </summary>
+            <param name="minion">The unit to register as a minion of this player.</param>
+        </member>
+
+        <member name="M:Player.RespawnBro(System.Boolean)">
+            <summary>
+            Initiates the respawn process for the player's hero. Sets awaitingHeroTypeFromServer
+            flag and requests a hero type from the master/host. The swappingBro parameter
+            indicates if this is a hero swap rather than a death respawn. This is an RPC method
+            that only executes for the local player.
+            </summary>
+            <param name="swappingBro">If true, indicates this is a hero swap rather than a death respawn.</param>
+        </member>
+
+        <member name="M:Player.SetHeroType(HeroType)">
+            <summary>
+            Sets the current hero type and updates the HUD avatar display. Changes the HUD
+            avatar and grenade material to match the specified hero type and sets the avatar to
+            calm state.
+            </summary>
+            <param name="heroTypeEnum">The hero type to set as current.</param>
+        </member>
+
+        <member name="M:Player.SetInvulnerable(System.Single)">
+            <summary>
+            Sets the hero character to be invulnerable for the specified duration. Calls the
+            character's SetInvulnerable method with the fadeIn parameter set to true and the
+            showSmoke parameter set to false. This provides temporary protection from damage,
+            typically used after spawning or during special events.
+            </summary>
+            <param name="time">The duration in seconds for which the character should be invulnerable.</param>
+        </member>
+
+        <member name="M:Player.SetSpawnPositon(TestVanDammeAnim,Player.SpawnType,System.Boolean,UnityEngine.Vector3)">
+            <summary>
+            RPC method that sets the spawn position and state for a hero character. Applies the
+            calculated position, enables parachute if spawning via air drop, plays spawn sounds
+            for non-first deployments, and grants temporary invulnerability. Updates rescue and
+            hero request flags to false.
+            </summary>
+            <param name="bro">The hero character being spawned.</param>
+            <param name="spawnType">The type of spawn scenario being used.</param>
+            <param name="spawnViaAirDrop">Whether the hero should spawn with a parachute.</param>
+            <param name="pos">The world position where the hero should spawn.</param>
+        </member>
+
+        <member name="M:Player.SpawnHero(HeroType)">
+            <summary>
+            Spawns a new hero of the specified type for this player. Recalls any existing living
+            hero, handles cutscene loading for newly played heroes, unlocks heroes in campaign
+            mode, and calls InstantiateHero to create the actual character. Updates player
+            progress for unlocked heroes.
+            </summary>
+            <param name="nextHeroType">The type of hero to spawn.</param>
+        </member>
+
+        <member name="M:Player.TimeBroBoostHero(System.Single)">
+            <summary>
+            Applies a TimeBro-specific boost effect to the player's hero character. If the
+            player has an active character, calls the character's TimeBroBoost method which
+            provides special time-manipulation abilities. This boost is specific to TimeBro's
+            unique gameplay mechanics.
+            </summary>
+            <param name="time">The duration in seconds for which the TimeBro boost should last.</param>
+        </member>
+
+        <member name="M:Player.WorkOutSpawnPosition(TestVanDammeAnim)">
+            <summary>
+            Calculates and sets the spawn position for a hero based on the determined spawn
+            scenario. Evaluates the spawn type, retrieves the appropriate position (checkpoint,
+            cage, transport, etc.), and calls SetSpawnPositon via RPC to synchronize the
+            position across all clients. Handles special cases like air drops and level editor
+            reloads.
+            </summary>
+            <param name="bro">The hero character to position for spawning.</param>
+        </member>
+
+        <member name="M:Player.WorkOutSpawnScenario">
+            <summary>
+            Determines the appropriate spawn scenario based on current game state and player
+            conditions. Evaluates various factors including rescue status, game mode, checkpoint
+            activation, and initial deployment to select the correct SpawnType. Returns Unknown
+            type for explosion run mode without first deployment.
+            </summary>
+            <returns>The SpawnType enum value indicating how the player should spawn.</returns>
+        </member>
+
+        <member name="P:Player.character">
+            <summary>
+            Gets or sets the current hero character (TestVanDammeAnim) controlled by this
+            player. This is the actual bro/character unit in the game world that the player
+            controls. Setting this property also updates internal state tracking.
+            </summary>
+        </member>
+
+        <member name="F:Player._character">
+            <summary>
+            The current hero character (TestVanDammeAnim) instance controlled by this player.
+            This is the actual bro unit in the game world. Can be null when the player is dead
+            or waiting to spawn. Accessed through the character property which provides
+            additional logic when setting.
+            </summary>
+        </member>
+
+        <member name="F:Player._forceFlexPowerupSpawn">
+            <summary>
+            Private field storing a flex power type to be automatically granted when the player
+            spawns a new hero. Set by ForceRespawnWithFlexPower and checked during
+            InstantiateHero to apply the power immediately after spawning. Reset to
+            PickupType.None after use.
+            </summary>
+        </member>
+
+        <member name="F:Player.heroType">
+            <summary>
+            The HeroType enum value of the player's current hero. Used for HUD avatar display
+            and tracking which bro the player is currently playing as. Set to HeroType.None when
+            no hero is active. Updated when spawning a new hero via SetHeroType method.
+            </summary>
+        </member>
+
+        <member name="F:Player.minions">
+            <summary>
+            List of AI-controlled units that fight alongside this player. Includes rescued
+            animals, summoned allies, or other units under the player's control. Units are added
+            via RegisterMinion and removed via DeRegisterMinion. Used to track and manage AI
+            companions.
+            </summary>
+        </member>
+
+        <member name="F:Player.recentlyUnlockedHeros">
+            <summary>
+            List of hero types that were recently unlocked but not yet used by the player. This
+            field appears to be defined but not actively used in the current implementation.
+            Likely intended for tracking newly unlocked bros for UI notifications or
+            achievements.
+            </summary>
+        </member>
+
+        <member name="M:Player.AddFlexPower(PickupType,System.Boolean)">
+            <summary>
+            Adds a flex power pickup to the player's inventory. Flex powers are temporary
+            power-ups that grant special abilities like invulnerability, air jump, teleport, or
+            golden light. If forced is true, overwrites any existing flex power. If forced is
+            false, only adds if the player has no current flex power. This is an RPC method for
+            network synchronization.
+            </summary>
+            <param name="pickup">The type of flex power pickup to add (e.g., FlexInvulnerability, FlexAirJump, FlexTeleport, FlexGoldenLight).</param>
+            <param name="forced">If true, replaces any existing flex power. If false, only adds if no flex power is currently active.</param>
+        </member>
+
+        <member name="M:Player.ClearFlexPower">
+            <summary>
+            Removes the player's current flex power. Calls PlayerInventory.HeroHasDied which
+            clears the flex power from the global inventory. This is typically called when the
+            player dies to ensure flex powers don't persist between lives in campaign mode.
+            </summary>
+        </member>
+
+        <member name="M:Player.ForceRespawnWithFlexPower(PickupType,System.Boolean)">
+            <summary>
+            Sets a flex power to be automatically applied when the player respawns. Stores the
+            specified pickup type in _forceFlexPowerupSpawn field, which is checked during hero
+            instantiation to grant the power immediately upon spawning. The respawnWithFlexPower
+            parameter is not used in the current implementation.
+            </summary>
+            <param name="pickup">The flex power pickup type to grant on respawn.</param>
+            <param name="respawnWithFlexPower">Unused parameter in current implementation.</param>
+        </member>
+
+        <member name="M:Player.GetFlexPower">
+            <summary>
+            Gets the player's currently active flex power type. Retrieves the flex power from
+            PlayerInventory for this player number.
+            </summary>
+            <returns>The PickupType of the current flex power, or PickupType.None if no power is
+                active.</returns>
+        </member>
+
+        <member name="M:Player.HasFlexPower(PickupType)">
+            <summary>
+            Checks if the player currently has a specific type of flex power. Compares the
+            player's current flex power in PlayerInventory against the specified type.
+            </summary>
+            <param name="flexType">The flex power type to check for.</param>
+            <returns>True if the player has the specified flex power type, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.HasFlexPower">
+            <summary>
+            Checks if the player currently has any flex power active. Returns true if the
+            player's flex power in PlayerInventory is not None.
+            </summary>
+            <returns>True if the player has any flex power, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.AddLife">
+            <summary>
+            Adds one life to the player's life count. Only executes for the local player,
+            incrementing Lives and triggering a free life animation on the HUD.
+            </summary>
+        </member>
+
+        <member name="M:Player.RemoveLife">
+            <summary>
+            Removes a life from the player based on the current game mode rules. In hardcore
+            mode, moves the hero from available to dead list and may force level restart. In
+            ProcGen mode, decrements global lives and may trigger level failure. In campaign
+            mode, also clears any active flex powers. Updates lives differently for each game
+            mode.
+            </summary>
+        </member>
+
+        <member name="M:Player.SetLivesRPC(System.Int32)">
+            <summary>
+            RPC method that sets the player's lives count and updates the HUD. Called by the
+            Lives property setter to synchronize life count across all clients in multiplayer.
+            </summary>
+            <param name="_lives">The new lives count to set.</param>
+        </member>
+
+        <member name="P:Player.Lives">
+            <summary>
+            Gets or sets the player's remaining lives count. Handles different game modes:
+            returns/sets hardcore lives for hardcore mode, procedural generation lives for
+            procgen mode, or standard lives otherwise. When setting as the local player, also
+            syncs the value via RPC to other players.
+            </summary>
+        </member>
+
+        <member name="F:Player.lives">
+            <summary>
+            Private backing field for the Lives property storing the player's current life
+            count. Initialized to 1 and modified through the Lives property setter which handles
+            RPC synchronization. In standard gameplay this tracks the player's remaining lives,
+            but the Lives property getter may return different values based on game mode
+            (hardcore or procedural generation).
+            </summary>
+        </member>
+
+        <member name="M:Player.AddPlayerTarget(UnityEngine.Transform)">
+            <summary>
+            Sets a temporary target transform for this player to focus on. This target overrides
+            normal camera behavior and can be used to direct player attention to specific
+            objects or locations in the game world, such as during scripted sequences or
+            tutorials.
+            </summary>
+            <param name="target">The transform to set as the temporary target.</param>
+        </member>
+
+        <member name="M:Player.GetInput(System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@,System.Boolean@)">
+            <summary>
+            Retrieves input state for all control actions from the appropriate source. If using
+            bot brain, gets AI-generated input. If chat or pause menu is active (based on
+            controller number), returns all false inputs. Otherwise reads input from the
+            physical controller via InputReader. This centralizes all input handling for the
+            player.
+            </summary>
+            <param name="up">Output parameter set to true if up direction is pressed.</param>
+            <param name="down">Output parameter set to true if down direction is pressed.</param>
+            <param name="left">Output parameter set to true if left direction is pressed.</param>
+            <param name="right">Output parameter set to true if right direction is pressed.</param>
+            <param name="fire">Output parameter set to true if fire button is pressed.</param>
+            <param name="buttonJump">Output parameter set to true if jump button is pressed.</param>
+            <param name="special">Output parameter set to true if special/grenade button is pressed.</param>
+            <param name="highFive">Output parameter set to true if high five button is pressed.</param>
+            <param name="buttonGesture">Output parameter set to true if gesture button is pressed.</param>
+            <param name="sprint">Output parameter set to true if sprint button is pressed.</param>
+        </member>
+
+        <member name="M:Player.HasTemporaryTarget">
+            <summary>
+            Checks whether this player currently has a temporary target set. Returns true if a
+            temporary target transform is assigned, false otherwise. Used to determine if the
+            camera should follow a special target instead of the player character.
+            </summary>
+            <returns>True if the player has a temporary target set, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsRescuingBro">
+            <summary>
+            Checks if the player is currently rescuing a specific bro. Returns true if
+            rescuingThisBro field is not null, indicating an active rescue operation in
+            progress.
+            </summary>
+            <returns>True if actively rescuing a bro, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.RemovePlayerTarget">
+            <summary>
+            Clears the temporary target transform for this player. Returns camera focus to
+            normal behavior, typically following the player's character. This is called when a
+            scripted sequence ends or the target object is no longer relevant.
+            </summary>
+        </member>
+
+        <member name="M:Player.SetRumble(System.Single)">
+            <summary>
+            Sets the controller rumble intensity for force feedback. Updates the rumbleIntensity
+            to the maximum of the current value and the provided amount, ensuring the strongest
+            rumble effect is preserved. The rumble will fade out over time based on the update
+            loop logic.
+            </summary>
+            <param name="amount">The rumble intensity to apply (0 to 1 range).</param>
+        </member>
+
+        <member name="P:Player.RescueInProgress">
+            <summary>
+            Gets or sets whether this player is currently in the process of rescuing a bro. When
+            set to true, starts a 15-second timeout. Used to track rescue operation state and
+            prevent multiple simultaneous rescues.
+            </summary>
+        </member>
+
+        <member name="P:Player.awaitingHeroTypeFromServer">
+            <summary>
+            Gets or sets whether the player is waiting for the server to assign a hero type.
+            When set to true, starts a 15-second timeout. Used during respawn/rescue operations
+            to track server response state.
+            </summary>
+        </member>
+
+        <member name="F:Player._awaitingHeroTypeFromServer">
+            <summary>
+            Private flag indicating the player is waiting for the server to assign a hero type
+            during respawn. Set via the awaitingHeroTypeFromServer property which also manages
+            the server timeout. Prevents multiple hero requests and tracks respawn state.
+            </summary>
+        </member>
+
+        <member name="F:Player.changingBroFromTrigger">
+            <summary>
+            Flag indicating the player is swapping bros via a trigger (like swap bro crates).
+            Checked in WorkOutSpawnScenario to return TriggerSwapBro spawn type, then
+            immediately cleared. Used to maintain position when swapping heroes through game
+            triggers rather than death.
+            </summary>
+        </member>
+
+        <member name="F:Player.rescueInProgress">
+            <summary>
+            Private flag indicating whether this player is currently rescuing a bro. Set via the
+            RescueInProgress property which also manages the server timeout. Prevents multiple
+            simultaneous rescue attempts and tracks rescue state for spawn positioning.
+            </summary>
+        </member>
+
+        <member name="F:Player.rescuingThisBro">
+            <summary>
+            Reference to the RescueBro object currently being rescued by this player. Set when
+            the player initiates a rescue operation via HeroController.RescueBro or
+            HeroController.SpawnOnPlayer. Used to determine spawn position (RespawnAtRescueBro)
+            and properly destroy the rescue cage when the hero spawns. Null when no rescue is in
+            progress.
+            </summary>
+        </member>
+
+        <member name="F:Player.rumbleIntensity">
+            <summary>
+            Current controller vibration intensity (0 to 1 range) for force feedback effects.
+            Set via SetRumble which takes the maximum of current and new values. Automatically
+            decreases by 2 per second in Update loop until reaching 0. Passed to
+            InputReader.SetRumble each frame to apply controller vibration if the player has
+            rumble enabled in options.
+            </summary>
+        </member>
+
+        <member name="F:Player.serverResponseTimeout">
+            <summary>
+            Timeout counter for server operations in seconds. Set to 15 seconds when starting a
+            rescue operation or requesting hero type from server. Counts down each frame and
+            clears rescue/hero request flags if it reaches 0, preventing indefinite waiting for
+            server responses.
+            </summary>
+        </member>
+
+        <member name="M:Player.ActivateHUD">
+            <summary>
+            Activates and shows the player's HUD if standard HUDs are enabled in the current
+            game mode. Creates the HUD if needed and makes it visible on screen.
+            </summary>
+        </member>
+
+        <member name="M:Player.DisableHud">
+            <summary>
+            Hides and deactivates the player's HUD elements. Calls Hide on the HUD, deactivates
+            the HUD game object, and also deactivates the lives text display if it exists.
+            </summary>
+        </member>
+
+        <member name="M:Player.EnableHud">
+            <summary>
+            Shows and activates the player's HUD elements if standard HUDs are enabled. Checks
+            GameModeController.ShowStandardHUDS before making the HUD visible, activating the
+            game object and lives text display.
+            </summary>
+        </member>
+
+        <member name="M:Player.FlashSpecialAmmo">
+            <summary>
+            Triggers a flash effect on the special ammo/grenade icons in the HUD. Creates the
+            HUD if it doesn't exist, then calls FlashSpecialIcons to provide visual feedback for
+            special ammo changes.
+            </summary>
+        </member>
+
+        <member name="M:Player.SetAvatarDead(System.Boolean)">
+            <summary>
+            Updates the HUD to show the player's avatar as dead. Calls the HUD's SetAvatarDead
+            method to update the visual representation of the player's death state.
+            </summary>
+            <param name="primaryAvatar">Whether this is the primary avatar that died.</param>
+        </member>
+
+        <member name="M:Player.SetAvatarSpecialFrame(System.Single)">
+            <summary>
+            Sets a special animation frame on the player's HUD avatar for a specified duration.
+            Used for special visual effects or states on the HUD avatar display.
+            </summary>
+            <param name="time">The duration to display the special frame.</param>
+        </member>
+
+        <member name="M:Player.SetUpDeathMatchHUD(TestVanDammeAnim)">
+            <summary>
+            Creates and configures a death match HUD that follows the hero character. Hides the
+            standard HUD, instantiates the death match HUD prefab, sets it up with player lives
+            and number, and parents it to the hero transform at zero offset.
+            </summary>
+            <param name="newUnit">The hero unit to attach the death match HUD to.</param>
+        </member>
+
+        <member name="M:Player.ShowMinusPlum">
+            <summary>
+            Displays a negative score indicator (plum) on the player's deathmatch HUD. Shows a
+            visual feedback element indicating point loss, typically when the player dies or
+            loses points in deathmatch game modes.
+            </summary>
+        </member>
+
+        <member name="M:Player.ShowPlusPlum">
+            <summary>
+            Displays a positive score indicator (plum) on the player's deathmatch HUD. Shows a
+            visual feedback element indicating point gain, typically when the player scores a
+            kill or earns points in deathmatch game modes.
+            </summary>
+        </member>
+
+        <member name="M:Player.StopAvatarSpecialFrame">
+            <summary>
+            Stops any active special animation frame on the player's HUD avatar. Returns the
+            avatar display to its normal state by calling StopUsingSpecialFrame on the HUD.
+            </summary>
+        </member>
+
+        <member name="M:Player.UnlockProcGenCamera">
+            <summary>
+            Unlocks the procedural generation camera after a delay. Called via Invoke after
+            spawning a hero in ProcGen mode when the player died inside a room. Note:
+            ProcGenGameMode is an unfinished feature.
+            </summary>
+        </member>
+
+        <member name="F:Player.characterUI">
+            <summary>
+            Reference to the CharacterUI component on this player game object. Retrieved during
+            Awake and used for character-specific UI functionality. The specific usage of this
+            component is not shown in the available code.
+            </summary>
+        </member>
+
+        <member name="F:Player.deathMatchHUD">
+            <summary>
+            The instantiated HUDHeadGear instance for deathmatch modes. Follows the player's
+            character transform and displays game mode specific information. Created from
+            deathMatchHUDPrefab when playing deathmatch and parented to the hero transform.
+            </summary>
+        </member>
+
+        <member name="F:Player.deathMatchHUDPrefab">
+            <summary>
+            Prefab reference for the deathmatch-specific HUD that appears above the player's
+            character. Used in deathmatch game modes to show player-specific information like
+            lives and grenades directly on the character rather than in screen corners.
+            </summary>
+        </member>
+
+        <member name="F:Player.hud">
+            <summary>
+            The instantiated PlayerHUD instance for this player. Displays lives count,
+            grenade/special ammo count, avatar icon, and perk information. Created from
+            playerHUDPrefab and managed throughout the player's lifetime. Can be null before
+            setup or in certain game modes.
+            </summary>
+        </member>
+
+        <member name="F:Player.playerHUDPrefab">
+            <summary>
+            Prefab reference for the standard player HUD interface. Used as a template to
+            instantiate the player's HUD display showing lives, grenades, and other UI elements.
+            Instantiated in SetupHud method when needed.
+            </summary>
+        </member>
+
+        <member name="M:Player.ReportGib(KillData,DamageObject)">
+            <summary>
+            Reports when this player gibs (completely destroys) an enemy for perk triggering. If
+            the character is alive, triggers the OnEnemyGibbed perk event with player inventory
+            items and gib data. Gibbing enemies often provides bonus effects or satisfies
+            specific perk conditions.
+            </summary>
+            <param name="killData">Struct containing information about the gibbed unit including damage type.</param>
+            <param name="damageObject">The damage source object that caused the gib.</param>
+        </member>
+
+        <member name="M:Player.ReportGib(Unit)">
+            <summary>
+            Simplified gib reporting method that takes only the gibbed unit. Currently has an
+            empty implementation after checking if the character exists and is alive. This
+            appears to be an incomplete overload for simpler gib tracking scenarios.
+            </summary>
+            <param name="gibbedUnit">The unit that was gibbed.</param>
+        </member>
+
+        <member name="M:Player.ReportKill(KillData,DamageObject)">
+            <summary>
+            Reports a kill made by this player's character for statistics and perk triggering.
+            If the character is alive, triggers the OnMookKilled perk event with player
+            inventory items and kill data, then notifies the character of the kill. This tracks
+            combat performance and activates kill-based perks.
+            </summary>
+            <param name="killData">Struct containing information about the killed unit including damage type and whether it was gibbed.</param>
+            <param name="damageObject">The damage source object that caused the kill.</param>
+        </member>
+
+        <member name="M:Player.TriggerPerkEvent(PerkTriggerController.PerkEvent,TestVanDammeAnim)">
+            <summary>
+            Triggers a perk event for this player with just the hero as context. Passes the
+            event type, player's inventory items, and hero reference to the perk trigger
+            controller. Used for hero-specific events like spawning, death, or ability usage.
+            </summary>
+            <param name="eventType">The type of perk event to trigger.</param>
+            <param name="bro">The hero character associated with this event.</param>
+        </member>
+
+        <member name="M:Player.TriggerPerkEvent(PerkTriggerController.PerkEvent,TestVanDammeAnim,Mook)">
+            <summary>
+            Triggers a perk event for this player with hero and mook context. Passes the event
+            type, player's inventory items, hero, and mook references to the perk trigger
+            controller. Used for combat events involving specific enemy interactions.
+            </summary>
+            <param name="eventType">The type of perk event to trigger.</param>
+            <param name="bro">The hero character associated with this event.</param>
+            <param name="mook">The mook (enemy) involved in this event.</param>
+        </member>
+
+        <member name="M:Player.TriggerPerkEvent(PerkTriggerController.PerkEvent,TestVanDammeAnim,CheckPoint)">
+            <summary>
+            Triggers a perk event for this player with hero and checkpoint context. Passes the
+            event type, player's inventory items, hero, and checkpoint references to the perk
+            trigger controller. Used for checkpoint-related events like reaching or activating
+            checkpoints.
+            </summary>
+            <param name="eventType">The type of perk event to trigger.</param>
+            <param name="bro">The hero character associated with this event.</param>
+            <param name="checkPoint">The checkpoint involved in this event.</param>
+        </member>
+
+        <member name="P:Player.PlayerColor">
+            <summary>
+            Gets the color assigned to this player based on their player number. Retrieves the
+            color from HeroController.GetHeroColor for consistent player identification across
+            UI elements.
+            </summary>
+        </member>
+
+        <member name="P:Player.ValueOrchestrator">
+            <summary>
+            Gets the ValueOrchestrator instance for this player from the global PlayerInventory.
+            The ValueOrchestrator manages dynamic value modifications from perks, power-ups, and
+            other sources, calculating final multipliers for various gameplay values like
+            damage, speed, or health.
+            </summary>
+        </member>
+
+        <member name="M:Player.ClearTimeSinceDeath">
+            <summary>
+            Resets the death timer to allow continued camera following. Sets timeSinceDeath to
+            timeSinceDeathToFollow value, effectively extending the camera follow duration after
+            death.
+            </summary>
+        </member>
+
+        <member name="M:Player.Exists">
+            <summary>
+            Checks if the player has an active character in the game world. Returns true only if
+            the character reference is not null and the character's game object is active in the
+            hierarchy.
+            </summary>
+            <returns>True if the player has an active character, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.GetCharacterPosition">
+            <summary>
+            Gets the current position of the player's character. Returns the character's
+            transform position if alive, otherwise returns the last known player follow
+            position.
+            </summary>
+            <returns>The character's current position or last known position if dead.</returns>
+        </member>
+
+        <member name="M:Player.GetFollowPosition">
+            <summary>
+            Gets the position the camera should follow for this player. Returns temporary target
+            position if set, otherwise returns the smoothed character position. Updates death
+            timer and follow position for living characters. Falls back to last known position
+            after death.
+            </summary>
+            <returns>The world position the camera should follow.</returns>
+        </member>
+
+        <member name="M:Player.HasFollowPosition">
+            <summary>
+            Determines if this player should be followed by the camera. For local players,
+            returns true if alive or within the death follow time window. For remote players,
+            returns true if alive and instantiated. Tracks time since death to allow brief
+            following after death.
+            </summary>
+            <returns>True if the camera should follow this player, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsAlive">
+            <summary>
+            Determines if the player is considered alive in the game. Returns true if the
+            character exists and is alive, OR if the player is pending respawn/rescue (waiting
+            states count as alive for game logic).
+            </summary>
+            <returns>True if the player is alive or pending respawn, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsAliveAndSpawnedHero">
+            <summary>
+            Checks if the player has a fully spawned and alive hero. More strict than IsAlive -
+            requires the character to exist, be alive, AND have completed spawn position setup.
+            </summary>
+            <returns>True if the hero is alive and fully spawned, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsInvulnerable">
+            <summary>
+            Checks if the player's character is currently invulnerable. Returns the invulnerable
+            state of the character if it exists, false otherwise.
+            </summary>
+            <returns>True if the character is invulnerable, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsNearbyActivatedCheckPoint(UnityEngine.Vector2@,System.Boolean@)">
+            <summary>
+            Checks if the player's character is near an activated checkpoint and gets the
+            checkpoint position. Delegates to Map.IsNearActivatedCheckPoint using the
+            character's current position. Modifies the ref parameters with checkpoint data if
+            found.
+            </summary>
+            <param name="pos">Output parameter that receives the checkpoint position if one is found nearby.</param>
+            <param name="spawnViaAirdrop">Output parameter that indicates if the checkpoint requires air drop spawning.</param>
+            <returns>True if near an activated checkpoint, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsNearbyActivatedCheckPoint(System.Boolean@)">
+            <summary>
+            Checks if the player's character is near an activated checkpoint without retrieving
+            position. Overload that only returns whether an air drop spawn is required, without
+            the checkpoint position.
+            </summary>
+            <param name="spawnViaAirdrop">Output parameter that indicates if the checkpoint requires air drop spawning.</param>
+            <returns>True if near an activated checkpoint, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsPendingRespawnOrResuingInProgress">
+            <summary>
+            Checks if the player is in a pending state waiting for respawn or rescue. Returns
+            true if either RescueInProgress or awaitingHeroTypeFromServer flags are set.
+            </summary>
+            <returns>True if waiting for respawn or in rescue process, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.IsThisWay(System.Single,System.Single,System.Int32)">
+            <summary>
+            Checks if the player's character is in the specified direction from a given
+            position. Special handling for Snake Broskin's grenade hologram position. Returns
+            true if the character (or hologram) is in the direction indicated by xDirection from
+            the given coordinates.
+            </summary>
+            <param name="x">The X coordinate to check from.</param>
+            <param name="y">The Y coordinate to check from.</param>
+            <param name="xDirection">The direction to check (-1 for left, 1 for right).</param>
+            <returns>True if the character is in the specified direction, false otherwise.</returns>
+        </member>
+
+        <member name="M:Player.LateUpdate">
+            <summary>
+            Late update processing that occurs after all Update calls. Calls base class
+            LateUpdate and then updates the smoothed follow position for camera tracking.
+            </summary>
+        </member>
+
+        <member name="M:Player.PackState(UnityStream)">
+            <summary>
+            Serializes the player's state for network synchronization. Packs the current lives
+            count, character reference, and firstDeployment flag into the stream, then calls the
+            base class PackState. This method is used to sync player state across the network in
+            multiplayer games. Note: Network functionality may not work reliably in mods.
+            </summary>
+            <param name="stream">The Unity network stream to write the state data to.</param>
+            <returns>The stream with the serialized player state.</returns>
+        </member>
+
+        <member name="M:Player.UnpackState(UnityStream)">
+            <summary>
+            Deserializes the player's state from network data. Reads lives count, character
+            reference, and firstDeployment flag from the stream, enables the HUD with updated
+            data, then calls the base class UnpackState. This method receives player state
+            updates in multiplayer games. Note: Network functionality may not work reliably in
+            mods.
+            </summary>
+            <param name="stream">The Unity network stream to read the state data from.</param>
+            <returns>The stream after reading the player state.</returns>
+        </member>
+
+        <member name="M:Player.Update">
+            <summary>
+            Main update loop for the player. Handles idle timeout detection (35 seconds),
+            controller rumble, server response timeouts, fuel/grenade HUD updates, and bot brain
+            management. Monitors player input to detect AFK players in multiplayer and manages
+            various time-based states.
+            </summary>
+        </member>
+
+        <member name="M:Player.UpdateSmoothFollowPos">
+            <summary>
+            Updates the smoothed follow position used for camera tracking. For local players,
+            directly uses character position. For remote players, smoothly interpolates position
+            unless the character has moved too far (200 units squared), in which case it snaps
+            to the new position.
+            </summary>
+        </member>
+
+        <member name="F:Player.AFKTimeLimit">
+            <summary>
+            Constant defining the idle time limit before a player is considered AFK (Away From
+            Keyboard). Set to 35 seconds. When idleTimer reaches this value in multiplayer
+            games, the player is automatically dropped out and an AFK message is displayed. This
+            prevents inactive players from blocking game progress.
+            </summary>
+        </member>
+
+        <member name="F:Player.SmoothedFollowPosition">
+            <summary>
+            The interpolated position used for smooth camera following. For local players,
+            directly matches character position. For remote players, smoothly interpolates
+            toward the character position unless they teleport (move more than 200 units).
+            Initialized to -Vector3.one and updated in UpdateSmoothFollowPos.
+            </summary>
+        </member>
+
+        <member name="F:Player.charHasBeenInstantiated">
+            <summary>
+            Flag indicating whether the player's character has completed at least one update
+            cycle. Set to true in Update when character exists and UpdateHasRunAtleastOnce is
+            true. Used by remote players in HasFollowPosition to determine if the character is
+            ready for camera following. Ensures character is fully initialized before certain
+            operations.
+            </summary>
+        </member>
+
+        <member name="F:Player.firstDeployment">
+            <summary>
+            Tracks whether this is the player's first spawn in the current level. Initialized to
+            true and set to false after first spawn. Used to determine spawn behavior (transport
+            vs checkpoint), suppress spawn sounds, and handle special first-spawn logic. Reset
+            between levels.
+            </summary>
+        </member>
+
+        <member name="F:Player.idleTimer">
+            <summary>
+            Tracks how long the player has been idle (no input) in seconds. Incremented by
+            unscaled delta time when the player has no input in multiplayer games with other
+            alive players. Reset to 0 when any input is detected. When this reaches AFKTimeLimit
+            (35 seconds), triggers automatic dropout and shows AFK message.
+            </summary>
+        </member>
+
+        <member name="F:Player.playerDelay">
+            <summary>
+            Timer field that counts down in the Update loop. Decremented by deltaTime each frame
+            when greater than 0. The specific purpose is not clear from the available code, but
+            appears to be a general-purpose delay timer for player actions.
+            </summary>
+        </member>
+
+        <member name="F:Player.playerTemporaryTarget">
+            <summary>
+            Optional transform that overrides normal camera following behavior. When set, the
+            camera will follow this target instead of the player's character. Used for scripted
+            sequences, cutscenes, or directing player attention to specific objects. Cleared
+            with RemovePlayerTarget.
+            </summary>
+        </member>
+
+        <member name="F:Player.timeSinceDeath">
+            <summary>
+            Tracks elapsed time in seconds since the player's character died. Incremented in
+            HasFollowPosition for local players after death. Reset to 0 when character is alive
+            and updating. Used with timeSinceDeathToFollow to allow brief camera following after
+            death before switching to other players. Can be reset via ClearTimeSinceDeath.
+            </summary>
+        </member>
+
+        <member name="F:Player.timeSinceDeathToFollow">
+            <summary>
+            The duration in seconds to continue following a dead player's last position. Set to
+            1.5 seconds by default. After a player dies, the camera continues following their
+            position for this duration before switching to other players. This provides visual
+            continuity and lets players see the immediate aftermath of their death.
+            </summary>
+        </member>
+
         <member name="M:Projectile.Awake">
             <summary>
             Initializes layer masks, barrier layers, and projectile configuration during Unity's
@@ -17619,6 +18611,472 @@
             <summary>
             The remote teleport target prefab used for marking teleportation destinations in
             teleportation-based abilities and mechanics.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Awake">
+            <summary>
+            Unity Awake callback that initializes the sprite system. Creates normals, gets the
+            mesh renderer component, initializes the animations array if null, builds all UV
+            animations, and calls base initialization. This ensures all sprite components are
+            properly set up before Start is called.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.OnDrawGizmos">
+            <summary>
+            Unity editor callback that monitors sprite changes during edit mode. Creates and
+            maintains a SpriteMirror instance to detect property changes, automatically
+            reinitializing the sprite when modifications are detected to ensure real-time
+            preview updates in the editor.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Start">
+            <summary>
+            Unity Start callback that plays the default animation if configured. Checks if
+            playAnimOnStart is true, defaultAnim is within the animations array bounds, and the
+            application is playing (not in editor mode). This allows sprites to automatically
+            start animating when the game begins.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Clear">
+            <summary>
+            Clears the sprite state by calling base clear functionality and stopping any current
+            animation. If an animation is playing, it pauses the animation and sets the current
+            animation reference to null. This effectively resets the sprite to its initial
+            non-animated state.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Copy(SpriteBase)">
+            <summary>
+            Copies all settings from another SpriteSM instance. Copies base sprite properties,
+            lower left pixel, pixel dimensions, bleed compensation, and size settings. Also
+            duplicates the entire animations array and rebuilds all UV animations for this
+            sprite. This creates a complete duplicate of the source sprite's visual
+            configuration.
+            </summary>
+            <param name="s">The source sprite to copy settings from. Must be a SpriteSM instance.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetTextureDefaults">
+            <summary>
+            Sets the sprite to use the full texture dimensions as defaults. Recalculates the
+            texture reference, sets the lower left pixel to (0, texture.height), sets the sprite
+            size to match the texture dimensions, updates pixel dimensions, calculates UVs, and
+            updates the mesh UVs. This is useful for initializing a sprite to display an entire
+            texture without manual configuration.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.lockWidthAndHeight">
+            <summary>
+            When true, forces the sprite's world size to exactly match its pixel dimensions.
+            Overrides autoResize behavior and ensures 1:1 pixel-to-unit scaling regardless of
+            other size calculation settings.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.meshRender">
+            <summary>
+            Cached reference to the Renderer component on this GameObject. Used for accessing
+            the material and texture during trim operations and pixel sampling. Initialized
+            during Awake.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.mirror">
+            <summary>
+            SpriteMirror instance used exclusively in the editor to detect property changes.
+            Stores a snapshot of sprite properties and compares them each frame to automatically
+            reinitialize the sprite when modifications occur.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.refreshMeshNow">
+            <summary>
+            Editor flag that forces an immediate mesh update when set to true. Used in editor
+            scripts to trigger sprite recreation after property changes without waiting for the
+            next update cycle.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.CalcUVs">
+            <summary>
+            Calculates the UV coordinates for the sprite based on pixel coordinates. Converts
+            the lower left pixel position to UV space and sets the UV rect's position. Then
+            converts pixel dimensions to UV space and sets the UV rect's size. This mapping
+            allows the sprite to display the correct portion of its texture.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.SetLowerLeftPixel(UnityEngine.Vector2)">
+            <summary>
+            Sets the lower left pixel coordinate of the sprite on the texture and recalculates
+            all UV mappings. Updates the UV rect position and size based on the new pixel
+            coordinates, applies bleed compensation, and optionally recalculates the sprite size
+            if auto-resize or pixel-perfect mode is enabled.
+            </summary>
+            <param name="lowerLeft">The pixel coordinates of the lower left corner on the texture.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetLowerLeftPixel(System.Single,System.Single)">
+            <summary>
+            Sets the lower left pixel coordinate of the sprite on the texture using individual X
+            and Y values. This is a convenience overload that creates a Vector2 and calls the
+            main SetLowerLeftPixel method.
+            </summary>
+            <param name="x">The X pixel coordinate on the texture.</param>
+            <param name="y">The Y pixel coordinate on the texture.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetLowerLeftPixel(UnityEngine.Vector2)">
+            <summary>
+            Sets the lower-left corner position of the sprite within the texture in pixel
+            coordinates. Recalculates UV coordinates, applies bleed compensation, and optionally
+            resizes the sprite based on autoResize or pixelPerfect settings.
+            </summary>
+            <param name="lowerLeft">The pixel coordinates of the lower-left corner in texture space.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetLowerLeftPixel(System.Single,System.Single)">
+            <summary>
+            Sets the lower-left corner position of the sprite within the texture using
+            individual x and y pixel coordinates. Wrapper method that creates a Vector2 and
+            calls the main SetLowerLeftPixel method.
+            </summary>
+            <param name="x">The x pixel coordinate of the lower-left corner.</param>
+            <param name="y">The y pixel coordinate of the lower-left corner.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetPixelDimensions(UnityEngine.Vector2)">
+            <summary>
+            Sets the pixel dimensions of the sprite on the texture and updates UV coordinates
+            accordingly. Converts pixel space to UV space, updates the UV rect size, applies
+            bleed compensation, and optionally recalculates sprite size for auto-resize or
+            pixel-perfect modes. If lockWidthAndHeight is true, also updates the sprite's world
+            size to match pixel dimensions.
+            </summary>
+            <param name="size">The width and height in pixels on the texture.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetPixelDimensions(System.Int32,System.Int32)">
+            <summary>
+            Sets the pixel dimensions of the sprite on the texture using individual width and
+            height values. This is a convenience overload that creates a Vector2 and calls the
+            main SetPixelDimensions method.
+            </summary>
+            <param name="x">The width in pixels on the texture.</param>
+            <param name="y">The height in pixels on the texture.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetPixelDimensions(UnityEngine.Vector2)">
+            <summary>
+            Sets the pixel dimensions of the sprite region within the texture. Updates UV
+            coordinates to match the new dimensions, applies bleed compensation, and optionally
+            updates the sprite's world size based on lockWidthAndHeight, autoResize, or
+            pixelPerfect settings.
+            </summary>
+            <param name="size">The width and height in pixels of the sprite region.</param>
+        </member>
+
+        <member name="M:SpriteSM.SetPixelDimensions(System.Int32,System.Int32)">
+            <summary>
+            Sets the pixel dimensions of the sprite region within the texture using integer
+            width and height values. Wrapper method that creates a Vector2 and calls the main
+            SetPixelDimensions method.
+            </summary>
+            <param name="x">The width in pixels of the sprite region.</param>
+            <param name="y">The height in pixels of the sprite region.</param>
+        </member>
+
+        <member name="F:SpriteSM.lowerLeftPixel">
+            <summary>
+            The pixel coordinates of the lower-left corner of this sprite's region within the
+            texture. Used as the starting point for UV coordinate calculations and determines
+            which part of the texture is displayed.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.pixelDimensions">
+            <summary>
+            The width and height in pixels of this sprite's region within the texture. Combined
+            with lowerLeftPixel to define the complete rectangular area of the texture that this
+            sprite displays.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.ExpandDown">
+            <summary>
+            Expands the sprite area downward until no more non-transparent pixels are found.
+            Checks each row below the current area, testing all pixels in that row. If any pixel
+            has alpha greater than alphaBias, expands the area to include that row. Updates
+            pixel dimensions, lower left position, size, and UVs to reflect the expanded area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.ExpandLeft">
+            <summary>
+            Expands the sprite area to the left until no more non-transparent pixels are found.
+            Checks each column to the left of the current area, testing all pixels in that
+            column. If any pixel has alpha greater than alphaBias, expands the area to include
+            that column. Updates pixel dimensions, lower left position, size, and UVs to reflect
+            the expanded area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.ExpandRight">
+            <summary>
+            Expands the sprite area to the right until no more non-transparent pixels are found.
+            Checks each column to the right of the current area, testing all pixels in that
+            column. If any pixel has alpha greater than alphaBias, expands the area to include
+            that column. Updates pixel dimensions, size, and UVs to reflect the expanded area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.ExpandUp">
+            <summary>
+            Expands the sprite area upward until no more non-transparent pixels are found.
+            Checks each row above the current area, testing all pixels in that row. If any pixel
+            has alpha greater than alphaBias, expands the area to include that row. Updates
+            pixel dimensions, size, and UVs to reflect the expanded area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Trim">
+            <summary>
+            Automatically trims transparent pixels from all sides of the sprite to create a
+            tight bounding box. Snaps the sprite position to 0.5 unit intervals, reduces the
+            sprite to a 2x2 pixel area at the center, then iteratively expands outward until
+            non-transparent pixels are found. Finally trims any remaining transparent edges.
+            This creates the smallest possible sprite that contains all visible pixels.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.TrimBottom">
+            <summary>
+            Trims transparent pixels from the bottom of the sprite. Iterates through rows from
+            bottom to top, checking all pixels in each row. Stops when a row contains any pixel
+            with alpha greater than alphaBias. Updates the sprite's size, dimensions, lower left
+            position, and UVs to exclude the trimmed area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.TrimRight">
+            <summary>
+            Trims transparent pixels from the right side of the sprite. Iterates through columns
+            from right to left, checking all pixels in each column. Stops when a column contains
+            any pixel with alpha greater than alphaBias. Updates the sprite's dimensions and UVs
+            to exclude the trimmed area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.TrimTop">
+            <summary>
+            Trims transparent pixels from the top of the sprite. Iterates through rows from top
+            to bottom, checking all pixels in each row. Stops when a row contains any pixel with
+            alpha greater than alphaBias. Updates the sprite's size, dimensions, and UVs to
+            exclude the trimmed area.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.Trimleft">
+            <summary>
+            Trims transparent pixels from the left side of the sprite. Iterates through columns
+            from left to right, checking all pixels in each column. Stops when a column contains
+            any pixel with alpha greater than alphaBias. Updates the sprite's position,
+            dimensions, and UVs to exclude the trimmed area.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.alphaBias">
+            <summary>
+            Alpha threshold value (0.2) used during trim operations. Pixels with alpha values
+            below this threshold are considered transparent and will be trimmed. Higher values
+            result in more aggressive trimming.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.trim">
+            <summary>
+            Editor flag that enables automatic transparent pixel trimming. When true, the sprite
+            boundaries are automatically adjusted to exclude fully transparent edges, optimizing
+            the sprite size.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.AddAnimation(UVAnimation_Multi)">
+            <summary>
+            Adds a new UV animation to the sprite's animation collection. Creates a new array
+            with one additional slot, copies all existing animations, and adds the new animation
+            at the end. This allows dynamic addition of animations at runtime.
+            </summary>
+            <param name="anim">The UV animation to add to the sprite.</param>
+        </member>
+
+        <member name="M:SpriteSM.GetAnim(System.String)">
+            <summary>
+            Retrieves an animation by name from the animations array. Searches through all
+            configured animations and returns the first match found.
+            </summary>
+            <param name="name">The name of the animation to retrieve.</param>
+            <returns>The UVAnimation_Multi with the specified name, or null if not found.</returns>
+        </member>
+
+        <member name="M:SpriteSM.GetCurAnim">
+            <summary>
+            Returns the currently playing animation. Used to check animation state or access
+            animation properties during playback.
+            </summary>
+            <returns>The current UVAnimation_Multi instance, or null if no animation is playing.</returns>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnim(UVAnimation_Multi)">
+            <summary>
+            Starts playing the specified UV animation from the beginning. Resets the animation,
+            calculates frame timing based on the animation's framerate, and begins stepping
+            through frames. For single-frame animations, immediately triggers the completion
+            delegate. Adds the sprite to the animated list if it has multiple frames and isn't
+            already animating.
+            </summary>
+            <param name="anim">The animation to play.</param>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnim(System.Int32)">
+            <summary>
+            Plays an animation by its index in the animations array. Validates the index is
+            within bounds before playing the animation at that position.
+            </summary>
+            <param name="index">The zero-based index of the animation to play.</param>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnim(System.String)">
+            <summary>
+            Plays an animation by its name. Searches through all animations to find one with a
+            matching name and plays the first match found. Does nothing if no animation with the
+            specified name exists.
+            </summary>
+            <param name="name">The name of the animation to play.</param>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnimInReverse(UVAnimation_Multi)">
+            <summary>
+            Starts playing the specified UV animation in reverse from the end. Resets the
+            animation, sets it to play in reverse mode, calculates frame timing, and begins
+            stepping backwards through frames. Handles single-frame animations and animation
+            list management the same as forward playback.
+            </summary>
+            <param name="anim">The animation to play in reverse.</param>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnimInReverse(System.Int32)">
+            <summary>
+            Plays an animation in reverse by its index in the animations array. Validates the
+            index is within bounds before playing the animation at that position in reverse.
+            </summary>
+            <param name="index">The zero-based index of the animation to play in reverse.</param>
+        </member>
+
+        <member name="M:SpriteSM.PlayAnimInReverse(System.String)">
+            <summary>
+            Plays the animation with the specified name in reverse direction. Searches through
+            all animations in the animations array to find a match by name, then configures it
+            to play backwards with the same framerate and animation settings as normal playback.
+            </summary>
+            <param name="name">The name of the animation to play in reverse.</param>
+        </member>
+
+        <member name="M:SpriteSM.StepAnim(System.Single)">
+            <summary>
+            Advances the current animation by the specified time and updates the sprite's UV
+            coordinates. Calculates frames to advance based on elapsed time and frame rate.
+            Handles animation completion according to the animation's end action (do nothing,
+            revert to static, or play default). Triggers animation complete delegate when
+            appropriate. Updates bleed compensation and recalculates size if in auto-resize or
+            pixel-perfect mode.
+            </summary>
+            <param name="time">The time in seconds to advance the animation.</param>
+            <returns>True if the animation is still playing, false if it has completed.</returns>
+        </member>
+
+        <member name="M:SpriteSM.StopAnim">
+            <summary>
+            Stops the currently playing animation and reverts the sprite to its static state.
+            Removes the sprite from the animation update list, resets the current animation's
+            frame counter, and restores the original UV coordinates.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.UnpauseAnim">
+            <summary>
+            Resumes playback of a previously paused animation. If a current animation exists,
+            re-adds the sprite to the animated update list to continue frame stepping.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.animations">
+            <summary>
+            Array of all UV animations configured for this sprite. Each animation contains frame
+            data, timing, and playback settings. Animations are identified by name and can be
+            played, stopped, or reversed through the animation control methods.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.curAnim">
+            <summary>
+            The currently playing animation instance. Null when no animation is active. Used by
+            the animation system to track frame progression, handle animation events, and
+            determine when animations complete.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.CheckReadbility">
+            <summary>
+            Placeholder method for checking texture readability. Currently has no implementation
+            but is called before pixel read operations. This may have been intended for runtime
+            texture readability validation.
+            </summary>
+        </member>
+
+        <member name="M:SpriteSM.GetPixel(System.Single,System.Single)">
+            <summary>
+            Gets the color of a pixel at the specified texture coordinates. Returns transparent
+            black if the material, texture, or coordinates are invalid. Checks texture
+            readability, validates coordinates are within texture bounds, and returns the pixel
+            color. Note that Y coordinates are flipped since Unity textures have origin at
+            bottom-left.
+            </summary>
+            <param name="x">The X coordinate on the texture in pixels.</param>
+            <param name="y">The Y coordinate on the texture in pixels (bottom-left origin).</param>
+            <returns>The color of the pixel at the specified coordinates, or transparent black if
+                invalid.</returns>
+        </member>
+
+        <member name="M:SpriteSM.Snap(System.Single)">
+            <summary>
+            Snaps a value to the nearest interval as defined by roundInterval. Divides the value
+            by the interval, rounds to the nearest integer, then multiplies back by the
+            interval. This is used for pixel-perfect positioning and sizing.
+            </summary>
+            <param name="value">The value to snap to the grid.</param>
+            <returns>The value snapped to the nearest interval.</returns>
+        </member>
+
+        <member name="F:SpriteSM.round">
+            <summary>
+            Enables position rounding for pixel-perfect alignment. When true, sprite positions
+            are snapped to intervals defined by roundInterval to prevent sub-pixel rendering
+            artifacts.
+            </summary>
+        </member>
+
+        <member name="F:SpriteSM.roundInterval">
+            <summary>
+            The rounding interval in pixels used when round is enabled. Positions are snapped to
+            multiples of this value. Default value of 1 provides standard pixel-perfect
+            alignment.
             </summary>
         </member>
 

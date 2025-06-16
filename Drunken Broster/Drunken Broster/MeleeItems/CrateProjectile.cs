@@ -1,40 +1,17 @@
 ﻿using BroMakerLib;
-using System;
-using System.Collections.Generic;
+using BroMakerLib.CustomObjects.Projectiles;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
-using UnityEngine.Windows.Speech;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class CrateProjectile : Projectile
+    public class CrateProjectile : CustomProjectile
     {
-        public static Material storedMat;
-        public SpriteSM sprite;
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
 
         protected override void Awake()
         {
-            MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            directoryPath = Path.Combine( directoryPath, "projectiles" );
-            storedMat = ResourcesController.GetMaterial( directoryPath, "Crate.png" );
-            
-            renderer.material = storedMat;
-
-            sprite = this.gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2( 0, 16 );
-            sprite.pixelDimensions = new Vector2( 16, 16 );
-
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 16;
-            sprite.height = 16;
-            sprite.offset = new Vector3( 0, 0, 0 );
-
             // Load shrapnel from normal crate block
             CrateBlock crateBlock = Map.Instance.activeTheme.blockPrefabWood[0] as CrateBlock;
             shrapnelPrefabs[0] = crateBlock.shrapnelPrefab;
@@ -73,7 +50,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 450f * this.t;
+            this.yI -= 500f * this.t;
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
