@@ -1,20 +1,13 @@
 ﻿using BroMakerLib;
-using Rogueforce.PerkSystem.Interfaces;
-using System;
-using System.Collections.Generic;
+using BroMakerLib.CustomObjects.Projectiles;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
-using UnityEngine.Windows.Speech;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class AcidEggProjectile : Projectile
+    public class AcidEggProjectile : CustomProjectile
     {
-        public static Material storedMat;
-        public SpriteSM sprite;
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
         protected int frame = 0;
         protected float counter = 0;
@@ -28,22 +21,14 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Awake()
         {
-            MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            directoryPath = Path.Combine( directoryPath, "projectiles" );
-            storedMat = ResourcesController.GetMaterial( directoryPath, "AcidEgg.png" );
-
-            renderer.material = storedMat;
-
-            sprite = this.gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2( 0, 32 );
-            sprite.pixelDimensions = new Vector2( 32, 32 );
-
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 20;
-            sprite.height = 20;
-            sprite.offset = new Vector3( 0, 5, 0 );
+            if ( this.sprite == null )
+            {
+                this.spriteLowerLeftPixel = new Vector2( 0, 32 );
+                this.spritePixelDimensions = new Vector2( 32, 32 );
+                this.spriteWidth = 20;
+                this.spriteHeight = 20;
+                this.spriteOffset = new Vector3( 0, 5, 0 );
+            }
 
             this.projectileSize = 7f;
 
@@ -89,7 +74,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 450f * this.t;
+            this.yI -= 500f * this.t;
         }
 
         protected void ChangeFrame()

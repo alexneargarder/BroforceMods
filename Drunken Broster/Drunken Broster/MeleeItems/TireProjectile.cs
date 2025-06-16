@@ -1,21 +1,17 @@
 ﻿using BroMakerLib;
-using BroMakerLib.Loggers;
-using JetBrains.Annotations;
+using BroMakerLib.CustomObjects.Projectiles;
 using RocketLib;
-using RocketLib.Collections;
 using Rogueforce;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
-using static HarmonyLib.Code;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class TireProjectile : Grenade
+    public class TireProjectile : CustomGrenade
     {
-        public static Material storedMat;
         protected List<Unit> alreadyHitUnits = new List<Unit>();
         protected float hitDelay = 0f;
         protected float damageCooldown = 0f;
@@ -26,22 +22,13 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Awake()
         {
-            MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            string spritePath = Path.Combine( directoryPath, "projectiles" );
-            storedMat = ResourcesController.GetMaterial( spritePath, "Tire.png" );
-
-            renderer.material = storedMat;
-
-            sprite = this.gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2( 0, 16 );
-            sprite.pixelDimensions = new Vector2( 16, 16 );
-
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 16;
-            sprite.height = 16;
-            sprite.offset = new Vector3( 0, 0, 0 );
+            if ( this.sprite == null )
+            {
+                this.spriteLowerLeftPixel = new Vector2( 0, 16 );
+                this.spritePixelDimensions = new Vector2( 16, 16 );
+                this.spriteWidth = 16f;
+                this.spriteHeight = 16f;
+            }
 
             this.size = 8f;
             this.life = 1e6f;
@@ -72,10 +59,12 @@ namespace Drunken_Broster.MeleeItems
                 this.InitializeGibs();
             }
 
-            // Load death sound
-            this.deathSound = ResourcesController.GetAudioClip( Path.Combine( directoryPath, "sounds" ), "tireDeath.wav" );
-
             base.Awake();
+
+            string soundPath = Path.Combine( spriteAssemblyPath, "sounds" );
+
+            // Load death sound
+            this.deathSound = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
         }
 
         public override void Launch( float newX, float newY, float xI, float yI )

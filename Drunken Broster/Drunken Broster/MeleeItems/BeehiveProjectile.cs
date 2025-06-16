@@ -1,44 +1,19 @@
 ﻿using BroMakerLib;
-using BroMakerLib.Loggers;
-using Rogueforce.PerkSystem.Interfaces;
-using System;
-using System.Collections.Generic;
+using BroMakerLib.CustomObjects.Projectiles;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
-using UnityEngine.Windows.Speech;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class BeehiveProjectile : Projectile
+    public class BeehiveProjectile : CustomProjectile
     {
-        public static Material storedMat;
-        public SpriteSM sprite;
         protected GibHolder gibHolder;
         public RealisticAngryBeeSimulator beeSimulator;
         public RealisticFlySimulatorClass[] flies;
 
         protected override void Awake()
         {
-            MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            directoryPath = Path.Combine( directoryPath, "projectiles" );
-            storedMat = ResourcesController.GetMaterial( directoryPath, "Beehive.png" );
-
-            renderer.material = storedMat;
-
-            sprite = this.gameObject.GetComponent<SpriteSM>();
-            sprite.lowerLeftPixel = new Vector2( 0, 16 );
-            sprite.pixelDimensions = new Vector2( 16, 16 );
-
-            sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-            sprite.width = 16;
-            sprite.height = 16;
-            sprite.offset = new Vector3( 0, 0, 0 );
-
             this.projectileSize = 8f;
 
             this.damage = 5;
@@ -95,7 +70,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 450f * this.t;
+            this.yI -= 500f * this.t;
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
