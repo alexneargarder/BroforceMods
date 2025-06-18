@@ -1,14 +1,18 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
 using Drunken_Broster.MeleeItems;
 using HarmonyLib;
+using RocketLib.Extensions;
+using RocketLib.Utils;
 using Rogueforce;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using ResourcesController = BroMakerLib.ResourcesController;
 
 namespace Drunken_Broster
 {
@@ -16,9 +20,10 @@ namespace Drunken_Broster
     public class DrunkenBroster : CustomHero
     {
         // TODO: remove this 
-        public static int currentItem = 0;
+        public static int currentItem = 3;
         public static bool freezeProjectile = false;
         public static bool spawnGibs = false;
+        public static DrunkenBroster currentBroster;
 
         // General
         protected bool acceptedDeath = false;
@@ -189,6 +194,9 @@ namespace Drunken_Broster
 
             // TODO: enable rolling
             doRollOnLand = false;
+
+            // TODO: remove this
+            DrunkenBroster.currentBroster = this;
         }
 
         protected override void Update()
@@ -256,6 +264,7 @@ namespace Drunken_Broster
             }
         }
 
+        // TODO: remove this
         public override void UIOptions()
         {
             GUILayout.BeginHorizontal();
@@ -284,6 +293,20 @@ namespace Drunken_Broster
             {
                 DrunkenBroster.spawnGibs = true;
             }
+
+            if ( GUILayout.Button("COMPARE" ) )
+            {
+                PrintDebug();
+            }
+        }
+
+        // TODO: remove this
+        public static void PrintDebug()
+        {
+            Grenade martiniGrenade = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass;
+            //DrunkenBroster.currentBroster.bottleProjectile.PrintDifferences( martiniGrenade );
+            //BMLogger.Log( "\n\n\n" );
+            DrunkenBroster.currentBroster.bottleProjectile.GenerateMatchingCode( martiniGrenade );
         }
 
         public override void HarmonyPatches( Harmony harmony )
