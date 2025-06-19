@@ -1,60 +1,73 @@
-﻿using BroMakerLib.CustomObjects.Projectiles;
+﻿using BroMakerLib;
+using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
 using System.IO;
+using System.Reflection;
 using UnityEngine;
+using Utility;
 
 namespace Drunken_Broster.MeleeItems
 {
     public class CoconutProjectile : CustomGrenade
     {
-        protected BloodColor bloodColor = BloodColor.Green;
-        protected float explodeRange = 40f;
-        protected AudioClip[] deathSounds;
+        protected int bounces;
+        protected int bulletHits;
+        protected int maxBounces = 6;
+        protected int maxBulletHits = 5;
+        protected bool shouldKillIfNotVisible = true;
+        protected AudioClip[] deathSounds, hitSounds;
+        public AudioClip testSound;
 
         protected override void Awake()
         {
-            this.size = 8f;
-            this.damage = 5;
-
+            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
+            string soundPath = Path.Combine( directoryPath, "sounds" );
+            if ( this.defaultSoundHolder == null )
+            {
+                
+                this.defaultSoundHolder = new SoundHolder
+                {
+                    deathSounds = new AudioClip[1]
+                };
+                this.defaultSoundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "testSound.wav" );
+                //this.defaultSoundHolder.deathSounds[1] = ResourcesController.GetAudioClip( soundPath, "coconutDeath2.wav" );
+            }
+            if ( testSound == null )
+            {
+                BMLogger.Log( "setup test sound" );
+                testSound = ResourcesController.GetAudioClip( soundPath, "testSound2.mp3" );
+            }
             base.Awake();
 
-            string soundPath = Path.Combine( spriteAssemblyPath, "sounds" );
-
-            SoundHolder doubleBroSevenSounds = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
-
-            // Load death sound
-            this.deathSounds = doubleBroSevenSounds.deathSounds;
-
-            // Setup properties
-            this.ShouldKillIfNotVisible = false;
             this.damage = 25;
             this.useAngularFriction = true;
-            this.angularFrictionM = 6f;
+            this.angularFrictionM = 5;
             this.bounceOffEnemies = true;
+            this.bounceOffEnemiesMultiple = true;
+            this.shootable = true;
             this.rotateAtRightAngles = false;
-            this.lifeM = 6;
+            this.size = 5;
+            this.lifeM = 0.8f;
             this.frictionM = 0.6f;
             this.shrink = false;
-            this.destroyInsideWalls = false;
-            this.rotationSpeedMultiplier = 2.5f;
+
+            //string soundPath = Path.Combine( spriteAssemblyPath, "sounds" );
+
+            //// Load death sounds
+            //this.deathSounds = new AudioClip[2];
+            //this.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "coconutDeath1.wav" );
+            //this.deathSounds[1] = ResourcesController.GetAudioClip( soundPath, "coconutDeath2.wav" );
+
+            //// Load hit sounds
+            //this.hitSounds = new AudioClip[5];
+            //this.hitSounds[0] = ResourcesController.GetAudioClip( soundPath, "coconutHit1.wav" );
+            //this.hitSounds[1] = ResourcesController.GetAudioClip( soundPath, "coconutHit2.wav" );
+            //this.hitSounds[2] = ResourcesController.GetAudioClip( soundPath, "coconutHit3.wav" );
+            //this.hitSounds[3] = ResourcesController.GetAudioClip( soundPath, "coconutHit4.wav" );
+            //this.hitSounds[4] = ResourcesController.GetAudioClip( soundPath, "coconutHit5.wav" );
         }
 
-        protected override void Bounce( bool bounceX, bool bounceY )
-        {
-            this.Death();
-        }
-
-        public override void Death()
-        {
-            this.MakeEffects();
-            this.DestroyGrenade();
-        }
-
-        protected override void MakeEffects()
-        {
-            EffectsController.CreateGlassShards( base.X, base.Y, 20, 4f, 4f, 80f, 60f, this.xI * 0.2f, 50f, 0.2f, 1f, 0.3f, 0.5f );
-        }
-
-        protected override void PlayDeathSound( float v )
+        public void PlayTestSound()
         {
             if ( sound == null )
             {
@@ -63,9 +76,98 @@ namespace Drunken_Broster.MeleeItems
 
             if ( sound != null )
             {
-                sound.PlaySoundEffectAt( this.deathSounds, v, base.transform.position );
+                sound.PlaySoundEffectAt( this.testSound, 0.5f, base.transform.position );
             }
         }
 
+        protected override void Bounce( bool bounceX, bool bounceY )
+        {
+            if ( bounceY && this.yI < -60f )
+            {
+                EffectsController.CreateLandPoofEffect( base.X, base.Y - this.size, UnityEngine.Random.Range( 0, 2 ) * 2 - 1, BloodColor.None );
+            }
+            float num = Mathf.Abs( this.xI ) + Mathf.Abs( this.yI );
+            if ( num > 150f || ( !bounceX && !bounceY && this.yI < -50f ) )
+            {
+                this.bounces++;
+                if ( this.bounces > this.maxBounces )
+                {
+                    this.life = -0.1f;
+                }
+                Map.DisturbWildLife( base.X, base.Y, 32f, this.playerNum );
+            }
+            base.Bounce( bounceX, bounceY );
+        }
+
+        // Allow bouncing off enemies when moving horizontally
+        protected override void BounceOffEnemies()
+        {
+            if ( this.bounceOffEnemiesMultiple )
+            {
+                if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, 4, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true ) )
+                {
+                    this.Bounce( false, false );
+                    this.yI = 50f + 90f / this.weight;
+                    this.xI = Mathf.Clamp( this.xI * 0.25f, -100f, 100f );
+                    EffectsController.CreateBulletPoofEffect( base.X, base.Y - this.size * 0.5f );
+                }
+            }
+            else if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, 4, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true, this.alreadyBouncedOffUnits ) )
+            {
+                this.Bounce( false, false );
+                if ( this.alreadyBouncedOffUnits.Count > 0 )
+                {
+                    this.yI = ( 50f + 90f / this.weight ) / (float)this.alreadyBouncedOffUnits.Count;
+                }
+                else
+                {
+                    this.yI = 50f + 90f / this.weight;
+                }
+                this.xI = Mathf.Clamp( this.xI * 0.25f, -100f, 100f );
+                EffectsController.CreateBulletPoofEffect( base.X, base.Y - this.size * 0.5f );
+            }
+        }
+
+        public override void Knock( float xDiff, float yDiff, float xI, float yI )
+        {
+            base.Knock( xDiff, yDiff, xI, yI );
+            base.transform.parent = null;
+            this.bulletHits++;
+            if ( this.bulletHits > 2 )
+            {
+                this.bounces = (int)( (float)this.maxBounces * 1.667f );
+            }
+            if ( this.bulletHits > this.maxBulletHits )
+            {
+                this.life = -0.1f;
+            }
+        }
+
+        protected override void RunLife()
+        {
+            if ( this.life <= 0f )
+            {
+                this.Death();
+            }
+        }
+
+        public override void Death()
+        {
+            this.PlayDeathSound( 0.5f );
+            EffectsController.CreateDirtParticles( base.X, base.Y, 12, 2f, 150f, this.xI * 0.5f, this.yI + 100f );
+            EffectsController.CreateSemenParticles( BloodColor.Red, base.X, base.Y, 0f, 20, 2f, 2f, 150f, this.xI * 0.5f, 100f );
+            this.DestroyGrenade();
+        }
+
+        public override bool ShouldKillIfNotVisible
+        {
+            get
+            {
+                return this.shouldKillIfNotVisible;
+            }
+            set
+            {
+            }
+        }
     }
 }

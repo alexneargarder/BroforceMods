@@ -6,8 +6,6 @@ namespace Drunken_Broster.MeleeItems
 {
     public class BottleProjectile : CustomGrenade
     {
-        protected BloodColor bloodColor = BloodColor.Green;
-        protected float explodeRange = 40f;
         protected AudioClip[] deathSounds;
 
         protected override void Awake()
@@ -16,8 +14,6 @@ namespace Drunken_Broster.MeleeItems
             this.damage = 5;
 
             base.Awake();
-
-            string soundPath = Path.Combine( spriteAssemblyPath, "sounds" );
 
             SoundHolder doubleBroSevenSounds = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
 

@@ -96,8 +96,6 @@ namespace Drunken_Broster
         protected CustomGrenade bottleProjectile;
         protected CustomProjectile crateProjectile;
         protected CustomGrenade coconutProjectile;
-        // TODO: remove this
-        public Grenade testCoconutGrenade;
         protected CustomProjectile explosiveBarrelProjectile;
         protected CustomProjectile soccerBallProjectile;
         protected CustomProjectile alienEggProjectile;
@@ -176,7 +174,7 @@ namespace Drunken_Broster
             crateProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load coconut
-            //coconutProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            coconutProjectile = CustomGrenade.CreatePrefab<CoconutProjectile>();
 
             // TODO: Load explosive barrel
             explosiveBarrelProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
@@ -305,11 +303,6 @@ namespace Drunken_Broster
         // TODO: remove this
         public static void PrintDebug()
         {
-            //Grenade martiniGrenade = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass;
-            //DrunkenBroster.currentBroster.bottleProjectile.PrintDifferences( martiniGrenade );
-            //BMLogger.Log( "\n\n\n" );
-            //DrunkenBroster.currentBroster.bottleProjectile.GenerateMatchingCode( martiniGrenade );
-
             Grenade coconut = null;
             for ( int i = 0; i < Map.damageableScenery.Count; ++i )
             {
@@ -318,7 +311,8 @@ namespace Drunken_Broster
                     coconut = Map.damageableScenery[i].GetComponent<CoconutSpawner>().coconutPrefab;
                 }    
             }
-            DrunkenBroster.currentBroster.testCoconutGrenade = coconut;
+
+            currentBroster.coconutProjectile.GenerateMatchingCode( coconut );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2231,7 +2225,7 @@ namespace Drunken_Broster
                     this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    ProjectileController.SpawnGrenadeLocally( testCoconutGrenade, this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 225f, 125f, base.playerNum, UnityEngine.Random.Range(0, 100000) );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 6f, 0f, 0f, base.transform.localScale.x * 350f, 100f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
                     
