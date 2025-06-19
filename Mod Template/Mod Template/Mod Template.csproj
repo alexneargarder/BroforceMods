@@ -68,6 +68,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Mod Template\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROFORCEMODS%25\Mod Template\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROFORCEMODS%25\Mod Template\$(ProjectName).dll*"</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
   </PropertyGroup>
 </Project>
