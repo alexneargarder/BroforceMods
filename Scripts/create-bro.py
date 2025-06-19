@@ -174,11 +174,18 @@ try:
     findReplace(newRepoPath, "BroTemplate.cs", f"{newNameNoSpaces}.cs", "*.csproj")
     findReplace(newBroModPath, "BroTemplate.cs", f"{newNameNoSpaces}.cs", "*.csproj")
     
+    # Create the CREATE LINK.bat file in the Releases folder
+    batFilePath = os.path.join(newBroReleasePath, 'CREATE LINK.bat')
+    batContent = f'mklink /D "%BROPATH%\\{newName}" "%REPOS%\\BroforceMods\\Releases\\{newName}\\{newName}"\npause'
+    
+    with open(batFilePath, 'w') as batFile:
+        batFile.write(batContent)
+    
     print(f"\nSuccess! Created new bro '{newName}'")
     print(f"Source files: {newRepoPath}")
     print(f"Release files: {newBroModPath}")
     print(f"\nNote: Run the CREATE LINK.bat script to create the symlink:")
-    print(f"  {os.path.join(newBroModPath, 'CREATE LINK.bat')}")
+    print(f"  {batFilePath}")
     
 except Exception as e:
     print(f"Error: Failed during file processing: {e}")

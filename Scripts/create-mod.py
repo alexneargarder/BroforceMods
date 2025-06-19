@@ -170,11 +170,18 @@ try:
         findReplace(newModPath, "Mod_Template", newNameWithUnderscore, fileType)
         findReplace(newModPath, "ModTemplate", newNameNoSpaces, fileType)
     
+    # Create the CREATE LINK.bat file in the Releases folder
+    batFilePath = os.path.join(newModReleasePath, 'CREATE LINK.bat')
+    batContent = f'mklink /D "%BROFORCEMODS%\\{newName}" "%REPOS%\\BroforceMods\\Releases\\{newName}\\{newName}"\npause'
+    
+    with open(batFilePath, 'w') as batFile:
+        batFile.write(batContent)
+    
     print(f"\nSuccess! Created new mod '{newName}'")
     print(f"Source files: {newRepoPath}")
     print(f"Release files: {newModPath}")
     print(f"\nNote: Run the CREATE LINK.bat script to create the symlink:")
-    print(f"  {os.path.join(newModPath, 'CREATE LINK.bat')}")
+    print(f"  {batFilePath}")
     
 except Exception as e:
     print(f"Error: Failed during file processing: {e}")
