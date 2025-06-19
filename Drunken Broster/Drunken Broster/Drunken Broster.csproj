@@ -88,6 +88,7 @@
     <Compile Include="MeleeItems\AcidEggProjectile.cs" />
     <Compile Include="MeleeItems\BeehiveProjectile.cs" />
     <Compile Include="MeleeItems\BottleProjectile.cs" />
+    <Compile Include="MeleeItems\CoconutProjectile.cs" />
     <Compile Include="MeleeItems\CrateProjectile.cs" />
     <Compile Include="MeleeItems\ShootableCircularDoodad.cs" />
     <Compile Include="MeleeItems\TireProjectile.cs" />
@@ -95,7 +96,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROPATH%25\Drunken Broster\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROPATH%25\Drunken Broster\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROPATH%25\Drunken Broster\$(ProjectName).dll*"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
