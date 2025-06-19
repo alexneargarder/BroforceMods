@@ -1,9 +1,18 @@
 import shutil, errno
 import os, fnmatch
+import sys
 
 def copyanything(src, dst):
+    def ignore_patterns(path, names):
+        # Ignore Visual Studio user-specific files and folders
+        ignored = []
+        for name in names:
+            if name == '.vs' or name.endswith('.suo') or name.endswith('.user'):
+                ignored.append(name)
+        return ignored
+    
     try:
-        shutil.copytree(src, dst)
+        shutil.copytree(src, dst, ignore=ignore_patterns)
     except OSError as exc: # python >2.5
         if exc.errno in (errno.ENOTDIR, errno.EINVAL):
             shutil.copy(src, dst)
@@ -34,26 +43,139 @@ def renameFiles(directory, find, replace):
             else:
                 renameFiles(filepath, find, replace)
 
-broforcePath = r'D:\Steam\steamapps\common\Broforce\Mods'
-repoPath = r'C:\Users\Alex\Desktop\Coding Things\Github\BroforceModsDev'
+# Check for required environment variables
+modPath = os.environ.get('BROFORCEMODS')
+repoPath = os.environ.get('REPOS')
+
+if not modPath:
+    print("Error: BROFORCEMODS environment variable is not set.")
+    print("Please set BROFORCEMODS to the path of your Broforce Mods folder.")
+    print("\nFor PowerShell (temporary):")
+    print('  $env:BROFORCEMODS = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce\\Mods"')
+    print("\nFor Command Prompt (temporary):")
+    print('  set BROFORCEMODS="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce\\Mods"')
+    print("\nTo set permanently:")
+    print('  1. Search "environment variables" in the Windows Start Menu')
+    print('  2. Click "Edit the system environment variables"')
+    print('  3. Click "Environment Variables..." button')
+    print('  4. Under "User variables", click "New..."')
+    print('  5. Set Variable name: BROFORCEMODS')
+    print('  6. Set Variable value: your Broforce Mods path')
+    print('  7. Click OK and restart your terminal')
+    sys.exit(1)
+
+if not repoPath:
+    print("Error: REPOS environment variable is not set.")
+    print("Please set REPOS to the path of your repositories folder.")
+    print("\nFor PowerShell (temporary):")
+    print('  $env:REPOS = "C:\\Users\\YourName\\repos"')
+    print("\nFor Command Prompt (temporary):")
+    print('  set REPOS=C:\\Users\\YourName\\repos')
+    print("\nTo set permanently:")
+    print('  1. Search "environment variables" in the Windows Start Menu')
+    print('  2. Click "Edit the system environment variables"')
+    print('  3. Click "Environment Variables..." button')
+    print('  4. Under "User variables", click "New..."')
+    print('  5. Set Variable name: REPOS')
+    print('  6. Set Variable value: your repositories folder path')
+    print('  7. Click OK and restart your terminal')
+    sys.exit(1)
+
+# Check if environment variable paths exist
+if not os.path.exists(modPath):
+    print(f"Error: BROFORCEMODS directory does not exist: {modPath}")
+    print("Please check that the BROFORCEMODS environment variable points to a valid directory.")
+    sys.exit(1)
+
+if not os.path.exists(repoPath):
+    print(f"Error: REPOS directory does not exist: {repoPath}")
+    print("Please check that the REPOS environment variable points to a valid directory.")
+    sys.exit(1)
+
 newName = input('Enter mod name:\n')
 newNameWithUnderscore = newName.replace(' ', '_')
+newNameNoSpaces = newName.replace(' ', '')
 
-templatePath = os.path.join(repoPath, r'Mod Template')
-modTemplatePath = os.path.join(repoPath, r'Scripts\Mod Install Template')
-newBroforcePath = os.path.join(broforcePath, newName)
-newRepoPath = os.path.join(repoPath, newName)
+templatePath = os.path.join(repoPath, 'BroforceMods', 'Mod Template')
+modTemplatePath = os.path.join(repoPath, 'BroforceMods', 'Scripts', 'Mod Install Template')
+# Create the release folder structure
+releasesPath = os.path.join(repoPath, 'BroforceMods', 'Releases')
+newModReleasePath = os.path.join(releasesPath, newName)
+newModPath = os.path.join(newModReleasePath, newName)
+newRepoPath = os.path.join(repoPath, 'BroforceMods', newName)
 
-copyanything(modTemplatePath, newBroforcePath)
-copyanything(templatePath, newRepoPath)
+# Check if template directories exist
+if not os.path.exists(templatePath):
+    print(f"Error: Template directory not found: {templatePath}")
+    print("Please ensure the 'Mod Template' directory exists in your repository.")
+    sys.exit(1)
 
-renameFiles(newRepoPath, 'Mod Template', newName)
-renameFiles(newBroforcePath, 'Mod Template', newName)
+if not os.path.exists(modTemplatePath):
+    print(f"Error: Mod template directory not found: {modTemplatePath}")
+    print("Please ensure the 'Scripts/Mod Install Template' directory exists in your repository.")
+    sys.exit(1)
 
-fileTypes = ["*.csproj", "*.cs", "*.sln", "*.bat", "*.json"]
-for fileType in fileTypes:
-    findReplace(newRepoPath, "Mod Template", newName, fileType)
-    findReplace(newRepoPath, "Mod_Template", newNameWithUnderscore, fileType)
+# Create Releases directory if it doesn't exist
+if not os.path.exists(releasesPath):
+    try:
+        os.makedirs(releasesPath)
+        print(f"Created Releases directory: {releasesPath}")
+    except Exception as e:
+        print(f"Error: Failed to create Releases directory: {e}")
+        sys.exit(1)
 
-    findReplace(newBroforcePath, "Mod Template", newName, fileType)
-    findReplace(newBroforcePath, "Mod_Template", newNameWithUnderscore, fileType)
+# Check if destination directories already exist
+if os.path.exists(newModReleasePath):
+    print(f"Error: Release directory already exists: {newModReleasePath}")
+    print("Please choose a different mod name or remove the existing directory.")
+    sys.exit(1)
+
+if os.path.exists(newRepoPath):
+    print(f"Error: Repository directory already exists: {newRepoPath}")
+    print("Please choose a different mod name or remove the existing directory.")
+    sys.exit(1)
+
+try:
+    # Create the release folder first
+    os.makedirs(newModReleasePath)
+    # Copy mod template to the nested folder structure
+    copyanything(modTemplatePath, newModPath)
+    # Copy the source template to the repo
+    copyanything(templatePath, newRepoPath)
+except Exception as e:
+    print(f"Error: Failed to copy template files: {e}")
+    # Clean up partially created directories
+    if os.path.exists(newModReleasePath):
+        shutil.rmtree(newModReleasePath)
+    if os.path.exists(newRepoPath):
+        shutil.rmtree(newRepoPath)
+    sys.exit(1)
+
+try:
+    # Rename files named "Mod Template" (with space)
+    renameFiles(newRepoPath, 'Mod Template', newName)
+    renameFiles(newModPath, 'Mod Template', newName)
+    
+    # Also rename files named "ModTemplate" (without space)
+    renameFiles(newRepoPath, 'ModTemplate', newNameNoSpaces)
+    renameFiles(newModPath, 'ModTemplate', newNameNoSpaces)
+
+    fileTypes = ["*.csproj", "*.cs", "*.sln", "*.bat", "*.json", "*.xml"]
+    for fileType in fileTypes:
+        findReplace(newRepoPath, "Mod Template", newName, fileType)
+        findReplace(newRepoPath, "Mod_Template", newNameWithUnderscore, fileType)
+        findReplace(newRepoPath, "ModTemplate", newNameNoSpaces, fileType)
+
+        findReplace(newModPath, "Mod Template", newName, fileType)
+        findReplace(newModPath, "Mod_Template", newNameWithUnderscore, fileType)
+        findReplace(newModPath, "ModTemplate", newNameNoSpaces, fileType)
+    
+    print(f"\nSuccess! Created new mod '{newName}'")
+    print(f"Source files: {newRepoPath}")
+    print(f"Release files: {newModPath}")
+    print(f"\nNote: Run the CREATE LINK.bat script to create the symlink:")
+    print(f"  {os.path.join(newModPath, 'CREATE LINK.bat')}")
+    
+except Exception as e:
+    print(f"Error: Failed during file processing: {e}")
+    sys.exit(1)
