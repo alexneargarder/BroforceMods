@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Bro_Template
 {
     [HeroPreset("Bro Template", HeroType.Rambro)]
-    public class Bro : CustomHero
+    public class BroTemplate : CustomHero
     {
         // General
         protected bool acceptedDeath = false;
