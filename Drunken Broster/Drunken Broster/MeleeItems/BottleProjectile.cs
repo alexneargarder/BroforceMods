@@ -6,21 +6,17 @@ namespace Drunken_Broster.MeleeItems
 {
     public class BottleProjectile : CustomGrenade
     {
-        protected AudioClip[] deathSounds;
-
         protected override void Awake()
         {
-            this.size = 8f;
-            this.damage = 5;
+            if ( !this.RanSetup )
+            {
+                this.defaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
+            }
 
             base.Awake();
 
-            SoundHolder doubleBroSevenSounds = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
-
-            // Load death sound
-            this.deathSounds = doubleBroSevenSounds.deathSounds;
-
             // Setup properties
+            this.size = 8f;
             this.ShouldKillIfNotVisible = false;
             this.damage = 25;
             this.useAngularFriction = true;
@@ -49,19 +45,5 @@ namespace Drunken_Broster.MeleeItems
         {
             EffectsController.CreateGlassShards( base.X, base.Y, 20, 4f, 4f, 80f, 60f, this.xI * 0.2f, 50f, 0.2f, 1f, 0.3f, 0.5f );
         }
-
-        protected override void PlayDeathSound( float v )
-        {
-            if ( sound == null )
-            {
-                sound = Sound.GetInstance();
-            }
-
-            if ( sound != null )
-            {
-                sound.PlaySoundEffectAt( this.deathSounds, v, base.transform.position );
-            }
-        }
-
     }
 }

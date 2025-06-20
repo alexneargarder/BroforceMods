@@ -8,15 +8,19 @@ namespace Drunken_Broster.MeleeItems
 {
     public class CrateProjectile : CustomProjectile
     {
-        protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
+        public Shrapnel[] shrapnelPrefabs;
 
         protected override void Awake()
         {
             // Load shrapnel from normal crate block
-            CrateBlock crateBlock = Map.Instance.activeTheme.blockPrefabWood[0] as CrateBlock;
-            shrapnelPrefabs[0] = crateBlock.shrapnelPrefab;
-            shrapnelPrefabs[1] = crateBlock.shrapnelBitPrefab;
-            shrapnelPrefabs[2] = crateBlock.shrapnelBitPrefab3;
+            if ( shrapnelPrefabs == null )
+            {
+                shrapnelPrefabs = new Shrapnel[3];
+                CrateBlock crateBlock = Map.Instance.activeTheme.blockPrefabWood[0] as CrateBlock;
+                shrapnelPrefabs[0] = crateBlock.shrapnelPrefab;
+                shrapnelPrefabs[1] = crateBlock.shrapnelBitPrefab;
+                shrapnelPrefabs[2] = crateBlock.shrapnelBitPrefab3;
+            }
 
             this.projectileSize = 15f;
 

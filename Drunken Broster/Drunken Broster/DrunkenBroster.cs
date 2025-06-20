@@ -90,19 +90,19 @@ namespace Drunken_Broster
         protected MeleeItem chosenItem = MeleeItem.None;
         protected MeleeItem heldItem = MeleeItem.None;
         protected bool holdingItem = false;
-        protected CustomGrenade tireProjectile;
-        protected CustomProjectile acidEggProjectile;
-        protected CustomProjectile beehiveProjectile;
-        protected CustomGrenade bottleProjectile;
-        protected CustomProjectile crateProjectile;
-        protected CustomGrenade coconutProjectile;
-        protected CustomProjectile explosiveBarrelProjectile;
-        protected CustomProjectile soccerBallProjectile;
-        protected CustomProjectile alienEggProjectile;
-        protected CustomProjectile skullProjectile;
-        protected MeshRenderer gunSpriteMelee;
-        protected SpriteSM gunSpriteMeleeSprite;
-        protected Material meleeSpriteGrabThrowing;
+        public CustomGrenade tireProjectile;
+        public CustomProjectile acidEggProjectile;
+        public CustomProjectile beehiveProjectile;
+        public CustomGrenade bottleProjectile;
+        public CustomProjectile crateProjectile;
+        public CustomGrenade coconutProjectile;
+        public CustomProjectile explosiveBarrelProjectile;
+        public CustomProjectile soccerBallProjectile;
+        public CustomProjectile alienEggProjectile;
+        public CustomProjectile skullProjectile;
+        public MeshRenderer gunSpriteMelee;
+        public SpriteSM gunSpriteMeleeSprite;
+        public Material meleeSpriteGrabThrowing;
         protected bool throwingHeldItem = false;
         protected bool thrownItem = false;
         protected bool hitSpecialDoodad = false;
@@ -190,7 +190,7 @@ namespace Drunken_Broster
 
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
-            slurp = ResourcesController.CreateAudioClip( directoryPath, "slurp.wav" );
+            slurp = ResourcesController.GetAudioClip( directoryPath, "slurp.wav" );
 
             // TODO: enable rolling
             doRollOnLand = false;
