@@ -18,7 +18,6 @@ namespace Drunken_Broster.MeleeItems
         protected RaycastHit raycastHit;
         protected LayerMask groundAndLadderLayer;
         protected GibHolder gibs;
-        protected AudioClip deathSound;
 
         protected override void Awake()
         {
@@ -60,11 +59,13 @@ namespace Drunken_Broster.MeleeItems
             }
 
             base.Awake();
+        }
 
-            string soundPath = Path.Combine( spriteAssemblyPath, "sounds" );
-
+        public override void PrefabSetup()
+        {
             // Load death sound
-            this.deathSound = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
+            this.soundHolder.deathSounds = new AudioClip[1];
+            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
         }
 
         public override void Launch( float newX, float newY, float xI, float yI )
@@ -429,18 +430,6 @@ namespace Drunken_Broster.MeleeItems
             EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, -speed ) );
             this.CreateGibs( this.xI, this.yI );
             this.PlayDeathSound();
-        }
-
-        protected override void PlayDeathSound()
-        {
-            if ( this.sound == null )
-            {
-                this.sound = Sound.GetInstance();
-            }
-            if ( this.sound != null )
-            {
-                this.sound.PlaySoundEffectAt( this.deathSound, 0.7f, base.transform.position, 1f, true, false, false, 0f );
-            }
         }
 
         protected override void Bounce( bool bounceX, bool bounceY )

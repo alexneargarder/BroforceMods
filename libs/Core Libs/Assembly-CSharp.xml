@@ -2468,6 +2468,14 @@
                 Default is Standard type.
             </summary>
         </member>
+        <member name="F:BroBase.pockettedSpecialAmmo">
+            <summary>
+                Stack of special ammunition types collected from crates but not yet used. Functions
+                as LIFO (last-in-first-out) where newest ammo is used first. When non-empty,
+                overrides standard special ammo and displays custom HUD icons. Consumed via
+                ReducePockettedSpecialAmmo when special is triggered.
+            </summary>
+        </member>
         <member name="M:BroBase.AddSpeedLeft">
             <summary>
                 Applies leftward movement with performance boost. When enhanced and not in
@@ -3306,6 +3314,14 @@
                 physics phases.
             </summary>
         </member>
+        <member name="F:BroBase.bros">
+            <summary>
+                Static registry of all active BroBase instances in the game. Automatically managed
+                through Awake/OnDestroy lifecycle. Used by Map.GetNearestHero and other systems for
+                hero detection, targeting, and proximity checks. Essential for multiplayer hero
+                tracking and AI target acquisition.
+            </summary>
+        </member>
         <member name="M:BroforceObject.SetPosition(UnityEngine.Vector3)">
             <summary>
                 Sets the object's world position to the specified coordinates while preserving the
@@ -3473,6 +3489,481 @@
             <summary>
                 Reference to a PredabroTarget component used by the Predabro enemy type for
                 targeting logic. Hidden in inspector as it's managed programmatically.
+            </summary>
+        </member>
+        <member name="M:CameraController.Awake">
+            <summary>
+                Unity Awake lifecycle method that initializes the singleton instance and configures
+                post-processing effects based on quality settings. Sets up the global instance
+                reference and disables performance-intensive effects (displacement and distortion)
+                when ScreenPostFXLevel is less than 1.
+            </summary>
+        </member>
+        <member name="M:CameraController.Update">
+            <summary>
+                Unity Update lifecycle method that maintains camera synchronization. Ensures all
+                cameras maintain matching aspect ratios and orthographic sizes with the main camera.
+                The sky camera receives special handling, with its size interpolated based on the
+                SamRaimiEffectM value to create dynamic atmospheric effects.
+            </summary>
+        </member>
+        <member name="P:CameraController.MainCam">
+            <summary>
+                Gets the main camera used for rendering. This property provides static access to
+                either the instance's mainCamera if available, or falls back to Camera.main with
+                frame-based caching for performance optimization. The caching mechanism prevents
+                repeated Camera.main lookups within the same frame.
+            </summary>
+        </member>
+        <member name="F:CameraController.backgroundCamera">
+            <summary>
+                Camera dedicated to rendering background elements. Part of the multi-camera layered
+                rendering system that allows separate control over background visuals.
+            </summary>
+        </member>
+        <member name="F:CameraController.displacementCamera">
+            <summary>
+                Camera used for displacement mapping effects. Works in conjunction with
+                displacementScript to create visual distortion effects. Disabled when
+                ScreenPostFXLevel is less than 1.
+            </summary>
+        </member>
+        <member name="F:CameraController.distortionCamera">
+            <summary>
+                Camera for rendering distortion effects. Part of the post-processing pipeline and is
+                disabled when ScreenPostFXLevel is less than 1 to improve performance on lower-end
+                systems.
+            </summary>
+        </member>
+        <member name="F:CameraController.effectsamera">
+            <summary>
+                Camera dedicated to rendering special effects. Note the typo in the field name
+                (effectsamera instead of effectsCamera) is preserved from the original code.
+            </summary>
+        </member>
+        <member name="F:CameraController.foliageCamera">
+            <summary>
+                Camera responsible for rendering foliage and plant elements. This separate camera
+                allows for specialized rendering of vegetation with different settings or effects.
+            </summary>
+        </member>
+        <member name="F:CameraController.groundCamera">
+            <summary>
+                Camera for rendering ground and terrain elements. Part of the layered rendering
+                system that separates terrain from other visual elements.
+            </summary>
+        </member>
+        <member name="F:CameraController.instance">
+            <summary>
+                Singleton instance of the CameraController. Set during Awake() to provide global
+                access to the camera management system. This allows other systems to access camera
+                functionality without needing direct references.
+            </summary>
+        </member>
+        <member name="F:CameraController.lightingCamera">
+            <summary>
+                Camera used for rendering lighting effects. This dedicated camera enables special
+                lighting passes and effects to be composited into the final image.
+            </summary>
+        </member>
+        <member name="F:CameraController.mainCamera">
+            <summary>
+                Reference to the main rendering camera. This is the primary camera that renders the
+                main game view and serves as the reference for synchronizing orthographic sizes
+                across all other cameras in the system.
+            </summary>
+        </member>
+        <member name="F:CameraController.skyCamera">
+            <summary>
+                Camera for rendering sky and atmospheric elements. Its orthographic size is
+                specially adjusted based on the SamRaimiEffectM value to create dynamic sky effects.
+            </summary>
+        </member>
+        <member name="F:CameraController.uiCamera">
+            <summary>
+                Camera dedicated to rendering UI elements. This separation ensures UI renders on top
+                of game elements and isn't affected by game camera effects.
+            </summary>
+        </member>
+        <member name="F:CameraController.uiGameplayCamera">
+            <summary>
+                Camera for rendering gameplay-related UI elements. Separate from the main UI camera
+                to allow different rendering settings for in-game UI versus menu UI.
+            </summary>
+        </member>
+        <member name="F:CameraController.waterCamera">
+            <summary>
+                Camera specifically for rendering water effects and surfaces. Allows specialized
+                water rendering techniques to be applied separately from other elements.
+            </summary>
+        </member>
+        <member name="P:CameraController.DefaultHalfWidth">
+            <summary>
+                Gets the default half-width value used for calculating the default orthographic
+                size. This constant value (227f) represents half the horizontal view width in world
+                units.
+            </summary>
+        </member>
+        <member name="P:CameraController.DefaultOrthographicSize">
+            <summary>
+                Gets the default orthographic size calculated from the default half-width and
+                current screen aspect ratio. This provides a consistent base size regardless of
+                screen resolution.
+            </summary>
+        </member>
+        <member name="P:CameraController.OrthographicSize">
+            <summary>
+                Gets or sets the orthographic size for all cameras in the system. When set,
+                synchronizes the orthographic size across all 11 cameras (with special handling for
+                skyCamera based on SamRaimiEffectM). This ensures all visual layers maintain
+                consistent scale.
+            </summary>
+        </member>
+        <member name="P:CameraController.SamRaimiEffectM">
+            <summary>
+                Gets or sets the interpolation factor for the "Sam Raimi effect" (named after the
+                filmmaker known for dynamic camera work). This value (0-1) controls special sky
+                camera behavior, with the sky camera's orthographic size interpolating between 128f
+                and the main camera's size based on this factor.
+            </summary>
+        </member>
+        <member name="P:CameraController.ScreenPostFXLevel">
+            <summary>
+                Gets or sets the post-processing effects quality level. This value is stored in
+                PlayerOptions and determines which visual effects are enabled. Values less than 1
+                disable displacement and distortion effects for performance.
+            </summary>
+        </member>
+        <member name="F:CameraController.displacementScript">
+            <summary>
+                Reference to the DisplacementCamera component that handles displacement mapping
+                effects. This script is disabled when ScreenPostFXLevel is less than 1 during
+                initialization for performance optimization.
+            </summary>
+        </member>
+        <member name="F:CameraController.imageDistortionScript">
+            <summary>
+                Reference to the ImageRefractionEffect component that creates image
+                distortion/refraction effects. Disabled when ScreenPostFXLevel is less than 1 to
+                improve performance on lower-end systems.
+            </summary>
+        </member>
+        <member name="F:CameraController.samRaimiEffectM">
+            <summary>
+                Private static backing field for the SamRaimiEffectM property. Stores the
+                interpolation value (0-1) used to create dynamic sky camera effects inspired by Sam
+                Raimi's cinematography style.
+            </summary>
+        </member>
+        <member name="M:CameraController.GetCamerasForGIF">
+            <summary>
+                Creates a list containing only the background camera for GIF capture purposes. This
+                method is used by the GIF recording system to capture simplified footage, focusing
+                only on the background layer rather than the full multi-camera composite.
+            </summary>
+            <returns>A new List containing only the backgroundCamera reference.</returns>
+        </member>
+        <member name="F:CameraController.CurCameraMain">
+            <summary>
+                Cached reference to Camera.main used by the MainCam property. This caching mechanism
+                works with cachedFrame to avoid the performance cost of repeatedly accessing
+                Camera.main within a single frame, only updating when the frame count changes.
+            </summary>
+        </member>
+        <member name="F:CameraController.cachedFrame">
+            <summary>
+                Stores the frame number when Camera.main was last cached. Used in the MainCam
+                property getter to optimize performance by preventing repeated Camera.main lookups
+                within the same frame. Initialized to -1 to ensure the first access triggers a cache
+                update.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.Awake">
+            <summary>
+                Registers this checkpoint with the Map system and initializes position coordinates.
+                Called when the checkpoint GameObject is first created.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.OnDestroy">
+            <summary>
+                Removes the steel replacement flag from ground blocks below and adjacent to the
+                checkpoint position. This reverses the ground reinforcement applied during setup,
+                using raycasts to find the affected blocks.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.Start">
+            <summary>
+                Hides the flag GameObject initially and disables the flag renderer for invisible
+                checkpoints. Called after Awake on the first frame when the checkpoint becomes
+                active.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.Update">
+            <summary>
+                Handles one-time setup when not in edit mode, reinforces nearby ground blocks,
+                detects blocking units, and manages the deactivation delay timer. For non-invisible
+                checkpoints, this method raycast-checks blocks directly below the checkpoint and its
+                adjacent positions, marking them to be replaced with steel blocks if they collapse
+                (excluding cage and sandbag blocks).
+            </summary>
+        </member>
+        <member name="F:CheckPoint.isSetup">
+            <summary>
+                Tracks whether the one-time setup in Update() has been completed. Prevents repeated
+                setup operations and ground reinforcement checks after initial configuration.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.ActivateInternal">
+            <summary>
+                Activates the checkpoint, raising the flag, playing sound effects, setting it as the
+                current spawn point, and triggering end-level sequences for final checkpoints.
+                Notifies statistics controller of checkpoint capture and handles special behavior
+                for Hell theme levels (portal) vs normal levels (helicopter).
+            </summary>
+        </member>
+        <member name="M:CheckPoint.DelayDeactivate(System.Single)">
+            <summary>
+                Sets a timer to automatically deactivate the checkpoint after the specified delay.
+                Used for temporary checkpoint states or special game modes.
+            </summary>
+            <param name="time">Time in seconds before the checkpoint deactivates</param>
+        </member>
+        <member name="M:CheckPoint.IsBlockedByUnit">
+            <summary>
+                Checks if an evil unit is preventing checkpoint activation by being alive and within
+                96 units distance. Final checkpoints detect blocking units during setup to determine
+                end-level trigger behavior.
+            </summary>
+            <returns>True if a living evil unit is within blocking range, false otherwise</returns>
+        </member>
+        <member name="M:CheckPoint.ReactivateInternal">
+            <summary>
+                Sets this checkpoint as the current spawn point without triggering activation
+                effects. Used to restore checkpoint state when loading saved games or synchronizing
+                multiplayer state.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.activated">
+            <summary>
+                Current activation state of the checkpoint. When true, the flag is raised and this
+                serves as a valid spawn point. Synchronized across network for multiplayer games.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.blockingUnit">
+            <summary>
+                Reference to the nearest evil unit found during setup. Used to determine if
+                checkpoint activation should be blocked and whether this is a final checkpoint that
+                triggers level completion.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.deactivateDelay">
+            <summary>
+                Countdown timer in seconds for automatic deactivation. When greater than zero,
+                decrements each frame and deactivates the checkpoint when reaching zero.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.flag">
+            <summary>
+                Reference to the FlagFlap component that handles the visual flag raising animation.
+                The flag GameObject is initially inactive and shown when the checkpoint activates.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.isFinal">
+            <summary>
+                Marks this as the level's final checkpoint. When activated, triggers level
+                completion sequence (helicopter extraction or hell portal depending on theme). Set
+                during setup if evil units are nearby.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.airDropCheckPoint">
+            <summary>
+                Determines if players respawn via airdrop parachute animation when spawning at this
+                checkpoint. Map system checks this flag when determining spawn method for revived
+                players.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.airDropExtraHeight">
+            <summary>
+                Additional height offset in units added to airdrop spawn position when
+                airDropCheckPoint is true. Default value of 128 units provides clearance for
+                parachute deployment animation.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.checkPointID">
+            <summary>
+                Unique identifier assigned by Map.RegisterCheckPoint() based on registration order.
+                Used to track which checkpoint is currently active and for save/load functionality.
+                Default value of -1 indicates unregistered.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.invisibleCheckPoint">
+            <summary>
+                When true, all renderers are disabled making the checkpoint completely invisible to
+                players. Invisible checkpoints skip ground reinforcement and blocking unit detection
+                during setup.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.flagRaiseAudioClip">
+            <summary>
+                Custom audio clip played when the checkpoint activates and raises its flag. If null,
+                no additional sound is played beyond the standard spatial sound component.
+            </summary>
+        </member>
+        <member name="F:CheckPoint.yeahVolume">
+            <summary>
+                Volume level for celebration sound effects. Default 0.5f provides balanced audio.
+                Currently unused in the implementation but available for modders to implement custom
+                sounds.
+            </summary>
+        </member>
+        <member name="M:CheckPoint.PackState(UnityStream)">
+            <summary>
+                Serializes the checkpoint's activation state for network synchronization. Only the
+                activated boolean is transmitted to keep bandwidth usage minimal.
+            </summary>
+            <param name="stream">Stream to write the serialized state data</param>
+            <returns>The stream after serialization for method chaining</returns>
+        </member>
+        <member name="M:CheckPoint.UnpackState(UnityStream)">
+            <summary>
+                Deserializes checkpoint state from network data, restoring activation status and
+                triggering visual updates. For activated final checkpoints, also restores the
+                helicopter/portal state.
+            </summary>
+            <param name="stream">Stream containing the serialized state data</param>
+            <returns>The stream after deserialization for method chaining</returns>
+        </member>
+        <member name="M:CutsceneController.Awake">
+            <summary>
+                Initializes the CutsceneController singleton instance and subscribes to scene change
+                events
+            </summary>
+        </member>
+        <member name="M:CutsceneController.OnDestroy">
+            <summary>
+                Cleans up the singleton instance and unsubscribes from scene change events
+            </summary>
+        </member>
+        <member name="F:CutsceneController.letterBoxCamera">
+            <summary>
+                Camera used for letterbox effect during cutscenes
+            </summary>
+        </member>
+        <member name="M:CutsceneController.CloseAllCutscenes">
+            <summary>
+                Ends all active cutscenes including both bro and boss intro roots
+            </summary>
+        </member>
+        <member name="M:CutsceneController.LoadCutScene(CutsceneName,System.Single)">
+            <summary>
+                Loads and plays a cutscene with an optional delay. Handles pausing and special cases
+                like offline mode
+            </summary>
+            <param name="name">The cutscene to load</param>
+            <param name="delay">Time in seconds to wait before starting the cutscene</param>
+        </member>
+        <member name="M:CutsceneController.LoadCutSceneRoutine(CutsceneName,System.Single)">
+            <summary>
+                Coroutine that handles the actual cutscene loading process, including intro roots
+                and scene loading
+            </summary>
+            <param name="cutsceneName">The cutscene to load</param>
+            <param name="delay">Time in seconds to wait before starting</param>
+            <returns>IEnumerator for coroutine execution</returns>
+        </member>
+        <member
+            name="M:CutsceneController.SceneChange(UnityEngine.SceneManagement.Scene,UnityEngine.SceneManagement.Scene)">
+            <summary>
+                Handles scene change events by closing any active cutscenes
+            </summary>
+            <param name="oldScene">The scene being unloaded</param>
+            <param name="newScene">The newly loaded scene</param>
+        </member>
+        <member name="P:CutsceneController.InCutscene">
+            <summary>
+                Gets whether a cutscene is currently in progress
+            </summary>
+        </member>
+        <member name="F:CutsceneController.bossIntroRoot">
+            <summary>
+                Root object for managing boss intro cutscenes
+            </summary>
+        </member>
+        <member name="F:CutsceneController.broIntroRoot">
+            <summary>
+                Root object for managing bro character intro cutscenes
+            </summary>
+        </member>
+        <member name="F:CutsceneController.cutSceneInProgress">
+            <summary>
+                Static flag indicating whether any cutscene is currently playing
+            </summary>
+        </member>
+        <member name="M:CutsceneController.InstantiateSatanHeliCutScene">
+            <summary>
+                Creates and positions the Satan helicopter cutscene relative to Satan's position
+            </summary>
+        </member>
+        <member name="M:CutsceneController.RevealAlienBoss">
+            <summary>
+                Creates and displays the alien boss reveal cutscene UI element on the UI camera
+            </summary>
+        </member>
+        <member name="F:CutsceneController.revealScene">
+            <summary>
+                Prefab reference for the alien boss reveal cutscene
+            </summary>
+        </member>
+        <member name="F:CutsceneController.satanHeliCutscene">
+            <summary>
+                Prefab reference for the Satan helicopter cutscene
+            </summary>
+        </member>
+        <member name="M:CutsceneController.HoldPlayersStill(System.Boolean)">
+            <summary>
+                Controls whether players can move during cutscenes
+            </summary>
+            <param name="hold">True to prevent player movement, false to allow it</param>
+        </member>
+        <member name="M:CutsceneController.PlayersCanMove">
+            <summary>
+                Checks if players are allowed to move (not held still by a cutscene)
+            </summary>
+            <returns>True if players can move, false if they're being held still</returns>
+        </member>
+        <member name="F:CutsceneController.holdPlayersStill">
+            <summary>
+                Static flag controlling whether players are prevented from moving
+            </summary>
+        </member>
+        <member name="M:CutsceneController.GetCustsceneSceneName(CutsceneName)">
+            <summary>
+                Maps a CutsceneName enum value to its corresponding Unity scene name. Handles
+                special cases like hard mode variations
+            </summary>
+            <param name="cutscene">The cutscene enum value to map</param>
+            <returns>The Unity scene name for the cutscene, or empty string if not found</returns>
+        </member>
+        <member name="M:CutsceneController.GetPosition">
+            <summary>
+                Gets the world position of the CutsceneController instance
+            </summary>
+            <returns>The transform position of the controller</returns>
+        </member>
+        <member name="M:CutsceneController.HasInstance">
+            <summary>
+                Checks if a CutsceneController instance exists
+            </summary>
+            <returns>True if an instance exists, false otherwise</returns>
+        </member>
+        <member name="P:CutsceneController.Instance">
+            <summary>
+                Gets the singleton instance of the CutsceneController
+            </summary>
+        </member>
+        <member name="F:CutsceneController.instance">
+            <summary>
+                Protected static reference to the singleton instance
             </summary>
         </member>
         <member name="M:Doodad.Awake">
@@ -14928,6 +15419,875 @@
                 corresponding HeroDefinition data for serialization and configuration management.
             </summary>
         </member>
+        <member name="M:HeroController.GetPlayerNums(PID)">
+            <summary>
+                Gets all player numbers associated with a specific player ID. Iterates through all 4
+                possible player slots and returns a list of player numbers where the PID matches.
+                Used for finding which player slots belong to a specific connected player.
+            </summary>
+            <param name="playerID">The player ID to search for.</param>
+            <returns>List of player numbers (0-3) that match the given player ID.</returns>
+        </member>
+        <member name="F:HeroController.heroList">
+            <summary>
+                Serializable list of hero setup data using the HeroSetupKeyPair inner class. This
+                list is populated during OnBeforeSerialize from the internal _heroData dictionary
+                and restored during OnAfterDeserialize. Used for Unity's serialization system to
+                persist hero configuration data.
+            </summary>
+        </member>
+        <member name="F:HeroController.deathmatchSpawnQueue">
+            <summary>
+                Queue of player numbers waiting to spawn in deathmatch mode. When multiple players
+                need to respawn and spawning is limited (e.g., helicopter capacity), this queue
+                tracks the order. The host manages the queue and syncs it to other players via the
+                SyncRespawnQueue RPC.
+            </summary>
+        </member>
+        <member name="F:HeroController._playersToDrop">
+            <summary>
+                Static list of player numbers flagged to be dropped from the game. Players are added
+                to this list via FlagPlayerToDrop and are actually dropped during the next Update
+                cycle. This deferred dropping prevents issues with immediate disconnection.
+            </summary>
+        </member>
+        <member name="F:HeroController.playerDeathOrder">
+            <summary>
+                Tracks the order in which players died during the current game session. Used by the
+                rescue system to determine which player should be revived when a rescue bro is
+                collected. Earlier deaths get priority for revival. Synced across network.
+            </summary>
+        </member>
+        <member name="F:HeroController.heroAlreadyChosenTypes">
+            <summary>
+                Static list tracking which hero types have already been selected during the current
+                game session. Used to prevent duplicate hero selection when spawning new characters,
+                ensuring variety. The list is trimmed when it grows too large relative to active
+                players.
+            </summary>
+        </member>
+        <member name="F:HeroController.rescueBros">
+            <summary>
+                List of all active rescue bros in the current level. Rescue bros register themselves
+                on Start and are removed when freed or destroyed. Used for proximity checks when
+                players attempt to rescue bros and for finding the nearest rescue bro to players.
+            </summary>
+        </member>
+        <member name="F:HeroController.hiddenExplosives">
+            <summary>
+                Static list of all registered hidden explosives in the game. Hidden explosives
+                register via RegisterHiddenExplosives and are removed via RemoveHiddenExplosives.
+                List is cleared on Awake and OnDestroy. Used for managing special explosive objects.
+            </summary>
+        </member>
+        <member name="F:HeroController.extraFollowPositions">
+            <summary>
+                Static list of additional transform positions for the camera to follow beyond player
+                characters. Objects can register via TryFollow and unregister via StopFollowing.
+                Camera system checks these positions when determining view bounds and focus area.
+            </summary>
+        </member>
+        <member name="M:HeroController.ConvertHeroArrayToIntArray(HeroType[])">
+            <summary>
+                Converts an array of HeroType enums to an array of integers for serialization. Uses
+                Array.ConvertAll with a lambda to cast each HeroType to its integer value. Used when
+                hero type data needs to be transmitted or stored as integers.
+            </summary>
+            <param name="heroArray">The array of HeroType enums to convert.</param>
+            <returns>Array of integers representing the hero types.</returns>
+        </member>
+        <member name="M:HeroController.ConvertIntArrayToHeroArray(System.Int32[])">
+            <summary>
+                Converts an array of integers back to an array of HeroType enums after
+                deserialization. Uses Array.ConvertAll with a lambda to cast each integer to
+                HeroType. Reverse operation of ConvertHeroArrayToIntArray for restoring hero type
+                data.
+            </summary>
+            <param name="intArray">The array of integers to convert.</param>
+            <returns>Array of HeroType enums restored from the integers.</returns>
+        </member>
+        <member name="M:HeroUnlockController.AreAnyMoreBrosAvailableToBeSavedInHardcoreMode">
+            <summary>
+                Checks if there are any heroes left to rescue in hardcore mode. Compares all
+                unlocked heroes against those already available or dead in the current hardcore save
+                to determine if more can be rescued.
+            </summary>
+            <returns>True if there are heroes that can still be rescued in hardcore mode, false if all are either available or dead.</returns>
+        </member>
+        <member name="M:HeroUnlockController.CheckFreedBrosUnlocks(System.Boolean)">
+            <summary>
+                Checks if the current freed prisoner count has reached any hero unlock thresholds
+                and unlocks the appropriate heroes. Also sets the next hero type for immediate
+                availability.
+            </summary>
+            <param name="announce">If true, displays an announcement when heroes are unlocked.</param>
+        </member>
+        <member name="M:HeroUnlockController.ClearHeroUnlockIntervals">
+            <summary>
+                Clears the cached hero unlock interval data and forces it to regenerate. The method
+                also accesses the first unlock interval to trigger regeneration of the dictionary.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.ClearUnlocks">
+            <summary>
+                Resets all hero unlocks and clears the unlock progression data. If in exhibition
+                build mode, also clears the cached unlock intervals to force regeneration.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.FreeBro">
+            <summary>
+                Handles the rescue of a prisoner and associated hero unlock progression. In hardcore
+                mode, randomly selects an available hero to add to the player's roster. In normal
+                mode, increments the freed prisoner counter through PlayerProgress.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.GetNextHeroToBeUnlocked">
+            <summary>
+                Determines which hero will be unlocked next based on the current rescue count.
+                Iterates through the unlock intervals to find the next hero that hasn't been reached
+                yet.
+            </summary>
+            <returns>The HeroType that will be unlocked next, or HeroType.None if all heroes are unlocked.</returns>
+        </member>
+        <member name="M:HeroUnlockController.GetNumberOfRescuesFromSinceUnlock">
+            <summary>
+                Calculates how many rescues have been performed since the last hero was unlocked.
+                Used for tracking progress between unlock milestones.
+            </summary>
+            <returns>The number of rescues since the last unlock, or 0 if no unlocks have occurred yet.</returns>
+        </member>
+        <member name="M:HeroUnlockController.GetNumberOfRescuesToNextUnlock">
+            <summary>
+                Calculates how many more prisoner rescues are needed to unlock the next hero. Used
+                by the level complete screen to show unlock progress to players.
+            </summary>
+            <returns>The number of rescues needed until the next hero unlock, or -1 if all heroes are unlocked.</returns>
+        </member>
+        <member name="M:HeroUnlockController.GetUnlockedHeroes(System.Boolean)">
+            <summary>
+                Gets a list of all currently unlocked heroes available for selection. Filters out
+                heroes that aren't compatible with certain game modes (death match, explosion run,
+                etc.) and optionally excludes heroes that haven't been played yet.
+            </summary>
+            <param name="ignoreYetToBeSeenHeroes">If true, excludes newly unlocked heroes that haven't been played yet.</param>
+            <returns>A list of HeroType values representing all unlocked and available heroes.</returns>
+        </member>
+        <member name="M:HeroUnlockController.Initialize">
+            <summary>
+                Initializes the hero unlock system at game start. Removes any unlocked heroes that
+                aren't available in the current campaign, checks for any new unlocks based on freed
+                prisoner count, and preserves the next hero selection if valid.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.IsAvailableInCampaign(HeroType)">
+            <summary>
+                Checks if a specific hero can be unlocked in the current campaign mode. Heroes must
+                be part of the unlock progression to be available (some heroes like Expendabros are
+                special unlocks).
+            </summary>
+            <param name="hero">The hero type to check for campaign availability.</param>
+            <returns>True if the hero can be unlocked through normal campaign progression, false otherwise.</returns>
+        </member>
+        <member name="M:HeroUnlockController.IsExpendaBro(HeroType)">
+            <summary>
+                Determines if a hero is one of the Expendabros characters (special cross-promotion
+                heroes from The Expendables movie franchise). These heroes have special unlock
+                conditions.
+            </summary>
+            <param name="hero">The hero type to check.</param>
+            <returns>True if the hero is an Expendabro (LeeBroxmas, BroneyRoss, etc.), false otherwise.</returns>
+        </member>
+        <member
+            name="M:HeroUnlockController.MakeSureTheresEnoughUnlockedBrosForAllTheJoinedPlayers">
+            <summary>
+                Ensures that enough heroes are unlocked to support all joined players. In exhibition
+                builds, unlocks 4 specific heroes. In normal gameplay, automatically increases the
+                freed prisoner count to unlock enough heroes for the player count.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.UnlockAllBros">
+            <summary>
+                Debug method that instantly unlocks all heroes by setting the freed prisoner count
+                to 99999 and checking for unlocks. Used for testing purposes.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.UnlockEverythingButBroheart">
+            <summary>
+                Debug method that unlocks all heroes except BroveHeart by setting the freed prisoner
+                count to 399. BroveHeart requires 400 rescues, so this leaves only that hero locked.
+            </summary>
+        </member>
+        <member name="M:HeroUnlockController.IsDeathMatchBro(HeroType)">
+            <summary>
+                Determines if a hero is available for selection in death match and similar
+                competitive game modes. Most heroes are available except for a few special cases
+                like CaseyBroback.
+            </summary>
+            <param name="nextHeroType">The hero type to check for death match availability.</param>
+            <returns>True if the hero can be used in death match modes, false otherwise.</returns>
+        </member>
+        <member name="M:LevelSelectionController.GetCurrentMap">
+            <summary>
+                Retrieves the MapData for the current level based on the game's load mode and
+                settings. This is the primary method for obtaining level data and handles all
+                different load scenarios.
+            </summary>
+            <returns>The MapData for the current level, or null if no valid level data could be loaded.</returns>
+            <remarks>
+                This method handles multiple loading scenarios: - Campaign mode: Loads from the
+                current campaign's level array - LoadFromMapdata: Uses the pre-set MapDataToLoad -
+                LoadFromFile: Loads individual level files from disk - Generated: Creates
+                procedurally generated levels The method also handles initial setup when loadMode is
+                NotSet, including editor test levels and last played custom levels. This is called
+                by Map.LoadMap to get the level data.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.GetMapDataForCampaign">
+            <summary>
+                Loads map data for the current campaign based on game mode and level number. Handles
+                special cases for BroDown mode (player count based levels), versus modes with
+                rotation, and victory screen for completed campaigns.
+            </summary>
+            <returns>The MapData for the current level, or victory screen data if the campaign is complete.</returns>
+        </member>
+        <member name="M:LevelSelectionController.GetMapDataFromFile">
+            <summary>
+                Loads map data from a file on disk. Attempts to load as a campaign first, falling
+                back to single level loading if that fails. Updates the level file name tracking.
+            </summary>
+            <returns>The loaded MapData, or null if no valid file name is set.</returns>
+        </member>
+        <member name="M:LevelSelectionController.GotoNextCampaignScene">
+            <summary>
+                Handles the transition to the next scene in the campaign sequence, including special
+                handling for the helicopter intro cutscene at the start of the main campaign.
+            </summary>
+            <remarks>
+                This method has special logic for the campaign start: - If at level 0 (campaign
+                start) and haven't shown the helicopter intro for non-custom campaigns, it loads the
+                "MissionScreenVietnam" intro scene first - Otherwise, it loads the standard campaign
+                scene The method sets the appropriate scene in GameState and calls
+                GameModeController.LoadNextScene to handle the actual transition. Used when starting
+                a new campaign from menus.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.GotoNextLevel">
+            <summary>
+                Advances to the next level in the current campaign by incrementing the level number
+                and reloading the current scene. Resets to level 0 if past the end of the campaign.
+            </summary>
+        </member>
+        <member name="M:LevelSelectionController.ResetLevelAndGameModeToDefault">
+            <summary>
+                Resets all level selection and game mode settings to their default values. This
+                comprehensive reset is called when returning to the main menu or starting a fresh
+                game session.
+            </summary>
+            <remarks>
+                This method performs a complete reset of the game state including: - Setting current
+                level to 0 and clearing fail counts - Resetting all campaign loading flags and modes
+                - Clearing custom campaign and workshop data - Resetting player wins and statistics
+                - Clearing triggered once-only triggers - Setting the default campaign based on
+                build type (Expendabros, Exhibition, or standard) This ensures a clean slate when
+                starting new game sessions.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.RestartCampaignScene">
+            <summary>
+                Initiates a restart of the current campaign scene by triggering a fade transition.
+                This method is called when the player chooses to retry a failed level.
+            </summary>
+            <remarks>
+                The method triggers a 2-second solid fade effect. The actual scene reload is handled
+                by the fade system once the fade completes. This is typically called from the level
+                failure screen when the player chooses to retry instead of returning to the menu.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.CompleteCurrentLevel">
+            <summary>
+                Marks the current level as complete by incrementing the level number and saving
+                progress for online campaigns. Resets the helicopter intro flag for the next level.
+            </summary>
+        </member>
+        <member name="M:LevelSelectionController.DmRotationLevelLoadComplete(Campaign)">
+            <summary>
+                Called when a deathmatch rotation level finishes downloading. Assigns the campaign
+                to the appropriate rotation slot and initiates download of the next level if needed.
+            </summary>
+            <param name="campaign">The downloaded campaign to add to the rotation.</param>
+        </member>
+        <member name="M:LevelSelectionController.FindOnlineDeathmatchLevels">
+            <summary>
+                Queries Steam Workshop for deathmatch levels using either vote ranking (70% chance)
+                or trend ranking (30% chance). Initiates the asynchronous query and sets up the
+                callback handler.
+            </summary>
+        </member>
+        <member name="M:LevelSelectionController.GetFormattedCampaignName(System.String)">
+            <summary>
+                Formats a campaign file name into a display name by converting to uppercase,
+                removing prefixes, and looking up formatted names. Used for campaign display in UI
+                and presence text.
+            </summary>
+            <param name="campaignFileName">The raw campaign file name to format (e.g., "WM_Mission1").</param>
+            <returns>The formatted campaign name (e.g., "2" for "MISSION1") or the cleaned uppercase name if no lookup exists.</returns>
+        </member>
+        <member name="M:LevelSelectionController.LoadNextVersusCampaign">
+            <summary>
+                Loads the next campaign in the versus rotation system. Handles both online
+                deathmatch rotation with Steam Workshop levels and offline rotation with local
+                campaigns. Manages the campaign queue and initiates downloads for upcoming levels.
+            </summary>
+        </member>
+        <member name="M:LevelSelectionController.SetLevelPresence">
+            <summary>
+                Sets the platform-specific presence text based on the current campaign and level.
+                Displays different text for challenge levels, arcade levels, and campaign levels.
+            </summary>
+        </member>
+        <member
+            name="M:LevelSelectionController.UGC_UGCQueryCompleted(Steamworks.SteamUGCQueryCompleted_t,System.Boolean)">
+            <summary>
+                Callback handler for Steam Workshop queries. Processes the returned deathmatch
+                levels, creates WorkshopLevelDetails objects, and selects levels for the current and
+                next rotation slots.
+            </summary>
+            <param name="value">The Steam UGC query result containing workshop level information.</param>
+            <param name="ioFailure">Whether the query failed due to an IO error.</param>
+        </member>
+        <member name="P:LevelSelectionController.campaignToLoad">
+            <summary>
+                Gets or sets the name of the campaign that should be loaded. This property stores
+                and retrieves the campaign name from the GameState singleton instance, ensuring that
+                the campaign name persists across scene transitions.
+            </summary>
+            <remarks>
+                This is a key property used throughout the game to determine which campaign should
+                be loaded. It's set by various menu systems (CustomCampaignMenu,
+                HeroSelectController, etc.) and read by the level loading system. The value is
+                stored in GameState.Instance.campaignName to maintain consistency across the game
+                session.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.currentCampaign">
+            <summary>
+                Gets or sets the currently loaded Campaign object containing all level data for the
+                active campaign. Setting this property also updates the campaign name in GameState
+                for persistence.
+            </summary>
+            <remarks>
+                This property holds the actual Campaign object with all its levels, header
+                information, and metadata. When set, it automatically updates
+                GameState.Instance.campaignName with either the header name (if available) or the
+                campaign's base name. This is the primary way to access level data for the current
+                campaign. Setting to null clears the campaign name in GameState.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.levelFileNameToLoad">
+            <summary>
+                Gets or sets the name of the level file to be loaded. This property is used when
+                loading individual level files from disk rather than campaign files. The property
+                acts as a wrapper around the internal _levelFileNameToLoad field.
+            </summary>
+            <remarks>
+                This property is typically set in the GetMapDataFromFile method to store the
+                filename of the level that should be loaded. It's used by various game components
+                like MainMenu, QuickLauncher, and SelectStartingAdvantage to specify which level
+                file should be loaded when the game starts or transitions between scenes.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.loadCustomCampaign">
+            <summary>
+                Gets or sets whether a custom campaign (user-created or downloaded) should be loaded
+                instead of the built-in campaigns. This flag is stored in the GameState singleton
+                and controls the campaign loading behavior.
+            </summary>
+            <remarks>
+                When true, the game will attempt to load campaigns from disk (either user-created or
+                published workshop campaigns) rather than from the built-in resources. This flag is
+                set by custom campaign menus and affects how campaigns are loaded in
+                GetMapDataForCampaign. It's reset to false when returning to main menu or starting
+                standard campaigns.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.returnToWorldMap">
+            <summary>
+                Gets or sets whether the game should return to the world map after completing the
+                current level or campaign. This property controls the flow between the world map
+                mode and individual levels.
+            </summary>
+            <remarks>
+                When true, completing a level will return the player to the 3D world map instead of
+                proceeding to the next level in sequence. This is used for the world map campaign
+                mode where players can choose which territory to tackle next. The value is stored in
+                GameState to persist across scene transitions.
+            </remarks>
+        </member>
+        <member name="F:LevelSelectionController.CurrentCampaign">
+            <summary>
+                Private backing field that stores the currently loaded campaign. Accessed through
+                the currentCampaign property which handles campaign validation and loading.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.DefaultCampaign">
+            <summary>
+                The default campaign to load when no specific campaign is selected. Initialized to
+                the offline campaign ("vietnam") by default.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.ExpendabrosCampaign">
+            <summary>
+                The campaign name for the Expendabros crossover content. Set to
+                "Expendabros_Campaign" to identify and load Expendabros-specific levels.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.MapDataToLoad">
+            <summary>
+                Stores pre-loaded map data to be used when LoadFromMapdata mode is active. Allows
+                external code to set specific map data before level loading.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.OfflineCampaign">
+            <summary>
+                The default campaign name used for offline single-player gameplay. Set to "vietnam"
+                to use the standard Vietnam campaign levels.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.OnlineCampaign">
+            <summary>
+                The default campaign name used for online multiplayer gameplay. Set to
+                "VietnamNetworked" to use the networked version of the Vietnam campaign levels.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController._levelFileNameToLoad">
+            <summary>
+                Internal backing field for the levelFileNameToLoad property. Stores the file name of
+                a level to be loaded from disk.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.currentVSRotationCampaign">
+            <summary>
+                Stores the current campaign in the versus mode rotation for online deathmatch games.
+                When using online deathmatch level rotation, this holds the campaign that is
+                currently active. Gets set when a deathmatch rotation level completes loading via
+                DmRotationLevelLoadComplete. Used by LoadNextVersusCampaign to determine which
+                campaign to load as the current campaign.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.currentWorkshopLevel">
+            <summary>
+                Stores details about the currently loaded Steam Workshop level. Used when playing
+                custom user-created content from the Workshop. Null when playing built-in campaigns.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.defaultDeathmatchCampaignIncludedInRotation">
+            <summary>
+                Whether the default deathmatch campaign should be included in the versus rotation.
+                Allows the built-in deathmatch maps to be part of the rotation.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.defaultRaceCampaignIncludedInRotation">
+            <summary>
+                Whether the default race campaign should be included in the versus rotation. Allows
+                the built-in race maps to be part of the rotation.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.haveSetListCallResult">
+            <summary>
+                Private flag tracking whether the Steam Workshop query callback has been
+                initialized. Prevents duplicate callback registration when querying Workshop
+                content.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.isOnlineCampaign">
+            <summary>
+                Flag indicating whether the currently loaded campaign is an online multiplayer
+                campaign. Used to determine networking behavior and level selection logic.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.lastVersusCampaign">
+            <summary>
+                Private field tracking the index of the last versus campaign played. Initialized to
+                -100 to ensure no campaign matches on first selection. Used to prevent immediate
+                repetition of versus campaigns.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.levelDetailsCurrentVSRotationCampaign">
+            <summary>
+                Stores the workshop level details for the current campaign in the versus rotation.
+                Contains metadata about the current online deathmatch level including file ID and
+                creator info. Set when online VS levels are loaded from Steam Workshop query
+                results. Used to track which specific workshop level is currently active in the
+                rotation.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.levelDetailsNextVSRotationCampaign">
+            <summary>
+                Stores the workshop level details for the next campaign queued in the versus
+                rotation. Contains metadata about the next online deathmatch level to be loaded
+                after the current one. Set when selecting random levels from the online VS levels
+                list during Steam query processing. Cleared when the next level is promoted to
+                current in LoadNextVersusCampaign.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.listCallResult">
+            <summary>
+                Private Steam API callback result for Workshop content queries. Used internally when
+                fetching lists of available Workshop levels for versus mode or custom campaigns.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.loadPublishedCampaign">
+            <summary>
+                Flag indicating whether the game should load a published campaign from the Workshop
+                or other external source. Checked during campaign loading to determine the source.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.nextVSRotationCampaign">
+            <summary>
+                Stores the next campaign queued in the versus mode rotation for online deathmatch
+                games. When the current VS rotation campaign ends, this campaign becomes the new
+                current campaign. Gets set by DmRotationLevelLoadComplete when a second campaign
+                loads while one is already current. Cleared after being promoted to current campaign
+                in LoadNextVersusCampaign.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.onlineVSLevels">
+            <summary>
+                Private list storing available online versus mode levels from the Workshop. Used to
+                randomly select levels for versus mode rotation without repeating recently played
+                levels.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.usingOnlineDMLevelRotation">
+            <summary>
+                Indicates whether the game is currently using online deathmatch level rotation mode.
+                When true, LoadNextVersusCampaign will use the VS rotation campaign fields instead
+                of standard progression. Set to false during initialization and controlled by the
+                deathmatch menu system. Determines whether to use rotation-based campaign loading
+                for versus mode.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.versusRotationList">
+            <summary>
+                List of campaign file names included in the versus mode rotation. Used for offline
+                deathmatch and race modes to cycle through available maps.
+            </summary>
+        </member>
+        <member name="P:LevelSelectionController.CurrentLevelNum">
+            <summary>
+                Gets or sets the current level number (index) within the active campaign. This
+                property wraps GameState.Instance.levelNumber for consistency.
+            </summary>
+            <remarks>
+                This zero-based index indicates which level in the campaign array is currently
+                active. It's incremented when completing levels and reset when starting new
+                campaigns. The value persists in GameState across scene transitions.
+            </remarks>
+        </member>
+        <member name="F:LevelSelectionController.exhibitionCount">
+            <summary>
+                Counter for exhibition mode levels. Initialized to -1, likely incremented during
+                exhibition gameplay to track progress or determine exhibition-specific behavior.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.levelNumBrodownBurningJungle">
+            <summary>
+                Constant defining the level number for the Brodown Burning Jungle level. Set to 1,
+                used for identifying this specific level in campaigns or level sequences.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.levelNumBrodownCity">
+            <summary>
+                Constant defining the level number for the Brodown City level. Set to 2, used for
+                identifying this specific level in campaigns or level sequences.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.shownHelicopterIntro">
+            <summary>
+                Flag tracking whether the helicopter intro sequence has been shown to the player.
+                Prevents the intro from playing multiple times when starting campaigns from the
+                beginning.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.totalNumberOfArcadeLevels">
+            <summary>
+                The total number of levels available in arcade mode. Set to 63, used to determine
+                when players have completed all arcade content and for progress tracking.
+            </summary>
+        </member>
+        <member name="M:LevelSelectionController.GetCurrentCampaignLength">
+            <summary>
+                Gets the total number of levels in the current campaign based on the game mode.
+            </summary>
+            <returns>The number of levels in the current campaign. Returns 1 for cutscene mode, 0 if no campaign is loaded, or the actual campaign length for other modes.</returns>
+            <remarks>
+                This method handles special cases: - Cutscene mode always returns 1 (single scene) -
+                Returns 0 if currentCampaign is null - Otherwise returns the Length property of the
+                current campaign Used for determining when the player has completed a campaign and
+                for progress tracking.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.IsCustomCampaign">
+            <summary>
+                Determines whether the currently loaded campaign is a custom campaign (user-created
+                or from Steam Workshop).
+            </summary>
+            <returns>True if either loadCustomCampaign or isOnlineCampaign flags are set, false for built-in campaigns.</returns>
+            <remarks>
+                This method is used throughout the game to determine if special handling is needed
+                for custom content, such as different victory screens, achievement restrictions, or
+                save game behavior. Custom campaigns include both locally created campaigns and
+                those downloaded from Steam Workshop.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.IsInProcGenCampaign">
+            <summary>
+                Determines whether the game is currently playing procedurally generated levels
+                rather than pre-designed campaign levels.
+            </summary>
+            <returns>True if not in world map mode and the load mode is set to Generated, false otherwise.</returns>
+            <remarks>
+                Procedurally generated campaigns create levels on the fly using the map generation
+                system. This mode is mutually exclusive with world map campaigns and affects how
+                levels are loaded and progressed through.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.IsInWorldMapCampaign">
+            <summary>
+                Determines whether the game is currently in world map campaign mode where players
+                progress through a 3D world map selecting territories.
+            </summary>
+            <returns>True if the returnToWorldMap flag is set, false otherwise.</returns>
+            <remarks>
+                World map campaigns use a different progression system where players return to a 3D
+                world map between levels to choose their next territory. This affects save systems,
+                progression tracking, and scene transitions.
+            </remarks>
+        </member>
+        <member name="M:LevelSelectionController.SpawnAsheAndHisCar">
+            <summary>
+                Determines whether Ash Williams and his car should spawn in the current level. This
+                is used for special Evil Dead crossover content in specific levels.
+            </summary>
+            <returns>True if the current level's description contains "deep throat" (case-insensitive), false otherwise.</returns>
+            <remarks>
+                This method checks the level description for a specific keyword to enable special
+                Evil Dead content. The check is case-insensitive. This appears to be an Easter egg
+                or special crossover feature that spawns Ash Williams (from Evil Dead) and his
+                iconic car in certain levels.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.CurrentGameModeScene">
+            <summary>
+                Gets the appropriate scene name for the current game mode. Different game modes use
+                different scenes to handle their specific gameplay requirements.
+            </summary>
+            <remarks>
+                Returns the scene name based on GameModeController.GameMode: - ExplosionRun: Returns
+                ExplosionRunSceneName - DeathMatch: Returns DeathmatchSceneName - SuicideHorde:
+                Returns SuicideHordeSceneName - Race: Returns RaceRunSceneName - Default: Returns
+                CampaignScene All non-campaign modes currently use "Test Evan2" as their scene name.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.CustomCampaignVictoryScene">
+            <summary>
+                Gets the name of the victory scene to use when completing a custom campaign. Returns
+                different scene names based on whether Steam is enabled to handle different victory
+                screen requirements.
+            </summary>
+            <remarks>
+                Returns "VictoryCustomCampaignSteam" when Steam is enabled (for Steam Workshop
+                integration and leaderboards), or "VictoryCustomCampaign" for non-Steam builds. This
+                allows custom campaigns to have appropriate victory screens with or without Steam
+                features.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.ExhibitionCampaign">
+            <summary>
+                Gets the name of the campaign to use in exhibition mode, which varies based on demo
+                settings and current scene. This property determines which special campaign should
+                be loaded for exhibition/demo builds.
+            </summary>
+            <remarks>
+                The property returns different campaigns based on the current state: - "Victory" if
+                already in the Victory scene - "AlienExhibition" if the alien demo is selected -
+                "BossRushCampaign" if the boss rush demo is selected -
+                "VIETNAM_EXHIBITION_TWITCHCON" as the default exhibition campaign This is primarily
+                used for special demo builds shown at conventions or events.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.MainMenuScene">
+            <summary>
+                Gets the appropriate main menu scene name based on the build type. Returns different
+                scene names for the Expendabros promotional build versus the standard Broforce
+                build.
+            </summary>
+            <remarks>
+                Returns "MainMenuExpendabros" for Expendabros builds (a special promotional version
+                of the game), or "MainMenu" for standard Broforce builds. This allows the game to
+                have different main menus for different versions while using the same codebase.
+            </remarks>
+        </member>
+        <member name="F:LevelSelectionController.BrodownSceneName">
+            <summary>
+                The scene name used for brodown game mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.CampaignScene">
+            <summary>
+                The current scene name used for campaign mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.CampaignSceneDefault">
+            <summary>
+                The default scene name for campaign mode. Used as a fallback when no specific
+                campaign scene is set. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.DeathmatchSceneName">
+            <summary>
+                The scene name used for deathmatch game mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.ExplosionRunSceneName">
+            <summary>
+                The scene name used for explosion run game mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.GameOverScene">
+            <summary>
+                The scene name for the game over cutscene. Set to "CutsceneGameOver" which plays
+                when all players have died and no lives remain.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.HellArcade">
+            <summary>
+                The scene name for the Hell-themed arcade mode. Set to "WM_Hell" which represents
+                the Hell world map used in arcade gameplay.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.HeroSelectScreen">
+            <summary>
+                The scene name for the hero selection screen. Set to "HeroSelect" which allows
+                players to choose their character before starting gameplay.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.IntroScene">
+            <summary>
+                The scene name for the game's intro cutscene. Set to "Intro" which plays when
+                starting a new campaign from the beginning.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.JoinScene">
+            <summary>
+                The scene name used for joining multiplayer games. Default value is "newJoin".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.MainMenuSceneExpendabros">
+            <summary>
+                The scene name for the Expendabros-specific main menu. Set to "MainMenuExpendabros"
+                to provide a themed menu for the Expendabros crossover content.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.OfflineCustomVictoryScene">
+            <summary>
+                The scene name for the victory screen shown after completing offline custom
+                campaigns. Set to "VictoryCustomCampaign" to provide a different ending for
+                user-created content.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.RaceRunSceneName">
+            <summary>
+                The scene name used for race game mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.SuicideHordeSceneName">
+            <summary>
+                The scene name used for suicide horde game mode. Default value is "Test Evan2".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.VictoryScene">
+            <summary>
+                The scene name for the standard victory screen. Set to "Polaroid" which displays the
+                victory polaroid photo sequence after completing a campaign.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.WorldMapScene">
+            <summary>
+                The scene name for the world map screen. Default value is "WorldMap3D".
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController._MainMenuScene">
+            <summary>
+                Private constant storing the main menu scene name. Set to "MainMenu" and used
+                internally for scene transitions back to the main game menu.
+            </summary>
+        </member>
+        <member name="F:LevelSelectionController.levelNumBrodownJungle">
+            <summary>
+                Constant defining the level number for the Brodown jungle level. Value is 0.
+            </summary>
+        </member>
+        <member name="P:LevelSelectionController.CurrentlyInGame">
+            <summary>
+                Gets whether the player is currently in an active game (not in the main menu).
+            </summary>
+            <remarks>
+                Returns true if not in the main menu scene, false otherwise. This is a simple helper
+                property that inverts IsMainMenuScene for convenience. Used by various systems to
+                determine if gameplay systems should be active.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.IsCampaignScene">
+            <summary>
+                Gets whether the currently active scene is the campaign gameplay scene.
+            </summary>
+            <remarks>
+                Performs a case-insensitive comparison with the CampaignScene name ("Test Evan2").
+                Returns true when actively playing campaign levels, false in menus or other game
+                modes.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.IsLoadingScene">
+            <summary>
+                Gets whether the currently active scene is the loading screen scene.
+            </summary>
+            <remarks>
+                Checks if the active scene is "LoadingScreen" (case-insensitive). This is displayed
+                during scene transitions and asset loading between gameplay scenes.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.IsMainMenuScene">
+            <summary>
+                Gets whether the currently active scene is the main menu scene.
+            </summary>
+            <remarks>
+                Performs a case-insensitive comparison between the active scene name and the
+                MainMenuScene property. This accounts for different main menu scenes in different
+                builds (standard vs Expendabros). Used to determine if menu-specific behavior should
+                be active.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.IsMainMenuSceneLoading">
+            <summary>
+                Gets whether the main menu scene is currently set to load next (during scene
+                transitions).
+            </summary>
+            <remarks>
+                Checks if GameState.Instance.sceneToLoad matches the main menu scene name
+                (case-insensitive). This is useful for systems that need to prepare for returning to
+                the main menu before the scene actually changes.
+            </remarks>
+        </member>
+        <member name="P:LevelSelectionController.IsWorldMapScene">
+            <summary>
+                Gets whether the currently active scene is the 3D world map scene.
+            </summary>
+            <remarks>
+                Checks if the active scene is "WorldMap3D" (case-insensitive). The world map is used
+                in the world map campaign mode where players select territories to conquer.
+            </remarks>
+        </member>
         <member
             name="M:Map.BlindUnits(System.Int32,System.Single,System.Single,System.Single,System.Single)">
             <summary>
@@ -20381,6 +21741,17 @@
                 Gets or sets the current map's data structure. When setting, automatically updates
                 the static Map.Width and Map.Height fields based on the MapData dimensions (or sets
                 them to 0 if MapData is null).
+            </summary>
+        </member>
+        <member name="P:Map.activeTheme">
+            <summary>
+                Gets or sets the currently active theme holder that defines all block prefabs,
+                environmental objects, and visual assets for the current level. This property is set
+                based on the map's theme data during map generation and controls which set of
+                prefabs are used for blocks, backgrounds, crates, vehicles, and other theme-specific
+                elements. The theme determines visual appearance and available prefab types for
+                elements like earth blocks, bridges, cages, and special objects. Common themes
+                include jungle, city, desert, forest, hell, america, and burning jungle variations.
             </summary>
         </member>
         <member name="F:Map.HalfTileSize">
@@ -27562,6 +28933,31 @@
                 that must update every frame.
             </summary>
         </member>
+        <member name="P:Shrapnel.DoneFirstUpdate">
+            <summary>
+                Gets or sets whether this effect has completed its first update cycle after being
+                resurrected from an object pool. Used by the pooling system to ensure one-time
+                initialization logic runs only once per resurrection. Set to false when
+                ResurrectForPool is called, and automatically set to true by FirstUpdateFromPool.
+                Part of the IPoolableEffect interface implementation.
+            </summary>
+        </member>
+        <member name="P:Shrapnel.PoolIndex">
+            <summary>
+                Gets or sets the index position of this effect within its parent object pool. Set to
+                -1 when the effect is not part of a pool or has been removed from pooling. Used by
+                the pooling system to efficiently manage and return effects to their designated pool
+                slots. Part of the IPoolableEffect interface implementation.
+            </summary>
+        </member>
+        <member name="P:Shrapnel.ParentPool">
+            <summary>
+                Gets or sets the EffectPool instance that manages this pooled effect. Null when the
+                effect is not pooled. Set by ResurrectForPool when retrieving from a pool. Used to
+                return the effect back to its originating pool when it dies, avoiding garbage
+                collection. Part of the IPoolableEffect interface implementation.
+            </summary>
+        </member>
         <member name="F:Shrapnel.timesliceIndex">
             <summary>
                 Unique index assigned by ShrapnelManager for timeslicing optimization. Used to
@@ -28085,6 +29481,16 @@
                 and 0.133 seconds to prevent large time jumps. When time slicing is active, this
                 value is multiplied by the time slice amount to compensate for running fewer updates
                 per second.
+            </summary>
+        </member>
+        <member name="P:Shrapnel.ShouldKillIfNotVisible">
+            <summary>
+                Gets or sets whether this shrapnel should automatically die when it moves
+                off-screen. Defaults to true in Awake for performance optimization. When true,
+                checks visibility in Update using SortOfFollow.IsItSortOfVisible with a 48x48 pixel
+                buffer zone. If not visible and life &gt; 0, immediately sets life to -0.1f to
+                trigger death. Can be overridden (e.g., set to false for cutscene effects that need
+                to persist off-screen).
             </summary>
         </member>
         <member name="M:Sound.Awake">
@@ -29972,6 +31378,676 @@
                 multiples of this value. Default value of 1 provides standard pixel-perfect
                 alignment.
             </summary>
+        </member>
+        <member name="M:StatisticsController.Awake">
+            <summary>
+                Initializes the singleton instance and creates a new LevelStats object for tracking
+                current level statistics. Sets initial destruction count to 0.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.NotOnGUI">
+            <summary>
+                Debug GUI display method (despite misleading name). Shows current level statistics
+                including destruction count, kills/total enemies, formatted time, rescues/cages,
+                brutality score, and brutality meter with scrollbar. Not actually disabled.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.NotifyPause(System.Boolean)">
+            <summary>
+                Handles pause state notifications for time tracking. Records pause start time when
+                paused. Placeholder for pause duration calculation when unpaused (currently unused).
+            </summary>
+            <param name="paused">True when game is paused, false when resumed</param>
+        </member>
+        <member name="M:StatisticsController.Start">
+            <summary>
+                Initializes statistics tracking for the level start. Resets elapsed time to 0, sets
+                brutality and time percentiles to -1, initializes brutality grace period to 6
+                seconds, resets brutality level to 0, and loads existing campaign brutality totals
+                if brutality scoring is enabled for the current campaign.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.pauseTime">
+            <summary>
+                Tracks the timestamp when the game was paused. Set to current Time.time when paused,
+                used for pause duration tracking. Initialized to -1f indicating no pause has
+                occurred yet.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.DeserializeStats(System.Byte[])">
+            <summary>
+                Deserializes received statistics data from network. Unpacks byte stream to populate
+                current stats including all kill/alert counters, elapsed time, and level attempts.
+                Creates new LevelStats if needed.
+            </summary>
+            <param name="byteStream">The serialized statistics data to unpack</param>
+        </member>
+        <member name="M:StatisticsController.PackState(UnityStream)">
+            <summary>
+                Packs the current elapsed time into a network stream for multiplayer synchronization
+            </summary>
+            <param name="stream">The Unity network stream to serialize data to</param>
+            <returns>The modified stream after serialization</returns>
+            <remarks>
+                This method ensures all players have synchronized elapsed time. If no currentStats
+                exists or instance is null, sends 0 as default time value
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.SerializeStats">
+            <summary>
+                Serializes current level statistics for network transmission. Packs destruction,
+                kills, rescues, alert states, knife kills, unaware kills, elapsed time, and level
+                attempts into byte array. Uses current stats or falls back to last level stats.
+            </summary>
+            <returns>Serialized statistics data as byte array</returns>
+        </member>
+        <member name="M:StatisticsController.UnpackState(UnityStream)">
+            <summary>
+                Unpacks elapsed time from a network stream during multiplayer synchronization
+            </summary>
+            <param name="stream">The Unity network stream to deserialize data from</param>
+            <returns>The stream after deserialization</returns>
+            <remarks>
+                Updates the current statistics elapsed time with the received value from the network
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.CacheStats">
+            <summary>
+                Caches the current level statistics for later aggregation (used by super
+                checkpoints). If no cached stats exist, stores the current stats directly. If cached
+                stats already exist, adds the current stats to them. Creates a new empty LevelStats
+                object for continued tracking.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.CalcAndSubmitCampaignScore">
+            <summary>
+                Calculates total campaign statistics and submits them to leaderboards. Iterates
+                through all level scores to sum brutality and time, then submits to Playtomic if
+                using Badumna connection. Called at campaign completion.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.CalculateTotalTime">
+            <summary>
+                Calculates and synchronizes the total elapsed time across all players. Gets time
+                from current or last level stats and sends RPC to all players if host. Ensures
+                consistent time tracking in multiplayer.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.ClearCachedStats">
+            <summary>
+                Clears the cached statistics buffer. Used to reset temporary stats storage between
+                level attempts or when starting fresh.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.GetCampaignTotalBrotality">
+            <summary>
+                Calculates and returns the total brutality score across all campaign levels. Sums
+                calculated brutality values from each level's statistics. Also builds debug string
+                with detailed breakdowns (unused).
+            </summary>
+            <returns>Total brutality score for the entire campaign</returns>
+        </member>
+        <member name="M:StatisticsController.GetCampaignTotalTime">
+            <summary>
+                Calculates and returns the total time spent across all campaign levels. Iterates
+                through campaign score dictionary summing elapsed times. Also builds detailed debug
+                string with per-level statistics (unused).
+            </summary>
+            <returns>Total elapsed time across all completed campaign levels</returns>
+        </member>
+        <member name="M:StatisticsController.GetDeathsCount">
+            <summary>
+                Returns the total number of recorded deaths from the last completed level's death
+                list.
+            </summary>
+            <returns>The count of death objects in the last level's death list</returns>
+        </member>
+        <member name="M:StatisticsController.GetTime">
+            <summary>
+                Gets the elapsed time from the last completed level's statistics.
+            </summary>
+            <returns>The elapsed time in seconds from the last level stats</returns>
+        </member>
+        <member name="M:StatisticsController.GetTimeString">
+            <summary>
+                Converts the current level's elapsed time into a formatted time string in MM:SS.T
+                format (where T is tenths of seconds).
+            </summary>
+            <returns>Formatted time string showing minutes, seconds, and tenths</returns>
+        </member>
+        <member name="M:StatisticsController.GetTimeString(System.Single)">
+            <summary>
+                Converts a time value in seconds to a formatted string in MM:SS.T format (where T is
+                tenths of seconds).
+            </summary>
+            <param name="time">Time in seconds to format</param>
+            <returns>Formatted time string showing minutes, seconds, and tenths</returns>
+        </member>
+        <member
+            name="M:StatisticsController.LogLevelScore(System.Int32,System.Single,System.Int64,System.Int64,System.Int32,System.Int32)">
+            <summary>
+                Stores level statistics in the campaign score dictionary. Creates the dictionary if
+                needed and replaces existing scores for the same level number. Used internally after
+                level completion.
+            </summary>
+            <param name="levelNum">The level number identifier</param>
+            <param name="time">Time taken to complete the level</param>
+            <param name="brotality">Brutality score (unused in current implementation)</param>
+            <param name="stealth">Stealth score (unused in current implementation)</param>
+            <param name="kills">Number of enemies killed</param>
+            <param name="levelAttempts">Number of attempts to complete the level</param>
+        </member>
+        <member name="M:StatisticsController.NotifyBlockDestroyed(Block)">
+            <summary>
+                Records terrain destruction for brutality scoring. Called when any block is
+                destroyed. Adds 0.1 to totalBrotality and increments destruction counter.
+            </summary>
+            <param name="block">The block that was destroyed</param>
+        </member>
+        <member name="M:StatisticsController.NotifyKnifedMook(Mook)">
+            <summary>
+                Records when a mook is killed by a knife attack. Called from mook damage handling
+                when death is caused by knife damage type. Increments the mooksKnifed statistic for
+                stealth tracking.
+            </summary>
+            <param name="mook">The mook that was knifed</param>
+        </member>
+        <member name="M:StatisticsController.NotifyLevelFinished(LevelResult)">
+            <summary>
+                Handles all statistics processing when a level ends. Records death counts by
+                hero/mook type for campaign tracking, merges cached stats on success, calculates
+                stealth score, logs level score to campaign dictionary, and resets or increments
+                level attempts based on result.
+            </summary>
+            <param name="result">Whether the level was completed successfully or failed</param>
+        </member>
+        <member name="M:StatisticsController.NotifyLevelLoaded">
+            <summary>
+                Records the total number of mooks at level start by storing the current totalMooks
+                count. Called when a level finishes loading to establish the baseline mook count for
+                completion percentage tracking.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.NotifyMookDeath(Mook)">
+            <summary>
+                Records a mook death for statistics tracking. Increments kill count, updates
+                brutality score based on kill timing (combo multiplier if kills within 0.5 seconds),
+                sets brutality grace periods, adds 1 brutality point and 1 music intensity, updates
+                last kill time, and tracks stealth kills if the mook was unaware.
+            </summary>
+            <param name="mook">The mook that died</param>
+        </member>
+        <member name="M:StatisticsController.NotifyMookHeardSound(Mook)">
+            <summary>
+                Increments the count of mooks that have heard suspicious sounds. Only counts living
+                mooks that can be added to statistics.
+            </summary>
+            <param name="mook">The mook that heard a sound</param>
+        </member>
+        <member name="M:StatisticsController.NotifyMookSeenBro(Mook)">
+            <summary>
+                Notifies the statistics system when a mook has seen a bro (player). Called when AI
+                becomes aware of player presence. Increments the mooksHalfAlerted counter if
+                conditions are met.
+            </summary>
+            <param name="mook">The mook that has spotted a bro</param>
+        </member>
+        <member name="M:StatisticsController.NotifyMookTryShootAtBBro(Mook)">
+            <summary>
+                Records when a mook attempts to shoot at a bro. Called by enemy AI when entering
+                shooting state. Increments mooksFullyAlerted to track complete enemy awareness.
+            </summary>
+            <param name="mook">The mook attempting to shoot</param>
+        </member>
+        <member name="M:StatisticsController.NotifyRescue">
+            <summary>
+                Records a prisoner rescue event. Adds 3 brutality points, sets grace period based on
+                current brutality level (unused grace calculation), and increments rescue counter.
+                Called when players free prisoners from cages.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.NotifyTankDeath(Tank)">
+            <summary>
+                Records a tank death for statistics and world map campaign tracking. Updates vehicle
+                death counters in world map saves, sets last kill time, adds 10 brutality points and
+                4 music intensity, and sets brutality grace period to 5 seconds (then immediately to
+                1 second). Tracks as vehicle type in campaign statistics.
+            </summary>
+            <param name="tank">The tank that was destroyed</param>
+        </member>
+        <member name="M:StatisticsController.NotifyTruckDeath(Tank)">
+            <summary>
+                Records a truck death for statistics and world map campaign tracking. Updates
+                vehicle death counters in world map saves, sets last kill time, adds 5 brutality
+                points and 3 music intensity, and sets brutality grace period to 4 seconds (then
+                immediately to 1 second). Tracks as vehicle type in campaign statistics.
+            </summary>
+            <param name="tank">The truck (Tank instance) that was destroyed</param>
+        </member>
+        <member name="M:StatisticsController.RegisterMook(Mook)">
+            <summary>
+                Registers a mook as part of the level's total mook count for statistics tracking.
+                Only counts mooks that return true from CanAddToStatistics().
+            </summary>
+            <param name="mook">The mook instance to register for statistics tracking</param>
+        </member>
+        <member name="M:StatisticsController.RegisterRescueBro">
+            <summary>
+                Increments the total cage/rescue count for the current level statistics. Called when
+                a bro rescue cage is discovered in the level.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.ResetScore">
+            <summary>
+                Resets all campaign scoring data. Clears the campaign score dictionary and
+                deathmatch death objects. Called when starting a new campaign or resetting progress.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.SetTotalTime(System.Single)">
+            <summary>
+                RPC method that sets the synchronized total time value. Called by host to update all
+                players' elapsed time. Updates currentStats.elapsedTime if stats exist.
+            </summary>
+            <param name="totatTime">The synchronized total time value</param>
+        </member>
+        <member name="F:StatisticsController.cachedStats">
+            <summary>
+                Temporary storage for statistics during level transitions or checkpoints
+            </summary>
+            <remarks>
+                Used to preserve statistics across checkpoint restarts. Added back to currentStats
+                upon level completion
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.currentStats">
+            <summary>
+                Active statistics being tracked for the current level in progress
+            </summary>
+            <remarks>
+                Created at level start, updated throughout gameplay, and moved to lastLevelStats
+                upon completion. Null when not in a level
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.efficiencyScore">
+            <summary>
+                Score based on completion efficiency (unused in current implementation)
+            </summary>
+            <remarks>
+                Field exists but is never referenced in the codebase. Likely deprecated in favor of
+                the brutality system
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.killScore">
+            <summary>
+                Score points awarded for kills (unused in current implementation)
+            </summary>
+            <remarks>
+                Field exists but is never referenced in the codebase. Likely deprecated in favor of
+                the brutality system
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.lastLevelStats">
+            <summary>
+                Statistics from the most recently completed level
+            </summary>
+            <remarks>
+                Set when a level is successfully completed. Used by UI screens to display
+                end-of-level statistics
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.rescueScore">
+            <summary>
+                Score points awarded for rescuing bros (unused in current implementation)
+            </summary>
+            <remarks>
+                Field exists but is never referenced in the codebase. Likely deprecated in favor of
+                the brutality system
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.totalMooks">
+            <summary>
+                Running count of total mooks spawned across all levels in the current session
+            </summary>
+            <remarks>
+                Incremented by each mook's Start() method. Used to set mooksAtStart in currentStats
+                when a level begins
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.AddBrotality(System.Int32)">
+            <summary>
+                Adds points to the brutality score and music intensity. Adds the specified amount to
+                totalBrotality and musicIntensity. Sets grace period to 1 second (5+ points) or
+                extends existing grace if less than 1 second (under 5 points).
+            </summary>
+            <param name="extra">The amount of brutality points to add</param>
+        </member>
+        <member name="M:StatisticsController.AddBrotalityGrace(System.Single)">
+            <summary>
+                Extends the brutality grace period timer. Sets grace period to the specified value
+                if greater than current. Grace period prevents brutality score decay temporarily
+                after actions.
+            </summary>
+            <param name="grace">The grace period duration in seconds to potentially set</param>
+        </member>
+        <member name="M:StatisticsController.CalculateBrotality(LevelStats)">
+            <summary>
+                Calculates the final brutality score from level statistics. Subtracts penalties from
+                total, multiplies by 10, rounds up, then multiplies by 10 again. Ensures scores are
+                rounded to nearest 100.
+            </summary>
+            <param name="stats">The level statistics to calculate brutality from</param>
+            <returns>Final brutality score as a long value</returns>
+        </member>
+        <member name="M:StatisticsController.CalculateBrotalityLevel(System.Single)">
+            <summary>
+                Determines brutality level based on current score value. Sets level 0-5 based on
+                thresholds: 0 (≤12), 1 (≤37), 2 (≤87), 3 (≤162), 4 (≤362), 5 (&gt;362). Updates
+                static brotalityLevel field.
+            </summary>
+            <param name="brotalityValue">The current brutality score to evaluate</param>
+        </member>
+        <member name="M:StatisticsController.CalculateStealth">
+            <summary>
+                Placeholder method for stealth score calculation. Currently empty - stealth scoring
+                system not implemented. Intended to evaluate undetected kills and silent
+                progression.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.GetBrotalityLevel">
+            <summary>
+                Returns the current brutality level (0-5). Level determines score decay rate and
+                visual feedback intensity. Static accessor for the private brotalityLevel field.
+            </summary>
+            <returns>Current brutality level from 0 (lowest) to 5 (highest)</returns>
+        </member>
+        <member name="M:StatisticsController.GetBrotalometerValue">
+            <summary>
+                Gets the current brutality meter value, which represents total brutality minus
+                penalties.
+            </summary>
+            <returns>The current brutality meter value as displayed on the HUD</returns>
+        </member>
+        <member name="M:StatisticsController.GetMusicIntensity">
+            <summary>
+                Gets the current music intensity value that drives dynamic music changes based on
+                combat action. Increased by kills and decreased over time when not in combat.
+            </summary>
+            <returns>The current music intensity value</returns>
+        </member>
+        <member name="M:StatisticsController.NotifyCaptureCheckPoint">
+            <summary>
+                Awards brutality bonus for capturing a checkpoint. Adds 3 brutality points and sets
+                brutality grace period to 5 seconds (then immediately to 1 second). Does nothing if
+                level is already finished.
+            </summary>
+        </member>
+        <member name="M:StatisticsController.ShowBrotalityScore">
+            <summary>
+                Determines whether brutality score should be displayed based on current campaign
+                settings. Returns true only if a campaign is loaded with a header that has brutality
+                scoreboard enabled and the game is not in edit mode.
+            </summary>
+            <returns>True if brutality score should be shown, false otherwise</returns>
+        </member>
+        <member name="M:StatisticsController.Update">
+            <summary>
+                Unity Update method that manages brutality scoring mechanics. Handles grace period
+                countdown, brutality decay rates based on level (3-50 per second), applies decay
+                multipliers for extended inactivity (up to 3x), manages music intensity fadeout,
+                calculates brutality meter display value, updates brutality level thresholds, and
+                tracks elapsed time when unpaused.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.brotalitometerValue">
+            <summary>
+                Current visual fill level of the brutality meter UI (unused)
+            </summary>
+            <remarks>
+                Field exists but is never referenced. The Brotalitometer class manages its own
+                display value
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.brotalityFifthBarValue">
+            <summary>
+                Deprecated constant that was likely used for visual brutality bar display. Value of
+                200f represents the fifth threshold level. No longer used in current implementation.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.brotalityFirstBarValue">
+            <summary>
+                Brutality score threshold for filling the first bar of the brutality meter (12
+                points)
+            </summary>
+            <remarks>
+                Used by Brotalitometer UI to determine visual representation of brutality progress
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.brotalityFourthBarValue">
+            <summary>
+                Deprecated constant that was likely used for visual brutality bar display. Value of
+                75f represents the fourth threshold level. No longer used in current implementation.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.brotalityGrace">
+            <summary>
+                Grace period timer for maintaining brutality multiplier chains (unused)
+            </summary>
+            <remarks>
+                Field exists but is never referenced in code. The brutality system instead uses
+                lastKillTime for timing
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.brotalityLevel">
+            <summary>
+                Tracks the current brutality level (0-5) based on brotalitometerValue thresholds.
+                Used by UI elements like MookAlertLevelIndicator to display alert icons. Level 0:
+                &lt;=12, Level 1: &lt;=37, Level 2: &lt;=87, Level 3: &lt;=162, Level 4: &lt;=362,
+                Level 5: &gt;362. Reset to 0 at level start.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.brotalitySecondBarValue">
+            <summary>
+                Deprecated constant that was likely used for visual brutality bar display. Value of
+                25f represents the second threshold level. No longer used in current implementation.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.brotalityThirdBarValue">
+            <summary>
+                Deprecated constant that was likely used for visual brutality bar display. Value of
+                50f represents the third threshold level. No longer used in current implementation.
+            </summary>
+        </member>
+        <member name="F:StatisticsController.lastBrotality">
+            <summary>
+                Previous brutality score value (unused in current implementation)
+            </summary>
+            <remarks>
+                Field exists but is never referenced. Brutality tracking is handled through
+                currentStats instead
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.lastKillTime">
+            <summary>
+                Timestamp of the most recent kill, used for brutality multiplier timing
+            </summary>
+            <remarks>
+                Set by RegisterMookDeath and RegisterTankDeath. Used to determine if kills are
+                within 0.5 seconds for multiplier chains
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.musicIntensity">
+            <summary>
+                Music intensity level based on recent player actions (unused)
+            </summary>
+            <remarks>
+                Field exists but is never referenced. Music intensity is controlled directly by the
+                Sound class instead
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.AddToDeathList(DeathObject)">
+            <summary>
+                Adds a death object to the current level's death list if it doesn't already exist.
+                Checks for null objects and validates that statistics tracking is initialized.
+                Prevents duplicate entries by checking if a death with the same unit ID already
+                exists.
+            </summary>
+            <param name="deathObj">The death object to add to the tracking list</param>
+        </member>
+        <member
+            name="M:StatisticsController.AddToDeathListRPC(NID,DeathType,MookType,System.Single,System.Single)">
+            <summary>
+                RPC method that creates and adds a mook death object to the current level's death
+                list. Called on all clients to synchronize death tracking.
+            </summary>
+            <param name="nid">Network ID of the unit that died</param>
+            <param name="deathType">The type/cause of death</param>
+            <param name="mookType">The type of mook that died</param>
+            <param name="xI">X position where death occurred</param>
+            <param name="yI">Y position where death occurred</param>
+        </member>
+        <member
+            name="M:StatisticsController.AddToDeathListRPC(NID,DeathType,HeroType,System.Single,System.Single)">
+            <summary>
+                RPC method that creates and adds a hero death object to the current level's death
+                list. Called on all clients to synchronize death tracking.
+            </summary>
+            <param name="nid">Network ID of the hero that died</param>
+            <param name="deathType">The type/cause of death</param>
+            <param name="mookType">The type of hero that died (parameter name is legacy)</param>
+            <param name="xI">X position where death occurred</param>
+            <param name="yI">Y position where death occurred</param>
+        </member>
+        <member name="M:StatisticsController.GetDeathObject(System.Int32)">
+            <summary>
+                Retrieves a specific death object from the last level's death list by index. Used by
+                the level over screen to display death replay information.
+            </summary>
+            <param name="deathIndex">The index of the death object to retrieve</param>
+            <returns>The DeathObject at the specified index, or null if index is out of bounds</returns>
+        </member>
+        <member
+            name="M:StatisticsController.NotifyDeathType(NID,MookType,DeathType,System.Single,System.Single)">
+            <summary>
+                Records and broadcasts a death event to all players via RPC. Only processes non-None
+                and non-Unassigned death types when the level is not finished. Sends death
+                information including unit ID, type, death cause, and position.
+            </summary>
+            <param name="nid">Network ID of the unit that died</param>
+            <param name="mookType">The type of mook that died</param>
+            <param name="deathType">The type/cause of death</param>
+            <param name="xI">X position where death occurred</param>
+            <param name="yI">Y position where death occurred</param>
+        </member>
+        <member name="M:StatisticsController.NotifyMookDeathType(Mook,DeathType)">
+            <summary>
+                Records and broadcasts a mook death with specific death type to all players via RPC.
+                Extracts mook properties (ID, type, position) and sends death notification if death
+                type is valid and level is not finished.
+            </summary>
+            <param name="mook">The mook that died</param>
+            <param name="deathType">The type/cause of death</param>
+        </member>
+        <member name="M:StatisticsController.NotifyMookDeathType(TestVanDammeAnim,DeathType)">
+            <summary>
+                Records and broadcasts a hero (bro) death with specific death type to all players
+                via RPC. Extracts hero properties (ID, type, position) and sends death notification
+                if death type is valid and level is not finished.
+            </summary>
+            <param name="vanDamme">The hero/bro that died</param>
+            <param name="deathType">The type/cause of death</param>
+        </member>
+        <member name="M:StatisticsController.AddDeathmatchDeathObject(System.Int32,DeathObject)">
+            <summary>
+                Records a death event in deathmatch mode, tracking which player scored the kill
+            </summary>
+            <param name="killer">The player index who scored the kill (0-3)</param>
+            <param name="deathObject">The death object containing information about the death event</param>
+            <remarks>
+                Initializes the deathmatchDeathObjects array if not already created. Each player has
+                their own list of kills tracked separately
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.ClearDeathmatchDeathObjects">
+            <summary>
+                Clears all recorded deathmatch kills for all players
+            </summary>
+            <remarks>
+                Called when resetting deathmatch statistics or starting a new match. Safely handles
+                null checks before clearing
+            </remarks>
+        </member>
+        <member name="M:StatisticsController.GetDeathmatchKillObjects(System.Int32)">
+            <summary>
+                Retrieves all death objects (kills) recorded for a specific player in deathmatch
+            </summary>
+            <param name="player">The player index (0-3) to get kills for</param>
+            <returns>List of death objects representing kills by this player, or null if no data exists</returns>
+        </member>
+        <member name="F:StatisticsController.brotalityPercentile">
+            <summary>
+                The percentile ranking for brutality score (0-100, where 0 means top percentile)
+            </summary>
+            <remarks>
+                Set to -1 when no data available. Used by LevelOverScreen to display "Top X%"
+                messages when player rank is outside top 10
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.brotalityRank">
+            <summary>
+                The player's global rank for brutality score on the current campaign leaderboard
+            </summary>
+            <remarks>
+                Initialized to 9999 when no rank data is available. Updated by PlaytomicController
+                when leaderboard data is retrieved. Lower numbers indicate better rank (1 = first
+                place)
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.levelAttempts">
+            <summary>
+                Tracks the number of attempts made on the current level before successful completion
+            </summary>
+            <remarks>
+                Incremented on each level failure, reset to 0 after successful completion. Saved to
+                LogLevelScore for analytics
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.stealthPercentile">
+            <summary>
+                The percentile ranking for stealth score (0-100, where 0 means top percentile)
+            </summary>
+            <remarks>
+                Set to -1 when no data available. Used by LevelOverScreen to display "Top X%"
+                messages when player rank is outside top 10
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.stealthRank">
+            <summary>
+                The player's global rank for stealth score on the current campaign leaderboard
+            </summary>
+            <remarks>
+                Initialized to 9999 when no rank data is available. Updated by PlaytomicController
+                when leaderboard data is retrieved. Lower numbers indicate better rank (1 = first
+                place)
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.timePercentile">
+            <summary>
+                The percentile ranking for completion time (0-100, where 0 means top percentile)
+            </summary>
+            <remarks>
+                Set to -1 when no data available. Used by LevelOverScreen to display "Top X%"
+                messages when player rank is outside top 10
+            </remarks>
+        </member>
+        <member name="F:StatisticsController.timeRank">
+            <summary>
+                The player's global rank for completion time on the current campaign leaderboard
+            </summary>
+            <remarks>
+                Initialized to 9999 when no rank data is available. Updated by PlaytomicController
+                when leaderboard data is retrieved. Lower numbers indicate better rank (1 = first
+                place)
+            </remarks>
         </member>
         <member name="M:TestVanDammeAnim.AddBoxCollider">
             <summary>
