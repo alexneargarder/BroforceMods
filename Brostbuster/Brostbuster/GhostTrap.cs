@@ -5,11 +5,11 @@ using BroMakerLib;
 using BroMakerLib.Loggers;
 using System.Reflection;
 using System.IO;
-using HarmonyLib;
+using BroMakerLib.CustomObjects.Projectiles;
 
 namespace Brostbuster
 {
-    class GhostTrap : Grenade
+    class GhostTrap : CustomGrenade
     {
 		// Audio
 		public AudioClip trapOpen;
@@ -21,7 +21,6 @@ namespace Brostbuster
 		protected float shutdownTime = 0f;
 
 		// Visuals
-		Material storedMat;
 		protected int frame = 0;
 		protected float counter = 0f;
 		protected const float trapWidth = 224f;
@@ -60,26 +59,18 @@ namespace Brostbuster
 		{
 			try
             {
-				MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-				string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-				if (storedMat == null)
+				if ( this.sprite == null )
 				{
-					storedMat = ResourcesController.GetMaterial(directoryPath, "ghostTrap.png");
-				}
+                    this.spriteLowerLeftPixel = new Vector2( 0, trapHeight );
+                    this.spritePixelDimensions = new Vector2( trapWidth, trapHeight );
+                    this.spriteWidth = trapWidth;
+                    this.spriteHeight = trapHeight;
+                    this.spriteOffset = new Vector3( 9, 60, 0 );
+                }
 
-				renderer.material = storedMat;
+                this.defaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.SnakeBroSkin ) as SnakeBroskin ).specialGrenade.soundHolder;
 
-				this.sprite = this.gameObject.GetComponent<SpriteSM>();
-				this.sprite.lowerLeftPixel = new Vector2(0, trapHeight);
-				this.sprite.pixelDimensions = new Vector2(trapWidth, trapHeight);
-
-				this.sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-				this.sprite.width = trapWidth;
-				this.sprite.height = trapHeight;
-				this.sprite.offset = new Vector3(9, 60, 0);
-
-				base.Awake();
+                base.Awake();
 
 				// Setup Variables
 				this.disabledAtStart = false;
@@ -110,18 +101,22 @@ namespace Brostbuster
 					}
 				}
 
-				// Audio Clips need to be reloaded every time because each ghost trap needs its own clips
-				trapOpen = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapOpen.wav" );
-				trapMain = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapMain.wav" );
-				trapClosing = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapClosing.wav" );
-				trapClosed = ResourcesController.CreateAudioClip( Path.Combine(directoryPath, "sounds"), "trapClosed.wav" );
-			}
+                // Needed for transparent sprites
+                this.gameObject.layer = 28;
+            }
 			catch ( Exception ex )
             {
 				BMLogger.Log("Exception Creating Projectile: " + ex.ToString());
             }
 		}
 
+        public override void PrefabSetup()
+        {
+            trapOpen = ResourcesController.GetAudioClip( soundPath, "trapOpen.wav" );
+            trapMain = ResourcesController.GetAudioClip( soundPath, "trapMain.wav" );
+            trapClosing = ResourcesController.GetAudioClip( soundPath, "trapClosing.wav" );
+            trapClosed = ResourcesController.GetAudioClip( soundPath, "trapClosed.wav" );
+        }
 
 		// Called when picking up and throwing already thrown grenade
         public override void ThrowGrenade(float XI, float YI, float newX, float newY, int _playerNum)
@@ -293,7 +288,7 @@ namespace Brostbuster
 								this.xI = 0;
 								this.yI = 0;
 								this.state = TrapState.Closed;
-							}
+                            }
 							this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
 						}
 						break;
