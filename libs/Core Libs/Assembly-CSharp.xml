@@ -4,6 +4,214 @@
         <name>Assembly-CSharp</name>
     </assembly>
     <members>
+        <member name="M:Alien.Start">
+            <summary>
+                Initializes the alien unit with enhanced mobility settings for wall climbing and
+                jumping
+            </summary>
+            <remarks>
+                Sets specialized alien parameters: - JUMP_TIME to 0.215f for quick, precise jumps -
+                hangGraceTime to 0.6f for extended ceiling/wall hang duration - maxWallClimbYI to
+                250f for fast vertical wall climbing speed - playerNum and firingPlayerNum to -2
+                (alien faction identifier) These settings enable the alien's signature acrobatic
+                movement style
+            </remarks>
+        </member>
+        <member name="M:Alien.Update">
+            <summary>
+                Updates the alien's behavior including panic-inducing presence that affects nearby
+                enemy units
+            </summary>
+            <remarks>
+                When the alien is alive, alert, and not impaired (blind/burning), it periodically
+                causes panic in surrounding mooks within a 36-unit radius. This panic effect: - Only
+                triggers when enemyAI is in Alerted mental state - Has a 0.2 second cooldown between
+                panic pulses (panicSurroundingMooksDelay) - Calls Map.PanicUnits to frighten nearby
+                enemy units - Creates a psychological warfare effect unique to alien enemies
+            </remarks>
+        </member>
+        <member name="M:Alien.AnimateActualJumpingFrames">
+            <summary>
+                Animates jumping frames while maintaining proper vertical scale during acrobatic
+                movements
+            </summary>
+            <remarks>
+                Resets yScale to 1f before calling base jumping animation. This ensures the alien
+                maintains correct orientation during jumps, preventing visual distortion that could
+                occur from wall climbing or ceiling hanging states
+            </remarks>
+        </member>
+        <member name="M:Alien.GetEnemyMovement">
+            <summary>
+                Processes enemy AI movement unless the alien is performing tumbling or somersault
+                maneuvers
+            </summary>
+            <remarks>
+                Disables normal AI movement processing when backTumbling or backSomersaulting flags
+                are active. This prevents AI movement conflicts during special acrobatic states,
+                allowing physics-based tumbling to complete naturally
+            </remarks>
+        </member>
+        <member name="M:Alien.NotPressingJump">
+            <summary>
+                Handles wall climbing state transitions based on directional input when not jumping
+            </summary>
+            <remarks>
+                Complex wall interaction logic: - When NOT wall dragging: calls base jump release
+                behavior - When wall dragging without directional input: disables wall climbing -
+                When pressing down while wall dragging: enables wall climbing and resets
+                wallDragTime - When pressing up while wall dragging: enables wall climbing and
+                resets wallDragTime This allows aliens to seamlessly transition between wall
+                dragging and climbing states
+            </remarks>
+        </member>
+        <member name="P:Alien.WallDrag">
+            <summary>
+                Gets or sets wall dragging state with automatic wall climbing activation based on
+                input
+            </summary>
+            <remarks>
+                Enhanced property that: - Get: Returns base WallDrag value unchanged - Set: Applies
+                base value, then checks conditions for auto-climbing: * If pressing up/down AND not
+                already climbing AND can climb AND anticipating climb * Automatically enables
+                wallClimbing and sets lastKnifeClimbStabY position This creates responsive wall
+                interaction where directional input during wall contact initiates climbing
+            </remarks>
+        </member>
+        <member name="M:Alien.Death(System.Single,System.Single,DamageObject)">
+            <summary>
+                Handles alien death while ensuring proper sprite scaling is maintained
+            </summary>
+            <param name="xI">Horizontal force applied to the corpse</param>
+            <param name="yI">Vertical force applied to the corpse</param>
+            <param name="damage">The damage object that caused death</param>
+            <remarks>
+                Resets yScale to 1f and applies it to transform.localScale to ensure the death
+                animation displays correctly. This fixes any inverted or distorted scaling from wall
+                climbing or ceiling hanging states
+            </remarks>
+        </member>
+        <member name="M:Alien.FallDamage(System.Single)">
+            <summary>
+                Applies fall damage effects based on fall speed and current acrobatic state
+            </summary>
+            <param name="yI">The vertical impact velocity (negative values indicate downward motion)</param>
+            <remarks>
+                Implements two-tier fall damage system: - Severe falls (yI &lt; maxFallSpeed + 100f)
+                during tumbling: Inflicts lethal damage - Moderate falls (yI &lt; maxFallSpeed +
+                50f): Stuns for 0.4 seconds via AI action queue - Always resets yScale to 1f to fix
+                any visual distortion The tumbling check ensures aliens take extra damage when out
+                of control
+            </remarks>
+        </member>
+        <member name="M:Alien.CanPassThroughBarriers">
+            <summary>
+                Determines that aliens can always pass through barrier blocks
+            </summary>
+            <returns>Always returns true, granting aliens unrestricted barrier passage</returns>
+            <remarks>
+                This ability allows aliens to move through barriers that would block other units,
+                enabling more dynamic pathfinding and surprise attacks. Essential for alien AI
+                navigation in complex level layouts
+            </remarks>
+        </member>
+        <member name="M:Alien.Inseminate(AlienFaceHugger,System.Single,System.Single)">
+            <summary>
+                Prevents face hugger insemination of alien units
+            </summary>
+            <param name="unit">The AlienFaceHugger attempting insemination</param>
+            <param name="xForce">Horizontal force component (unused)</param>
+            <param name="yForce">Vertical force component (unused)</param>
+            <returns>Always returns false, making aliens immune to face hugger attacks</returns>
+            <remarks>
+                Provides immunity to face hugger insemination, preventing alien-on-alien parasitic
+                attacks. This maintains game balance and prevents recursive alien spawning scenarios
+            </remarks>
+        </member>
+        <member name="M:Alien.IsAboveLadder">
+            <summary>
+                Determines that aliens never detect ladders below them
+            </summary>
+            <returns>Always returns false, preventing downward ladder detection</returns>
+            <remarks>
+                Prevents aliens from detecting or attaching to ladders below, ensuring they rely
+                exclusively on wall climbing mechanics for vertical movement
+            </remarks>
+        </member>
+        <member name="M:Alien.IsNearbyLadder(System.Single,System.Single)">
+            <summary>
+                Determines that aliens never detect nearby ladders regardless of position
+            </summary>
+            <param name="xOffset">Horizontal offset for proximity check (unused)</param>
+            <param name="yOffset">Vertical offset for proximity check (unused)</param>
+            <returns>Always returns false, preventing all ladder proximity detection</returns>
+            <remarks>
+                Completes the ladder immunity system by preventing any form of ladder detection.
+                This ensures aliens exclusively use their superior wall climbing abilities
+            </remarks>
+        </member>
+        <member name="M:Alien.IsOverLadder(System.Single,System.Single@)">
+            <summary>
+                Determines that aliens never interact with ladders when checking overhead positions
+            </summary>
+            <param name="xOffset">Horizontal offset for ladder detection (unused)</param>
+            <param name="ladderXPos">Output parameter for ladder X position (not set)</param>
+            <returns>Always returns false, preventing overhead ladder detection</returns>
+            <remarks>
+                Part of the alien's ladder immunity system. Aliens use wall climbing instead of
+                ladders, so this prevents unintended ladder interactions during ceiling movement
+            </remarks>
+        </member>
+        <member name="M:Alien.UnpackState(UnityStream)">
+            <summary>
+                Deserializes network state and applies death state if the unit was dead
+            </summary>
+            <param name="stream">The network stream containing serialized state data</param>
+            <returns>The stream after unpacking for potential further processing</returns>
+            <remarks>
+                After unpacking base state data, checks if actionState equals Dead and triggers
+                Death() method with zero forces. This ensures proper death state synchronization
+                across networked games
+            </remarks>
+        </member>
+        <member name="F:Alien.lastActionState">
+            <summary>
+                Stores the previous action state for state transition detection
+            </summary>
+            <remarks>
+                Protected field used by derived alien classes to track state changes. Enables
+                detection of state transitions for triggering appropriate animations or behaviors
+            </remarks>
+        </member>
+        <member name="F:Alien.lastWallClimbing">
+            <summary>
+                Tracks the previous frame's wall climbing state for transition detection
+            </summary>
+            <remarks>
+                Protected field that stores whether the alien was wall climbing in the previous
+                update. Enables derived classes to detect climbing state changes for animation or
+                behavior adjustments
+            </remarks>
+        </member>
+        <member name="F:Alien.lastWallDragging">
+            <summary>
+                Tracks the previous frame's wall dragging state for transition detection
+            </summary>
+            <remarks>
+                Protected field that stores whether the alien was wall dragging in the previous
+                update. Used by derived classes to detect when wall dragging starts or stops
+            </remarks>
+        </member>
+        <member name="F:Alien.panicSurroundingMooksDelay">
+            <summary>
+                Countdown timer controlling the panic aura effect frequency in seconds
+            </summary>
+            <remarks>
+                Private field that prevents panic spam by enforcing a 0.2 second cooldown between
+                Map.PanicUnits calls. Decremented each update when alien is alert and unimpaired,
+                reset to 0.2f after each panic pulse
+            </remarks>
+        </member>
         <member name="M:Block.DoEnabling">
             <summary>
                 Updates the enabled state of this component based on ShouldEnable result. Optimizes
@@ -16288,6 +16496,483 @@
                 in the world map campaign mode where players select territories to conquer.
             </remarks>
         </member>
+        <member name="M:MainMenu.Awake">
+            <summary>
+                Initializes the main menu when the scene loads, setting up all core menu systems and
+                resetting game state. Performs platform-specific setup, clears player progress data,
+                initializes multiplayer connections, and begins the delayed menu initialization
+                process. Also resets various game states to ensure a clean main menu experience.
+            </summary>
+        </member>
+        <member name="M:MainMenu.DelayInitializeMenu">
+            <summary>
+                Coroutine that delays menu initialization by 3 seconds, then checks for PlayTogether
+                hosting status before initializing. If hosting PlayTogether, it checks multiplayer
+                status with the host user before proceeding. Otherwise, directly calls
+                InitializeMenu() after the delay.
+            </summary>
+            <returns>IEnumerator for coroutine execution.</returns>
+        </member>
+        <member name="M:MainMenu.InitializeMenu">
+            <summary>
+                Completes the menu initialization process after the initial delay. Activates the
+                menu highlight, sets the menu as active, restores any previously saved highlight
+                index, and transitions to the campaign menu if hosting PlayTogether.
+            </summary>
+        </member>
+        <member name="M:MainMenu.SetupItems">
+            <summary>
+                Dynamically builds the main menu items list based on build configuration and player
+                progress. Adds conditional menu items like Versus, Custom Campaign, Level Editor,
+                and Join Online based on build type. Adjusts between "Start" and "Continue" arcade
+                campaign based on player progress. Handles special logic for procedural generation
+                test builds.
+            </summary>
+        </member>
+        <member name="M:MainMenu.Start">
+            <summary>
+                Called at scene start to finalize initialization. Sets time scale to normal, checks
+                for immediate custom campaign transition if requested, plays the Broforce
+                announcement sound, and stops all controller rumble effects.
+            </summary>
+        </member>
+        <member name="M:MainMenu.Update">
+            <summary>
+                Main update loop that handles initialization checks, editor-specific unlock cheats
+                (F5 key), click-to-start text animation effects, mouse click detection for menu
+                activation, and cheat code input processing.
+            </summary>
+        </member>
+        <member name="F:MainMenu.clickToStartMesh">
+            <summary>
+                Text mesh component displaying the "click to start" prompt before the main menu is
+                active.
+            </summary>
+        </member>
+        <member name="F:MainMenu.gameStartedThroughtMainMenu">
+            <summary>
+                Static flag indicating whether the current game session was started through the main
+                menu. Set to true in StartGame() method and used by other systems to determine game
+                initialization context.
+            </summary>
+        </member>
+        <member name="F:MainMenu.hasInitialized">
+            <summary>
+                Tracks whether the menu has completed its initialization process, preventing input
+                processing before initialization.
+            </summary>
+        </member>
+        <member name="F:MainMenu.haveCalibrated">
+            <summary>
+                Flag tracking whether initial calibration has occurred. Checked and set to true
+                during the first Update() call. Purpose appears to be ensuring one-time
+                initialization happens after menu is fully loaded.
+            </summary>
+        </member>
+        <member name="F:MainMenu.instance">
+            <summary>
+                Static singleton instance of the MainMenu class. Set during Start() initialization
+                and used throughout the codebase for global access to main menu functionality.
+                Checked for null in static methods like Reload().
+            </summary>
+        </member>
+        <member name="F:MainMenu.logo">
+            <summary>
+                Reference to the game logo GameObject displayed on the main menu. Animated during
+                menu transitions with scaling effects. Hidden when transitioning to submenus and
+                shown when returning to the main menu.
+            </summary>
+        </member>
+        <member name="F:MainMenu.networkedBuild">
+            <summary>
+                Indicates whether this is a networked build that should transition to the Campaign
+                scene instead of the Join scene.
+            </summary>
+        </member>
+        <member name="F:MainMenu.optionsMenu">
+            <summary>
+                Reference to the options menu that can be accessed from the main menu.
+            </summary>
+        </member>
+        <member name="F:MainMenu.starFieldAnimation">
+            <summary>
+                Animation component for the starfield background effect. Plays default animation on
+                menu show and special "starfieldLobbyTransition" animation when transitioning to
+                lobby or custom campaign screens.
+            </summary>
+        </member>
+        <member name="F:MainMenu.wasShown">
+            <summary>
+                Static flag indicating whether the main menu has been shown at least once during the
+                current game session.
+            </summary>
+        </member>
+        <member name="M:MainMenu.GoBackToMenu">
+            <summary>
+                Returns to the main menu from a submenu, reactivating the main menu and playing a
+                drum sound effect (attack sound at index 1 with 0.25 volume).
+            </summary>
+        </member>
+        <member name="M:MainMenu.GoToOptions">
+            <summary>
+                Transitions from the main menu to the options menu. Deactivates the main menu,
+                activates the options menu, and triggers the options menu transition-in animation.
+            </summary>
+        </member>
+        <member name="M:MainMenu.HideRoutine">
+            <summary>
+                Coroutine that animates hiding the menu with a scaling effect over 1 second. Scales
+                both the menu and optionally the logo from normal size to an enlarged size based on
+                ScaleFactor, then deactivates the GameObjects when complete.
+            </summary>
+            <param name="hideLogo">Whether to also hide and scale the logo GameObject.</param>
+            <returns>IEnumerator for coroutine execution.</returns>
+        </member>
+        <member name="M:MainMenu.RunInput">
+            <summary>
+                Processes input for menu navigation, disabling up/down movement when transitioning
+                between menus or showing explanations. Overrides base Menu class input handling to
+                prevent navigation during transitions.
+            </summary>
+        </member>
+        <member name="M:MainMenu.Show">
+            <summary>
+                Shows the main menu by activating both the menu and logo GameObjects, then starting
+                the show animation coroutine.
+            </summary>
+        </member>
+        <member name="M:MainMenu.ShowHideMenu">
+            <summary>
+                Manages menu show/hide coroutines, stopping any existing coroutine before starting a
+                new one to prevent animation conflicts.
+            </summary>
+            <param name="showHideMethod">The coroutine method to execute for showing or hiding the menu.</param>
+        </member>
+        <member name="M:MainMenu.ShowRoutine">
+            <summary>
+                Coroutine that animates showing the menu with a scaling effect. Blocks input during
+                animation, plays starfield animation, scales menu and logo from zero to normal size
+                over approximately 1.2 seconds, then plays camera shake and impact sound when
+                complete.
+            </summary>
+            <returns>IEnumerator for coroutine execution.</returns>
+        </member>
+        <member name="M:MainMenu.TransitionToOnlineOrOffline(System.Boolean)">
+            <summary>
+                Static method that transitions from the main menu to either the online/offline
+                selection menu or directly to custom campaign/exhibition mode based on build type
+                and previous menu selections.
+            </summary>
+            <param name="onlineAvalable">Whether online multiplayer is available for the current platform/build.</param>
+        </member>
+        <member name="F:MainMenu.ScaleFactor">
+            <summary>
+                Scale multiplier applied during menu hide animations. Used in the HideRoutine to
+                scale up the menu and logo by this factor (default 1.0) as they fade out. Affects
+                the visual transition effect when hiding menus.
+            </summary>
+        </member>
+        <member name="F:MainMenu._previousHighlightIndex">
+            <summary>
+                Static field that stores the previously highlighted menu option index. Used to
+                restore menu highlight position when returning to the main menu from other screens.
+                Reset to 0 after being applied.
+            </summary>
+        </member>
+        <member name="F:MainMenu.currentInput">
+            <summary>
+                Accumulates keyboard input characters for cheat code detection. Characters are
+                appended as typed and checked against known cheat strings. Initialized to empty
+                string and grows with each character input during gameplay.
+            </summary>
+        </member>
+        <member name="F:MainMenu.deathmatchCampaignSelectMenu">
+            <summary>
+                Reference to the deathmatch campaign selection menu UI element. Used when
+                transitioning to deathmatch mode from various menu navigation paths. Activated and
+                transitioned in when players choose deathmatch game modes.
+            </summary>
+        </member>
+        <member name="F:MainMenu.explanationTime">
+            <summary>
+                Timestamp recording when the transition to the explanation screen began. Initialized
+                to -1.5f.
+            </summary>
+        </member>
+        <member name="F:MainMenu.hasOpenedWebPage">
+            <summary>
+                Flag preventing multiple Steam store page openings in a single session. Set to true
+                after first opening the Steam store URL, preventing subsequent calls to
+                GoToSteamPage from opening duplicate browser tabs.
+            </summary>
+        </member>
+        <member name="F:MainMenu.showHideRoutine">
+            <summary>
+                Coroutine reference for the current menu show/hide animation routine. Stores the
+                active coroutine to allow stopping previous animations before starting new ones. Set
+                to null when animations complete.
+            </summary>
+        </member>
+        <member name="F:MainMenu.transitioning">
+            <summary>
+                Flag indicating the menu is currently transitioning between scenes, preventing input
+                during transitions.
+            </summary>
+        </member>
+        <member name="F:MainMenu.transitioningToExplanation">
+            <summary>
+                Flag indicating the menu is transitioning to the game explanation screen.
+            </summary>
+        </member>
+        <member name="F:MainMenu.worldMapOrArcadeMenu">
+            <summary>
+                Reference to the world map or arcade mode selection menu. Used when transitioning
+                from the main menu to campaign selection screens. Activated and transitioned in when
+                players select campaign or arcade modes.
+            </summary>
+        </member>
+        <member name="M:MainMenu.CustomCampaign">
+            <summary>
+                Initiates transition to custom campaign menu after checking if the primary user has
+                UGC restrictions. Shows an error dialog if restricted, otherwise sets up arcade
+                difficulty mode and transitions to the difficulty menu with custom campaign flag
+                set.
+            </summary>
+        </member>
+        <member name="M:MainMenu.FilmMode">
+            <summary>
+                Opens film mode for creating cinematics by activating the level editor in film mode
+                and loading the FilmScene.
+            </summary>
+        </member>
+        <member name="M:MainMenu.GoToCampaignMenu">
+            <summary>
+                Transitions to the campaign selection menu (world map or arcade). In exhibition
+                build mode, directly starts arcade mode instead. Otherwise deactivates main menu and
+                activates the world map/arcade selection menu.
+            </summary>
+        </member>
+        <member name="M:MainMenu.GoToCampaignMenu">
+            <summary>
+                Navigates to the campaign selection menu. For exhibition builds, directly starts
+                arcade mode. For regular builds, transitions to the world map or arcade menu.
+            </summary>
+        </member>
+        <member name="M:MainMenu.LevelEditor">
+            <summary>
+                Opens the level editor by setting up the game state for level editing mode, loading
+                the last custom level, and transitioning to the campaign scene.
+            </summary>
+        </member>
+        <member name="M:MainMenu.LoadProcGen">
+            <summary>
+                Loads the procedural generation game mode by loading persistent assets and
+                transitioning to the RogueforceStartingPerk scene.
+            </summary>
+        </member>
+        <member name="M:MainMenu.StartArcade">
+            <summary>
+                Starts an arcade campaign by resetting all game state, clearing hero unlocks,
+                initializing the default campaign settings, and transitioning to the online/offline
+                selection screen.
+            </summary>
+        </member>
+        <member name="M:MainMenu.StartDeathMatch">
+            <summary>
+                Opens the deathmatch campaign selection menu and deactivates the main menu.
+            </summary>
+        </member>
+        <member name="M:MainMenu.StartExplosionRun">
+            <summary>
+                Starts the Explosion Run game mode (beta feature) with the DefaultExplosionRun
+                campaign and displays beta feedback text.
+            </summary>
+        </member>
+        <member name="M:MainMenu.StartRace">
+            <summary>
+                Starts the Race game mode (beta feature) with the DefaultRace campaign and displays
+                beta feedback text.
+            </summary>
+        </member>
+        <member name="M:MainMenu.StartSuicideHorde">
+            <summary>
+                Starts the Suicide Horde game mode (beta feature) with the SuibroTest campaign,
+                forcing offline mode, and displays beta feedback text.
+            </summary>
+        </member>
+        <member name="M:MainMenu.TransitionToCustomCampaign">
+            <summary>
+                Performs the visual transition to the custom campaign menu by playing the starfield
+                lobby transition animation, activating the custom campaign menu GameObject, and
+                hiding the main menu with logo.
+            </summary>
+        </member>
+        <member name="M:MainMenu.TransitionToExplanation">
+            <summary>
+                Initiates the transition to the game explanation screen by setting the
+                transitioningToExplanation flag and recording the transition time.
+            </summary>
+        </member>
+        <member name="M:MainMenu.TransitionToGame">
+            <summary>
+                Transitions from the main menu to the game by fading to either the Campaign scene
+                (for networked builds) or the Join scene (for non-networked builds).
+            </summary>
+        </member>
+        <member name="F:MainMenu.customCampaignMenu">
+            <summary>
+                Reference to the new custom campaign menu UI component. Activated when transitioning
+                to custom campaign selection. GameObject is disabled during initialization and
+                enabled when players select custom campaigns.
+            </summary>
+        </member>
+        <member name="F:MainMenu.gameExplanation">
+            <summary>
+                Text UI element displaying beta feature explanations. Updated with beta disclaimer
+                text when entering multiplayer or custom campaign features. Shows feedback request
+                message to players during beta features.
+            </summary>
+        </member>
+        <member name="F:MainMenu.thankYouBetaBackerText">
+            <summary>
+                TextMesh component displaying thank you message to beta backers. Activated alongside
+                beta feature explanations when players access multiplayer or custom campaign
+                features during beta testing.
+            </summary>
+        </member>
+        <member name="M:MainMenu.FindAGameToJoin">
+            <summary>
+                Initiates the process of finding an online multiplayer game to join by calling
+                TryToGoToLobby with Online mode.
+            </summary>
+        </member>
+        <member name="M:MainMenu.FindALocalGameToJoin">
+            <summary>
+                Initiates the process of finding a local wireless multiplayer game to join by
+                calling TryToGoToLobby with LocalWireless mode.
+            </summary>
+        </member>
+        <member name="M:MainMenu.HostAGame">
+            <summary>
+                Initiates the process of hosting an online game by deactivating the main menu and
+                opening the MakeOnlineMenu interface.
+            </summary>
+        </member>
+        <member name="M:MainMenu.RecreateConnectObject">
+            <summary>
+                Recreates the multiplayer connection object if not immediately going to custom
+                campaign or joining through friend invite. Disconnects existing connection, destroys
+                the current Connect singleton if it exists, and instantiates a new connection
+                prefab. Also releases player movement restrictions.
+            </summary>
+        </member>
+        <member name="M:MainMenu.TransitionToLobby">
+            <summary>
+                Performs the visual transition to the multiplayer lobby by playing the starfield
+                lobby transition animation, opening the lobby if it exists, and hiding the main menu
+                with logo.
+            </summary>
+        </member>
+        <member name="M:MainMenu.TryToGoToLobby">
+            <summary>
+                Attempts to transition to the multiplayer lobby after checking the primary user's
+                multiplayer status for the specified mode. Shows a "please wait" overlay during the
+                asynchronous status check, then transitions to lobby on success.
+            </summary>
+            <param name="mode">The multiplayer mode to check status for (Online or LocalWireless).</param>
+        </member>
+        <member name="F:MainMenu.connectPrefab">
+            <summary>
+                Prefab reference for the Connect networking component. Instantiated in
+                RecreateConnectObject() to establish or refresh network connections. Used when
+                starting games or resetting network state from the main menu.
+            </summary>
+        </member>
+        <member name="F:MainMenu.lobby">
+            <summary>
+                Reference to the Lobby component handling multiplayer lobby functionality. Disabled
+                during initialization, then opened via lobby.Open() when transitioning to
+                multiplayer lobby screens from the main menu.
+            </summary>
+        </member>
+        <member name="F:MainMenu.lobbyGUI">
+            <summary>
+                GameObject reference for the lobby GUI interface. Currently unused in the codebase -
+                only the field declaration exists with no implementation references. Likely
+                deprecated or placeholder for future use.
+            </summary>
+        </member>
+        <member name="M:MainMenu.PlayImpactSound">
+            <summary>
+                Static method that plays the main menu impact sound effect through the Sound
+                singleton at 0.25 volume if the main menu instance exists.
+            </summary>
+        </member>
+        <member name="F:MainMenu.CameraShake">
+            <summary>
+                Animation component for camera shake effects during menu transitions. Played after
+                the menu show animation completes to add impact to the menu appearance. Triggered
+                alongside impact sound for dramatic effect.
+            </summary>
+        </member>
+        <member name="F:MainMenu.impactSound">
+            <summary>
+                Audio clip for the impact sound effect played during menu transitions. Played
+                through the Sound singleton at 0.25f volume when menus finish showing. Creates audio
+                feedback for menu animation completion.
+            </summary>
+        </member>
+        <member name="M:MainMenu.CheckCheatString(System.String)">
+            <summary>
+                Checks if the current input string ends with the specified cheat string, performing
+                a case-insensitive comparison.
+            </summary>
+            <param name="cheatString">The cheat code string to check against the current input.</param>
+            <returns>True if the current input ends with the cheat string (case-insensitive), false otherwise.</returns>
+        </member>
+        <member name="M:MainMenu.CheckCheats">
+            <summary>
+                Monitors keyboard input for letters A through Z and processes each character through
+                the cheat code system by calling ProcessCharacter for each key pressed.
+            </summary>
+        </member>
+        <member name="M:MainMenu.ClearUnlocks">
+            <summary>
+                Clears all hero unlocks through HeroUnlockController and updates the visual
+                appearance of any "RESET" menu items by setting their text color to a dark gray
+                (0.06, 0.06, 0.06, 1.0).
+            </summary>
+        </member>
+        <member name="M:MainMenu.ExitGame">
+            <summary>
+                Exits the game application by calling Application.Quit().
+            </summary>
+        </member>
+        <member name="M:MainMenu.Feedback">
+            <summary>
+                Opens a web browser to navigate to the Broforce game forums feedback page.
+            </summary>
+        </member>
+        <member name="M:MainMenu.GoToSteamPage">
+            <summary>
+                Opens the Steam store page for Broforce in a web browser. Prevents multiple page
+                opens by tracking if the page has already been opened.
+            </summary>
+        </member>
+        <member name="M:MainMenu.ProcessCharacter(System.Char)">
+            <summary>
+                Processes keyboard input characters for cheat code detection. Appends the character
+                to the current input string and checks for various cheat codes including teabagging,
+                unlock all bros, unlock all territories, and special editor modes.
+            </summary>
+            <param name="c">The character input from keyboard.</param>
+        </member>
+        <member name="M:MainMenu.Reload">
+            <summary>
+                Static method that reloads the main menu scene if a main menu instance exists, using
+                GameState.LoadLevel with the main menu scene name from LevelSelectionController.
+            </summary>
+        </member>
         <member
             name="M:Map.BlindUnits(System.Int32,System.Single,System.Single,System.Single,System.Single)">
             <summary>
@@ -23951,6 +24636,330 @@
                 sequence.
             </summary>
         </member>
+        <member name="M:MookDog.Start">
+            <summary>
+                Initializes the MookDog when spawned, handling mega dog transformation if isMegaDog
+                flag is set. Ensures the transformation process starts correctly by resetting flags
+                and calling TransformIntoMegaDog.
+            </summary>
+        </member>
+        <member name="M:MookDog.Update">
+            <summary>
+                Updates the MookDog's state each frame, managing the damagedDisableAttackTime
+                counter that prevents attacks after taking melee damage. Decrements the timer and
+                calls base Update for standard unit behavior.
+            </summary>
+        </member>
+        <member name="M:MookDog.CreateGibEffects(DamageType,System.Single,System.Single)">
+            <summary>
+                Creates death gibbing effects, using special megaDogGibs if the dog is in mega form.
+                Ensures appropriate visual effects match the current dog variant when destroyed.
+            </summary>
+            <param name="damageType">Type of damage that caused the gibbing</param>
+            <param name="xI">Horizontal force for gib physics</param>
+            <param name="yI">Vertical force for gib physics</param>
+        </member>
+        <member
+            name="M:MookDog.Damage(System.Int32,DamageType,System.Single,System.Single,System.Int32,UnityEngine.MonoBehaviour,System.Single,System.Single)">
+            <summary>
+                Processes damage taken by the MookDog, setting a 0.3 second attack disable timer
+                when hit by melee, knife, knock, or blade damage types. This prevents the dog from
+                immediately counter-attacking after being struck in close combat.
+            </summary>
+            <param name="damage">Amount of damage to inflict</param>
+            <param name="damageType">Type of damage being applied</param>
+            <param name="xI">Horizontal knockback force</param>
+            <param name="yI">Vertical knockback force</param>
+            <param name="direction">Direction of the damage source</param>
+            <param name="damageSender">The MonoBehaviour that caused the damage</param>
+            <param name="hitX">X coordinate of the hit location</param>
+            <param name="hitY">Y coordinate of the hit location</param>
+        </member>
+        <member name="M:MookDog.FallDamage(System.Single)">
+            <summary>
+                Applies fall damage to the MookDog with damage reduction in hard mode. This override
+                implements a special damage mitigation system where every other fall damage instance
+                is ignored in hard mode, effectively halving fall damage frequency. Uses a fallCount
+                counter to track the number of fall damage events and only applies damage on
+                even-numbered occurrences when playing in hard mode.
+            </summary>
+            <param name="yI">The vertical impact velocity used to calculate fall damage severity</param>
+        </member>
+        <member name="M:MookDog.Jump(System.Boolean)">
+            <summary>
+                Executes the jump action for the MookDog. This override calls the base jump
+                implementation without any modifications. The method maintains the standard jumping
+                behavior from the parent Mook class while allowing for potential future
+                MookDog-specific jump customizations.
+            </summary>
+            <param name="wallJump">True if performing a wall jump, false for a regular ground jump</param>
+        </member>
+        <member name="M:MookDog.Knock(DamageType,System.Single,System.Single,System.Boolean)">
+            <summary>
+                Applies knockback to the MookDog by calling the base Knock implementation. Maintains
+                standard knockback behavior without any special modifications.
+            </summary>
+            <param name="damageType">Type of damage causing the knockback</param>
+            <param name="xI">Horizontal knockback force</param>
+            <param name="yI">Vertical knockback force</param>
+            <param name="forceTumble">Whether to force the unit into a tumbling state</param>
+        </member>
+        <member name="M:MookDog.RunFiring">
+            <summary>
+                Executes the MookDog's melee bite attack when firing. Temporarily sets invulnerable
+                during the attack, hits living units within 6 units horizontally at Y+4 offset for 3
+                melee damage, and plays attack sound on successful hit.
+            </summary>
+        </member>
+        <member name="F:MookDog.damagedDisableAttackTime">
+            <summary>
+                Time remaining during which the MookDog cannot perform attack actions after being
+                damaged by melee attacks. Set to 0.3 seconds when hit by melee, knife, knock, or
+                blade damage types. This timer prevents the dog from immediately counter-attacking
+                when struck by close-range weapons, creating a brief vulnerability window.
+                Decrements each frame and is checked during input processing to disable fire
+                actions.
+            </summary>
+        </member>
+        <member name="F:MookDog.fallCount">
+            <summary>
+                Counter tracking the number of times this MookDog has taken fall damage. Used in
+                conjunction with hard mode difficulty to reduce fall damage frequency. When in hard
+                mode, only even-numbered fall counts (fallCount % 2 == 0) result in actual damage
+                being applied, effectively halving the fall damage rate.
+            </summary>
+        </member>
+        <member name="M:MookDog.PressSpecial">
+            <summary>
+                Handles special ability button press, stopping any howling animation before calling
+                base special press behavior. Ensures howling doesn't interfere with other special
+                actions.
+            </summary>
+        </member>
+        <member name="M:MookDog.StartEatingCorpse">
+            <summary>
+                Begins the corpse eating behavior by resetting the corpseEatingCount to 0. Called
+                when the dog starts consuming a fallen unit to potentially transform into mega form.
+            </summary>
+        </member>
+        <member name="M:MookDog.TransformIntoMegaDog">
+            <summary>
+                Transforms the regular MookDog into a powerful MegaDog variant. Increases sprite
+                size to 48x48, health to 15, movement speed by 30%, jump force by 15%, and adjusts
+                collision bounds. Triggers a howling animation and disturbs nearby wildlife within
+                200 units.
+            </summary>
+        </member>
+        <member name="M:MookDog.UseSpecial">
+            <summary>
+                Empty implementation that prevents any special ability usage. MookDogs don't have
+                active special abilities beyond their passive corpse-eating transformation.
+            </summary>
+        </member>
+        <member name="F:MookDog.corpseEatingCount">
+            <summary>
+                Counter tracking the number of bite actions performed while eating corpses.
+                Increments with each successful bite animation frame during the corpse-eating
+                special ability. When this count reaches corpseEatingSatisfactionCount (default 16),
+                the MookDog transforms into a MegaDog. Resets to 0 when starting to eat a new
+                corpse.
+            </summary>
+        </member>
+        <member name="F:MookDog.corpseEatingSatisfactionCount">
+            <summary>
+                The number of successful corpse bites required to transform into a MegaDog. Defaults
+                to 16 bites. When corpseEatingCount reaches this value during the eating animation,
+                the transformation is triggered. This value can be adjusted to make transformation
+                easier or harder to achieve.
+            </summary>
+        </member>
+        <member name="F:MookDog.isHowling">
+            <summary>
+                Flag indicating whether the MookDog is currently performing its howling animation.
+                Set to true when transforming into a MegaDog to play the transformation howl
+                sequence. During howling, the dog plays a special animation sequence and power-up
+                sound. The howl completes after frame 14 of the animation sequence.
+            </summary>
+        </member>
+        <member name="F:MookDog.isMegaDog">
+            <summary>
+                Flag indicating whether this MookDog has transformed into its more powerful MegaDog
+                variant. When true, the dog has increased health (15), larger size (48x48 sprites),
+                faster movement speed (1.3x multiplier), and uses different death effects.
+                Transformation occurs after eating enough corpses or can be set during
+                initialization.
+            </summary>
+        </member>
+        <member name="F:MookDog.megaDogGibs">
+            <summary>
+                The gib holder containing death particle effects specific to the MegaDog variant.
+                When a MegaDog is destroyed, this gib set is used instead of the standard dog gibs
+                to create appropriately scaled death effects. The system swaps to these gibs in
+                CreateGibEffects when isMegaDog is true.
+            </summary>
+        </member>
+        <member name="F:MookDog.upgradedMaterial">
+            <summary>
+                The material applied to the MookDog's renderer when it transforms into a MegaDog.
+                This material replaces the standard appearance to visually indicate the upgraded
+                state. Applied during the TransformIntoMegaDog process along with other visual
+                changes like increased sprite size.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateActualIdleDuckingFrames">
+            <summary>
+                Animates the MookDog's idle ducking frames with special handling for hiding and
+                reveal animations. When animatingRevealPosition is true, plays a 15-frame reveal
+                sequence with variable frame rates. When the AI is in hiding state, plays a 12-frame
+                hiding animation loop. Otherwise delegates to the base implementation for standard
+                idle ducking animations. The reveal animation includes pauses at frames 4, 6, and 9
+                for dramatic effect.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateActualIdleFrames">
+            <summary>
+                Animates idle stance, with special electrified animation frames when shocked or
+                under plasma effects. Uses frames 6-7 on row 5 for electrified state, otherwise
+                delegates to base idle animation.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateActualNewRunningFrames">
+            <summary>
+                Animates the MegaDog's running frames using an 8-frame cycle on sprite row 4. Used
+                when the dog is in mega form and actively running.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateActualUnawareRunningFrames">
+            <summary>
+                Animates the unaware running state using an 8-frame cycle on sprite row 2. Used for
+                calm movement when the dog hasn't detected enemies.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateImpaled">
+            <summary>
+                Sets the sprite position for the impaled death animation based on whether this is a
+                regular MookDog or MegaDog. MegaDogs use sprite position (960, 48) while regular
+                dogs use position (638, 32). This provides size-appropriate impalement sprites for
+                both variants.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateRunning">
+            <summary>
+                Manages running animations based on the dog's current state. Adjusts speed and frame
+                rate for: burning/blind/scared (70% speed), alerted (full speed with aware
+                animations), or unaware (slower casual movement). Handles both regular and mega dog
+                sprite variations.
+            </summary>
+        </member>
+        <member name="M:MookDog.AnimateSpecial">
+            <summary>
+                Animates special actions including howling (mega transformation) and corpse eating.
+                Howling uses a 14-frame intro then loops 2 frames. Corpse eating alternates between
+                2 frames, dealing bite damage and creating blood effects every other frame.
+                Transforms to mega dog after eating enough (determined by
+                corpseEatingSatisfactionCount).
+            </summary>
+        </member>
+        <member name="M:MookDog.ChangeFrame">
+            <summary>
+                Updates the current animation frame, switching to death animation if health drops to
+                0 or below. Otherwise delegates to base frame change logic for standard animations.
+            </summary>
+        </member>
+        <member name="M:MookDog.Dance(System.Single)">
+            <summary>
+                Initiates celebration dance animation, canceling any ongoing howling or corpse
+                eating. Clears AI action queue and resets special ability states before calling base
+                dance behavior.
+            </summary>
+            <param name="time">Duration of the dance animation</param>
+        </member>
+        <member name="M:MookDog.CalculateZombieInput">
+            <summary>
+                Calculates AI-controlled zombie movement, making the dog jump forward when
+                attempting to attack. Sets movement direction based on facing and maintains forward
+                momentum during attack sequences with a 0.5 second delay.
+            </summary>
+        </member>
+        <member name="M:MookDog.CheckInput">
+            <summary>
+                Processes input controls, disabling fire/attack input if damagedDisableAttackTime is
+                active. Prevents the dog from attacking immediately after taking melee damage.
+            </summary>
+        </member>
+        <member name="M:MookDog.CanPassThroughBarriers">
+            <summary>
+                Determines if the dog can pass through barrier blocks. Returns true when dead,
+                knocked back with sufficient force (&gt;1 horizontal blast), blinded, or scared,
+                allowing passage through normally solid barriers.
+            </summary>
+            <returns>True if the dog can pass through barriers in its current state</returns>
+        </member>
+        <member name="M:MookDog.PlayGreetingSound">
+            <summary>
+                Plays greeting/alert sound and bothers nearby mooks within 80 horizontal and 32
+                vertical units. Alerts 5 nearby enemies to the player's presence when the dog spots
+                them.
+            </summary>
+        </member>
+        <member name="M:MookDog.PlayJumpSound">
+            <summary>
+                Plays the special2 sound effect when jumping, with randomized pitch between 0.94 and
+                1.06 for variation. Creates more natural jump sound variety.
+            </summary>
+        </member>
+        <member name="M:MookDog.RegisterUnit">
+            <summary>
+                Registers this MookDog with the game's unit tracking system. Uses simplified
+                registration without networking features for reliable modding compatibility.
+            </summary>
+        </member>
+        <member name="M:MookDog.FetchObject(UnityEngine.Transform)">
+            <summary>
+                Directs the dog's AI to fetch or pursue a specific object. Delegates the fetch
+                behavior to the enemyAI component if available.
+            </summary>
+            <param name="fetchObject">The transform of the object to fetch</param>
+        </member>
+        <member name="M:MookDog.GetEnemyMovement">
+            <summary>
+                Calculates AI-driven movement patterns, disabling attack behavior if
+                damagedDisableAttackTime is active. Ensures the dog retreats briefly after taking
+                melee damage before resuming pursuit.
+            </summary>
+        </member>
+        <member name="F:MookDog.awareMegaRunSpeed">
+            <summary>
+                Movement speed for MegaDogs when alerted to player presence. Set to 135 units per
+                second. Applied when the enemy AI is alerted and useNewFrames is true (indicating
+                MegaDog status). Slightly faster than regular aware speed to reflect the MegaDog's
+                enhanced capabilities.
+            </summary>
+        </member>
+        <member name="F:MookDog.awareRunSpeed">
+            <summary>
+                Movement speed for regular MookDogs when alerted to player presence. Set to 130
+                units per second. Used when the enemy AI is in an alerted state and useNewFrames is
+                false. This increased speed helps the dog close distance on detected players more
+                effectively than its unaware patrol speed.
+            </summary>
+        </member>
+        <member name="F:MookDog.unawareMegaRunSpeed">
+            <summary>
+                Default patrol movement speed for MegaDogs when not alerted. Set to 125 units per
+                second. Applied during patrol when useNewFrames is true but the AI isn't alerted.
+                Even while unaware, MegaDogs move slightly faster than regular dogs due to their
+                enhanced physical capabilities.
+            </summary>
+        </member>
+        <member name="F:MookDog.unawareRunSpeed">
+            <summary>
+                Default patrol movement speed for regular MookDogs when not alerted. Set to 120
+                units per second. Used during normal patrol behavior when the AI hasn't detected
+                players and useNewFrames is false. This slower speed represents casual movement
+                while searching for threats.
+            </summary>
+        </member>
         <member name="M:NetworkedUnit.Awake">
             <summary>
                 Initializes the unit by setting maxHealth to the current health value. Called once
@@ -30963,6 +31972,627 @@
                 control timing for speech or word-based audio effects, possibly for lip-sync or
                 dialogue pacing. The field remains in the code but has no active references in the
                 Sound class methods.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.Awake">
+            <summary>
+                Unity Awake method that initializes the sprite's mesh components and texture. Gets
+                MeshFilter and MeshRenderer components, destroys any existing shared mesh, extracts
+                texture from material, starts the animation pump if needed, and creates normals
+                array if requested.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.Clear">
+            <summary>
+                Resets the sprite to default state. Disables billboarding, sets color to white,
+                resets offset to zero, and clears the animation complete delegate.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.Init">
+            <summary>
+                Initializes the sprite mesh with vertices, UVs, colors, and triangles. Creates a new
+                dynamic mesh if needed, sets up winding order, calculates UVs with bleed
+                compensation, configures pixel-perfect rendering if enabled, and applies initial
+                size and color.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.OnDisable">
+            <summary>
+                Unity OnDisable callback that temporarily removes the sprite from the animation
+                system when disabled. Preserves the animating state so it can be restored when
+                re-enabled.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.OnEnable">
+            <summary>
+                Unity OnEnable callback that re-adds the sprite to the animation system if it was
+                animating when disabled. Only operates in play mode to avoid editor issues.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.Start">
+            <summary>
+                Unity Start method that completes sprite initialization. Stores the initial UV
+                rectangle, calculates pixels per UV unit from texture dimensions, and sets up the
+                camera reference for pixel-perfect rendering calculations.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.AddToAnimatedList">
+            <summary>
+                Adds this sprite to the global animation pump for frame updates. Starts the
+                animation pump if not already running and marks the sprite as animating.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.Copy(SpriteBase)">
+            <summary>
+                Copies configuration from another sprite including material, texture, plane
+                orientation, winding order, offset, anchor method, resize settings, pixel perfect
+                flag, and color. Updates texture dimensions for UV calculations.
+            </summary>
+            <param name="s">Source sprite to copy settings from</param>
+        </member>
+        <member name="M:SpriteBase.IsAnimating">
+            <summary>
+                Checks whether this sprite is currently animating.
+            </summary>
+            <returns>True if the sprite is in the animation update list, false otherwise.</returns>
+        </member>
+        <member name="M:SpriteBase.PauseAnim">
+            <summary>
+                Pauses the sprite animation by removing it from the animation update list. The
+                animation state is preserved and can be resumed later.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.RecalcTexture">
+            <summary>
+                Refreshes texture reference from the current material's main texture. Updates pixel
+                dimensions used for UV coordinate calculations. Called when material or texture
+                changes.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.RemoveFromAnimatedList">
+            <summary>
+                Removes this sprite from the global animation pump, stopping frame updates. Marks
+                the sprite as no longer animating.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.RevertToStatic">
+            <summary>
+                Reverts the sprite to its static (non-animated) state. Stops any active animation,
+                recalculates UVs, applies bleed compensation, and optionally resizes based on
+                pixel-perfect or auto-resize settings.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.SetAnimCompleteDelegate(SpriteBase.AnimCompleteDelegate)">
+            <summary>
+                Sets a delegate to be called when the current animation completes. Used for
+                triggering events or transitioning to other animations when an animation cycle
+                finishes.
+            </summary>
+            <param name="del">Delegate to invoke when animation completes, or null to clear</param>
+        </member>
+        <member name="M:SpriteBase.SetColor(UnityEngine.Color)">
+            <summary>
+                Sets the vertex color for all four vertices of the sprite. Color is multiplied with
+                texture in the shader for tinting effects.
+            </summary>
+            <param name="c">Color to apply to all vertices</param>
+        </member>
+        <member name="M:SpriteBase.SetSpriteResizedDelegate(SpriteBase.SpriteResizedDelegate)">
+            <summary>
+                Sets a delegate to be called whenever the sprite is resized. Useful for updating
+                dependent systems when sprite dimensions change due to UV updates or manual
+                resizing.
+            </summary>
+            <param name="del">Delegate to invoke when sprite is resized, receives new width, height, and sprite reference</param>
+        </member>
+        <member name="M:SpriteBase.StepAnim(System.Single)">
+            <summary>
+                Virtual method for advancing sprite animation by the specified time delta. Base
+                implementation returns false. Derived classes override this to implement actual
+                animation logic.
+            </summary>
+            <param name="time">Time elapsed since last animation step in seconds</param>
+            <returns>Always returns false in base implementation. Derived classes return true if animation continues, false if complete</returns>
+        </member>
+        <member name="M:SpriteBase.StopAnim">
+            <summary>
+                Virtual method that stops the sprite animation. Base implementation is empty -
+                override in derived classes to implement custom animation stopping behavior.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.TransformBillboarded(UnityEngine.Transform)">
+            <summary>
+                Transforms the sprite to face a specific transform (billboard effect). Currently
+                empty in base class, likely implemented in derived classes for camera-facing
+                sprites.
+            </summary>
+            <param name="t">Transform to face towards</param>
+        </member>
+        <member name="P:SpriteBase.MeshRenderer">
+            <summary>
+                Gets or sets the MeshRenderer component used to render this sprite. Provides direct
+                access to rendering properties like materials and shadows.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.animCompleteDelegate">
+            <summary>
+                Delegate invoked when an animation completes playback. Set via
+                SetAnimCompleteDelegate method and called by derived classes (PackedSprite,
+                SpriteSM) when they finish playing an animation sequence. Allows external code to
+                respond to animation completion events for state transitions or chaining animations.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.animating">
+            <summary>
+                Indicates whether the sprite is currently playing an animation. When true, the
+                sprite is registered with the SpriteAnimationPump for regular StepAnim updates.
+                Managed by AddToAnimatedList/RemoveFromAnimatedList methods and preserved across
+                OnDisable/OnEnable cycles.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.defaultAnim">
+            <summary>
+                The index of the animation to play by default. Used in conjunction with
+                playAnimOnStart to automatically begin animation playback when the sprite
+                initializes. Also used as the fallback animation when an animation completes with
+                the Play_Default_Anim end action. Must be a valid index within the animations array.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.framesToAdvance">
+            <summary>
+                The number of animation frames to advance in the current update, calculated as
+                timeSinceLastFrame / timeBetweenAnimFrames. Allows animations to catch up if
+                multiple frames worth of time have elapsed since the last update, ensuring smooth
+                playback even with variable frame rates.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.playAnimOnStart">
+            <summary>
+                When true, automatically plays the default animation when the sprite starts. Used by
+                derived classes like PackedSprite and SpriteSM to trigger initial animation playback
+                during their Start method if a valid defaultAnim index is specified and the
+                application is playing.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.resizedDelegate">
+            <summary>
+                Delegate invoked when the sprite is resized via SetSize method. Receives the new
+                width, height, and a reference to the sprite being resized. Allows external code to
+                respond to size changes for layout updates or dependent object adjustments. Set via
+                SetSpriteResizedDelegate method.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.timeBetweenAnimFrames">
+            <summary>
+                The duration in seconds between animation frames, calculated as 1/framerate. Used
+                with timeSinceLastFrame to determine when to advance the animation. Set by derived
+                classes when playing animations to control playback speed.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.timeSinceLastFrame">
+            <summary>
+                Accumulates elapsed time since the last animation frame change. Used by derived
+                animation classes to determine when to advance to the next frame based on the
+                animation framerate. Reset to zero (minus overflow) each time a frame advances.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.CalcEdges">
+            <summary>
+                Calculates the top-left and bottom-right corner positions based on the current
+                anchor method. Supports nine anchor points (corners, edges, and center) for flexible
+                sprite positioning.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.CalcSize">
+            <summary>
+                Calculates sprite dimensions based on rendering mode. In pixel-perfect mode,
+                calculates size from screen pixels and orthographic camera size. In auto-resize
+                mode, scales proportionally with UV changes. Updates sprite size after calculation.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.RefreshVertices">
+            <summary>
+                Recalculates and updates all vertex positions with shear and skew effects applied.
+                Used for creating slanted or distorted sprites while maintaining proper UV mapping.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.SetSize(System.Single,System.Single)">
+            <summary>
+                Sets the sprite size and updates vertex positions based on the current plane
+                orientation. Routes to appropriate size setting method (SetSizeXY, SetSizeXZ, or
+                SetSizeYZ) and invokes resize delegate if set.
+            </summary>
+            <param name="width">New width of the sprite in world units</param>
+            <param name="height">New height of the sprite in world units</param>
+        </member>
+        <member name="M:SpriteBase.SetSizeXY(System.Single,System.Single)">
+            <summary>
+                Updates sprite vertices for XY plane orientation (standard 2D sprite facing camera).
+                Calculates edge positions based on anchor point and updates all four vertices with
+                proper offset application.
+            </summary>
+            <param name="w">Width of the sprite in world units</param>
+            <param name="h">Height of the sprite in world units</param>
+        </member>
+        <member name="M:SpriteBase.SetSizeXZ(System.Single,System.Single)">
+            <summary>
+                Updates sprite vertices for XZ plane orientation (ground/ceiling sprite). Positions
+                vertices in the horizontal plane with Y as the up axis.
+            </summary>
+            <param name="w">Width of the sprite in world units</param>
+            <param name="h">Height (depth) of the sprite in world units</param>
+        </member>
+        <member name="M:SpriteBase.SetSizeYZ(System.Single,System.Single)">
+            <summary>
+                Updates sprite vertices for YZ plane orientation (wall sprite facing sideways).
+                Positions vertices in the YZ plane with X as the normal direction.
+            </summary>
+            <param name="w">Width of the sprite in world units</param>
+            <param name="h">Height of the sprite in world units</param>
+        </member>
+        <member name="F:SpriteBase.colors">
+            <summary>
+                Array of 4 vertex colors for the sprite quad. All elements set to same color value
+                by SetColor(). Allows per-vertex tinting if needed. Applied to mesh.colors for
+                rendering.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.faces">
+            <summary>
+                Triangle indices array defining two triangles (6 indices) that form the sprite quad.
+                Order determined by SetWindingOrder() - CCW uses [0,1,3,3,1,2] and CW uses
+                [0,3,1,3,2,1].
+            </summary>
+        </member>
+        <member name="F:SpriteBase.mesh">
+            <summary>
+                The dynamically created Mesh object for this sprite. Created in Init() with
+                MarkDynamic() for frequent updates. Stores vertices, UVs, colors, and triangle data
+                for rendering the sprite quad.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.meshFilter">
+            <summary>
+                Reference to the MeshFilter component attached to this GameObject. Initialized in
+                Awake() and used to assign the dynamically created mesh. Required component for
+                sprite rendering.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.meshRenderer">
+            <summary>
+                Reference to the MeshRenderer component attached to this GameObject. Initialized in
+                Awake() and exposed via MeshRenderer property. Used to access material and texture
+                information.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.normals">
+            <summary>
+                Optional array of vertex normals for lighting calculations. Only created when
+                createNormals is true. All normals face backward (Vector3.back) for typical 2D
+                sprite lighting.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.texture">
+            <summary>
+                Reference to the main texture used by this sprite. Retrieved from material's
+                _MainTex property in Awake() and RecalcTexture(). Used for pixel-to-UV calculations
+                and dimension calculations.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.uvs">
+            <summary>
+                Primary UV coordinates array for the 4 sprite vertices. Updated by UpdateUVs() based
+                on uvRect and winding order. Defines which part of the texture maps to each vertex.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.uvs2">
+            <summary>
+                Secondary UV coordinates array for special effects. Set by SetUV2() to standard 0-1
+                quad values regardless of primary UVs. Can be used by shaders for effects
+                independent of texture mapping.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.vertices">
+            <summary>
+                Array of 4 vertices defining the sprite quad corners. Updated by SetSizeXY/XZ/YZ and
+                RefreshVertices() methods. Order depends on winding setting. Applied to mesh for
+                rendering.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.CalcUVs">
+            <summary>
+                Virtual method for calculating UV coordinates. Base implementation is empty. Derived
+                classes override this to implement specific UV calculation logic for different
+                sprite types.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.PixelCoordToUVCoord(UnityEngine.Vector2)">
+            <summary>
+                Converts pixel coordinates to UV coordinates with Y-axis flipping for Unity's UV
+                system. Unity UVs have origin at bottom-left while textures have origin at top-left.
+            </summary>
+            <param name="xy">Pixel coordinates to convert.</param>
+            <returns>UV coordinates with flipped Y axis.</returns>
+        </member>
+        <member name="M:SpriteBase.PixelCoordToUVCoord(System.Int32,System.Int32)">
+            <summary>
+                Converts integer pixel coordinates to UV coordinates with Y-axis flipping for
+                Unity's UV system.
+            </summary>
+            <param name="x">X pixel coordinate.</param>
+            <param name="y">Y pixel coordinate.</param>
+            <returns>UV coordinates with flipped Y axis.</returns>
+        </member>
+        <member name="M:SpriteBase.PixelSpaceToUVSpace(UnityEngine.Vector2)">
+            <summary>
+                Converts pixel coordinates to UV space (0-1 range) based on texture dimensions.
+            </summary>
+            <param name="xy">Pixel coordinates to convert.</param>
+            <returns>UV coordinates in 0-1 range, or Vector2.zero if no texture is assigned.</returns>
+        </member>
+        <member name="M:SpriteBase.PixelSpaceToUVSpace(System.Int32,System.Int32)">
+            <summary>
+                Converts integer pixel coordinates to UV space (0-1 range) based on texture
+                dimensions.
+            </summary>
+            <param name="x">X pixel coordinate.</param>
+            <param name="y">Y pixel coordinate.</param>
+            <returns>UV coordinates in 0-1 range.</returns>
+        </member>
+        <member name="M:SpriteBase.SetBleedCompensation">
+            <summary>
+                Applies the current bleed compensation values to adjust UV coordinates. Bleed
+                compensation prevents texture bleeding by inset the UV rectangle.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.SetBleedCompensation(System.Single,System.Single)">
+            <summary>
+                Sets and applies bleed compensation with specified pixel values. Bleed compensation
+                prevents texture bleeding at sprite edges.
+            </summary>
+            <param name="x">Horizontal bleed compensation in pixels.</param>
+            <param name="y">Vertical bleed compensation in pixels.</param>
+        </member>
+        <member name="M:SpriteBase.SetBleedCompensation(UnityEngine.Vector2)">
+            <summary>
+                Sets and applies bleed compensation from a Vector2. Converts pixel values to UV
+                space and insets the UV rectangle to prevent texture bleeding.
+            </summary>
+            <param name="xy">Bleed compensation values in pixels (x and y).</param>
+        </member>
+        <member name="M:SpriteBase.SetUV2">
+            <summary>
+                Sets secondary UV coordinates (UV2) for shader effects. Always uses normalized 0-1
+                coordinates regardless of primary UV settings, useful for effects that need full
+                texture coverage.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.SetUVs(UnityEngine.Rect)">
+            <summary>
+                Sets the UV rectangle for texture mapping. Applies bleed compensation and optionally
+                recalculates size for pixel-perfect or auto-resize sprites.
+            </summary>
+            <param name="uv">The UV coordinate rectangle (0-1 range).</param>
+        </member>
+        <member name="M:SpriteBase.SetUVsFromPixelCoords(UnityEngine.Rect)">
+            <summary>
+                Sets UV coordinates from pixel coordinates on the texture. Converts pixel
+                coordinates to UV space (0-1 range) and applies settings.
+            </summary>
+            <param name="pxCoords">Rectangle defining the sprite area in texture pixels.</param>
+        </member>
+        <member name="M:SpriteBase.UpdateUVs">
+            <summary>
+                Updates the UV coordinates of all four vertices based on current UV rectangle and
+                winding order. Handles both clockwise and counter-clockwise winding to ensure proper
+                texture display.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.bleedCompensationUV">
+            <summary>
+                UV space inset calculated from bleedCompensation pixel values. Used internally by
+                SetBleedCompensation() to adjust uvRect boundaries, preventing texture bleeding by
+                moving UV coordinates inward from texture edges.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.bottomRight">
+            <summary>
+                Calculated bottom-right corner position of sprite in local space. Set by CalcEdges()
+                based on sprite dimensions and anchor method. Used as reference point for vertex
+                calculations in SetSize methods.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.pixelsPerUV">
+            <summary>
+                Stores the texture dimensions as pixels per UV unit. The x component contains the
+                texture width in pixels and the y component contains the texture height. This value
+                is automatically updated whenever the texture changes and is used to convert between
+                pixel coordinates and UV coordinates during sprite rendering calculations.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.prevUVRect">
+            <summary>
+                Previous frame's UV rectangle used for auto-resize calculations. When autoResize is
+                enabled, CalcSize() compares current uvRect to this value to proportionally scale
+                sprite dimensions when UV region changes.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.topLeft">
+            <summary>
+                Calculated top-left corner position of sprite in local space. Set by CalcEdges()
+                based on sprite dimensions and anchor method. Used as reference point for vertex
+                calculations in SetSize methods.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.uvRect">
+            <summary>
+                Rectangle defining the texture coordinates for this sprite in UV space (0-1 range).
+                Modified by SetUVs(), SetUVsFromPixelCoords(), and SetBleedCompensation(). Used by
+                UpdateUVs() to set mesh UV coordinates.
+            </summary>
+        </member>
+        <member name="M:SpriteBase.SetAnchor(SpriteBase.ANCHOR_METHOD)">
+            <summary>
+                Sets the anchor point for sprite positioning. Determines which part of the sprite
+                aligns with its transform position.
+            </summary>
+            <param name="a">The anchor method defining the alignment point.</param>
+        </member>
+        <member name="M:SpriteBase.SetCamera(UnityEngine.Camera)">
+            <summary>
+                Sets the camera reference for pixel-perfect calculations. Updates screen size from
+                camera's pixel dimensions and recalculates sprite size to maintain pixel-perfect
+                appearance.
+            </summary>
+            <param name="c">Camera to use for pixel-perfect calculations, returns immediately if null</param>
+        </member>
+        <member name="M:SpriteBase.SetOffset(UnityEngine.Vector3)">
+            <summary>
+                Sets an additional position offset applied to the sprite vertices. Useful for
+                fine-tuning sprite positioning.
+            </summary>
+            <param name="o">The 3D offset to apply to sprite vertices.</param>
+        </member>
+        <member name="M:SpriteBase.SetPlane(SpriteBase.SPRITE_PLANE)">
+            <summary>
+                Sets the orientation plane for the sprite mesh (XY, XZ, or YZ). Rebuilds the mesh
+                vertices for the new plane orientation.
+            </summary>
+            <param name="p">The sprite plane orientation to use.</param>
+        </member>
+        <member name="M:SpriteBase.SetWindingOrder(SpriteBase.WINDING_ORDER)">
+            <summary>
+                Sets the triangle winding order for the mesh faces. Clockwise (CW) renders the front
+                face, counter-clockwise (CCW) renders the back face.
+            </summary>
+            <param name="order">The winding order to apply (CW or CCW).</param>
+        </member>
+        <member name="F:SpriteBase.anchor">
+            <summary>
+                The anchor point determining sprite alignment with its transform position. Default
+                is MIDDLE_CENTER for centered sprites.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.autoResize">
+            <summary>
+                Enables automatic sprite resizing when UV coordinates change. When true and UV rect
+                changes, sprite dimensions are scaled proportionally to maintain the same aspect
+                ratio as the texture region. Checked in CalcSize(), Copy(), and UV update methods.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.billboarded">
+            <summary>
+                Flag indicating if sprite should face the camera (billboard mode). Currently only
+                set/cleared but not actively used in base implementation - likely utilized by
+                derived classes or external systems.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.bleedCompensation">
+            <summary>
+                Pixel-based inset values to prevent texture bleeding at sprite edges. Applied to UV
+                coordinates to slightly shrink the sampled area.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.color">
+            <summary>
+                Vertex color applied to all four sprite vertices for tinting. Defaults to white (no
+                tint). Updated via SetColor() which applies this color to the colors array and mesh.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.createNormals">
+            <summary>
+                Controls whether mesh normals are generated. When true, creates a normals array with
+                all vertices facing backward (Vector3.back) during Awake() and applies them during
+                Init(). Used for sprites that need proper lighting.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.curCamera">
+            <summary>
+                Reference to the current camera used for pixel-perfect calculations. Set by
+                SetCamera() method. Used to get orthographic size for converting between world units
+                and screen pixels.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.height">
+            <summary>
+                The height of the sprite in world units. Used for mesh vertex calculation and
+                size-based operations.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.offset">
+            <summary>
+                3D position offset applied to all sprite vertices. Added to calculated vertex
+                positions in SetSizeXY/XZ/YZ methods to shift the entire sprite mesh. Can be updated
+                via SetOffset() method.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.pixelPerfect">
+            <summary>
+                Enables pixel-perfect sprite rendering mode. When true, sprite dimensions are
+                automatically calculated based on camera orthographic size and screen dimensions to
+                ensure 1:1 pixel mapping. Used in Init(), CalcSize(), and throughout rendering
+                pipeline.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.plane">
+            <summary>
+                The orientation plane for the sprite mesh. Determines whether the sprite is rendered
+                on the XY (default 2D), XZ (ground), or YZ plane.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.screenSize">
+            <summary>
+                Static screen dimensions in pixels shared across all sprites. Updated by SetCamera()
+                with camera's pixel width/height. Used in CalcSize() for pixel-perfect calculations
+                with orthographic camera size.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.shearAmount">
+            <summary>
+                Horizontal shear factor for skewing sprite vertices. Applied to top vertices when
+                RefreshVertices() is called, creating a parallelogram effect by offsetting the top
+                edge horizontally by this amount multiplied by sprite width.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.skewAmount">
+            <summary>
+                Vertical skew factor for tilting sprite vertices. Applied when RefreshVertices() is
+                called - subtracts from top-left vertex Y and adds to top-right vertex Y, creating a
+                tilted appearance.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.width">
+            <summary>
+                The width of the sprite in world units. Used for mesh vertex calculation and
+                size-based operations.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.winding">
+            <summary>
+                The triangle winding order for mesh faces. CW (clockwise) shows the front face, CCW
+                (counter-clockwise) shows the back face. Default is CW.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.worldUnitsPerScreenPixel">
+            <summary>
+                The conversion factor between world units and screen pixels for pixel-perfect
+                rendering. Calculated as (camera orthographic size * 2) / screen height when
+                pixelPerfect is enabled. This value ensures sprites are rendered at exact pixel
+                boundaries without filtering artifacts, maintaining the crisp pixel art aesthetic.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.i">
+            <summary>
+                General purpose loop iterator variable. Used by derived classes as a temporary
+                variable during various operations. Not used directly in SpriteBase but provided as
+                a protected member for subclass convenience.
+            </summary>
+        </member>
+        <member name="F:SpriteBase.tempUV">
+            <summary>
+                Temporary UV coordinate storage used during calculations. Used in CalcSize for
+                auto-resize UV ratio calculations and in SetUVsFromPixelCoords for pixel-to-UV
+                conversions. Avoids allocation of new Vector2 objects during frequent operations.
             </summary>
         </member>
         <member name="M:SpriteSM.Awake">

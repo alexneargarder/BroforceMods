@@ -88,6 +88,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROPATH%25\Brostbuster\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROPATH%25\Brostbuster\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROPATH%25\Brostbuster\$(ProjectName).dll*"</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using BroMakerLib;
-using BroMakerLib.Loggers;
-using HarmonyLib;
 using System.Reflection;
 using System.IO;
+using BroMakerLib.CustomObjects.Projectiles;
 
 namespace Brostbuster
 {
-    class Slimer : Projectile
+    class Slimer : CustomProjectile
     {
-		public static Material storedMat;
-		public SpriteSM storedSprite;
 		BloodColor bloodColor = BloodColor.Green;
 		public static int overrideBloodColor = 0;
 		public List<Unit> frozenUnits = new List<Unit>();
@@ -23,54 +19,22 @@ namespace Brostbuster
 		protected float startingX;
 		public AudioClip[] freezeSounds;
 		public AudioClip[] slimerGroans;
-		protected AudioSource slimerAudio;
+		public AudioSource slimerAudio;
 
 		protected override void Awake()
 		{
-			MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
-
-			string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-			if (storedMat == null)
+			if ( this.sprite == null )
 			{
-				storedMat = ResourcesController.GetMaterial(directoryPath, "slimer.png");
-			}
+                this.spriteLowerLeftPixel = new Vector2( 0, 32 );
+                this.spritePixelDimensions = new Vector2( 32, 32 );
+                this.spriteWidth = 32;
+                this.spriteHeight = 32;
+                this.spriteColor = new Color( 1f, 1f, 1f, 0.75f );
+            }
 
-			renderer.material = storedMat;
+            base.Awake();
 
-			SpriteSM sprite = this.gameObject.GetComponent<SpriteSM>();
-			sprite.lowerLeftPixel = new Vector2(0, 32);
-			sprite.pixelDimensions = new Vector2(32, 32);
-
-			sprite.plane = SpriteBase.SPRITE_PLANE.XY;
-			sprite.width = 32;
-			sprite.height = 32;
-			sprite.offset = new Vector3(0, 0, 0);
-
-			sprite.color = new Color(1f, 1f, 1f, 0.75f);
-
-			storedSprite = sprite;
-
-			// Load sounds
-			freezeSounds = new AudioClip[8];
-			freezeSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze1.wav");
-			freezeSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze2.wav");
-			freezeSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze3.wav");
-			freezeSounds[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze4.wav");
-			freezeSounds[4] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze5.wav");
-			freezeSounds[5] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze6.wav");
-			freezeSounds[6] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze7.wav");
-			freezeSounds[7] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "freeze8.wav");
-
-			slimerGroans = new AudioClip[4];
-			slimerGroans[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer1.wav");
-			slimerGroans[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer2.wav");
-			slimerGroans[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer3.wav");
-			slimerGroans[3] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "slimer4.wav");
-
-			base.Awake();
-
-			this.damageType = DamageType.Freeze;
+            this.damageType = DamageType.Freeze;
 
 			this.damage = 0;
 
@@ -96,7 +60,29 @@ namespace Brostbuster
 					this.slimerAudio = this.GetComponent<AudioSource>();
 				}
 			}
-		}
+
+            this.gameObject.layer = 28;
+        }
+
+        public override void PrefabSetup()
+        {
+            // Load sounds
+            freezeSounds = new AudioClip[8];
+            freezeSounds[0] = ResourcesController.GetAudioClip( soundPath, "freeze1.wav" );
+            freezeSounds[1] = ResourcesController.GetAudioClip( soundPath, "freeze2.wav" );
+            freezeSounds[2] = ResourcesController.GetAudioClip( soundPath, "freeze3.wav" );
+            freezeSounds[3] = ResourcesController.GetAudioClip( soundPath, "freeze4.wav" );
+            freezeSounds[4] = ResourcesController.GetAudioClip( soundPath, "freeze5.wav" );
+            freezeSounds[5] = ResourcesController.GetAudioClip( soundPath, "freeze6.wav" );
+            freezeSounds[6] = ResourcesController.GetAudioClip( soundPath, "freeze7.wav" );
+            freezeSounds[7] = ResourcesController.GetAudioClip( soundPath, "freeze8.wav" );
+
+            slimerGroans = new AudioClip[4];
+            slimerGroans[0] = ResourcesController.GetAudioClip( soundPath, "slimer1.wav" );
+            slimerGroans[1] = ResourcesController.GetAudioClip( soundPath, "slimer2.wav" );
+            slimerGroans[2] = ResourcesController.GetAudioClip( soundPath, "slimer3.wav" );
+            slimerGroans[3] = ResourcesController.GetAudioClip( soundPath, "slimer4.wav" );
+        }
 
         public override void Fire(float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy)
         {
@@ -124,7 +110,7 @@ namespace Brostbuster
                 {
 					frame = 0;
                 }
-				this.storedSprite.SetLowerLeftPixel(frame * 32, 32);
+				this.sprite.SetLowerLeftPixel(frame * 32, 32);
             }
 
 			base.Y = startingY + 25.0f * Math.Sin( Mathf.Abs(base.X - startingX) / 25.0f);
