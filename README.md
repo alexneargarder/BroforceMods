@@ -30,30 +30,18 @@ There is also an Info.json file in the Compliled Mod Folder that shows you how y
 * [Dnspy - A tool for viewing the game's code](https://github.com/dnSpy/dnSpy)
 * [RuntimeUnityEditor - A tool for debugging game objects in game](https://github.com/ManlyMarco/RuntimeUnityEditor)
 * [AssetStudio - A tool for extracting assets from Unity Games](https://github.com/Perfare/AssetStudio)
+* [BroMaker Wiki](https://github.com/Gorzontrok/Bro-Maker/wiki)
+* [Broforce Modding Wiki](https://github.com/alexneargarder/BroforceMods/wiki)
 
-## Swap Bros Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/1).
+## Mod Downloads
 
-## Utility Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/2).
-
-## IronBro Multiplayer Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/19).
-
-## Randomizer Mod
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/22).
-
-## Captain Ameribro
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/34).
-
-## Mission Impossibro
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/36).
-
-## Brostbuster
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/39).
-
-## R.J. Brocready
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/41).
-
-## Imperator Furibrosa
-Information about this mod and a download link can be found [here](https://www.nexusmods.com/broforce/mods/43).
+* [Swap Bros Mod](https://www.nexusmods.com/broforce/mods/1)
+* [Utility Mod](https://www.nexusmods.com/broforce/mods/2)
+* [IronBro Multiplayer Mod](https://www.nexusmods.com/broforce/mods/19)
+* [Randomizer Mod](https://www.nexusmods.com/broforce/mods/22)
+* [Control Enemies Mod](https://www.nexusmods.com/broforce/mods/45)
+* [Captain Ameribro](https://www.nexusmods.com/broforce/mods/34)
+* [Mission Impossibro](https://www.nexusmods.com/broforce/mods/36)
+* [Brostbuster](https://www.nexusmods.com/broforce/mods/39)
+* [R.J. Brocready](https://www.nexusmods.com/broforce/mods/41)
+* [Imperator Furibrosa](https://www.nexusmods.com/broforce/mods/43)
