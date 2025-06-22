@@ -43,6 +43,10 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="RocketLib, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Mods-Broforce\RocketLib\lib\RocketLib.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -75,7 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Bro.cs" />
+    <Compile Include="MissionImpossibro.cs" />
     <Compile Include="Explosive.cs" />
     <Compile Include="ExplosiveGum.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -83,6 +87,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROPATH%25\Mission Impossibro\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROPATH%25\Mission Impossibro\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROPATH%25\Mission Impossibro\$(ProjectName).dll*"</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
   </PropertyGroup>
 </Project>
