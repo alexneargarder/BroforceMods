@@ -1,4 +1,4 @@
-v1.0.4 (unreleased)
+v1.1.0 (unreleased)
 Changes for BroMaker update.
 
 v1.0.3

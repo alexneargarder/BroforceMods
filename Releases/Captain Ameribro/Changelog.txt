@@ -1,4 +1,4 @@
-v1.0.6 (unreleased)
+v1.1.0 (unreleased)
 Changes for BroMaker update.
 Fixed shield being unable to be consumed by worm tunnels.
 
