@@ -38,9 +38,6 @@
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="LeftoverCode.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <Reference Include="0Harmony, Version=2.0.2.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\0Harmony.dll</HintPath>
@@ -79,6 +76,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - swap bros\*.cache"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROFORCEMODS%25\Swap Bros Mod\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROFORCEMODS%25\Swap Bros Mod\$(ProjectName).dll*"</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
   </PropertyGroup>
 </Project>
