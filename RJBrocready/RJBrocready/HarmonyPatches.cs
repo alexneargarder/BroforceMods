@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using HarmonyLib;
 using BroMakerLib.Loggers;
+using BroMakerLib.CustomObjects.Bros;
 
 namespace RJBrocready
 {
@@ -37,10 +38,14 @@ namespace RJBrocready
                 {
                     try
                     {
-                        // If a new save is being created, previously died in IronBro to false
-                        RJBrocready.LoadJson();
+                        // If a new save is being created, set previously died in IronBro to false
+                        CustomHero.LoadSettings<RJBrocready>();
+                        if ( RJBrocready.previouslyDiedInIronBro.Count() != 5 )
+                        {
+                            RJBrocready.previouslyDiedInIronBro = new List<bool> { false, false, false, false, false };
+                        }
                         RJBrocready.previouslyDiedInIronBro[slot] = false;
-                        RJBrocready.WriteJson();
+                        CustomHero.SaveSettings<RJBrocready>();
                     }
                     catch (Exception e)
                     {
