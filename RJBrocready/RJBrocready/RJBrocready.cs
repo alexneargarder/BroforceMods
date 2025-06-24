@@ -10,16 +10,17 @@ using System.Net;
 using HarmonyLib;
 using Rogueforce;
 using Newtonsoft.Json;
+using BroMakerLib.CustomObjects.Projectiles;
 
 namespace RJBrocready
 {
-    [HeroPreset("R.J. Brocready", HeroType.Rambro)]
+    [HeroPreset( "R.J. Brocready", HeroType.Rambro )]
     public class RJBrocready : CustomHero
     {
         // Primary
         Projectile[] projectiles;
-        AudioSource flameSource;
-        AudioClip flameStart, flameLoop, flameBurst;
+        public AudioSource flameSource;
+        public AudioClip flameStart, flameLoop, flameBurst;
         protected float fireFlashCounter = 0f;
         protected float burstCooldown = 0f;
         protected int burstCount = 0;
@@ -31,8 +32,8 @@ namespace RJBrocready
 
         // Melee
         protected bool throwingMook = false;
-        AudioClip[] fireAxeSound;
-        AudioClip[] axeHitSound;
+        public AudioClip[] fireAxeSound;
+        public AudioClip[] axeHitSound;
         protected bool playedAxeSound = false;
         protected bool meleeBufferedPress = false;
 
@@ -59,8 +60,8 @@ namespace RJBrocready
         protected float spriteOffsetY = 0f;
         protected bool wasAnticipatingWallClimb = false;
         protected bool currentlyAnticipatingWallClimb = false;
-        protected AudioClip[] thingTransformSounds;
-        protected AudioClip reformSound;
+        public AudioClip[] thingTransformSounds;
+        public AudioClip reformSound;
         protected float scareDelay = 0f;
 
         // The Thing Primary
@@ -69,11 +70,11 @@ namespace RJBrocready
         protected bool releasedFire = false;
         protected bool firedOnce = false;
         protected float firePressed = 0f;
-        protected AudioClip[] whipStartSounds;
-        protected AudioClip whipStartSound;
-        protected AudioClip[] whipHitSounds;
-        protected AudioClip[] whipHitSounds2;
-        protected AudioClip[] whipMissSounds;
+        public AudioClip[] whipStartSounds;
+        public AudioClip whipStartSound;
+        public AudioClip[] whipHitSounds;
+        public AudioClip[] whipHitSounds2;
+        public AudioClip[] whipMissSounds;
 
         // The Thing Melee
         protected AudioClip biteSound;
@@ -82,7 +83,7 @@ namespace RJBrocready
         SpriteSM tentacleWhipSprite;
         LineRenderer tentacleLine;
         public enum TentacleState
-        { 
+        {
             Inactive = 0,
             Extending = 1,
             Attached = 2,
@@ -94,7 +95,7 @@ namespace RJBrocready
         protected Unit unitHit;
         protected RaycastHit groundHit;
         protected Vector3 tentacleHitPoint, tentacleDirection;
-        protected Vector3 tentacleOffset = new Vector3(0f, 13f, 0f);
+        protected Vector3 tentacleOffset = new Vector3( 0f, 13f, 0f );
         protected float tentacleMaterialScale = 0.25f;
         protected float tentacleMaterialOffset = -0.125f;
         protected TentacleState currentTentacleState = TentacleState.Inactive;
@@ -106,125 +107,79 @@ namespace RJBrocready
         protected Transform tentacleImpaler;
         protected float tentacleRetractTimer = 0f;
         protected bool actuallyUsingSpecial = false;
-        protected AudioClip[] tentacleImpaleSounds;
+        public AudioClip[] tentacleImpaleSounds;
 
         // Misc
         protected const float OriginalSpeed = 130f;
         protected const float MonsterFormSpeed = 100f;
-        protected const float AttackingMonsterFormSpeed = 50f; 
+        protected const float AttackingMonsterFormSpeed = 50f;
         protected bool acceptedDeath = false;
         protected bool wasInvulnerable = false;
         protected bool startAsTheThing = false;
         public static bool jsonLoaded = false;
-        public static List<bool> previouslyDiedInIronBro = new List<bool>();
+        [SaveableSetting]
+        public static List<bool> previouslyDiedInIronBro = new List<bool>() { false, false, false, false, false };
+        [SaveableSetting]
+        public static bool permanentlyBecomeThingInIronBro = true;
 
         #region General
         protected override void Awake()
         {
-            LoadJson();
-
             base.Awake();
-        }
-
-        public static void LoadJson()
-        {
-            if (!jsonLoaded)
-            {
-                previouslyDiedInIronBro = new List<bool>();
-                string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                string jsonPath = Path.Combine(directoryPath, "IronBroSaves.json");
-
-                if (File.Exists(jsonPath))
-                {
-                    string json = File.ReadAllText(jsonPath);
-                    previouslyDiedInIronBro = JsonConvert.DeserializeObject<List<bool>>(json);
-                }
-                else
-                {
-                    for (int i = 0; i < 5; i++)
-                    {
-                        previouslyDiedInIronBro.Add(false);
-                    }
-                }
-
-                jsonLoaded = true;
-            }
-        }
-
-        public static void WriteJson()
-        {
-            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string jsonPath = Path.Combine(directoryPath, "IronBroSaves.json");
-
-            // Write previouslyDiedInIronBro to json
-            string json = JsonConvert.SerializeObject(previouslyDiedInIronBro, Formatting.Indented);
-            File.WriteAllText(jsonPath, json);
         }
 
         public override void PreloadAssets()
         {
-            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            CustomHero.PreloadSprites(directoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png", "dynamite.png" });
+            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
+            CustomHero.PreloadSprites( directoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png" } );
+            CustomHero.PreloadSprites( Path.Combine( directoryPath, "projectiles" ), new List<string> { "Dynamite.png" } );
+            CustomHero.PreloadSounds( Path.Combine( directoryPath, "sounds" ), new List<string>() { "dynamiteExplosion.wav", "flameStart.wav", "flameLoop.wav", "fireAxe1.wav", "fireAxe2.wav", "fireAxe3.wav", "axeHit1.wav", "axeHit2.wav", "axeHit3.wav" } );
+            CustomHero.PreloadSounds( Path.Combine( Path.Combine( directoryPath, "sounds" ), "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "KnifeStab2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
         }
 
         protected override void Start()
         {
             base.Start();
-            string directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
 
-            BaBroracus bro = HeroController.GetHeroPrefab(HeroType.BaBroracus) as BaBroracus;
+            BaBroracus bro = HeroController.GetHeroPrefab( HeroType.BaBroracus ) as BaBroracus;
             projectiles = new Projectile[] { bro.projectile, bro.projectile2, bro.projectile3 };
             this.flameBurst = bro.flameSoundEnd;
 
-            dynamitePrefab = new GameObject("Dynamite", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(Dynamite) }).GetComponent<Dynamite>();
-            dynamitePrefab.enabled = false;
-            dynamitePrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.McBrover) as McBrover).projectile.soundHolder;
+            dynamitePrefab = CustomGrenade.CreatePrefab<Dynamite>();
 
-            tentacleWhipSprite = new GameObject("TentacleWhip", new Type[] { typeof(Transform), typeof(MeshRenderer), typeof(MeshFilter), typeof(SpriteSM) }).GetComponent<SpriteSM>();
+            tentacleWhipSprite = new GameObject( "TentacleWhip", new Type[] { typeof( Transform ), typeof( MeshRenderer ), typeof( MeshFilter ), typeof( SpriteSM ) } ).GetComponent<SpriteSM>();
             MeshRenderer renderer = tentacleWhipSprite.GetComponent<MeshRenderer>();
-            renderer.material = ResourcesController.GetMaterial(directoryPath, "tentacle.png");
+            renderer.material = ResourcesController.GetMaterial( directoryPath, "tentacle.png" );
             renderer.material.mainTexture.wrapMode = TextureWrapMode.Clamp;
             tentacleWhipSprite.transform.parent = this.transform;
-            tentacleWhipSprite.lowerLeftPixel = new Vector2(0, 16);
-            tentacleWhipSprite.pixelDimensions = new Vector2(128, 16);
+            tentacleWhipSprite.lowerLeftPixel = new Vector2( 0, 16 );
+            tentacleWhipSprite.pixelDimensions = new Vector2( 128, 16 );
             tentacleWhipSprite.plane = SpriteBase.SPRITE_PLANE.XY;
             tentacleWhipSprite.width = 128;
             tentacleWhipSprite.height = 8;
-            tentacleWhipSprite.transform.localPosition = new Vector3(65f, 12f, -2f);
+            tentacleWhipSprite.transform.localPosition = new Vector3( 65f, 12f, -2f );
             tentacleWhipSprite.SetTextureDefaults();
-            tentacleWhipSprite.gameObject.SetActive(false);
+            tentacleWhipSprite.gameObject.SetActive( false );
 
-            tentacleLine = new GameObject("TentacleLine", new Type[] { typeof(Transform), typeof(LineRenderer) }).GetComponent<LineRenderer>();
+            tentacleLine = new GameObject( "TentacleLine", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             tentacleLine.transform.parent = this.transform;
-            tentacleLine.material = ResourcesController.GetMaterial(directoryPath, "tentacleLine.png");
+            tentacleLine.material = ResourcesController.GetMaterial( directoryPath, "tentacleLine.png" );
             tentacleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
-            this.tentacleImpaler = new GameObject("TentacleImpaler", new Type[] { typeof(Transform) }).transform;
+            this.tentacleImpaler = new GameObject( "TentacleImpaler", new Type[] { typeof( Transform ) } ).transform;
 
             this.fragileGroundLayer = this.fragileLayer | this.groundLayer;
-
-            this.flameStart = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameStart.wav");
-            this.flameLoop = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "flameLoop.wav");
 
             this.currentMeleeType = MeleeType.Disembowel;
             this.meleeType = MeleeType.Disembowel;
 
-            this.fireAxeSound = new AudioClip[3];
-            this.fireAxeSound[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe1.wav");
-            this.fireAxeSound[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe2.wav");
-            this.fireAxeSound[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "fireAxe3.wav");
-
-            this.axeHitSound = new AudioClip[3];
-            this.axeHitSound[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit1.wav");
-            this.axeHitSound[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit2.wav");
-            this.axeHitSound[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds"), "axeHit3.wav");
-
-            this.thingMaterial = ResourcesController.GetMaterial(directoryPath, "thingSprite.png");
-            this.thingGunMaterial = ResourcesController.GetMaterial(directoryPath, "thingGunSprite.png");
-            this.thingSpecialIconMaterial = ResourcesController.GetMaterial(directoryPath, "thingSpecial.png");
-            this.thingArmlessMaterial = ResourcesController.GetMaterial(directoryPath, "armlessSprite.png");
-            this.thingAvatarMaterial = ResourcesController.GetMaterial(directoryPath, "thingAvatar.png");
-            this.thingMonsterFormMaterial = ResourcesController.GetMaterial(directoryPath, "thingMonsterSprite.png");
+            this.thingMaterial = ResourcesController.GetMaterial( directoryPath, "thingSprite.png" );
+            this.thingGunMaterial = ResourcesController.GetMaterial( directoryPath, "thingGunSprite.png" );
+            this.thingSpecialIconMaterial = ResourcesController.GetMaterial( directoryPath, "thingSpecial.png" );
+            this.thingArmlessMaterial = ResourcesController.GetMaterial( directoryPath, "armlessSprite.png" );
+            this.thingAvatarMaterial = ResourcesController.GetMaterial( directoryPath, "thingAvatar.png" );
+            this.thingMonsterFormMaterial = ResourcesController.GetMaterial( directoryPath, "thingMonsterSprite.png" );
 
             this.flameSource = base.gameObject.AddComponent<AudioSource>();
             this.flameSource.rolloffMode = AudioRolloffMode.Linear;
@@ -234,7 +189,7 @@ namespace RJBrocready
             this.flameSource.playOnAwake = false;
             this.flameSource.Stop();
 
-            if (GameModeController.IsHardcoreMode)
+            if ( GameModeController.IsHardcoreMode && RJBrocready.permanentlyBecomeThingInIronBro )
             {
                 startAsTheThing = previouslyDiedInIronBro[PlayerProgress.currentWorldMapSaveSlot];
             }
@@ -245,46 +200,67 @@ namespace RJBrocready
                 base.GetComponent<Renderer>().material = this.thingMaterial;
                 this.BecomeTheThing();
             }
+        }
+
+        public override void PrefabSetup()
+        {
+            base.PrefabSetup();
+
+            string soundPath = Path.Combine( directoryPath, "sounds" );
+            string thingSoundPath = Path.Combine( soundPath, "ThingSounds" );
+
+            this.flameStart = ResourcesController.GetAudioClip( soundPath, "flameStart.wav" );
+            this.flameLoop = ResourcesController.GetAudioClip( soundPath, "flameLoop.wav" );
+
+            this.fireAxeSound = new AudioClip[3];
+            this.fireAxeSound[0] = ResourcesController.GetAudioClip( soundPath, "fireAxe1.wav" );
+            this.fireAxeSound[1] = ResourcesController.GetAudioClip( soundPath, "fireAxe2.wav" );
+            this.fireAxeSound[2] = ResourcesController.GetAudioClip( soundPath, "fireAxe3.wav" );
+
+            this.axeHitSound = new AudioClip[3];
+            this.axeHitSound[0] = ResourcesController.GetAudioClip( soundPath, "axeHit1.wav" );
+            this.axeHitSound[1] = ResourcesController.GetAudioClip( soundPath, "axeHit2.wav" );
+            this.axeHitSound[2] = ResourcesController.GetAudioClip( soundPath, "axeHit3.wav" );
 
             this.thingTransformSounds = new AudioClip[3];
-            this.thingTransformSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "transform1.wav");
-            this.thingTransformSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "transform2.wav");
-            this.thingTransformSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "transform3.wav");
+            this.thingTransformSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "transform1.wav" );
+            this.thingTransformSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "transform2.wav" );
+            this.thingTransformSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "transform3.wav" );
 
-            this.reformSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "transformBack.wav");
+            this.reformSound = ResourcesController.GetAudioClip( thingSoundPath, "transformBack.wav" );
 
             this.whipStartSounds = new AudioClip[2];
-            this.whipStartSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipStart1.wav");
-            this.whipStartSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipStart2.wav");
+            this.whipStartSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipStart1.wav" );
+            this.whipStartSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipStart2.wav" );
 
-            this.whipStartSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "KnifeStab2.wav");
+            this.whipStartSound = ResourcesController.GetAudioClip( thingSoundPath, "KnifeStab2.wav" );
 
             this.whipHitSounds = new AudioClip[3];
-            this.whipHitSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit11.wav");
-            this.whipHitSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit12.wav");
-            this.whipHitSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit13.wav");
+            this.whipHitSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit11.wav" );
+            this.whipHitSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit12.wav" );
+            this.whipHitSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit13.wav" );
 
             this.whipHitSounds2 = new AudioClip[3];
-            this.whipHitSounds2[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit21.wav");
-            this.whipHitSounds2[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit22.wav");
-            this.whipHitSounds2[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipHit23.wav");
+            this.whipHitSounds2[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit21.wav" );
+            this.whipHitSounds2[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit22.wav" );
+            this.whipHitSounds2[2] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit23.wav" );
 
             this.whipMissSounds = new AudioClip[3];
-            this.whipMissSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipMiss1.wav");
-            this.whipMissSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipMiss2.wav");
-            this.whipMissSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "whipMiss3.wav");
+            this.whipMissSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipMiss1.wav" );
+            this.whipMissSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipMiss2.wav" );
+            this.whipMissSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "whipMiss3.wav" );
 
-            this.biteSound = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "bite.wav");
+            this.biteSound = ResourcesController.GetAudioClip( thingSoundPath, "bite.wav" );
 
             this.tentacleImpaleSounds = new AudioClip[3];
-            this.tentacleImpaleSounds[0] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "tentacleImpale1.wav");
-            this.tentacleImpaleSounds[1] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "tentacleImpale2.wav");
-            this.tentacleImpaleSounds[2] = ResourcesController.CreateAudioClip(Path.Combine(directoryPath, "sounds/ThingSounds"), "tentacleImpale3.wav");
+            this.tentacleImpaleSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale1.wav" );
+            this.tentacleImpaleSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale2.wav" );
+            this.tentacleImpaleSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale3.wav" );
         }
 
         protected override void Update()
         {
-            if (this.invulnerable)
+            if ( this.invulnerable )
             {
                 this.wasInvulnerable = true;
             }
@@ -298,7 +274,7 @@ namespace RJBrocready
                 this.SetDeltaTime();
                 this.RunMovement();
                 this.counter += this.t;
-                if (this.counter > this.frameRate)
+                if ( this.counter > this.frameRate )
                 {
                     this.counter -= this.frameRate;
                     this.IncreaseFrame();
@@ -308,7 +284,7 @@ namespace RJBrocready
                 if ( this.fakeDeathTime < fakeDeathMaxTime )
                 {
                     this.fakeDeathTime += this.t;
-                    if (this.fakeDeathTime >= fakeDeathMaxTime)
+                    if ( this.fakeDeathTime >= fakeDeathMaxTime )
                     {
                         base.frame = 0;
                     }
@@ -319,15 +295,15 @@ namespace RJBrocready
                     if ( this.scareDelay <= 0f && base.frame > 4 )
                     {
                         this.scareDelay = 0.0667f;
-                        Map.PanicUnits(base.X, base.Y, 100f, 6f, 2f, true, false);
+                        Map.PanicUnits( base.X, base.Y, 100f, 6f, 2f, true, false );
                     }
                 }
                 this.CheckFacingDirection();
             }
 
-            if (this.acceptedDeath)
+            if ( this.acceptedDeath )
             {
-                if (this.health <= 0 && !this.WillReviveAlready)
+                if ( this.health <= 0 && !this.WillReviveAlready )
                 {
                     return;
                 }
@@ -340,16 +316,16 @@ namespace RJBrocready
             }
 
             // Stop flamethrower when getting on helicopter
-            if (this.isOnHelicopter)
+            if ( this.isOnHelicopter )
             {
                 this.flameSource.enabled = false;
                 this.tentacleLine.enabled = false;
-                this.tentacleWhipSprite.gameObject.SetActive(false);
+                this.tentacleWhipSprite.gameObject.SetActive( false );
                 // Release unit if one is impaled
-                if (this.unitHit != null)
+                if ( this.unitHit != null )
                 {
-                    this.unitHit.Unimpale(3, DamageType.Blade, 0f, 0f, this);
-                    if (unitHit is Mook)
+                    this.unitHit.Unimpale( 3, DamageType.Blade, 0f, 0f, this );
+                    if ( unitHit is Mook )
                     {
                         unitHit.useImpaledFrames = false;
                     }
@@ -357,10 +333,10 @@ namespace RJBrocready
             }
 
             // Check if invulnerability ran out
-            if (this.wasInvulnerable && !this.invulnerable)
+            if ( this.wasInvulnerable && !this.invulnerable )
             {
-                base.GetComponent<Renderer>().material.SetColor("_TintColor", Color.gray);
-                gunSprite.meshRender.material.SetColor("_TintColor", Color.gray);
+                base.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
+                gunSprite.meshRender.material.SetColor( "_TintColor", Color.gray );
             }
 
             // Count down thing timer
@@ -368,7 +344,7 @@ namespace RJBrocready
             {
                 if ( this.down && this.ducking )
                 {
-                    this.MonsterFormCounter = Mathf.Min(this.MonsterFormCounter, MaxMonsterFormTimeReduced);
+                    this.MonsterFormCounter = Mathf.Min( this.MonsterFormCounter, MaxMonsterFormTimeReduced );
                 }
                 this.MonsterFormCounter -= this.t;
                 if ( this.MonsterFormCounter <= 0f )
@@ -376,18 +352,18 @@ namespace RJBrocready
                     this.currentState = ThingState.Reforming;
                     this.gunFrame = 0;
                     base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
-                    this.sprite.pixelDimensions = new Vector2(32f, 32f);
-                    this.sprite.SetSize(32, 32);
+                    this.sprite.pixelDimensions = new Vector2( 32f, 32f );
+                    this.sprite.SetSize( 32, 32 );
                     this.sprite.RecalcTexture();
                     this.spritePixelHeight = 32;
                     this.spritePixelWidth = 32;
                     this.spriteOffsetX = 0f;
                     this.spriteOffsetY = 0f;
-                    this.sprite.SetLowerLeftPixel(0f, 32f);
+                    this.sprite.SetLowerLeftPixel( 0f, 32f );
                     this.ActivateGun();
-                    this.gunSprite.SetLowerLeftPixel((this.gunFrame + 12) * 64f, 64f);
+                    this.gunSprite.SetLowerLeftPixel( ( this.gunFrame + 12 ) * 64f, 64f );
                     this.ChangeFrame();
-                    Sound.GetInstance().PlaySoundEffectAt(this.reformSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                    Sound.GetInstance().PlaySoundEffectAt( this.reformSound, 1f, base.transform.position, 1f, true, false, false, 0f );
                 }
             }
 
@@ -398,33 +374,24 @@ namespace RJBrocready
             }
 
             // Handle death
-            if (base.actionState == ActionState.Dead && !this.acceptedDeath)
+            if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
             {
-                if (!this.WillReviveAlready)
+                if ( !this.WillReviveAlready )
                 {
                     this.acceptedDeath = true;
                 }
             }
         }
 
-        public void makeTextBox(string label, ref string text, ref float val)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(label);
-            text = GUILayout.TextField(text);
-            GUILayout.EndHorizontal();
-
-            float.TryParse(text, out val);
-        }
-
         public override void UIOptions()
         {
+            RJBrocready.permanentlyBecomeThingInIronBro = GUILayout.Toggle( RJBrocready.permanentlyBecomeThingInIronBro, "Carry over death between levels in IronBro" );
         }
 
-        public override void HarmonyPatches(Harmony harmony)
+        public override void HarmonyPatches( Harmony harmony )
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll(assembly);
+            harmony.PatchAll( assembly );
         }
         #endregion
 
@@ -438,7 +405,7 @@ namespace RJBrocready
                 this.flameSource.clip = flameStart;
                 this.flameSource.Play();
                 this.fireFlashCounter = 0f;
-                this.burstCooldown = UnityEngine.Random.Range(1f, 2f);
+                this.burstCooldown = UnityEngine.Random.Range( 1f, 2f );
                 this.burstCount = 0;
                 this.fireRate = originalFirerate;
             }
@@ -463,72 +430,71 @@ namespace RJBrocready
 
         protected override void RunFiring()
         {
-            if (this.health <= 0)
+            if ( this.health <= 0 )
             {
                 return;
             }
             if ( !theThing )
             {
                 this.fireDelay -= this.t;
-                if (this.fire)
+                if ( this.fire )
                 {
                     this.StopRolling();
                 }
-                if (this.fire && this.fireDelay <= 0f)
+                if ( this.fire && this.fireDelay <= 0f )
                 {
                     this.fireCounter += this.t;
                     this.fireFlashCounter += this.t;
-                    if (this.fireCounter >= this.fireRate)
+                    if ( this.fireCounter >= this.fireRate )
                     {
                         this.fireCounter -= this.fireRate;
                         this.UseFire();
-                        this.SetGestureAnimation(GestureElement.Gestures.None);
+                        this.SetGestureAnimation( GestureElement.Gestures.None );
                     }
-                    if (this.fireFlashCounter >= 0.1f)
+                    if ( this.fireFlashCounter >= 0.1f )
                     {
                         this.fireFlashCounter -= 0.1f;
-                        EffectsController.CreateMuzzleFlashEffect(base.X + base.transform.localScale.x * 11f, base.Y + 10f, -25f, (base.transform.localScale.x * 60f + this.xI) * 0.01f, (UnityEngine.Random.value * 60f - 30f) * 0.01f, base.transform);
+                        EffectsController.CreateMuzzleFlashEffect( base.X + base.transform.localScale.x * 11f, base.Y + 10f, -25f, ( base.transform.localScale.x * 60f + this.xI ) * 0.01f, ( UnityEngine.Random.value * 60f - 30f ) * 0.01f, base.transform );
                         //EffectsController.CreateMuzzleFlashEffect(base.X + base.transform.localScale.x * 11f, base.Y + 11f, -25f, (base.transform.localScale.x * 70f + this.xI) * 0.01f, (UnityEngine.Random.value * 70f - 35f) * 0.01f, base.transform);
                         this.FireFlashAvatar();
                     }
                 }
 
                 this.fireDelay -= this.t;
-                if (this.fire)
+                if ( this.fire )
                 {
                     // Start flame loop
                     //if ( !this.flameSource.isPlaying )
-                    if (!this.flameSource.loop && (this.flameSource.clip.length - this.flameSource.time) <= 0.02f)
+                    if ( !this.flameSource.loop && ( this.flameSource.clip.length - this.flameSource.time ) <= 0.02f )
                     {
                         this.flameSource.clip = flameLoop;
                         this.flameSource.loop = true;
                         this.flameSource.Play();
                     }
-                    if (this.fireDelay <= 0f)
+                    if ( this.fireDelay <= 0f )
                     {
                         this.fireCounter += this.t;
                         this.fireFlashCounter += this.t;
-                        if (burstCooldown > 0)
+                        if ( burstCooldown > 0 )
                         {
                             this.burstCooldown -= this.t;
-                            if (burstCooldown < 0)
+                            if ( burstCooldown < 0 )
                             {
                                 this.fireRate = 0.1f;
-                                this.burstCount = UnityEngine.Random.Range(12, 20);
-                                this.sound.PlaySoundEffectAt(this.flameBurst, 0.5f, base.transform.position, 1f, true, false, false, 0f);
+                                this.burstCount = UnityEngine.Random.Range( 12, 20 );
+                                this.sound.PlaySoundEffectAt( this.flameBurst, 0.5f, base.transform.position, 1f, true, false, false, 0f );
                             }
                         }
 
-                        if (this.fireCounter >= this.fireRate)
+                        if ( this.fireCounter >= this.fireRate )
                         {
                             this.fireCounter -= this.fireRate;
                             this.UseFire();
                         }
-                        if (this.fireFlashCounter >= 0.1f)
+                        if ( this.fireFlashCounter >= 0.1f )
                         {
                             this.fireFlashCounter -= 0.1f;
-                            EffectsController.CreateMuzzleFlashEffect(base.X + base.transform.localScale.x * 11f, base.Y + 10f, -25f, (base.transform.localScale.x * 60f + this.xI) * 0.01f, (UnityEngine.Random.value * 60f - 30f) * 0.01f, base.transform);
-                            //EffectsController.CreateMuzzleFlashEffect(base.X + base.transform.localScale.x * 11f, base.Y + 11f, -25f, (base.transform.localScale.x * 70f + this.xI) * 0.01f, (UnityEngine.Random.value * 70f - 35f) * 0.01f, base.transform);
+                            EffectsController.CreateMuzzleFlashEffect( base.X + base.transform.localScale.x * 11f, base.Y + 10f, -25f, ( base.transform.localScale.x * 60f + this.xI ) * 0.01f, ( UnityEngine.Random.value * 60f - 30f ) * 0.01f, base.transform );
                             this.FireFlashAvatar();
                         }
                     }
@@ -544,23 +510,23 @@ namespace RJBrocready
         {
             if ( !theThing )
             {
-                if (this.burstCooldown <= 0f)
+                if ( this.burstCooldown <= 0f )
                 {
-                    this.FireWeapon(base.X + base.transform.localScale.x * 11f, base.Y + 10f, base.transform.localScale.x * 180f + this.xI, UnityEngine.Random.value * 30 - 15f);
-                    this.FireWeapon(base.X + base.transform.localScale.x * 11f, base.Y + 11f, base.transform.localScale.x * 210f + this.xI, UnityEngine.Random.value * 40f - 20f);
+                    this.FireWeapon( base.X + base.transform.localScale.x * 11f, base.Y + 10f, base.transform.localScale.x * 180f + this.xI, UnityEngine.Random.value * 30 - 15f );
+                    this.FireWeapon( base.X + base.transform.localScale.x * 11f, base.Y + 11f, base.transform.localScale.x * 210f + this.xI, UnityEngine.Random.value * 40f - 20f );
                     --this.burstCount;
-                    if (this.burstCount <= 0)
+                    if ( this.burstCount <= 0 )
                     {
                         this.fireRate = originalFirerate;
-                        this.burstCooldown = UnityEngine.Random.Range(0.5f, 2f);
+                        this.burstCooldown = UnityEngine.Random.Range( 0.5f, 2f );
                     }
                 }
                 else
                 {
-                    this.FireWeapon(base.X + base.transform.localScale.x * 11f, base.Y + 10f, base.transform.localScale.x * 30f + this.xI, UnityEngine.Random.value * 20f - 15f);
-                    this.FireWeapon(base.X + base.transform.localScale.x * 11f, base.Y + 11f, base.transform.localScale.x * 40f + this.xI, UnityEngine.Random.value * 30f - 20f);
+                    this.FireWeapon( base.X + base.transform.localScale.x * 11f, base.Y + 10f, base.transform.localScale.x * 30f + this.xI, UnityEngine.Random.value * 20f - 15f );
+                    this.FireWeapon( base.X + base.transform.localScale.x * 11f, base.Y + 11f, base.transform.localScale.x * 40f + this.xI, UnityEngine.Random.value * 30f - 20f );
                 }
-                Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+                Map.DisturbWildLife( base.X, base.Y, 60f, base.playerNum );
             }
             else
             {
@@ -568,11 +534,11 @@ namespace RJBrocready
             }
         }
 
-        protected override void FireWeapon(float x, float y, float xSpeed, float ySpeed)
+        protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
             this.gunFrame = 3;
-            this.gunSprite.SetLowerLeftPixel((float)(32 * this.gunFrame), 32f);
-            ProjectileController.SpawnProjectileLocally(this.projectiles[UnityEngine.Random.Range(0, 3)], this, x, y, xSpeed, ySpeed, base.playerNum);
+            this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
+            ProjectileController.SpawnProjectileLocally( this.projectiles[UnityEngine.Random.Range( 0, 3 )], this, x, y, xSpeed, ySpeed, base.playerNum );
         }
 
         protected override void RunGun()
@@ -582,16 +548,16 @@ namespace RJBrocready
                 if ( this.fire )
                 {
                     this.gunFrame = 3;
-                    this.SetGunSprite(this.gunFrame, 0);
+                    this.SetGunSprite( this.gunFrame, 0 );
                 }
                 else if ( this.gunFrame > 0 )
                 {
                     this.gunCounter += this.t;
-                    if (this.gunCounter > 0.05f)
+                    if ( this.gunCounter > 0.05f )
                     {
                         this.gunCounter -= 0.05f;
                         this.gunFrame--;
-                        this.SetGunSprite(this.gunFrame, 0);
+                        this.SetGunSprite( this.gunFrame, 0 );
                     }
                 }
             }
@@ -601,11 +567,11 @@ namespace RJBrocready
             }
         }
 
-        protected override void SetGunSprite(int spriteFrame, int spriteRow)
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
         {
             if ( !theThing )
             {
-                base.SetGunSprite(spriteFrame, spriteRow);
+                base.SetGunSprite( spriteFrame, spriteRow );
             }
             else
             {
@@ -614,21 +580,21 @@ namespace RJBrocready
                 {
                     return;
                 }
-                if (base.actionState == ActionState.Hanging)
+                if ( base.actionState == ActionState.Hanging )
                 {
-                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
+                    this.gunSprite.SetLowerLeftPixel( 64f, 128f );
                 }
-                else if (base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed)
+                else if ( base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed )
                 {
-                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
+                    this.gunSprite.SetLowerLeftPixel( 64f, 128f );
                 }
-                else if (this.attachedToZipline != null && base.actionState == ActionState.Jumping)
+                else if ( this.attachedToZipline != null && base.actionState == ActionState.Jumping )
                 {
-                    this.gunSprite.SetLowerLeftPixel(64f, 128f);
+                    this.gunSprite.SetLowerLeftPixel( 64f, 128f );
                 }
                 else
                 {
-                    this.gunSprite.SetLowerLeftPixel((float)(64f * spriteFrame), 128);
+                    this.gunSprite.SetLowerLeftPixel( (float)( 64f * spriteFrame ), 128 );
                 }
             }
         }
@@ -650,22 +616,20 @@ namespace RJBrocready
 
         protected override void UseSpecial()
         {
-            if (this.SpecialAmmo > 0)
+            if ( this.SpecialAmmo > 0 )
             {
                 if ( !theThing )
                 {
                     if ( !this.spawnedDynamite )
                     {
-                        Dynamite dynamite;
-                        if (this.down && this.IsOnGround() && this.ducking)
+                        if ( this.down && this.IsOnGround() && this.ducking )
                         {
-                            dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 30f, 70f, base.playerNum, 0) as Dynamite;
+                            this.dynamitePrefab.SpawnGrenadeLocally( this, base.X + Mathf.Sign( base.transform.localScale.x ) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign( base.transform.localScale.x ) * 30f, 70f, base.playerNum, 0 );
                         }
                         else
                         {
-                            dynamite = ProjectileController.SpawnGrenadeLocally(this.dynamitePrefab, this, base.X + Mathf.Sign(base.transform.localScale.x) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign(base.transform.localScale.x) * 300f, 250f, base.playerNum, 0) as Dynamite;
+                            this.dynamitePrefab.SpawnGrenadeLocally( this, base.X + Mathf.Sign( base.transform.localScale.x ) * 6f, base.Y + 10f, 0.001f, 0.011f, Mathf.Sign( base.transform.localScale.x ) * 300f, 250f, base.playerNum, 0 );
                         }
-                        dynamite.enabled = true;
                         --this.SpecialAmmo;
                         this.spawnedDynamite = true;
                     }
@@ -693,21 +657,21 @@ namespace RJBrocready
             }
         }
 
-        public override void Knock(DamageType damageType, float xI, float yI, bool forceTumble)
+        public override void Knock( DamageType damageType, float xI, float yI, bool forceTumble )
         {
             // Override knock function to allow greater knockback from dynamite
             if ( damageType == DamageType.SelfEsteem )
             {
                 this.impaledBy = null;
                 this.impaledByTransform = null;
-                if (this.frozenTime > 0f)
+                if ( this.frozenTime > 0f )
                 {
                     return;
                 }
-                this.xI = Mathf.Clamp(this.xI + xI / 2f, -1200f, 1200f);
-                this.xIBlast = Mathf.Clamp(this.xIBlast + xI / 2f, -1200f, 1200f);
+                this.xI = Mathf.Clamp( this.xI + xI / 2f, -1200f, 1200f );
+                this.xIBlast = Mathf.Clamp( this.xIBlast + xI / 2f, -1200f, 1200f );
                 this.yI = this.yI + yI;
-                if (this.IsParachuteActive && yI > 0f)
+                if ( this.IsParachuteActive && yI > 0f )
                 {
                     this.IsParachuteActive = false;
                     this.Tumble();
@@ -715,80 +679,80 @@ namespace RJBrocready
             }
             else
             {
-                base.Knock(damageType, xI, yI, forceTumble);
+                base.Knock( damageType, xI, yI, forceTumble );
             }
         }
         #endregion
 
         #region Melee
-        protected void MeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        protected void MeleeAttack( bool shouldTryHitTerrain, bool playMissSound )
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Fire, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 8f, base.playerNum, out flag, null);
-            this.KickDoors(24f);
+            Map.DamageDoodads( 3, DamageType.Fire, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 8f, base.playerNum, out flag, null );
+            this.KickDoors( 24f );
             Unit hitUnit;
-            if (hitUnit = Map.HitClosestUnit(this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true))
+            if ( hitUnit = Map.HitClosestUnit( this, base.playerNum, 2, DamageType.Blade, 12f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 100f, 100f, true, true, base.IsMine, false, true ) )
             {
                 if ( hitUnit.health > 30 )
                 {
-                    hitUnit.Damage(7, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                    hitUnit.Damage( 7, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f );
                 }
                 else
                 {
-                    hitUnit.Damage(5, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f);
+                    hitUnit.Damage( 5, DamageType.Fire, base.transform.localScale.x * 100f, 100f, (int)base.transform.localScale.x, this, base.X + base.transform.localScale.x * 8f, base.Y + 8f );
                 }
                 // Don't play hit sound multiple times
                 if ( !this.meleeHasHit )
                 {
                     // Play default knife sound if we hit a metal enemy
-                    if (hitUnit.gameObject.CompareTag("Metal"))
+                    if ( hitUnit.gameObject.CompareTag( "Metal" ) )
                     {
-                        this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitTerrainSound, 0.5f, base.transform.position, 1f, true, false, false, 0f);
+                        this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.5f, base.transform.position, 1f, true, false, false, 0f );
                     }
                     else
                     {
-                        this.sound.PlaySoundEffectAt(this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f);
+                        this.sound.PlaySoundEffectAt( this.axeHitSound, 0.8f, base.transform.position, 1f, true, false, false, 0f );
                     }
                 }
                 this.meleeHasHit = true;
             }
-            else if (playMissSound)
+            else if ( playMissSound )
             {
             }
             this.meleeChosenUnit = null;
-            if (shouldTryHitTerrain && this.TryMeleeTerrain(0, 5))
+            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, 5 ) )
             {
                 this.meleeHasHit = true;
             }
             this.TriggerBroMeleeEvent();
         }
 
-        protected override bool TryMeleeTerrain(int offset = 0, int meleeDamage = 2)
+        protected override bool TryMeleeTerrain( int offset = 0, int meleeDamage = 2 )
         {
-            if (!Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(20 + offset), this.groundLayer))
+            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 20 + offset ), this.groundLayer ) )
             {
                 return false;
             }
             Cage component = this.raycastHit.collider.GetComponent<Cage>();
-            if (component == null && this.raycastHit.collider.transform.parent != null)
+            if ( component == null && this.raycastHit.collider.transform.parent != null )
             {
                 component = this.raycastHit.collider.transform.parent.GetComponent<Cage>();
             }
-            if (component != null)
+            if ( component != null )
             {
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
                 return true;
             }
-            MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
-            this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitTerrainSound, 0.3f, base.transform.position, 1f, true, false, false, 0f);
-            EffectsController.CreateProjectilePopWhiteEffect(base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f);
+            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+            this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.3f, base.transform.position, 1f, true, false, false, 0f );
+            EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
             return true;
         }
 
         protected override void StartMelee()
         {
             // Make it so we use the knife melee when touching walls so we don't fall off and have no way to get through
-            if ( !this.doingMelee && this.theThing && (this.wallDrag || this.currentlyAnticipatingWallClimb) )
+            if ( !this.doingMelee && this.theThing && ( this.wallDrag || this.currentlyAnticipatingWallClimb ) )
             {
                 this.meleeType = MeleeType.Knife;
             }
@@ -807,16 +771,16 @@ namespace RJBrocready
             {
                 return;
             }
-            if (this.CanStartNewMelee())
+            if ( this.CanStartNewMelee() )
             {
                 base.frame = 1;
                 base.counter = -0.05f;
                 this.AnimateMelee();
-                this.throwingMook = (this.nearbyMook != null && this.nearbyMook.CanBeThrown());
+                this.throwingMook = ( this.nearbyMook != null && this.nearbyMook.CanBeThrown() );
                 this.playedAxeSound = false;
                 this.meleeBufferedPress = false;
             }
-            else if (this.CanStartMeleeFollowUp())
+            else if ( this.CanStartMeleeFollowUp() )
             {
                 this.meleeBufferedPress = true;
             }
@@ -827,7 +791,7 @@ namespace RJBrocready
         {
             base.SetMeleeType();
             // Set dashing melee to true if we're jumping and dashing so that we can transition to dashing on landing
-            if ( this.jumpingMelee && (this.right || this.left) )
+            if ( this.jumpingMelee && ( this.right || this.left ) )
             {
                 this.dashingMelee = true;
             }
@@ -835,9 +799,9 @@ namespace RJBrocready
 
         protected override void StartMeleeCommon()
         {
-            if (!this.meleeFollowUp && this.CanStartNewMelee())
+            if ( !this.meleeFollowUp && this.CanStartNewMelee() )
             {
-                if (this.theThing)
+                if ( this.theThing )
                 {
                     base.frame = 0;
                     base.counter = -0.05f;
@@ -868,25 +832,25 @@ namespace RJBrocready
 
         protected override bool CanStartNewMelee()
         {
-            return !(this.doingMelee || this.usingSpecial);
+            return !( this.doingMelee || this.usingSpecial );
         }
 
         protected override bool CanStartMeleeFollowUp()
         {
             return true;
-        }        
+        }
 
         // Calls MeleeAttack
         protected override void AnimateCustomMelee()
         {
             // AnimateMeleeCommon except throwing mooks is disabled for the thing
-            this.SetSpriteOffset(0f, 0f);
+            this.SetSpriteOffset( 0f, 0f );
             this.rollingFrames = 0;
-            if (base.frame == 1)
+            if ( base.frame == 1 )
             {
                 base.counter -= 0.0334f;
             }
-            if (base.frame == 6 && this.meleeFollowUp)
+            if ( base.frame == 6 && this.meleeFollowUp )
             {
                 base.counter -= 0.08f;
                 base.frame = 1;
@@ -894,41 +858,41 @@ namespace RJBrocready
                 this.ResetMeleeValues();
             }
             this.frameRate = 0.025f;
-            if (!this.theThing && base.frame == 2 && this.nearbyMook != null && this.nearbyMook.CanBeThrown() && this.highFive)
+            if ( !this.theThing && base.frame == 2 && this.nearbyMook != null && this.nearbyMook.CanBeThrown() && this.highFive )
             {
                 this.CancelMelee();
-                this.ThrowBackMook(this.nearbyMook);
+                this.ThrowBackMook( this.nearbyMook );
                 this.nearbyMook = null;
             }
 
             if ( !theThing )
             {
-                if (!this.throwingMook)
+                if ( !this.throwingMook )
                 {
                     base.frameRate = 0.06f;
                 }
-                int num = 24 + Mathf.Clamp(base.frame, 0, 7);
+                int num = 24 + Mathf.Clamp( base.frame, 0, 7 );
                 int num2 = 10;
-                this.sprite.SetLowerLeftPixel((float)(num * this.spritePixelWidth), (float)(num2 * this.spritePixelHeight));
-                if (!this.throwingMook && (base.frame == 0 || base.frame == 1) && !this.playedAxeSound)
+                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
+                if ( !this.throwingMook && ( base.frame == 0 || base.frame == 1 ) && !this.playedAxeSound )
                 {
-                    this.sound.PlaySoundEffectAt(this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f);
+                    this.sound.PlaySoundEffectAt( this.fireAxeSound, 1f, base.transform.position, 1f, true, false, false, 0f );
                     this.playedAxeSound = true;
                 }
-                else if (base.frame == 3)
+                else if ( base.frame == 3 )
                 {
                     base.counter -= 0.066f;
-                    this.MeleeAttack(true, true);
+                    this.MeleeAttack( true, true );
                 }
-                else if (base.frame > 3 && !this.meleeHasHit && base.frame < 6)
+                else if ( base.frame > 3 && !this.meleeHasHit && base.frame < 6 )
                 {
-                    this.MeleeAttack(false, false);
+                    this.MeleeAttack( false, false );
                 }
-                if (base.frame >= 8)
+                if ( base.frame >= 8 )
                 {
                     base.frame = 0;
                     this.CancelMelee();
-                    if (this.meleeBufferedPress)
+                    if ( this.meleeBufferedPress )
                     {
                         this.meleeBufferedPress = false;
                         this.StartCustomMelee();
@@ -945,39 +909,39 @@ namespace RJBrocready
         {
             if ( !theThing )
             {
-                if (this.jumpingMelee)
+                if ( this.jumpingMelee )
                 {
                     this.ApplyFallingGravity();
-                    if (this.yI < this.maxFallSpeed)
+                    if ( this.yI < this.maxFallSpeed )
                     {
                         this.yI = this.maxFallSpeed;
                     }
                 }
-                else if (this.dashingMelee)
+                else if ( this.dashingMelee )
                 {
-                    if (base.frame <= 1)
+                    if ( base.frame <= 1 )
                     {
                         this.xI = 0f;
                         this.yI = 0f;
                     }
-                    else if (base.frame <= 3)
+                    else if ( base.frame <= 3 )
                     {
-                        if (this.meleeChosenUnit == null)
+                        if ( this.meleeChosenUnit == null )
                         {
-                            if (!this.isInQuicksand)
+                            if ( !this.isInQuicksand )
                             {
                                 this.xI = this.speed * 1f * base.transform.localScale.x;
                             }
                             this.yI = 0f;
                         }
-                        else if (!this.isInQuicksand)
+                        else if ( !this.isInQuicksand )
                         {
-                            this.xI = this.speed * 0.5f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 6f;
+                            this.xI = this.speed * 0.5f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 6f;
                         }
                     }
-                    else if (base.frame <= 7)
+                    else if ( base.frame <= 7 )
                     {
-                        if (!this.isInQuicksand)
+                        if ( !this.isInQuicksand )
                         {
                             this.xI = this.speed * 0.3f * base.transform.localScale.x;
                         }
@@ -988,7 +952,7 @@ namespace RJBrocready
                         this.ApplyFallingGravity();
                     }
                 }
-                else if (base.Y > this.groundHeight + 1f)
+                else if ( base.Y > this.groundHeight + 1f )
                 {
                     this.CancelMelee();
                 }
@@ -1001,7 +965,7 @@ namespace RJBrocready
 
         protected override void CancelMelee()
         {
-            if (this.theThing && this.currentMeleeType != MeleeType.Knife)
+            if ( this.theThing && this.currentMeleeType != MeleeType.Knife )
             {
                 this.ThingCancelMelee();
             }
@@ -1011,18 +975,18 @@ namespace RJBrocready
         #endregion
 
         #region TheThing
-        protected override void Gib(DamageType damageType, float xI, float yI)
+        protected override void Gib( DamageType damageType, float xI, float yI )
         {
             gibbed = true;
             // Cancel out of fake death state to allow character to actually die
-            if (this.currentState == ThingState.FakeDeath)
+            if ( this.currentState == ThingState.FakeDeath )
             {
                 this.currentState = ThingState.Human;
             }
-            base.Gib(damageType, xI, yI);
+            base.Gib( damageType, xI, yI );
         }
 
-        public override void Death(float xI, float yI, DamageObject damage)
+        public override void Death( float xI, float yI, DamageObject damage )
         {
             if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
             {
@@ -1031,7 +995,7 @@ namespace RJBrocready
                     this.DisConnectFaceHugger();
                     this.inseminatedCounter = 0f;
                 }
-                FakeDeath(xI, yI, damage);
+                FakeDeath( xI, yI, damage );
             }
             else
             {
@@ -1041,15 +1005,15 @@ namespace RJBrocready
                 if ( previousState > ThingState.HumanForm && !this.willComeBackToLife )
                 {
                     damage.damageType = DamageType.Crush;
-                    this.Gib(damage.damageType, Mathf.Sign(xI) * 50, yI);
-                    EffectsController.CreateSlimeExplosion(base.X, base.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Red);
+                    this.Gib( damage.damageType, Mathf.Sign( xI ) * 50, yI );
+                    EffectsController.CreateSlimeExplosion( base.X, base.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Red );
                 }
-                base.Death(xI, yI, damage);
+                base.Death( xI, yI, damage );
             }
             this.flameSource.Stop();
         }
 
-        public void FakeDeath(float xI, float yI, DamageObject damage)
+        public void FakeDeath( float xI, float yI, DamageObject damage )
         {
             this.flameSource.Stop();
             this.DeactivateGun();
@@ -1062,16 +1026,16 @@ namespace RJBrocready
             this.canWallClimb = false;
             this.canChimneyFlip = false;
             this.theThing = true;
-            if (damage != null)
+            if ( damage != null )
             {
-                if (damage.damageType != DamageType.Fall && damage.damageType != DamageType.ChainsawImpale && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.Acid)
+                if ( damage.damageType != DamageType.Fall && damage.damageType != DamageType.ChainsawImpale && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.Acid )
                 {
                     this.xI = xI * 0.3f;
-                    if (yI < 0f)
+                    if ( yI < 0f )
                     {
                         yI = 0f;
                     }
-                    if (damage.damageType != DamageType.Melee)
+                    if ( damage.damageType != DamageType.Melee )
                     {
                         this.yI = yI * 0.3f;
                     }
@@ -1081,36 +1045,36 @@ namespace RJBrocready
                     }
                 }
             }
-            if (this.impaledByTransform == null && !this.isInQuicksand && damage != null && damage.damageType != DamageType.Acid && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.ChainsawImpale)
+            if ( this.impaledByTransform == null && !this.isInQuicksand && damage != null && damage.damageType != DamageType.Acid && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.ChainsawImpale )
             {
                 this.yI += 25f;
                 float num2 = this.CalculateCeilingHeight();
-                if (base.Y + this.headHeight < num2 - 5f && damage != null && damage.damageType != DamageType.Chainsaw && damage.damageType != DamageType.Shock && !this.isInQuicksand)
+                if ( base.Y + this.headHeight < num2 - 5f && damage != null && damage.damageType != DamageType.Chainsaw && damage.damageType != DamageType.Shock && !this.isInQuicksand )
                 {
                     base.Y += 5f;
                 }
             }
-            if (damage != null && damage.damageType != DamageType.SelfEsteem && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Shock && this.frozenTime <= 0f)
+            if ( damage != null && damage.damageType != DamageType.SelfEsteem && damage.damageType != DamageType.SilencedBullet && damage.damageType != DamageType.Disembowel && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Shock && this.frozenTime <= 0f )
             {
-                EffectsController.CreateBloodParticles(this.bloodColor, base.X, base.Y + 6f, 10, 4f, 5f, 60f, this.xI * 0.5f, this.yI * 0.5f);
+                EffectsController.CreateBloodParticles( this.bloodColor, base.X, base.Y + 6f, 10, 4f, 5f, 60f, this.xI * 0.5f, this.yI * 0.5f );
             }
-            this.ReleaseHeldObject(false);
-            if (base.GetComponent<Collider>() != null)
+            this.ReleaseHeldObject( false );
+            if ( base.GetComponent<Collider>() != null )
             {
                 base.GetComponent<Collider>().enabled = false;
             }
-            Map.ForgetPlayer(base.playerNum, false, false);
+            Map.ForgetPlayer( base.playerNum, false, false );
             base.GetComponent<Renderer>().material = this.thingMaterial;
             base.frame = 0;
             this.up = this.down = this.left = this.right = this.wasUp = this.wasDown = this.wasLeft = this.wasRight = this.dashing = false;
             this.throwingHeldObject = this.throwingMook = false;
             base.actionState = ActionState.Idle;
-            HeroController.SetAvatarCalm(base.playerNum, this.usePrimaryAvatar);
-            this.SetGestureAnimation(GestureElement.Gestures.None);
-            if (GameModeController.IsHardcoreMode)
+            HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
+            this.SetGestureAnimation( GestureElement.Gestures.None );
+            if ( GameModeController.IsHardcoreMode && RJBrocready.permanentlyBecomeThingInIronBro )
             {
                 previouslyDiedInIronBro[PlayerProgress.currentWorldMapSaveSlot] = true;
-                WriteJson();
+                this.SaveSettings();
             }
 
             this.GetComponent<InvulnerabilityFlash>().enabled = false;
@@ -1118,11 +1082,11 @@ namespace RJBrocready
             this.AnimateFakeDeath();
         }
 
-        public override void Damage(int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY)
+        public override void Damage( int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY )
         {
-            if ( currentState != ThingState.FakeDeath && !(this.theThing && this.usingSpecial) )
+            if ( currentState != ThingState.FakeDeath && !( this.theThing && this.usingSpecial ) )
             {
-                base.Damage(damage, damageType, xI, yI, direction, damageSender, hitX, hitY);
+                base.Damage( damage, damageType, xI, yI, direction, damageSender, hitX, hitY );
             }
         }
 
@@ -1133,7 +1097,7 @@ namespace RJBrocready
 
         protected override void AlertNearbyMooks()
         {
-            if (this.currentState != ThingState.FakeDeath)
+            if ( this.currentState != ThingState.FakeDeath )
             {
                 base.AlertNearbyMooks();
             }
@@ -1160,16 +1124,16 @@ namespace RJBrocready
             if ( this.fakeDeathTime >= fakeDeathMaxTime )
             {
                 this.frameRate = 0.12f;
-                this.sprite.SetLowerLeftPixel(((base.frame - 1) * this.spritePixelWidth), 10 * this.spritePixelHeight);
+                this.sprite.SetLowerLeftPixel( ( ( base.frame - 1 ) * this.spritePixelWidth ), 10 * this.spritePixelHeight );
                 // Finished turning
-                if (base.frame == 11)
+                if ( base.frame == 11 )
                 {
                     this.GetComponent<InvulnerabilityFlash>().enabled = true;
                     this.invulnerable = false;
                     this.BecomeTheThing();
                 }
             }
-            else if (base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null)
+            else if ( base.Y > this.groundHeight + 0.2f && this.impaledByTransform == null )
             {
                 this.AnimateFallingDeath();
             }
@@ -1181,7 +1145,7 @@ namespace RJBrocready
 
         protected void BecomeTheThing()
         {
-            if (base.GetComponent<Collider>() != null)
+            if ( base.GetComponent<Collider>() != null )
             {
                 base.GetComponent<Collider>().enabled = true;
             }
@@ -1197,20 +1161,20 @@ namespace RJBrocready
             this.lastParentedToTransform = null;
             this.gunFrame = 0;
             this.gunSprite.meshRender.material = this.thingGunMaterial;
-            this.gunSprite.pixelDimensions = new Vector2(64f, 64f);
-            this.gunSprite.SetSize(64, 64);
+            this.gunSprite.pixelDimensions = new Vector2( 64f, 64f );
+            this.gunSprite.SetSize( 64, 64 );
             this.gunSprite.RecalcTexture();
-            this.gunSpriteOffset = new Vector2(-2f, 0f);
+            this.gunSpriteOffset = new Vector2( -2f, 0f );
             this.specialMaterials = new List<Material> { this.thingSpecialIconMaterial };
-            this.specialMaterialOffset = new Vector2(3, 0);
+            this.specialMaterialOffset = new Vector2( 3, 0 );
             this.specialMaterialSpacing = 4f;
             if ( this.pockettedSpecialAmmo.Count == 0 )
             {
-                BroMakerUtilities.SetSpecialMaterials(this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing);
+                BroMakerUtilities.SetSpecialMaterials( this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing );
             }
             this.SpecialAmmo = 2;
             this.originalSpecialAmmo = 2;
-            HeroController.SetAvatarMaterial(playerNum, this.thingAvatarMaterial);
+            HeroController.SetAvatarMaterial( playerNum, this.thingAvatarMaterial );
         }
 
         protected void EnterMonsterForm()
@@ -1225,7 +1189,7 @@ namespace RJBrocready
                 // Start entering monster form
                 this.currentState = ThingState.EnteringMonsterForm;
                 this.gunFrame = 0;
-                Sound.GetInstance().PlaySoundEffectAt(this.thingTransformSounds, 1f, base.transform.position, 1f, true, false, false, 0f);
+                Sound.GetInstance().PlaySoundEffectAt( this.thingTransformSounds, 1f, base.transform.position, 1f, true, false, false, 0f );
             }
             else if ( this.currentState == ThingState.Reforming )
             {
@@ -1239,15 +1203,15 @@ namespace RJBrocready
                     this.gunFrame = 0;
                     this.currentState = ThingState.EnteringMonsterForm;
                 }
-                Sound.GetInstance().PlaySoundEffectAt(this.thingTransformSounds, 1f, base.transform.position, 1f, true, false, false, 0f);
+                Sound.GetInstance().PlaySoundEffectAt( this.thingTransformSounds, 1f, base.transform.position, 1f, true, false, false, 0f );
             }
 
             this.releasedFire = false;
             this.firedOnce = false;
 
-            if (this.attachedToZipline != null)
+            if ( this.attachedToZipline != null )
             {
-                this.attachedToZipline.DetachUnit(this);
+                this.attachedToZipline.DetachUnit( this );
             }
             // Disable counter so we don't revert in the middle of an attack
             this.MonsterFormCounter = -1f;
@@ -1256,7 +1220,7 @@ namespace RJBrocready
             this.canWallClimb = false;
             this.canChimneyFlip = false;
             this.canCeilingHang = false;
-            SetGestureAnimation(GestureElement.Gestures.None);
+            SetGestureAnimation( GestureElement.Gestures.None );
 
             this.ActivateGun();
 
@@ -1264,15 +1228,15 @@ namespace RJBrocready
             if ( base.GetComponent<Renderer>().material != this.thingArmlessMaterial )
             {
                 base.GetComponent<Renderer>().material = this.thingArmlessMaterial;
-                this.sprite.pixelDimensions = new Vector2(32f, 32f);
-                this.sprite.SetSize(32, 32);
+                this.sprite.pixelDimensions = new Vector2( 32f, 32f );
+                this.sprite.SetSize( 32, 32 );
                 this.sprite.RecalcTexture();
                 this.spritePixelHeight = 32;
                 this.spritePixelWidth = 32;
                 this.spriteOffsetX = 0f;
                 this.spriteOffsetY = 0f;
             }
-            this.sprite.SetLowerLeftPixel(0f, 32f);
+            this.sprite.SetLowerLeftPixel( 0f, 32f );
             this.ChangeFrame();
             this.gunCounter = 1f;
             this.ThingRunGun();
@@ -1281,7 +1245,7 @@ namespace RJBrocready
 
         protected void EnterMonsterFormIdle()
         {
-            if (this.hasBeenCoverInAcid)
+            if ( this.hasBeenCoverInAcid )
             {
                 return;
             }
@@ -1289,9 +1253,9 @@ namespace RJBrocready
             this.releasedFire = false;
             this.firedOnce = false;
 
-            if (this.attachedToZipline != null)
+            if ( this.attachedToZipline != null )
             {
-                this.attachedToZipline.DetachUnit(this);
+                this.attachedToZipline.DetachUnit( this );
             }
             this.speed = MonsterFormSpeed;
             this.currentState = ThingState.MonsterForm;
@@ -1299,7 +1263,7 @@ namespace RJBrocready
             this.doRollOnLand = false;
             this.canWallClimb = false;
             this.canChimneyFlip = false;
-            SetGestureAnimation(GestureElement.Gestures.None);
+            SetGestureAnimation( GestureElement.Gestures.None );
 
             this.gunFrame = 0;
             this.DeactivateGun();
@@ -1307,8 +1271,8 @@ namespace RJBrocready
             if ( base.GetComponent<Renderer>().material != this.thingMonsterFormMaterial )
             {
                 base.GetComponent<Renderer>().material = this.thingMonsterFormMaterial;
-                this.sprite.pixelDimensions = new Vector2(64f, 64f);
-                this.sprite.SetSize(64, 64);
+                this.sprite.pixelDimensions = new Vector2( 64f, 64f );
+                this.sprite.SetSize( 64, 64 );
                 this.sprite.RecalcTexture();
                 this.spritePixelHeight = 64;
                 this.spritePixelWidth = 64;
@@ -1328,13 +1292,13 @@ namespace RJBrocready
             this.canChimneyFlip = true;
             this.canCeilingHang = true;
 
-            this.SetGunPosition(0, 0);
-            this.gunSpriteOffset = new Vector2(-2f, 0f);
-            this.SetGunSprite(0, 0);
+            this.SetGunPosition( 0, 0 );
+            this.gunSpriteOffset = new Vector2( -2f, 0f );
+            this.SetGunSprite( 0, 0 );
 
             base.GetComponent<Renderer>().material = this.thingMaterial;
-            this.sprite.pixelDimensions = new Vector2(32f, 32f);
-            this.sprite.SetSize(32, 32);
+            this.sprite.pixelDimensions = new Vector2( 32f, 32f );
+            this.sprite.SetSize( 32, 32 );
             this.sprite.RecalcTexture();
             this.spritePixelHeight = 32;
             this.spritePixelWidth = 32;
@@ -1345,35 +1309,35 @@ namespace RJBrocready
 
         protected void AnimateBecomingMonster()
         {
-            if (this.gunFrame >= 6)
+            if ( this.gunFrame >= 6 )
             {
                 this.currentState = ThingState.MonsterForm;
             }
 
-            this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 64f);
+            this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 64f );
         }
 
         protected void AnimateBecomingHuman()
         {
             this.gunCounter += this.t;
-            if (this.gunCounter > 0.08f)
+            if ( this.gunCounter > 0.08f )
             {
                 this.gunCounter -= 0.08f;
                 ++this.gunFrame;
-                if (this.gunFrame > 5)
+                if ( this.gunFrame > 5 )
                 {
                     ExitMonsterForm();
                 }
                 else
                 {
-                    this.gunSprite.SetLowerLeftPixel((this.gunFrame + 12) * 64f, 64f);
+                    this.gunSprite.SetLowerLeftPixel( ( this.gunFrame + 12 ) * 64f, 64f );
                 }
             }
         }
 
-        protected override void SetSpriteOffset(float xOffset, float yOffset)
+        protected override void SetSpriteOffset( float xOffset, float yOffset )
         {
-            base.SetSpriteOffset(this.spriteOffsetX + xOffset, this.spriteOffsetY + yOffset);
+            base.SetSpriteOffset( this.spriteOffsetX + xOffset, this.spriteOffsetY + yOffset );
         }
 
         protected override void AnimateWallAnticipation()
@@ -1386,26 +1350,26 @@ namespace RJBrocready
             else
             {
                 this.AnimateJumping();
-                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
+                this.MonsterFormCounter = Mathf.Min( MonsterFormCounter, MaxMonsterFormTimeReduced );
             }
             this.wasAnticipatingWallClimb = true;
         }
 
-        protected override void Jump(bool wallJump)
+        protected override void Jump( bool wallJump )
         {
-            if ( this.currentState > ThingState.HumanForm  && wallJump )
+            if ( this.currentState > ThingState.HumanForm && wallJump )
             {
                 return;
             }
-            base.Jump(wallJump);
+            base.Jump( wallJump );
         }
 
         protected override void ChangeFrame()
         {
             base.ChangeFrame();
-            if ( this.theThing && !(this.usingSpecial || this.doingMelee) && this.currentState == ThingState.MonsterForm )
+            if ( this.theThing && !( this.usingSpecial || this.doingMelee ) && this.currentState == ThingState.MonsterForm )
             {
-                this.frameRate = Mathf.Max(0.0334f, this.frameRate);
+                this.frameRate = Mathf.Max( 0.0334f, this.frameRate );
             }
             if ( this.wasAnticipatingWallClimb )
             {
@@ -1418,15 +1382,15 @@ namespace RJBrocready
             this.wasAnticipatingWallClimb = false;
         }
 
-        public override void SetGestureAnimation(GestureElement.Gestures gesture)
+        public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            if (!(gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm))
+            if ( !( gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm ) )
             {
-                base.SetGestureAnimation(gesture);
+                base.SetGestureAnimation( gesture );
             }
             else
             {
-                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
+                this.MonsterFormCounter = Mathf.Min( MonsterFormCounter, MaxMonsterFormTimeReduced );
             }
         }
 
@@ -1440,90 +1404,90 @@ namespace RJBrocready
             base.CoverInAcidRPC();
         }
 
-        public override bool Inseminate(AlienFaceHugger unit, float xForce, float yForce)
+        public override bool Inseminate( AlienFaceHugger unit, float xForce, float yForce )
         {
             if ( this.theThing )
             {
                 ExitMonsterForm();
             }
-            return base.Inseminate(unit, xForce, yForce);
+            return base.Inseminate( unit, xForce, yForce );
         }
 
-        protected override void PressHighFiveMelee(bool forceHighFive = false)
+        protected override void PressHighFiveMelee( bool forceHighFive = false )
         {
-            if (this.health <= 0)
+            if ( this.health <= 0 )
             {
                 return;
             }
-            if (this.MustIgnoreHighFiveMeleePress())
+            if ( this.MustIgnoreHighFiveMeleePress() )
             {
                 return;
             }
-            this.SetGestureAnimation(GestureElement.Gestures.None);
-            Grenade nearbyGrenade = Map.GetNearbyGrenade(20f, base.X, base.Y + this.waistHeight);
+            this.SetGestureAnimation( GestureElement.Gestures.None );
+            Grenade nearbyGrenade = Map.GetNearbyGrenade( 20f, base.X, base.Y + this.waistHeight );
             this.FindNearbyMook();
-            TeleportDoor nearbyTeleportDoor = Map.GetNearbyTeleportDoor(base.X, base.Y);
-            if (nearbyTeleportDoor != null && this.CanUseSwitch() && nearbyTeleportDoor.Activate(this))
+            TeleportDoor nearbyTeleportDoor = Map.GetNearbyTeleportDoor( base.X, base.Y );
+            if ( nearbyTeleportDoor != null && this.CanUseSwitch() && nearbyTeleportDoor.Activate( this ) )
             {
                 return;
             }
-            Switch nearbySwitch = Map.GetNearbySwitch(base.X, base.Y);
-            if (GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.BroDown)
+            Switch nearbySwitch = Map.GetNearbySwitch( base.X, base.Y );
+            if ( GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.BroDown )
             {
-                if (nearbySwitch != null && this.CanUseSwitch())
+                if ( nearbySwitch != null && this.CanUseSwitch() )
                 {
-                    nearbySwitch.Activate(this);
+                    nearbySwitch.Activate( this );
                 }
                 else
                 {
                     bool flag = false;
-                    for (int i = -1; i < 4; i++)
+                    for ( int i = -1; i < 4; i++ )
                     {
-                        if (i != base.playerNum && Map.IsUnitNearby(i, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, true, out this.meleeChosenUnit))
+                        if ( i != base.playerNum && Map.IsUnitNearby( i, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, true, out this.meleeChosenUnit ) )
                         {
                             this.StartMelee();
                             flag = true;
                         }
                     }
-                    if (!flag && nearbySwitch != null && this.CanUseSwitch())
+                    if ( !flag && nearbySwitch != null && this.CanUseSwitch() )
                     {
-                        nearbySwitch.Activate(this);
+                        nearbySwitch.Activate( this );
                     }
                 }
             }
-            if (nearbyGrenade != null && this.currentState <= ThingState.HumanForm)
+            if ( nearbyGrenade != null && this.currentState <= ThingState.HumanForm )
             {
-                this.doingMelee = (this.dashingMelee = false);
-                this.ThrowBackGrenade(nearbyGrenade);
+                this.doingMelee = ( this.dashingMelee = false );
+                this.ThrowBackGrenade( nearbyGrenade );
             }
-            else if (!GameModeController.IsDeathMatchMode || !this.doingMelee)
+            else if ( !GameModeController.IsDeathMatchMode || !this.doingMelee )
             {
-                if (Map.IsCitizenNearby(base.X, base.Y, 32, 32))
+                if ( Map.IsCitizenNearby( base.X, base.Y, 32, 32 ) )
                 {
-                    if (!this.doingMelee)
+                    if ( !this.doingMelee )
                     {
                         this.StartHighFive();
                     }
                 }
-                else if (forceHighFive && !this.doingMelee)
+                else if ( forceHighFive && !this.doingMelee )
                 {
                     this.StartHighFive();
                 }
-                else if (nearbySwitch != null && this.CanUseSwitch())
+                else if ( nearbySwitch != null && this.CanUseSwitch() )
                 {
-                    nearbySwitch.Activate(this);
+                    nearbySwitch.Activate( this );
                 }
-                else if (this.meleeChosenUnit == null && Map.IsUnitNearby(-1, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, false, out this.meleeChosenUnit))
+                else if ( this.meleeChosenUnit == null && Map.IsUnitNearby( -1, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, false, out this.meleeChosenUnit ) )
                 {
                     this.StartMelee();
                 }
-                else if (this.CheckBustCage())
+                else if ( this.CheckBustCage() )
                 {
                     this.StartMelee();
                 }
-                else if (HeroController.IsAnotherPlayerNearby(base.playerNum, base.X, base.Y, 32f, 32f))
+                else if ( HeroController.IsAnotherPlayerNearby( base.playerNum, base.X, base.Y, 32f, 32f ) )
                 {
-                    if (!this.doingMelee)
+                    if ( !this.doingMelee )
                     {
                         this.StartHighFive();
                     }
@@ -1539,7 +1503,7 @@ namespace RJBrocready
         #region ThingPrimary
         protected void ThingStartFiring()
         {
-            if ( !this.IsInseminated() && !this.HasFaceHugger() && !this.hasBeenCoverInAcid && !this.releasedFire && !(this.usingSpecial || this.doingMelee) )
+            if ( !this.IsInseminated() && !this.HasFaceHugger() && !this.hasBeenCoverInAcid && !this.releasedFire && !( this.usingSpecial || this.doingMelee ) )
             {
                 // Switch sprites to monster sprites
                 EnterMonsterForm();
@@ -1553,7 +1517,7 @@ namespace RJBrocready
 
         protected void ThingStopFiring()
         {
-            if ( !(this.usingSpecial || this.doingMelee) )
+            if ( !( this.usingSpecial || this.doingMelee ) )
             {
                 if ( this.currentState == ThingState.EnteringMonsterForm || this.currentState == ThingState.MonsterForm )
                 {
@@ -1568,37 +1532,37 @@ namespace RJBrocready
 
         protected void ThingUseFire()
         {
-            this.ThingFireWeapon(base.X, base.Y + 8f, base.transform.localScale.x * 300f, 600f);
-            Map.DisturbWildLife(base.X, base.Y, 60f, base.playerNum);
+            this.ThingFireWeapon( base.X, base.Y + 8f, base.transform.localScale.x * 300f, 600f );
+            Map.DisturbWildLife( base.X, base.Y, 60f, base.playerNum );
         }
 
-        public static bool HitUnits(MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, bool canHeadShot, List<Unit> hitUnits, bool onlyDamageInRadius = false)
+        public static bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, bool canHeadShot, List<Unit> hitUnits, bool onlyDamageInRadius = false )
         {
-            if (Map.units == null)
+            if ( Map.units == null )
             {
                 return false;
             }
             bool result = false;
             int num = 999999;
             bool flag = false;
-            for (int i = Map.units.Count - 1; i >= 0; i--)
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
                 Unit unit = Map.units[i];
-                if (unit != null && (GameModeController.DoesPlayerNumDamage(playerNum, unit.playerNum) || (unit.playerNum < 0 && unit.CatchFriendlyBullets())) && !unit.invulnerable && unit.health <= num)
+                if ( unit != null && ( GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) || ( unit.playerNum < 0 && unit.CatchFriendlyBullets() ) ) && !unit.invulnerable && unit.health <= num )
                 {
                     float num2 = unit.X - x;
-                    if (Mathf.Abs(num2) - xRange < unit.width)
+                    if ( Mathf.Abs( num2 ) - xRange < unit.width )
                     {
                         float num3 = unit.Y + unit.height / 2f + 4f - y;
-                        if (Mathf.Abs(num3) - yRange < unit.height && (!onlyDamageInRadius || Mathf.Sqrt(num2 * num2 + num3 * num3) <= xRange + unit.width))
+                        if ( Mathf.Abs( num3 ) - yRange < unit.height && ( !onlyDamageInRadius || Mathf.Sqrt( num2 * num2 + num3 * num3 ) <= xRange + unit.width ) )
                         {
-                            if ( !hitUnits.Contains(unit) )
+                            if ( !hitUnits.Contains( unit ) )
                             {
-                                if (hitUnits != null)
+                                if ( hitUnits != null )
                                 {
-                                    hitUnits.Add(unit);
+                                    hitUnits.Add( unit );
                                 }
-                                if (!penetrates && unit.health > 0)
+                                if ( !penetrates && unit.health > 0 )
                                 {
                                     num = 0;
                                     flag = true;
@@ -1608,20 +1572,20 @@ namespace RJBrocready
                                 {
                                     damage += 3;
                                 }
-                                if (!canGib && unit.health <= 0)
+                                if ( !canGib && unit.health <= 0 )
                                 {
-                                    Map.KnockAndDamageUnit(damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                                    Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
                                 }
-                                else if (num3 < -unit.height && canHeadShot && unit.CanHeadShot())
+                                else if ( num3 < -unit.height && canHeadShot && unit.CanHeadShot() )
                                 {
-                                    Map.HeadShotUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(damage, playerNum), damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y);
+                                    Map.HeadShotUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y );
                                 }
                                 else
                                 {
-                                    Map.KnockAndDamageUnit(damageSender, unit, ValueOrchestrator.GetModifiedDamage(damage, playerNum), damageType, xI, yI, (int)Mathf.Sign(xI), knock, x, y, false);
+                                    Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
                                 }
                                 result = true;
-                                if (flag)
+                                if ( flag )
                                 {
                                     return result;
                                 }
@@ -1633,22 +1597,22 @@ namespace RJBrocready
             return result;
         }
 
-        protected void ThingFireWeapon(float x, float y, float xSpeed, float ySpeed)
+        protected void ThingFireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Blade, x, y, xSpeed, ySpeed, 14f, base.playerNum, out flag, null);
-            if (Physics.Raycast(new Vector3(base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 33f, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
+            Map.DamageDoodads( 3, DamageType.Blade, x, y, xSpeed, ySpeed, 14f, base.playerNum, out flag, null );
+            if ( Physics.Raycast( new Vector3( base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 33f, this.fragileLayer ) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null )
             {
-                this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
+                this.raycastHit.collider.gameObject.SendMessage( "Open", (int)base.transform.localScale.x );
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y );
             }
-            if ( HitUnits(this, playerNum, 7, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
+            if ( HitUnits( this, playerNum, 7, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
             }
 
             if ( !this.hasHitTerrain )
             {
-                this.hasHitTerrain = this.ThingHitTerrain(33f, 4f, 0, 14f, 5, false);
+                this.hasHitTerrain = this.ThingHitTerrain( 33f, 4f, 0, 14f, 5, false );
             }
         }
 
@@ -1663,7 +1627,7 @@ namespace RJBrocready
 
         public override void ClearAllInput()
         {
-            if ( this.theThing && this.fire)
+            if ( this.theThing && this.fire )
             {
                 this.releasedFire = true;
             }
@@ -1673,14 +1637,14 @@ namespace RJBrocready
         protected void ThingRunGun()
         {
             this.firePressed += this.t;
-            if ( this.hasBeenCoverInAcid || this.doingMelee || this.usingSpecial || base.actionState == ActionState.Recalling)
+            if ( this.hasBeenCoverInAcid || this.doingMelee || this.usingSpecial || base.actionState == ActionState.Recalling )
             {
                 // Do nothing
             }
-            else if (this.currentState == ThingState.EnteringMonsterForm)
+            else if ( this.currentState == ThingState.EnteringMonsterForm )
             {
                 this.gunCounter += this.t;
-                if (this.gunCounter > 0.08f)
+                if ( this.gunCounter > 0.08f )
                 {
                     this.gunCounter -= 0.08f;
                     ++this.gunFrame;
@@ -1693,18 +1657,18 @@ namespace RJBrocready
                 }
             }
             // Going from monster back to human
-            else if (this.currentState == ThingState.Reforming)
+            else if ( this.currentState == ThingState.Reforming )
             {
                 AnimateBecomingHuman();
             }
             // Human form
-            else if (this.currentState == ThingState.HumanForm)
+            else if ( this.currentState == ThingState.HumanForm )
             {
                 this.gunFrame = 0;
-                this.SetGunSprite(0, 0);
+                this.SetGunSprite( 0, 0 );
             }
             // Attacking
-            else if (this.fire || (this.releasedFire && !this.firedOnce))
+            else if ( this.fire || ( this.releasedFire && !this.firedOnce ) )
             {
                 // Animate thing attack
                 this.gunCounter += this.t;
@@ -1725,7 +1689,7 @@ namespace RJBrocready
                     {
                         this.alreadyHitUnits = new List<Unit>();
                         this.hasHitTerrain = false;
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
 
                     if ( this.gunFrame > 8 && this.gunFrame < 11 )
@@ -1736,14 +1700,14 @@ namespace RJBrocready
                     // Play whip sound
                     if ( this.gunFrame == 9 )
                     {
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipStartSound, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipStartSound, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                         if ( this.alreadyHitUnits.Count > 0 )
                         {
-                            Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                            Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                         }
                         else
                         {
-                            Sound.GetInstance().PlaySoundEffectAt(this.whipMissSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                            Sound.GetInstance().PlaySoundEffectAt( this.whipMissSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                         }
                     }
                     // If we're on the last frame of the firing animation and the fire button hasn't been pressed since the last loop,
@@ -1753,24 +1717,24 @@ namespace RJBrocready
                         this.firedOnce = true;
                     }
 
-                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 192f);
+                    this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 192f );
                 }
             }
-            else if (this.releasedFire)
+            else if ( this.releasedFire )
             {
                 if ( this.gunFrame > 4 )
                 {
                     this.gunFrame = 4;
                 }
                 this.gunCounter += this.t;
-                if (this.gunCounter > 0.07f)
+                if ( this.gunCounter > 0.07f )
                 {
                     this.gunCounter -= 0.07f;
                     --this.gunFrame;
                 }
                 if ( this.gunFrame > 1 )
                 {
-                    this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 192f);
+                    this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 192f );
                 }
                 else
                 {
@@ -1779,22 +1743,22 @@ namespace RJBrocready
                 }
             }
             // Monster form
-            else if (this.currentState == ThingState.MonsterForm)
+            else if ( this.currentState == ThingState.MonsterForm )
             {
                 this.gunFrame = 0;
                 this.DeactivateGun();
             }
         }
 
-        protected override void SetGunPosition(float xOffset, float yOffset)
+        protected override void SetGunPosition( float xOffset, float yOffset )
         {
             if ( this.theThing )
             {
-                base.SetGunPosition(16f + xOffset, 16f + yOffset);
+                base.SetGunPosition( 16f + xOffset, 16f + yOffset );
             }
             else
             {
-                base.SetGunPosition(xOffset, yOffset);
+                base.SetGunPosition( xOffset, yOffset );
             }
         }
         #endregion
@@ -1803,14 +1767,14 @@ namespace RJBrocready
         protected override void StartPockettedSpecial()
         {
             // Don't use special if in thing form
-            if ( !(this.theThing && this.currentState != ThingState.HumanForm) )
+            if ( !( this.theThing && this.currentState != ThingState.HumanForm ) )
             {
                 base.StartPockettedSpecial();
             }
             else
             {
                 // Hasten turning back into human form so we can use the pocketted special
-                this.MonsterFormCounter = Mathf.Min(MonsterFormCounter, MaxMonsterFormTimeReduced);
+                this.MonsterFormCounter = Mathf.Min( MonsterFormCounter, MaxMonsterFormTimeReduced );
             }
         }
 
@@ -1818,7 +1782,7 @@ namespace RJBrocready
         {
             if ( !this.usingSpecial && this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee && !this.acceptedDeath && !this.IsInseminated() && !this.HasFaceHugger() )
             {
-                SetGestureAnimation(GestureElement.Gestures.None);
+                SetGestureAnimation( GestureElement.Gestures.None );
                 this.usingSpecial = true;
                 this.actuallyUsingSpecial = true;
                 this.canDuck = false;
@@ -1837,7 +1801,7 @@ namespace RJBrocready
             }
             else if ( this.SpecialAmmo <= 0 )
             {
-                HeroController.FlashSpecialAmmo(base.playerNum);
+                HeroController.FlashSpecialAmmo( base.playerNum );
             }
         }
 
@@ -1865,43 +1829,43 @@ namespace RJBrocready
             }
             else
             {
-                this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 256f);
+                this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 256f );
 
                 base.frameRate = 0.08f;
 
-                if (this.gunFrame == 5)
+                if ( this.gunFrame == 5 )
                 {
-                    Sound.GetInstance().PlaySoundEffectAt(this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                 }
-                else if (this.gunFrame == 7 && this.currentTentacleState == TentacleState.Inactive)
+                else if ( this.gunFrame == 7 && this.currentTentacleState == TentacleState.Inactive )
                 {
                     StartTentacleWhip();
                 }
-                else if (this.currentTentacleState > TentacleState.Inactive && this.currentTentacleState < TentacleState.ReadyToEat && this.gunFrame > 8 )
+                else if ( this.currentTentacleState > TentacleState.Inactive && this.currentTentacleState < TentacleState.ReadyToEat && this.gunFrame > 8 )
                 {
                     this.gunFrame = 8;
                 }
                 else if ( gunFrame == 10 )
                 {
-                    this.sound.PlaySoundEffectAt(this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f);
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f );
                 }
                 // Eat mook
-                else if (this.gunFrame == 12)
+                else if ( this.gunFrame == 12 )
                 {
-                    this.ThingMeleeAttack(true, true);
+                    this.ThingMeleeAttack( true, true );
                     this.tentacleLine.enabled = false;
                     this.currentTentacleState = TentacleState.Inactive;
                     // Release unit if still alive
-                    if (this.unitHit.health > 0)
+                    if ( this.unitHit.health > 0 )
                     {
-                        this.unitHit.Unimpale(3, DamageType.Blade, 0f, 0f, this);
-                        if (unitHit is Mook)
+                        this.unitHit.Unimpale( 3, DamageType.Blade, 0f, 0f, this );
+                        if ( unitHit is Mook )
                         {
                             unitHit.useImpaledFrames = false;
                         }
                     }
                 }
-                else if (this.gunFrame > 15)
+                else if ( this.gunFrame > 15 )
                 {
                     this.usingSpecial = this.usingPockettedSpecial = false;
                     this.actuallyUsingSpecial = false;
@@ -1923,43 +1887,43 @@ namespace RJBrocready
             this.currentTentacleState = TentacleState.Extending;
             this.tentacleExtendTime = 0.02f;
             this.tentacleRetractTimer = 0f;
-            this.tentacleDirection = new Vector3(base.transform.localScale.x, 0f, 0f);
+            this.tentacleDirection = new Vector3( base.transform.localScale.x, 0f, 0f );
             this.tentacleDirection.Normalize();
-            this.tentacleWhipSprite.gameObject.SetActive(true);
+            this.tentacleWhipSprite.gameObject.SetActive( true );
             impaled = false;
             tentacleHitGround = false;
             tentacleHitUnit = false;
         }
-        
+
         protected void UpdateTentacle()
         {
             DrawTentacle();
         }
 
-        public Unit HitClosestUnit(MonoBehaviour damageSender, int playerNum, float xRange, float yRange, float x, float y, int direction, Vector3 startPoint, bool haveHitGround, Vector3 groundVector)
+        public Unit HitClosestUnit( MonoBehaviour damageSender, int playerNum, float xRange, float yRange, float x, float y, int direction, Vector3 startPoint, bool haveHitGround, Vector3 groundVector )
         {
-            if (Map.units == null)
+            if ( Map.units == null )
             {
                 return null;
             }
             int num = 999999;
-            float num2 = Mathf.Max(xRange, yRange);
+            float num2 = Mathf.Max( xRange, yRange );
             Unit unit = null;
-            for (int i = Map.units.Count - 1; i >= 0; i--)
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
                 Unit unit3 = Map.units[i];
-                if (unit3 != null && !unit3.invulnerable && unit3.health <= num && GameModeController.DoesPlayerNumDamage(playerNum, unit3.playerNum))
+                if ( unit3 != null && !unit3.invulnerable && unit3.health <= num && GameModeController.DoesPlayerNumDamage( playerNum, unit3.playerNum ) )
                 {
                     float f = unit3.X - x;
-                    if (Mathf.Abs(f) - xRange < unit3.width && Mathf.Sign(f) == direction)
+                    if ( Mathf.Abs( f ) - xRange < unit3.width && Mathf.Sign( f ) == direction )
                     {
                         float f2 = unit3.Y + unit3.height / 2f + 3f - y;
-                        if (Mathf.Abs(f2) - yRange < unit3.height)
+                        if ( Mathf.Abs( f2 ) - yRange < unit3.height )
                         {
-                            float num4 = Mathf.Abs(f) + Mathf.Abs(f2);
-                            if (num4 < num2)
+                            float num4 = Mathf.Abs( f ) + Mathf.Abs( f2 );
+                            if ( num4 < num2 )
                             {
-                                if (unit3.health > 0)
+                                if ( unit3.health > 0 )
                                 {
                                     unit = unit3;
                                     num2 = num4;
@@ -1970,28 +1934,28 @@ namespace RJBrocready
                 }
             }
 
-            if (unit != null && (!haveHitGround || Mathf.Abs(unit.X - x) < Mathf.Abs(groundVector.x - x)))
+            if ( unit != null && ( !haveHitGround || Mathf.Abs( unit.X - x ) < Mathf.Abs( groundVector.x - x ) ) )
             {
                 return unit;
             }
             return null;
         }
 
-        public bool HitProjectiles(int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, int direction)
+        public bool HitProjectiles( int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, int direction )
         {
             bool result = false;
-            for (int i = Map.damageableProjectiles.Count - 1; i >= 0; i--)
+            for ( int i = Map.damageableProjectiles.Count - 1; i >= 0; i-- )
             {
                 Projectile projectile = Map.damageableProjectiles[i];
-                if (projectile != null && GameModeController.DoesPlayerNumDamage(playerNum, projectile.playerNum))
+                if ( projectile != null && GameModeController.DoesPlayerNumDamage( playerNum, projectile.playerNum ) )
                 {
                     float f = projectile.X - x;
-                    if (Mathf.Abs(f) - xRange < projectile.projectileSize && Mathf.Sign(f) == direction)
+                    if ( Mathf.Abs( f ) - xRange < projectile.projectileSize && Mathf.Sign( f ) == direction )
                     {
                         float f2 = projectile.Y - y;
-                        if (Mathf.Abs(f2) - yRange < projectile.projectileSize)
+                        if ( Mathf.Abs( f2 ) - yRange < projectile.projectileSize )
                         {
-                            Map.DamageProjectile(projectile, damage, damageType, xI, yI, 0f, playerNum);
+                            Map.DamageProjectile( projectile, damage, damageType, xI, yI, 0f, playerNum );
                             result = true;
                         }
                     }
@@ -2000,7 +1964,7 @@ namespace RJBrocready
             return result;
         }
 
-        protected void TentacleLineHitDetection(float tentacleRange, Vector3 startPoint)
+        protected void TentacleLineHitDetection( float tentacleRange, Vector3 startPoint )
         {
             RaycastHit groundHit = this.raycastHit;
             bool haveHitGround = false;
@@ -2008,13 +1972,13 @@ namespace RJBrocready
             Vector3 endPoint;
 
             // Hit ground
-            if (Physics.Raycast(startPoint, (base.transform.localScale.x > 0 ? Vector3.right : Vector3.left), out raycastHit, currentRange, this.fragileGroundLayer))
+            if ( Physics.Raycast( startPoint, ( base.transform.localScale.x > 0 ? Vector3.right : Vector3.left ), out raycastHit, currentRange, this.fragileGroundLayer ) )
             {
                 // If hitting door, ignore hit and just destroy door instead
                 if ( this.raycastHit.collider.gameObject.GetComponent<DoorDoodad>() != null )
                 {
-                    this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
-                    DamageCollider(this.raycastHit);
+                    this.raycastHit.collider.gameObject.SendMessage( "Open", (int)base.transform.localScale.x );
+                    DamageCollider( this.raycastHit );
                     currentRange = this.raycastHit.distance;
                 }
                 else
@@ -2028,49 +1992,49 @@ namespace RJBrocready
 
             Unit unit;
             // Check for unit collision
-            if ((unit = HitClosestUnit(this, this.playerNum, currentRange, 6, startPoint.x, startPoint.y, (int)base.transform.localScale.x, startPoint, haveHitGround, groundHit.point)) != null)
+            if ( ( unit = HitClosestUnit( this, this.playerNum, currentRange, 6, startPoint.x, startPoint.y, (int)base.transform.localScale.x, startPoint, haveHitGround, groundHit.point ) ) != null )
             {
                 tentacleHitUnit = true;
                 unitHit = unit;
-                endPoint = new Vector3(unit.X, startPoint.y, 0);
+                endPoint = new Vector3( unit.X, startPoint.y, 0 );
             }
             // Use ground collsion if no unit was hit
-            else if (haveHitGround)
+            else if ( haveHitGround )
             {
                 tentacleHitGround = true;
                 this.groundHit = groundHit;
-                endPoint = new Vector3(groundHit.point.x, groundHit.point.y, 0);
+                endPoint = new Vector3( groundHit.point.x, groundHit.point.y, 0 );
             }
             // Nothing hit
             else
             {
-                endPoint = new Vector3(startPoint.x + base.transform.localScale.x * tentacleRange, startPoint.y, 0);
+                endPoint = new Vector3( startPoint.x + base.transform.localScale.x * tentacleRange, startPoint.y, 0 );
             }
 
-            HitProjectiles(this.playerNum, tentacleDamage, DamageType.Knifed, Mathf.Abs(endPoint.x - startPoint.x), 6f, startPoint.x, startPoint.y, base.transform.localScale.x * 30, 20, (int)base.transform.localScale.x);
+            HitProjectiles( this.playerNum, tentacleDamage, DamageType.Knifed, Mathf.Abs( endPoint.x - startPoint.x ), 6f, startPoint.x, startPoint.y, base.transform.localScale.x * 30, 20, (int)base.transform.localScale.x );
         }
 
-        protected void DamageCollider(RaycastHit hit)
+        protected void DamageCollider( RaycastHit hit )
         {
             // Only damage visible objects
-            if (SortOfFollow.IsItSortOfVisible(hit.point, 24, 24f))
+            if ( SortOfFollow.IsItSortOfVisible( hit.point, 24, 24f ) )
             {
                 Unit unit = hit.collider.GetComponent<Unit>();
                 // Damage unit
-                if (unit != null)
+                if ( unit != null )
                 {
                     // Add damage if we're hitting a boss
-                    unit.Damage(tentacleDamage + (unit.health > 30 ? 5 : 0), DamageType.Blade, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y);
-                    unit.Knock(DamageType.Blade, base.transform.localScale.x * 100, 200, false);
+                    unit.Damage( tentacleDamage + ( unit.health > 30 ? 5 : 0 ), DamageType.Blade, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, hit.point.x, hit.point.y );
+                    unit.Knock( DamageType.Blade, base.transform.localScale.x * 100, 200, false );
                 }
                 // Damage other
                 else
                 {
-                    hit.collider.SendMessage("Damage", new DamageObject(tentacleDamage, DamageType.Blade, 0f, 0f, hit.point.x, hit.point.y, this));
+                    hit.collider.SendMessage( "Damage", new DamageObject( tentacleDamage, DamageType.Blade, 0f, 0f, hit.point.x, hit.point.y, this ) );
                 }
             }
 
-            Puff puff = EffectsController.CreateEffect(EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range(-3, 3), 0f, 0f, Vector3.zero, null);
+            Puff puff = EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range( -3, 3 ), 0f, 0f, Vector3.zero, null );
         }
 
         protected void DrawTentacle()
@@ -2078,11 +2042,11 @@ namespace RJBrocready
             if ( this.currentTentacleState == TentacleState.Extending )
             {
                 float max = this.tentacleRange;
-                Vector2 tentaclePosition = new Vector2(128f - Mathf.Clamp(this.tentacleExtendTime * 1280f, 0f, max), 16f);
+                Vector2 tentaclePosition = new Vector2( 128f - Mathf.Clamp( this.tentacleExtendTime * 1280f, 0f, max ), 16f );
                 float currentRange = 128f - tentaclePosition.x;
                 if ( !tentacleHitUnit && !tentacleHitGround )
                 {
-                    TentacleLineHitDetection(currentRange, base.transform.position + this.tentacleOffset);
+                    TentacleLineHitDetection( currentRange, base.transform.position + this.tentacleOffset );
                 }
 
                 if ( tentacleHitUnit )
@@ -2091,55 +2055,55 @@ namespace RJBrocready
                 }
                 else if ( tentacleHitGround )
                 {
-                    this.tentacleHitPoint = new Vector3( groundHit.point.x, base.transform.position.y + this.tentacleOffset.y, 0);
+                    this.tentacleHitPoint = new Vector3( groundHit.point.x, base.transform.position.y + this.tentacleOffset.y, 0 );
                 }
                 else
                 {
                     this.tentacleHitPoint = base.transform.position + this.tentacleOffset + this.tentacleDirection.normalized * this.tentacleRange;
                 }
-                float num = this.tentacleHitPoint.x - (base.transform.position.x + this.tentacleOffset.x);
-                if (num > 0f != base.transform.localScale.x > 0f)
+                float num = this.tentacleHitPoint.x - ( base.transform.position.x + this.tentacleOffset.x );
+                if ( num > 0f != base.transform.localScale.x > 0f )
                 {
                     num *= -1f;
                 }
-                num *= Mathf.Sign(this.tentacleHitPoint.x - (base.transform.position.x + this.tentacleOffset.x));
-                this.tentacleWhipSprite.transform.localEulerAngles = new Vector3(0f, 0f, 0f);
-                this.tentacleWhipSprite.gameObject.SetActive(true);
+                num *= Mathf.Sign( this.tentacleHitPoint.x - ( base.transform.position.x + this.tentacleOffset.x ) );
+                this.tentacleWhipSprite.transform.localEulerAngles = new Vector3( 0f, 0f, 0f );
+                this.tentacleWhipSprite.gameObject.SetActive( true );
                 this.tentacleExtendTime += this.t / 2f;
-                this.tentacleWhipSprite.SetLowerLeftPixel(tentaclePosition);
+                this.tentacleWhipSprite.SetLowerLeftPixel( tentaclePosition );
                 this.tentacleWhipSprite.UpdateUVs();
-                if (tentaclePosition.x <= 0 || this.tentacleHitUnit || this.tentacleHitGround )
+                if ( tentaclePosition.x <= 0 || this.tentacleHitUnit || this.tentacleHitGround )
                 {
-                    Sound.GetInstance().PlaySoundEffectAt(this.whipStartSound, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
-                    if (this.tentacleHitUnit || this.tentacleHitGround)
+                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSound, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                    if ( this.tentacleHitUnit || this.tentacleHitGround )
                     {
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipHitSounds2, 0.3f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds2, 0.3f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
                     else
                     {
-                        Sound.GetInstance().PlaySoundEffectAt(this.whipMissSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipMissSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
 
                     this.currentTentacleState = TentacleState.Attached;
-                    this.tentacleWhipSprite.gameObject.SetActive(false);
+                    this.tentacleWhipSprite.gameObject.SetActive( false );
                     this.tentacleLine.enabled = true;
                     this.tentacleLine.startWidth = 3f;
                     this.tentacleLine.endWidth = 3f;
                     this.tentacleLine.widthMultiplier = 1f;
                     this.tentacleLine.textureMode = LineTextureMode.Stretch;
-                    this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
-                    this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
-                    float magnitude = (this.tentacleHitPoint - (base.transform.position + this.tentacleOffset)).magnitude;
-                    if (base.transform.localScale.x < 0f)
+                    this.tentacleLine.SetPosition( 0, base.transform.position + this.tentacleOffset );
+                    this.tentacleLine.SetPosition( 1, this.tentacleHitPoint );
+                    float magnitude = ( this.tentacleHitPoint - ( base.transform.position + this.tentacleOffset ) ).magnitude;
+                    if ( base.transform.localScale.x < 0f )
                     {
-                        this.tentacleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * tentacleMaterialScale, 1f));
-                        this.tentacleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * tentacleMaterialOffset, 0f));
+                        this.tentacleLine.material.SetTextureScale( "_MainTex", new Vector2( magnitude * tentacleMaterialScale, 1f ) );
+                        this.tentacleLine.material.SetTextureOffset( "_MainTex", new Vector2( magnitude * tentacleMaterialOffset, 0f ) );
                     }
-                    else if (base.transform.localScale.x > 0f)
+                    else if ( base.transform.localScale.x > 0f )
                     {
-                        this.tentacleLine.material.SetTextureScale("_MainTex", new Vector2(magnitude * tentacleMaterialScale, -1f));
-                        this.tentacleLine.material.SetTextureOffset("_MainTex", new Vector2(magnitude * tentacleMaterialOffset, 0f));
+                        this.tentacleLine.material.SetTextureScale( "_MainTex", new Vector2( magnitude * tentacleMaterialScale, -1f ) );
+                        this.tentacleLine.material.SetTextureOffset( "_MainTex", new Vector2( magnitude * tentacleMaterialOffset, 0f ) );
                     }
                 }
             }
@@ -2154,34 +2118,34 @@ namespace RJBrocready
                         // If unit is heavy, hit enemy but don't impale
                         if ( unitHit.IsHeavy() )
                         {
-                            unitHit.Damage(25, DamageType.Blade, base.transform.localScale.x * 500f, 200f, (int)base.transform.localScale.x, this, this.tentacleHitPoint.x, this.tentacleHitPoint.y);
+                            unitHit.Damage( 25, DamageType.Blade, base.transform.localScale.x * 500f, 200f, (int)base.transform.localScale.x, this, this.tentacleHitPoint.x, this.tentacleHitPoint.y );
                         }
                         else
                         {
                             // Play impale sound
-                            Sound.GetInstance().PlaySoundEffectAt(this.tentacleImpaleSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f);
+                            Sound.GetInstance().PlaySoundEffectAt( this.tentacleImpaleSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                             this.tentacleImpaler.position = tentacleHitPoint;
-                            this.unitHit.Impale(tentacleImpaler, new Vector3(base.transform.localScale.x, 0f, 0f), 0, base.transform.localScale.x, 0, 0, 0);
+                            this.unitHit.Impale( tentacleImpaler, new Vector3( base.transform.localScale.x, 0f, 0f ), 0, base.transform.localScale.x, 0, 0, 0 );
                             this.unitHit.Y = this.tentacleHitPoint.y - 8f;
-                            if (unitHit is Mook)
+                            if ( unitHit is Mook )
                             {
                                 unitHit.useImpaledFrames = true;
-                                Traverse.Create((unitHit as Mook)).Field("impaledPosition").SetValue(new Vector3(base.transform.localScale.x < 0 ? float.MaxValue : float.MinValue, 0, 0));
+                                Traverse.Create( ( unitHit as Mook ) ).Field( "impaledPosition" ).SetValue( new Vector3( base.transform.localScale.x < 0 ? float.MaxValue : float.MinValue, 0, 0 ) );
                             }
                         }
                     }
                     else if ( this.tentacleHitGround )
-                    {   
-                        DamageCollider(groundHit);
+                    {
+                        DamageCollider( groundHit );
                     }
                     this.impaled = true;
                 }
-                this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
-                this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
+                this.tentacleLine.SetPosition( 0, base.transform.position + this.tentacleOffset );
+                this.tentacleLine.SetPosition( 1, this.tentacleHitPoint );
                 this.tentacleLine.startWidth = 3f;
                 this.tentacleLine.endWidth = 3f;
                 this.tentacleLine.widthMultiplier = 1f;
-                if (this.tentacleRetractTimer > 0.25f)
+                if ( this.tentacleRetractTimer > 0.25f )
                 {
                     this.currentTentacleState = TentacleState.Retracting;
                 }
@@ -2189,18 +2153,18 @@ namespace RJBrocready
             else if ( this.currentTentacleState == TentacleState.Retracting || this.currentTentacleState == TentacleState.ReadyToEat )
             {
                 // Move tentacleHitPoint towards player
-                this.tentacleHitPoint = Vector3.MoveTowards(this.tentacleHitPoint, base.transform.position + this.tentacleOffset, (tentacleHitUnit ? 200f : 400f) * this.t);
+                this.tentacleHitPoint = Vector3.MoveTowards( this.tentacleHitPoint, base.transform.position + this.tentacleOffset, ( tentacleHitUnit ? 200f : 400f ) * this.t );
                 // Update tentacleImpaler position
                 this.tentacleImpaler.position = tentacleHitPoint;
 
-                this.tentacleLine.SetPosition(0, base.transform.position + this.tentacleOffset);
-                this.tentacleLine.SetPosition(1, this.tentacleHitPoint);
+                this.tentacleLine.SetPosition( 0, base.transform.position + this.tentacleOffset );
+                this.tentacleLine.SetPosition( 1, this.tentacleHitPoint );
                 this.tentacleLine.startWidth = 3f;
                 this.tentacleLine.endWidth = 3f;
                 this.tentacleLine.widthMultiplier = 1f;
 
                 // If tentacleHitPoint is close to player, move to ready to eat state
-                if ( this.currentTentacleState != TentacleState.ReadyToEat && Tools.FastAbsWithinRange(tentacleHitPoint.x - base.transform.position.x, 45f))
+                if ( this.currentTentacleState != TentacleState.ReadyToEat && Tools.FastAbsWithinRange( tentacleHitPoint.x - base.transform.position.x, 45f ) )
                 {
                     this.currentTentacleState = TentacleState.ReadyToEat;
                 }
@@ -2211,7 +2175,7 @@ namespace RJBrocready
         #region ThingMelee
         protected override void DeactivateGun()
         {
-            if ( !(this.theThing && (this.doingMelee || this.actuallyUsingSpecial || this.fire || this.releasedFire || this.currentState == ThingState.EnteringMonsterForm || this.currentState == ThingState.Reforming)) )
+            if ( !( this.theThing && ( this.doingMelee || this.actuallyUsingSpecial || this.fire || this.releasedFire || this.currentState == ThingState.EnteringMonsterForm || this.currentState == ThingState.Reforming ) ) )
             {
                 base.DeactivateGun();
             }
@@ -2219,123 +2183,123 @@ namespace RJBrocready
 
         protected void ThingStartMelee()
         {
-            SetGestureAnimation(GestureElement.Gestures.None);
+            SetGestureAnimation( GestureElement.Gestures.None );
             EnterMonsterForm();
             this.gunFrame = 0;
             this.ActivateGun();
         }
 
-        protected void ThingMeleeAttack(bool shouldTryHitTerrain, bool playMissSound)
+        protected void ThingMeleeAttack( bool shouldTryHitTerrain, bool playMissSound )
         {
             bool flag;
-            Map.DamageDoodads(3, DamageType.Blade, base.X + (float)(base.Direction * 4), base.Y, 0f, 0f, 14f, base.playerNum, out flag, null);
-            if (Physics.Raycast(new Vector3(base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, 20f, this.fragileLayer) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null)
+            Map.DamageDoodads( 3, DamageType.Blade, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 14f, base.playerNum, out flag, null );
+            if ( Physics.Raycast( new Vector3( base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 20f, this.fragileLayer ) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null )
             {
-                this.raycastHit.collider.gameObject.SendMessage("Open", (int)base.transform.localScale.x);
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y);
+                this.raycastHit.collider.gameObject.SendMessage( "Open", (int)base.transform.localScale.x );
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y );
             }
             List<BroforceObject> temp = new List<BroforceObject>();
 
-            if (Map.HitUnits(this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp))
+            if ( Map.HitUnits( this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ) )
             {
                 temp.Clear();
-                Map.HitUnits(this, base.playerNum, 12, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp); ;
+                Map.HitUnits( this, base.playerNum, 12, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ); ;
                 this.meleeHasHit = true;
             }
-            else if (playMissSound)
+            else if ( playMissSound )
             {
             }
             this.meleeChosenUnit = null;
-            if (shouldTryHitTerrain && this.ThingHitTerrain(20, 4, 0, 12f, 6, true))
+            if ( shouldTryHitTerrain && this.ThingHitTerrain( 20, 4, 0, 12f, 6, true ) )
             {
                 this.meleeHasHit = true;
             }
             this.TriggerBroMeleeEvent();
         }
 
-        protected bool ThingHitTerrain(float xdistance, float ydistance, int offset, float yoffset, int meleeDamage, bool playSound )
+        protected bool ThingHitTerrain( float xdistance, float ydistance, int offset, float yoffset, int meleeDamage, bool playSound )
         {
             // Check straight
-            bool hit = Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + yoffset, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(xdistance + offset), this.groundLayer);
+            bool hit = Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + yoffset, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( xdistance + offset ), this.groundLayer );
 
             if ( ydistance > 0 )
             {
                 // Check down
-                if (!hit)
+                if ( !hit )
                 {
-                    hit = Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + yoffset - ydistance, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(xdistance + offset), this.groundLayer);
+                    hit = Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + yoffset - ydistance, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( xdistance + offset ), this.groundLayer );
                 }
 
                 // Check up
-                if (!hit)
+                if ( !hit )
                 {
-                    hit = Physics.Raycast(new Vector3(base.X - base.transform.localScale.x * 4f, base.Y + yoffset + ydistance, 0f), new Vector3(base.transform.localScale.x, 0f, 0f), out this.raycastHit, (float)(xdistance + offset), this.groundLayer);
+                    hit = Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + yoffset + ydistance, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( xdistance + offset ), this.groundLayer );
                 }
             }
-            
-            if (!hit)
+
+            if ( !hit )
             {
                 return false;
             }
 
             Cage component = this.raycastHit.collider.GetComponent<Cage>();
-            if (component == null && this.raycastHit.collider.transform.parent != null)
+            if ( component == null && this.raycastHit.collider.transform.parent != null )
             {
                 component = this.raycastHit.collider.transform.parent.GetComponent<Cage>();
             }
-            if (component != null)
+            if ( component != null )
             {
-                MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
                 return true;
             }
-            MapController.Damage_Networked(this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y);
+            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
             // Play hitting terrain sound for the thing
-            if ( playSound)
+            if ( playSound )
             {
-                this.sound.PlaySoundEffectAt(this.soundHolder.meleeHitTerrainSound, 0.2f, base.transform.position, 1f, true, false, false, 0f);
+                this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.2f, base.transform.position, 1f, true, false, false, 0f );
             }
-            EffectsController.CreateProjectilePopWhiteEffect(this.raycastHit.point.x, this.raycastHit.point.y);
+            EffectsController.CreateProjectilePopWhiteEffect( this.raycastHit.point.x, this.raycastHit.point.y );
             return true;
         }
 
         protected void ThingAnimateMelee()
         {
-            if (this.currentState == ThingState.EnteringMonsterForm)
+            if ( this.currentState == ThingState.EnteringMonsterForm )
             {
                 base.frameRate = 0.06f;
                 this.AnimateBecomingMonster();
-                if (this.currentState == ThingState.MonsterForm)
+                if ( this.currentState == ThingState.MonsterForm )
                 {
                     this.gunFrame = 0;
                 }
             }
             else
             {
-                if (this.gunFrame < 2)
+                if ( this.gunFrame < 2 )
                 {
                     this.gunFrame = 2;
                 }
                 base.frameRate = 0.07f;
-                this.sprite.SetLowerLeftPixel(0f, 32f);
-                this.gunSprite.SetLowerLeftPixel(this.gunFrame * 64f, 320f);
-                if (this.gunFrame == 3 && !this.playedAxeSound)
+                this.sprite.SetLowerLeftPixel( 0f, 32f );
+                this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 320f );
+                if ( this.gunFrame == 3 && !this.playedAxeSound )
                 {
-                    this.sound.PlaySoundEffectAt(this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f);
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f );
                     this.playedAxeSound = true;
                 }
-                else if (this.gunFrame == 6)
+                else if ( this.gunFrame == 6 )
                 {
-                    this.ThingMeleeAttack(true, true);
+                    this.ThingMeleeAttack( true, true );
                 }
-                else if (this.gunFrame > 6 && this.gunFrame <= 7 && !this.meleeHasHit)
+                else if ( this.gunFrame > 6 && this.gunFrame <= 7 && !this.meleeHasHit )
                 {
-                    this.ThingMeleeAttack(false, false);
+                    this.ThingMeleeAttack( false, false );
                 }
-                if (this.gunFrame > 9)
+                if ( this.gunFrame > 9 )
                 {
                     this.gunFrame = 0;
                     this.CancelMelee();
-                    if (this.meleeBufferedPress)
+                    if ( this.meleeBufferedPress )
                     {
                         this.meleeBufferedPress = false;
                         this.StartCustomMelee();
@@ -2347,15 +2311,15 @@ namespace RJBrocready
 
         protected void ThingRunMeleeMovement()
         {
-            if (this.jumpingMelee)
+            if ( this.jumpingMelee )
             {
                 this.ApplyFallingGravity();
-                if (this.yI < this.maxFallSpeed)
+                if ( this.yI < this.maxFallSpeed )
                 {
                     this.yI = this.maxFallSpeed;
                 }
             }
-            else if (this.dashingMelee)
+            else if ( this.dashingMelee )
             {
                 // Stand still during transformation
                 if ( this.currentState == ThingState.EnteringMonsterForm )
@@ -2363,29 +2327,29 @@ namespace RJBrocready
                     this.xI = 0f;
                     this.yI = 0f;
                 }
-                else if (this.gunFrame <= 1)
+                else if ( this.gunFrame <= 1 )
                 {
                     this.xI = this.speed * 0.1f * base.transform.localScale.x;
                     this.yI = 0f;
                 }
-                else if (this.gunFrame <= 5)
+                else if ( this.gunFrame <= 5 )
                 {
-                    if (this.meleeChosenUnit == null)
+                    if ( this.meleeChosenUnit == null )
                     {
-                        if (!this.isInQuicksand)
+                        if ( !this.isInQuicksand )
                         {
                             this.xI = this.speed * 1f * base.transform.localScale.x;
                         }
                         this.yI = 0f;
                     }
-                    else if (!this.isInQuicksand)
+                    else if ( !this.isInQuicksand )
                     {
-                        this.xI = this.speed * 0.6f * base.transform.localScale.x + (this.meleeChosenUnit.X - base.X) * 2f;
+                        this.xI = this.speed * 0.6f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 2f;
                     }
                 }
-                else if (this.gunFrame <= 9)
+                else if ( this.gunFrame <= 9 )
                 {
-                    if (!this.isInQuicksand)
+                    if ( !this.isInQuicksand )
                     {
                         this.xI = this.speed * 0.2f * base.transform.localScale.x;
                     }
@@ -2396,7 +2360,7 @@ namespace RJBrocready
                     this.ApplyFallingGravity();
                 }
             }
-            else if (base.Y > this.groundHeight + 1f)
+            else if ( base.Y > this.groundHeight + 1f )
             {
                 this.CancelMelee();
             }
