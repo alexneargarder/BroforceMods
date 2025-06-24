@@ -537,7 +537,7 @@ namespace RJBrocready
         protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
             this.gunFrame = 3;
-            this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
+            this.SetGunSprite( this.gunFrame, 0 );
             ProjectileController.SpawnProjectileLocally( this.projectiles[UnityEngine.Random.Range( 0, 3 )], this, x, y, xSpeed, ySpeed, base.playerNum );
         }
 
