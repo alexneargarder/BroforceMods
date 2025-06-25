@@ -48,6 +48,7 @@ namespace Mission_Impossibro
         protected int grappleFrame = 0;
         protected bool wasAttachedToBlock = false;
         protected Block grappleAttachBlock = null;
+        public int checkCeilingForHangRadius = 6;
 
         // Special variables
         protected float specialTime = 0f;
@@ -90,6 +91,10 @@ namespace Mission_Impossibro
 
             this.meleeType = MeleeType.Punch;
             this.currentMeleeType = MeleeType.Punch;
+
+            this.gunSpriteHangingFrame = 9;
+
+            this.canCeilingHang = true;
         }
 
         public override void PreloadAssets()
@@ -544,6 +549,11 @@ namespace Mission_Impossibro
                 this.isElbowSlamming = false;
             }
         }
+
+        protected override bool CanCheckClimbAlongCeiling()
+        {
+            return this.health > 0 && !this.usingSpecial && !this.down && Physics.CheckSphere( new Vector3( base.X, base.Y + this.headHeight, 0f ), (float)( this.checkCeilingForHangRadius + ( ( this.yI <= 0f ) ? 0 : -2 ) ), Map.groundLayer );
+        }
         #endregion
 
         // Primary fire methods
@@ -802,7 +812,15 @@ namespace Mission_Impossibro
                 // Out of explosives, wait to trigger
                 else
                 {
-                    this.SetGunSprite( 18, 0 );
+                    if ( !this.hangingOneArmed )
+                    {
+                        this.SetGunSprite( 18, 0 );
+                    }
+                    else
+                    {
+                        // TODO: figure out what to do if hanging (current animation uses two arms)
+                        this.SetGunSprite( 0, 0 );
+                    }
                 }
             }
             // Shoot while wall clinging
