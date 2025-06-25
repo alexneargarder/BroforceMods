@@ -87,9 +87,9 @@ namespace Furibrosa
         AudioSource vehicleEngineAudio;
         protected const float vehicleEngineVolume = 0.2f;
         AudioSource vehicleHornAudio;
-        AudioClip vehicleIdleLoop, vehicleRev, vehicleHorn, vehicleHornLong;
-        AudioClip[] vehicleHit;
-        AudioClip harpoonFire;
+        public AudioClip vehicleIdleLoop, vehicleRev, vehicleHorn, vehicleHornLong;
+        public AudioClip[] vehicleHit;
+        public AudioClip harpoonFire;
         protected bool playedHornStart = false;
         protected bool playedRevStart = false;
         protected float startupTimer = 1.9f;
@@ -329,17 +329,17 @@ namespace Furibrosa
             {
                 directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 directoryPath = Path.Combine(directoryPath, "sounds");
-                this.vehicleIdleLoop = ResourcesController.CreateAudioClip(directoryPath, "vehicleIdleLoop.wav");
-                this.vehicleRev = ResourcesController.CreateAudioClip(directoryPath, "vehicleBoost.wav");
-                this.vehicleHorn = ResourcesController.CreateAudioClip(directoryPath, "vehicleHornMedium.wav");
-                this.vehicleHornLong = ResourcesController.CreateAudioClip(directoryPath, "vehicleHornLong.wav");
+                this.vehicleIdleLoop = ResourcesController.GetAudioClip(directoryPath, "vehicleIdleLoop.wav");
+                this.vehicleRev = ResourcesController.GetAudioClip( directoryPath, "vehicleBoost.wav");
+                this.vehicleHorn = ResourcesController.GetAudioClip( directoryPath, "vehicleHornMedium.wav");
+                this.vehicleHornLong = ResourcesController.GetAudioClip( directoryPath, "vehicleHornLong.wav");
 
                 this.vehicleHit = new AudioClip[3];
-                this.vehicleHit[0] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit1.wav");
-                this.vehicleHit[1] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit2.wav");
-                this.vehicleHit[2] = ResourcesController.CreateAudioClip(directoryPath, "vehicleHit3.wav");
+                this.vehicleHit[0] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit1.wav");
+                this.vehicleHit[1] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit2.wav");
+                this.vehicleHit[2] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit3.wav");
 
-                this.harpoonFire = ResourcesController.CreateAudioClip(directoryPath, "harpoon.wav");
+                this.harpoonFire = ResourcesController.GetAudioClip( directoryPath, "harpoon.wav");
             }
             catch (Exception ex)
             {
