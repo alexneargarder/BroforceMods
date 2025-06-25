@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Captain_Ameribro_Mod
 {
 
-    class Shield : CustomProjectile
+    public class Shield : CustomProjectile
     {
         // General
         public float returnTime = 0.25f;
@@ -31,7 +31,7 @@ namespace Captain_Ameribro_Mod
         public float heightOffGround = 8f;
         protected List<Unit> alreadyHit = new List<Unit>();
         protected const float groundRotationSpeed = -10.0f;
-        public CaptainAmeribro throwingPlayer;
+        public TestVanDammeAnim throwingPlayer;
 
         // Charging Variables
         public float shieldCharge = 0f;
@@ -164,22 +164,22 @@ namespace Captain_Ameribro_Mod
             this.lastXI = xI;
         }
 
-        public void Setup( Shield other, CaptainAmeribro player )
+        public void Setup( TestVanDammeAnim player, float currentSpecialCharge = 0f )
         {
             this.throwingPlayer = player;
 
-            this.shieldCharge = this.throwingPlayer.currentSpecialCharge;
+            this.shieldCharge = currentSpecialCharge;
 
             this.damageType = DamageType.Crush;
 
-            this.damage = BaseDamage + (int)System.Math.Round( BaseDamage * this.throwingPlayer.currentSpecialCharge );
+            this.damage = BaseDamage + (int)System.Math.Round( BaseDamage * currentSpecialCharge );
 
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
             this.bossDamage = 3 * this.damage + 4;
 
-            this.knockbackXI = this.knockbackXI + ( this.knockbackXI * this.throwingPlayer.currentSpecialCharge );
-            this.knockbackYI = this.knockbackYI + ( this.knockbackYI * this.throwingPlayer.currentSpecialCharge );
+            this.knockbackXI = this.knockbackXI + ( this.knockbackXI * currentSpecialCharge );
+            this.knockbackYI = this.knockbackYI + ( this.knockbackYI * currentSpecialCharge );
 
             this.startingThrowX = this.throwingPlayer.X;
             this.startingThrowY = this.throwingPlayer.Y;
@@ -190,8 +190,6 @@ namespace Captain_Ameribro_Mod
             this.enabled = true;
 
             this.returnTime += ChargeReturnScalar * this.shieldCharge;
-
-            //this.droppingDuration += ChargeReturnScalar * this.shieldCharge;
         }
 
         protected override void CheckSpawnPoint()
@@ -230,7 +228,7 @@ namespace Captain_Ameribro_Mod
             {
                 if ( this.Y < -50 )
                 {
-                    this.ReturnShield();
+                    this.ReturnShield( this.firedBy );
                 }
                 if ( !this.hasReachedApex && this.speed < ( 0.5 * this.originalSpeed ) ) // Shield has slowed down enough to be considered at Apex
                 {
@@ -280,6 +278,7 @@ namespace Captain_Ameribro_Mod
             else
             {
                 base.transform.Rotate( 0f, 0f, this.rotationSpeed * t, Space.Self );
+                this.CheckReturnShield();
             }
             if ( Mathf.Sign( this.lastXI ) != Mathf.Sign( this.xI ) )
             {
@@ -361,7 +360,7 @@ namespace Captain_Ameribro_Mod
             }
             else if ( below ) // Blocks below return shield up
             {
-                Vector3 currentPlayerPos = this.throwingPlayer.transform.position;
+                Vector3 currentPlayerPos = playerPos;
                 currentPlayerPos.y += this.throwingPlayer.height + 2;
                 Vector3 direction = currentPlayerPos - this.transform.position;
 
@@ -384,7 +383,7 @@ namespace Captain_Ameribro_Mod
             }
             else if ( above ) // Blocks above return shield down
             {
-                Vector3 currentPlayerPos = this.throwingPlayer.transform.position;
+                Vector3 currentPlayerPos = playerPos;
                 currentPlayerPos.y += this.throwingPlayer.height + 2;
                 Vector3 direction = currentPlayerPos - this.transform.position;
 
@@ -767,46 +766,64 @@ namespace Captain_Ameribro_Mod
                 }
             }
         }
+
         protected override void HitWildLife()
         {
         }
+
         protected void CheckReturnShield()
         {
-            if ( this.firedBy != null && ( this.collectDelayTime <= 0f || this.hitUnitsCount > 2 ) )
+            if ( this.collectDelayTime <= 0f || this.hitUnitsCount > 2 )
             {
-                float f = this.firedBy.transform.position.x - base.X;
-                float f2 = this.firedBy.transform.position.y + 10f - base.Y;
-                if ( Mathf.Abs( f ) < 9f && Mathf.Abs( f2 ) < 14f )
+                // If throwing player is still alive only return to them
+                if ( this.firedBy != null && this.throwingPlayer.health > 0 )
                 {
-                    Shield.TryReturnRPC( this );
-                    if ( base.IsMine )
+                    float f = this.firedBy.transform.position.x - base.X;
+                    float f2 = this.firedBy.transform.position.y + 10f - base.Y;
+                    if ( Mathf.Abs( f ) < 9f && Mathf.Abs( f2 ) < 14f )
                     {
-                        /*PID targetOthers = PID.TargetOthers;
-						bool immediate = false;
-						bool ignoreSessionID = false;
-						bool addExecutionDelay = true;
-						if (Boomerang.<> f__mg$cache0 == null)
-						{
-							Boomerang.<> f__mg$cache0 = new RpcSignature<Boomerang>(Boomerang.TryReturnRPC);
-						}
-						Networking.RPC<Boomerang>(targetOthers, immediate, ignoreSessionID, addExecutionDelay, Boomerang.<> f__mg$cache0, this);*/
+                        if ( this != null )
+                        {
+                            this.ReturnShield( this.firedBy );
+                        }
+                    }
+                }
+                // Return to any player
+                else
+                {
+                    for ( int i = 0; i < HeroController.players.Length; ++i )
+                    {
+                        if ( HeroController.players[i] != null && HeroController.players[i].IsAliveAndSpawnedHero() )
+                        {
+                            TestVanDammeAnim character = HeroController.players[i].character;
+                            float f = character.transform.position.x - base.X;
+                            float f2 = character.transform.position.y + 10f - base.Y;
+                            if ( Mathf.Abs( f ) < 9f && Mathf.Abs( f2 ) < 14f )
+                            {
+                                if ( this != null )
+                                {
+                                    this.ReturnShield( character );
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-        private static void TryReturnRPC( Shield shield )
+
+        private void ReturnShield( MonoBehaviour receiver )
         {
-            if ( shield != null )
-            {
-                shield.ReturnShield();
-            }
-        }
-        private void ReturnShield()
-        {
-            CaptainAmeribro captainAmeribro = this.firedBy as CaptainAmeribro;
-            if ( captainAmeribro )
+            if ( receiver is CaptainAmeribro captainAmeribro )
             {
                 captainAmeribro.ReturnShield( this );
+            }
+            else if ( receiver is TestVanDammeAnim character )
+            {
+                CustomPockettedSpecial.AddPockettedSpecial( character, new PockettedShield() );
+            }
+            if ( this.dropping )
+            {
+                EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 2f, 0f, 0f );
             }
             Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f );
             this.DeregisterProjectile();

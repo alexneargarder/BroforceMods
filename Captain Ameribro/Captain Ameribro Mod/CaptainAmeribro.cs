@@ -48,11 +48,11 @@ namespace Captain_Ameribro_Mod
 
         // Default attack variables
         protected int punchingIndex = 0;
-        protected const int normalAttackDamage = 6;
+        protected const int normalAttackDamage = 7;
         protected bool heldGunFrame = false;
 
         // Melee variables
-        protected const int meleeAttackDamage = 7;
+        protected const int meleeAttackDamage = 8;
         public float specialAttackDashTime = 0f;
         protected float airdashFadeCounter;
         public float airdashFadeRate = 0.1f;
@@ -70,7 +70,6 @@ namespace Captain_Ameribro_Mod
         protected override void Awake()
         {
             shield = CustomProjectile.CreatePrefab<Shield>( new List<Type>() { typeof( SphereCollider ) } );
-            shield.enabled = false;
 
             this.currentMeleeType = BroBase.MeleeType.Disembowel;
             this.meleeType = BroBase.MeleeType.Disembowel;
@@ -258,6 +257,15 @@ namespace Captain_Ameribro_Mod
                 }
             }
 
+            // Reflect projectiles if airdashing
+            if ( this.airdashTime > 0 && this.airdashTime < 0.27 )
+            {
+                if ( Map.DeflectProjectiles( this, this.playerNum, 8f, this.X, this.Y, this.transform.localScale.x * 300, true ) )
+                {
+                    Sound.GetInstance().PlaySoundEffectAt( ricochetSounds, 0.6f, base.transform.position, 1f, true, false, false, 0f );
+                }
+            }
+
             if ( airDashCooldown > 0 )
             {
                 airDashCooldown -= this.t;
@@ -313,7 +321,7 @@ namespace Captain_Ameribro_Mod
                     thrownShield = ProjectileController.SpawnProjectileLocally( this.shield, this, base.X + base.transform.localScale.x * 6f, base.Y + 15f, base.transform.localScale.x * chargedShieldSpeed, 0f, false, base.playerNum, false, false, 0f ) as Shield;
                 }
 
-                thrownShield.Setup( this.shield, this );
+                thrownShield.Setup( this, this.currentSpecialCharge );
 
                 this.currentSpecialCharge = 0;
             }

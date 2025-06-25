@@ -32,7 +32,7 @@
     "canChimneyFlip": true,
     "originalSpecialAmmo": 1,
     "canAirdash": true,
-    "airdashMaxTime": 0.2
+    "airdashMaxTime": 0.23
   },
   "afterAwake": {},
   "beforeStart": {
