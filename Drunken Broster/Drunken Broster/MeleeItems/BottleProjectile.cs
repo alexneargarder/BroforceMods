@@ -30,6 +30,14 @@ namespace Drunken_Broster.MeleeItems
             this.rotationSpeedMultiplier = 2.5f;
         }
 
+        public override void Launch( float newX, float newY, float xI, float yI )
+        {
+            base.Launch( newX, newY, xI, yI );
+            this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 175f ) * this.rotationSpeedMultiplier;
+            this.r = -45f;
+            this.SetPosition();
+        }
+
         protected override void Bounce( bool bounceX, bool bounceY )
         {
             this.Death();
