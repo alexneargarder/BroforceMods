@@ -4,6 +4,7 @@ using BroMakerLib.CustomObjects.Projectiles;
 using BroMakerLib.Loggers;
 using Drunken_Broster.MeleeItems;
 using HarmonyLib;
+using RocketLib;
 using RocketLib.Extensions;
 using RocketLib.Utils;
 using Rogueforce;
@@ -20,7 +21,10 @@ namespace Drunken_Broster
     public class DrunkenBroster : CustomHero
     {
         // TODO: remove this 
-        public static int currentItem = 5;
+        [SaveableSetting]
+        public static int currentItem;
+        public static KeyBindingForPlayers switchItemKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item" );
+        public static KeyBindingForPlayers switchItemBackKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item Back" );
         public static bool freezeProjectile = false;
         public static bool spawnGibs = false;
         public static DrunkenBroster currentBroster;
@@ -262,6 +266,24 @@ namespace Drunken_Broster
                     this.faderTrailDelay = 0.034f;
                 }
             }
+
+            // TODO: remove this
+            if ( DrunkenBroster.switchItemKey.PressedDown(this.playerNum) )
+            {
+                ++DrunkenBroster.currentItem;
+                if ( DrunkenBroster.currentItem > 9 )
+                {
+                    DrunkenBroster.currentItem = 0;
+                }
+            }
+            else if ( DrunkenBroster.switchItemBackKey.PressedDown( this.playerNum ) )
+            {
+                --DrunkenBroster.currentItem;
+                if ( DrunkenBroster.currentItem < 0 )
+                {
+                    DrunkenBroster.currentItem = 9;
+                }
+            }
         }
 
         // TODO: remove this
@@ -288,16 +310,24 @@ namespace Drunken_Broster
 
             GUILayout.EndHorizontal();
 
-            DrunkenBroster.freezeProjectile = GUILayout.Toggle( DrunkenBroster.freezeProjectile, "Freeze projectile" );
-            if ( GUILayout.Button( "Spawn Gibs", GUILayout.Width( 100 ) ) )
-            {
-                DrunkenBroster.spawnGibs = true;
-            }
+            GUILayout.Space( 10 );
+            switchItemKey.OnGUI( out _, true );
+            GUILayout.Space( 10 );
+            switchItemBackKey.OnGUI( out _, true );
+            GUILayout.Space( 10 );
 
-            if ( GUILayout.Button("COMPARE" ) )
-            {
-                PrintDebug();
-            }
+            //DrunkenBroster.freezeProjectile = GUILayout.Toggle( DrunkenBroster.freezeProjectile, "Freeze projectile" );
+            //if ( GUILayout.Button( "Spawn Gibs", GUILayout.Width( 100 ) ) )
+            //{
+            //    DrunkenBroster.spawnGibs = true;
+            //}
+
+            //if ( GUILayout.Button("COMPARE" ) )
+            //{
+            //    PrintDebug();
+            //}
+
+
         }
 
         // TODO: remove this
@@ -2213,13 +2243,13 @@ namespace Drunken_Broster
                     this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AcidEgg:
-                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
+                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * 350f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Beehive:
-                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
+                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Bottle:
-                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 225f, 125f, base.playerNum );
+                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * 400f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Crate:
                     this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
