@@ -45,6 +45,8 @@ namespace Captain_Ameribro_Mod
         protected float maxSpecialCharge = 1f;
         public float currentSpecialCharge = 0f;
         public bool playedShingNoise = false;
+        public bool finishedStartup = false;
+        public bool caughtShieldFromPrevious = false;
 
         // Default attack variables
         protected int punchingIndex = 0;
@@ -179,6 +181,14 @@ namespace Captain_Ameribro_Mod
             if ( this.shieldChargeShing == null )
             {
                 this.SetupSounds();
+            }
+
+            this.finishedStartup = true;
+
+            if ( this.caughtShieldFromPrevious )
+            {
+                this.caughtShieldFromPrevious = false;
+                ++this.SpecialAmmo;
             }
         }
 
