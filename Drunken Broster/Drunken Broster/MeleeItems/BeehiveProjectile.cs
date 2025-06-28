@@ -11,14 +11,20 @@ namespace Drunken_Broster.MeleeItems
         protected GibHolder gibHolder;
         public RealisticAngryBeeSimulator beeSimulator;
         public RealisticFlySimulatorClass[] flies;
+        protected float r = 90f;
+        protected float rI = 0f;
+        protected float rotationSpeedMultiplier = 1.25f;
 
         protected override void Awake()
         {
-            this.projectileSize = 8f;
+            this.spriteHeight = 14f;
+            this.spriteWidth = 14f;
 
             this.damage = 5;
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
+
+            this.projectileSize = 10f;
 
             DoodadBeehive beehive = Map.Instance.activeTheme.blockBeeHive as DoodadBeehive;
             this.gibHolder = beehive.gibHolder;
@@ -46,6 +52,13 @@ namespace Drunken_Broster.MeleeItems
             base.Awake();
         }
 
+        public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
+        {
+            this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 200f ) * this.rotationSpeedMultiplier;
+
+            base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
+        }
+
         protected override void SetRotation()
         {
             // Don't rotate based on momentum
@@ -58,12 +71,16 @@ namespace Drunken_Broster.MeleeItems
                 base.transform.localScale = new Vector3( 1f, 1f, 1f );
             }
 
-            base.transform.eulerAngles = new Vector3( 0f, 0f, 0f );
+            base.transform.eulerAngles = new Vector3( 0f, 0f, this.r );
         }
 
         protected override void Update()
         {
             this.ApplyGravity();
+
+            this.r += this.rI * this.t;
+
+            this.SetRotation();
 
             base.Update();
         }

@@ -1,5 +1,6 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
@@ -15,6 +16,9 @@ namespace Drunken_Broster.MeleeItems
         protected int cycle = 0;
         protected bool exploded = false;
         protected float range = 30f;
+        protected float r = 90f;
+        protected float rI = 0f;
+        protected float rotationSpeedMultiplier = 1.5f;
 
         protected BloodColor bloodColor = BloodColor.Green;
         protected float explodeRange = 40f;
@@ -25,18 +29,25 @@ namespace Drunken_Broster.MeleeItems
             {
                 this.spriteLowerLeftPixel = new Vector2( 0, 32 );
                 this.spritePixelDimensions = new Vector2( 32, 32 );
-                this.spriteWidth = 20;
-                this.spriteHeight = 20;
+                this.spriteWidth = 22;
+                this.spriteHeight = 22;
                 this.spriteOffset = new Vector3( 0, 5, 0 );
             }
 
-            this.projectileSize = 7f;
+            this.projectileSize = 8f;
 
             this.damage = 5;
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
 
             base.Awake();
+        }
+
+        public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
+        {
+            this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 200f ) * this.rotationSpeedMultiplier;
+
+            base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
         }
 
         protected override void SetRotation()
@@ -51,7 +62,7 @@ namespace Drunken_Broster.MeleeItems
                 base.transform.localScale = new Vector3( 1f, 1f, 1f );
             }
 
-            base.transform.eulerAngles = new Vector3( 0f, 0f, 0f );
+            base.transform.eulerAngles = new Vector3( 0f, 0f, this.r );
         }
 
         protected override void Update()
@@ -68,6 +79,10 @@ namespace Drunken_Broster.MeleeItems
             }
 
             //RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 7f, Color.red );
+
+            this.r += this.rI * this.t;
+
+            this.SetRotation();
 
             base.Update();
         }

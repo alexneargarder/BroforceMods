@@ -32,6 +32,8 @@ namespace Utility_Mod
         PigAmmoCrate = 13,
         FlexAmmoCrate = 14,
         BeeHive = 15,
+        AlienEgg = 16,
+        AlienEggExplosive = 17,
     }
 
     public class Settings : UnityModManager.ModSettings
