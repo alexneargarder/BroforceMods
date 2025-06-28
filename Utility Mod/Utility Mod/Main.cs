@@ -109,7 +109,7 @@ namespace Utility_Mod
         public static string[] objectList = new string[]
         {
             "Dirt", "Explosive Barrel", "Red Explosive Barrel", "Propane Tank", "Rescue Cage", "Crate", "Ammo Crate", "Time Ammo Crate", "RC Car Ammo Crate", "Air Strike Ammo Crate", "Mech Drop Ammo Crate", "Alien Pheromones Ammo Crate", "Steroids Ammo Crate", "Pig Ammo Crate",
-            "Flex Ammo Crate", "Beehive"
+            "Flex Ammo Crate", "Beehive", "Alien Egg", "Alien Egg Explosive"
         };
 
         public static string teleportX = "0";
@@ -294,6 +294,8 @@ namespace Utility_Mod
                                 case CurrentObject.PigAmmoCrate:
                                 case CurrentObject.FlexAmmoCrate:
                                 case CurrentObject.BeeHive:
+                                case CurrentObject.AlienEgg:
+                                case CurrentObject.AlienEggExplosive:
                                     SpawnBlock(row, column);
                                     break;
                                 default:
@@ -1339,6 +1341,14 @@ namespace Utility_Mod
                 case CurrentObject.BeeHive:
                     placeGroundType = GroundType.Beehive;
                     currentBlock = UnityEngine.Object.Instantiate<Block>( Map.Instance.activeTheme.blockBeeHive, vector, Quaternion.identity );
+                    break;
+                case CurrentObject.AlienEgg:
+                    placeGroundType = GroundType.AlienEgg;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>( Map.Instance.activeTheme.blockAlienEgg, vector, Quaternion.identity );
+                    break;
+                case CurrentObject.AlienEggExplosive:
+                    placeGroundType = GroundType.AlienEggExplosive;
+                    currentBlock = UnityEngine.Object.Instantiate<Block>( Map.Instance.activeTheme.explosiveAlienEgg, vector, Quaternion.identity );
                     break;
             }
             if (placeGroundType != GroundType.Cage && (placeGroundType != GroundType.AlienFlesh || newBlocks != Map.backGroundBlocks))
