@@ -22,7 +22,10 @@ namespace Drunken_Broster.MeleeItems
                 shrapnelPrefabs[2] = crateBlock.shrapnelBitPrefab3;
             }
 
-            this.projectileSize = 15f;
+            this.spriteWidth = 12f;
+            this.spriteHeight = 12f;
+
+            this.projectileSize = 12f;
 
             this.damage = 9;
             this.damageInternal = this.damage;
