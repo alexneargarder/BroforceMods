@@ -815,7 +815,16 @@ namespace Captain_Ameribro_Mod
         {
             if ( receiver is CaptainAmeribro captainAmeribro )
             {
-                captainAmeribro.ReturnShield( this );
+                // Only play return animation if finished startup and sprites have loaded
+                if ( captainAmeribro.finishedStartup )
+                {
+                    captainAmeribro.ReturnShield( this );
+                }
+                else
+                {
+                    captainAmeribro.caughtShieldFromPrevious = true;
+                    this.ReturnShieldSilent();
+                }
             }
             else if ( receiver is TestVanDammeAnim character )
             {
