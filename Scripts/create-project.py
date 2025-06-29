@@ -25,10 +25,10 @@ def findReplace(directory, find, replace, filePattern):
     for path, dirs, files in os.walk(os.path.abspath(directory)):
         for filename in fnmatch.filter(files, filePattern):
             filepath = os.path.join(path, filename)
-            with open(filepath) as f:
+            with open(filepath, encoding='utf-8') as f:
                 s = f.read()
             s = s.replace(find, replace)
-            with open(filepath, "w") as f:
+            with open(filepath, "w", encoding='utf-8') as f:
                 f.write(s)
         for dir in dirs:
             findReplace(os.path.join(path, dir), find, replace, filePattern)
@@ -271,7 +271,7 @@ try:
         if os.path.exists(bromaker_info_path):
             try:
                 import json
-                with open(bromaker_info_path, 'r') as f:
+                with open(bromaker_info_path, 'r', encoding='utf-8') as f:
                     bromaker_info = json.load(f)
                     bromaker_version = bromaker_info.get('Version', bromaker_version)
                     print(f"Detected BroMaker version: {bromaker_version}")
@@ -301,7 +301,7 @@ try:
                         csproj_files.append(os.path.join(root, file))
             
             for csproj_file in csproj_files:
-                with open(csproj_file, 'r') as f:
+                with open(csproj_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
                 # Calculate relative path from project to local BroMakerLib
@@ -313,7 +313,7 @@ try:
                 replacement = rf'\1{rel_path}\3'
                 content = re.sub(pattern, replacement, content, flags=re.DOTALL)
                 
-                with open(csproj_file, 'w') as f:
+                with open(csproj_file, 'w', encoding='utf-8') as f:
                     f.write(content)
                     
             print(f"Updated BroMakerLib reference to use local development version")
@@ -333,7 +333,7 @@ try:
     changelogPath = os.path.join(newReleasePathOuter, 'Changelog.txt')
     changelogContent = 'v1.0.0\nRelease'
     
-    with open(changelogPath, 'w') as changelogFile:
+    with open(changelogPath, 'w', encoding='utf-8') as changelogFile:
         changelogFile.write(changelogContent)
     
     print(f"\nSuccess! Created new {template_type} '{newName}'")

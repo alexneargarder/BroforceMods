@@ -1,29 +1,36 @@
-# create-bro.py
+# Broforce Templates
 
-Creates a new custom character mod from template files.
-
-## Setup
-Set these environment variables:
-- `BROFORCEPATH` - Path to Broforce folder
-- `REPOSPATH` - Path to your repos folder, where this repo is located
-
-## Usage
-```
-python create-bro.py
-```
-Enter your bro name when prompted. The script will create source and release files, then run the CREATE LINK.bat in the release folder.
-
-# create-mod.py
-
-Creates a new general mod from template files.
+This repository provides templates and scripts for creating Broforce mods and custom bros.
 
 ## Setup
 Set these environment variables:
-- `BROFORCEPATH` - Path to Broforce folder
-- `REPOSPATH` - Path to your repos folder (same as above)
+- `BROFORCEPATH` - Path to your Broforce installation (e.g., `C:\Program Files (x86)\Steam\steamapps\common\Broforce`)
+- `REPOSPATH` - Path to your repositories folder
 
-## Usage
+## Creating Projects
+
+Use `create-project.py` to generate new mods or custom bros from the templates.
+
+### Usage
+```bash
+# Interactive mode
+python create-project.py
+
+# Command line mode
+python create-project.py -t mod -n "My Mod" -a "YourName"
+python create-project.py --type bro --name "My Bro" --author "YourName"
 ```
-python create-mod.py
-```
-Enter your mod name when prompted. Creates the same folder structure as create-bro.py.
+
+### Options
+- `-h, --help` - Show help message
+- `-t, --type` - Project type: `mod` or `bro`
+- `-n, --name` - Project name
+- `-a, --author` - Author name
+
+The script will:
+1. Create source files in the repository root
+2. Create release files in `Releases/[ProjectName]/`
+3. Generate a Changelog.txt
+4. Configure BroMakerLib references (for bro projects)
+
+Run `CREATE LINKS.bat` in the Releases folder to create symlinks to your mods.
