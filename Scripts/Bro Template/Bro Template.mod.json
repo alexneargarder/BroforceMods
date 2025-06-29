@@ -1,8 +1,8 @@
 {
   "Version": "1.0.0",
-  "BroMakerVersion": "2.3.0",
+  "BroMakerVersion": "BROMAKER_VERSION",
   "Name": "Bro Template",
-  "Author": "AlexN",
+  "Author": "AUTHOR_NAME",
   "CustomBros":[
     "Bro Template.json"
   ],

@@ -37,8 +37,9 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\BroMaker\BroMakerLib.dll</HintPath>
+    <Reference Include="BroMakerLib, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(BROFORCEPATH)\Mods\BroMaker\BroMakerLib.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
