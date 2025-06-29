@@ -97,8 +97,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROFORCEMODS%25\Utility Mod\*.cache"
-XCOPY /Y /R "$(TargetPath)" "%25BROFORCEMODS%25\Utility Mod\$(ProjectName).dll*"</PostBuildEvent>
+    <PostBuildEvent>del "%25BROFORCEPATH%25\mods\Utility Mod\*.cache"
+XCOPY /Y /R "$(TargetPath)" "%25BROFORCEPATH%25\mods\Utility Mod\$(ProjectName).dll*"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>

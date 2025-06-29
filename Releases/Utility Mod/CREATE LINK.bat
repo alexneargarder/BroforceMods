@@ -1,2 +1,2 @@
-mklink /D "%BROFORCEMODS%\Utility Mod" "%REPOS%\BroforceMods\Releases\Utility Mod\Utility Mod"
+mklink /D "%BROFORCEPATH%\mods\Utility Mod" "%REPOSPATH%\BroforceMods\Releases\Utility Mod\Utility Mod"
 pause

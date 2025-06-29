@@ -44,52 +44,52 @@ def renameFiles(directory, find, replace):
                 renameFiles(filepath, find, replace)
 
 # Check for required environment variables
-modPath = os.environ.get('BROFORCEMODS')
-repoPath = os.environ.get('REPOS')
+modPath = os.environ.get('BROFORCEPATH')
+repoPath = os.environ.get('REPOSPATH')
 
 if not modPath:
-    print("Error: BROFORCEMODS environment variable is not set.")
-    print("Please set BROFORCEMODS to the path of your Broforce Mods folder.")
+    print("Error: BROFORCEPATH environment variable is not set.")
+    print("Please set BROFORCEPATH to the path of your Broforce folder.")
     print("\nFor PowerShell (temporary):")
-    print('  $env:BROFORCEMODS = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce\\Mods"')
+    print('  $env:BROFORCEPATH = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce"')
     print("\nFor Command Prompt (temporary):")
-    print('  set BROFORCEMODS="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce\\Mods"')
+    print('  set BROFORCEPATH="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Broforce"')
     print("\nTo set permanently:")
     print('  1. Search "environment variables" in the Windows Start Menu')
     print('  2. Click "Edit the system environment variables"')
     print('  3. Click "Environment Variables..." button')
     print('  4. Under "User variables", click "New..."')
-    print('  5. Set Variable name: BROFORCEMODS')
-    print('  6. Set Variable value: your Broforce Mods path')
+    print('  5. Set Variable name: BROFORCEPATH')
+    print('  6. Set Variable value: your Broforce folder path')
     print('  7. Click OK and restart your terminal')
     sys.exit(1)
 
 if not repoPath:
-    print("Error: REPOS environment variable is not set.")
-    print("Please set REPOS to the path of your repositories folder.")
+    print("Error: REPOSPATH environment variable is not set.")
+    print("Please set REPOSPATH to the path of your repositories folder.")
     print("\nFor PowerShell (temporary):")
-    print('  $env:REPOS = "C:\\Users\\YourName\\repos"')
+    print('  $env:REPOSPATH = "C:\\Users\\YourName\\repos"')
     print("\nFor Command Prompt (temporary):")
-    print('  set REPOS=C:\\Users\\YourName\\repos')
+    print('  set REPOSPATH=C:\\Users\\YourName\\repos')
     print("\nTo set permanently:")
     print('  1. Search "environment variables" in the Windows Start Menu')
     print('  2. Click "Edit the system environment variables"')
     print('  3. Click "Environment Variables..." button')
     print('  4. Under "User variables", click "New..."')
-    print('  5. Set Variable name: REPOS')
+    print('  5. Set Variable name: REPOSPATH')
     print('  6. Set Variable value: your repositories folder path')
     print('  7. Click OK and restart your terminal')
     sys.exit(1)
 
 # Check if environment variable paths exist
 if not os.path.exists(modPath):
-    print(f"Error: BROFORCEMODS directory does not exist: {modPath}")
-    print("Please check that the BROFORCEMODS environment variable points to a valid directory.")
+    print(f"Error: BROFORCEPATH directory does not exist: {modPath}")
+    print("Please check that the BROFORCEPATH environment variable points to a valid directory.")
     sys.exit(1)
 
 if not os.path.exists(repoPath):
-    print(f"Error: REPOS directory does not exist: {repoPath}")
-    print("Please check that the REPOS environment variable points to a valid directory.")
+    print(f"Error: REPOSPATH directory does not exist: {repoPath}")
+    print("Please check that the REPOSPATH environment variable points to a valid directory.")
     sys.exit(1)
 
 newName = input('Enter mod name:\n')
@@ -172,7 +172,7 @@ try:
     
     # Create the CREATE LINK.bat file in the Releases folder
     batFilePath = os.path.join(newModReleasePath, 'CREATE LINK.bat')
-    batContent = f'mklink /D "%BROFORCEMODS%\\{newName}" "%REPOS%\\BroforceMods\\Releases\\{newName}\\{newName}"\npause'
+    batContent = f'mklink /D "%BROFORCEPATH%\\mods\\{newName}" "%REPOSPATH%\\BroforceMods\\Releases\\{newName}\\{newName}"\npause'
     
     with open(batFilePath, 'w') as batFile:
         batFile.write(batContent)

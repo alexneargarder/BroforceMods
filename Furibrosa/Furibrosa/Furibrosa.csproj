@@ -89,10 +89,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "%25BROPATH%25\Furibrosa\*.cache"
-XCOPY /Y /R "$(TargetPath)" "%25BROPATH%25\Furibrosa\$(ProjectName).dll*"</PostBuildEvent>
+    <PostBuildEvent>call "$(ProjectDir)\..\..\Scripts\bro-post-build.bat" "$(ProjectName)" "$(TargetPath)" "$(TargetDir)" "$(TargetFileName)" "$(TargetName)" "$(ConfigurationName)" "$(PlatformName)" "$(ProjectDir)" "$(SolutionDir)" "$(OutDir)"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>taskkill /f /t /im Broforce_beta.exe 2&gt; nul || set errorlevel=0</PreBuildEvent>
+    <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\bro-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
   </PropertyGroup>
 </Project>
