@@ -1,9 +1,0 @@
-{
-	"Id": "Mod Template",
-	"DisplayName": "Mod Template",
-	"Author": "AUTHOR_NAME",
-	"Version": "1.0.0",
-	"AssemblyName": "Mod Template.dll",
-	"EntryMethod": "Mod_Template.Main.Load",
-	"Repository": "https://raw.githubusercontent.com/alexneargarder/REPO_NAME/master/Repository.json"
-}
