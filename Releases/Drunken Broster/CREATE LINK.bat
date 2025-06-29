@@ -1,2 +1,2 @@
-mklink /D "%BROPATH%\Drunken Broster" "%REPOS%\BroforceMods\Releases\Drunken Broster\Drunken Broster"
+mklink /D "%BROFORCEPATH%\BroMaker_Storage\Drunken Broster" "%REPOSPATH%\BroforceMods\Releases\Drunken Broster\Drunken Broster"
 pause

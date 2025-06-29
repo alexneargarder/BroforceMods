@@ -4,8 +4,8 @@ Creates a new custom character mod from template files.
 
 ## Setup
 Set these environment variables:
-- `BROPATH` - Path to BroMaker_Storage folder
-- `REPOS` - Path to your repos folder, where this repo is located
+- `BROFORCEPATH` - Path to Broforce folder
+- `REPOSPATH` - Path to your repos folder, where this repo is located
 
 ## Usage
 ```
@@ -19,8 +19,8 @@ Creates a new general mod from template files.
 
 ## Setup
 Set these environment variables:
-- `BROFORCEMODS` - Path to Broforce Mods folder
-- `REPOS` - Path to your repos folder (same as above)
+- `BROFORCEPATH` - Path to Broforce folder
+- `REPOSPATH` - Path to your repos folder (same as above)
 
 ## Usage
 ```

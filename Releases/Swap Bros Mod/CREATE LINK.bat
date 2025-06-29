@@ -1,2 +1,2 @@
-mklink /D "%BROFORCEMODS%\Swap Bros Mod" "%REPOS%\BroforceMods\Releases\Swap Bros Mod\Swap Bros Mod"
+mklink /D "%BROFORCEPATH%\mods\Swap Bros Mod" "%REPOSPATH%\BroforceMods\Releases\Swap Bros Mod\Swap Bros Mod"
 pause
