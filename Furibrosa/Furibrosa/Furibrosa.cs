@@ -57,26 +57,8 @@ namespace Furibrosa
 
         // Melee
         protected MeshRenderer holdingArm;
-        public static List<Unit> grabbedUnits = new List<Unit> { null, null, null, null };
-        Unit grabbedUnit
-        {
-            get
-            {
-                if ( this.previousPlayerNum < 0 || this.previousPlayerNum > 3 )
-                {
-                    return null;
-                }
-                else
-                {
-                    return grabbedUnits[this.previousPlayerNum];
-                }
-            }
-            set
-            {
-                grabbedUnits[this.previousPlayerNum] = value;
-            }
-        }
-        protected int previousPlayerNum = -1;
+        public static HashSet<Unit> grabbedUnits = new HashSet<Unit>();
+        Unit grabbedUnit;
         protected bool unitWasGrabbed = false;
         protected bool throwingMook = false;
         protected float holdingXOffset = 0f;
@@ -105,8 +87,6 @@ namespace Furibrosa
         protected override void Start()
         {
             base.Start();
-
-            this.previousPlayerNum = this.playerNum;
 
             this.soundHolderVoice = ( HeroController.GetHeroPrefab( HeroType.Xebro ) as Xebro ).soundHolderVoice;
 
@@ -354,6 +334,7 @@ namespace Furibrosa
             else if ( this.unitWasGrabbed )
             {
                 this.unitWasGrabbed = false;
+                grabbedUnits.RemoveWhere( unit => unit == null );
                 this.grabbedUnit = null;
                 this.gunSprite.gameObject.layer = 19;
                 this.SwitchToNormalMaterials();
@@ -364,7 +345,8 @@ namespace Furibrosa
         public override void UIOptions()
         {
             GUILayout.Space( 10 );
-            switchWeaponKey.OnGUI( out _, true );
+            // Only display tooltip if it's currently unset (otherwise we'll display BroMaker's tooltips
+            switchWeaponKey.OnGUI( out _, (GUI.tooltip == string.Empty) );
             GUILayout.Space( 10 );
 
             if ( doubleTapSwitch != ( doubleTapSwitch = GUILayout.Toggle( doubleTapSwitch, "Double Tap Down to Switch Weapons" ) ) )
@@ -982,6 +964,7 @@ namespace Furibrosa
                 {
                     this.meleeHasHit = true;
                     this.grabbedUnit = unit;
+                    Furibrosa.grabbedUnits.Add( unit );
                     unit.Panic( 1000f, true );
                     unit.playerNum = this.playerNum;
                     this.gunSprite.gameObject.layer = 28;
@@ -1034,6 +1017,7 @@ namespace Furibrosa
                     grabbedAnimal.yI = 300f;
                 }
                 this.gunSprite.gameObject.layer = 19;
+                Furibrosa.grabbedUnits.Remove( grabbedUnit );
                 this.grabbedUnit = null;
                 this.SwitchToNormalMaterials();
                 this.ChangeFrame();
