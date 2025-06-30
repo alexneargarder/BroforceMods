@@ -140,7 +140,8 @@ namespace Mission_Impossibro
         public override void UIOptions()
         {
             GUILayout.Space( 10 );
-            if ( toggleGrappleKey.OnGUI( out _, true ) )
+            // Only display tooltip if it's currently unset (otherwise we'll display BroMaker's tooltips
+            if ( toggleGrappleKey.OnGUI( out _, ( GUI.tooltip == string.Empty ) ) )
             {
                 MissionImpossibro.PressKeyToToggleGrapple = true;
             }
