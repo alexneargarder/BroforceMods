@@ -10,13 +10,16 @@
       "y": 0
     },
     "SpecialIconSpacing": 4,
-    "Avatar": "avatar.png"
+    "Avatar": [ "avatar.png", "variants/avatar_venkman.png", "variants/avatar_spengler.png", "variants/avatar_zeddemore.png" ],
+    "Sprite": [ "sprite.png", "variants/sprite_venkman.png", "variants/sprite_spengler.png", "variants/sprite_zeddemore.png" ],
+    "GunSprite": "gunSprite.png"
   },
   "cutscene": {
     "heading": "Brostbuster",
     "subtitle1": "Joins the Battle!",
     "headingScale": 0.14,
     "spritePath": "cutscene.png",
+    "variantSprites": [ "variants/cutscene_venkman.png", "variants/cutscene_spengler.png", "variants/cutscene_zeddemore.png" ],
     "spriteRect":
     {
       "x": 16,
@@ -34,10 +37,7 @@
     "originalSpecialAmmo": 2
   },
   "afterAwake": {},
-  "beforeStart": {
-    "sprite": "sprite.png",
-    "gunSprite": "gunSprite.png"
-  },
+  "beforeStart": {},
   "afterStart": {
     
   }
