@@ -54,7 +54,7 @@ namespace Brostbuster
         {
             public static bool Prefix(Mook __instance, ref float __result)
             {
-                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.TryGetValue(__instance, out FloatingUnit unit))
+                if (GhostTrap.grabbedUnits.Count > 0 && GhostTrap.grabbedUnits.TryGetValue(__instance, out FloatingObject unit))
                 {
                     __result = unit.currentPosition.y;
                     return false;

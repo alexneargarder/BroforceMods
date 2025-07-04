@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using BroMakerLib;
 using BroMakerLib.Loggers;
-using System.Reflection;
-using System.IO;
 using BroMakerLib.CustomObjects.Projectiles;
+using Effects;
 
 namespace Brostbuster
 {
@@ -49,8 +48,9 @@ namespace Brostbuster
 		public float topFloatingY, leftFloatingX, rightFloatingX;
 		public const float width = 120f;
 		public const float height = 130f;
-		public static Dictionary<Unit, FloatingUnit> grabbedUnits = new Dictionary<Unit, FloatingUnit>();
-		public List<FloatingUnit> floatingUnits = new List<FloatingUnit>();
+		public static Dictionary<Unit, FloatingObject> grabbedUnits = new Dictionary<Unit, FloatingObject>();
+        public static Dictionary<BroforceObject, FloatingObject> grabbedObjects = new Dictionary<BroforceObject, FloatingObject>();
+        public List<FloatingObject> floatingObjects = new List<FloatingObject>();
 		public List<Unit> ignoredUnits = new List<Unit>();
 		public int killedUnits = 0;
 		public int thrownBy = -1;
@@ -197,7 +197,7 @@ namespace Brostbuster
 						if ( this.state > TrapState.Opening )
                         {
 							// Don't start grabbing units until trap is open
-							this.FindUnits();
+							this.FindObjects();
 						}
 						
 
@@ -246,7 +246,7 @@ namespace Brostbuster
 
 						if ( this.runTime < 14f )
                         {
-							this.FindUnits();
+							this.FindObjects();
 						}
 
 						if ( currentClip == 2 && ((this.trapAudio.clip.length - this.trapAudio.time) <= 0.02f) )
@@ -258,7 +258,7 @@ namespace Brostbuster
 						}
 
 						// Speed up trap closing by moving to final clip
-						if ( this.expediteClose && this.runTime > 12f && this.floatingUnits.Count == 0 && currentClip == 2 )
+						if ( this.expediteClose && this.runTime > 12f && this.floatingObjects.Count == 0 && currentClip == 2 )
                         {
 							this.trapAudio.clip = trapClosed;
 							this.trapAudio.Play();
@@ -434,14 +434,15 @@ namespace Brostbuster
 					if (bro && killedUnits > 0)
 					{
 						bro.ReturnTrap();
-					}
+                    }
 					Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f);
-					this.DestroyGrenade();
+                    EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 3f, 0f, 0f );
+                    this.DestroyGrenade();
 				}
 			}
 		}
 
-		float sign(float p1X, float p1Y, float p2X, float p2Y, float p3X, float p3Y)
+		float Sign(float p1X, float p1Y, float p2X, float p2Y, float p3X, float p3Y)
 		{
 			return (p1X - p3X) * (p2Y - p3Y) - (p2X - p3X) * (p1Y - p3Y);
 		}
@@ -451,9 +452,9 @@ namespace Brostbuster
 			float d1, d2, d3;
 			bool has_neg, has_pos;
 
-			d1 = sign(x, y, topLeftX, topLeftY, topRightX, topRightY);
-			d2 = sign(x, y, topRightX, topRightY, bottomX, bottomY);
-			d3 = sign(x, y, bottomX, bottomY, topLeftX, topLeftY);
+			d1 = Sign(x, y, topLeftX, topLeftY, topRightX, topRightY);
+			d2 = Sign(x, y, topRightX, topRightY, bottomX, bottomY);
+			d3 = Sign(x, y, bottomX, bottomY, topLeftX, topLeftY);
 
 			has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
 			has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
@@ -463,8 +464,8 @@ namespace Brostbuster
 
 		protected void AddUnit(Unit unit)
         {
-			FloatingUnit floatUnit = new FloatingUnit(unit, this);
-			floatingUnits.Add(floatUnit);
+			FloatingObject floatUnit = new FloatingObject(unit, this);
+			floatingObjects.Add(floatUnit);
 			grabbedUnits.Add(unit, floatUnit);
 			unit.Panic(1000f, true);
 			if (unit is Mook)
@@ -474,8 +475,26 @@ namespace Brostbuster
 			Map.units.Remove(unit);
 		}
 
-		protected void FindUnits()
+        protected void AddObject( BroforceObject grabbedObject )
         {
+            if ( grabbedObject is Projectile projectile )
+            {
+                Map.projectiles.Remove( projectile );
+            }
+            else if ( grabbedObject is Grenade grenade )
+            {
+                Map.grenades.Remove( grenade );
+				grenade.GetFieldValue<ProjectileTrail>( "createdTrail" )?.EffectDie();
+            }
+            grabbedObject.enabled = false;
+            FloatingObject floatObject = new FloatingObject( grabbedObject, this );
+            floatingObjects.Add( floatObject );
+            grabbedObjects.Add( grabbedObject, floatObject );
+        }
+
+        protected void FindObjects()
+        {
+			// Find nearby units
 			for ( int i = 0; i < Map.units.Count; ++i )
             {
 				Unit unit = Map.units[i];
@@ -505,6 +524,56 @@ namespace Brostbuster
 					}
                 }
             }
+
+			// Find nearby projectile
+			for ( int i = 0; i < Map.projectiles.Count; ++i )
+			{
+				Projectile projectile = Map.projectiles[i];
+                // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
+                if ( projectile != null && projectile.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( projectile.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( projectile ) )
+                {
+                    // Check projectile is in rectangle around trap
+                    if ( Tools.FastAbsWithinRange( projectile.X - bottomX, 50f ) && Tools.FastAbsWithinRange( projectile.Y - bottomY, 20f ) )
+                    {
+						AddObject( projectile );
+                    }
+                    // Check projectile is in trap triangle
+                    else if ( Tools.FastAbsWithinRange( projectile.X - bottomX, width ) )
+                    {
+                        float num = projectile.Y - bottomY;
+                        // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
+                        if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( projectile.X, projectile.Y ) )
+                        {
+                            AddObject( projectile );
+                        }
+                    }
+                }
+            }
+
+			// Find nearby grenades
+			for ( int i = 0; i < Map.grenades.Count; ++i )
+			{
+                Grenade grenade = Map.grenades[i];
+                // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
+                if ( grenade != null && grenade.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( grenade.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( grenade ) )
+                {
+                    // Check projectile is in rectangle around trap
+                    if ( Tools.FastAbsWithinRange( grenade.X - bottomX, 50f ) && Tools.FastAbsWithinRange( grenade.Y - bottomY, 20f ) )
+                    {
+                        AddObject( grenade );
+                    }
+                    // Check projectile is in trap triangle
+                    else if ( Tools.FastAbsWithinRange( grenade.X - bottomX, width ) )
+                    {
+                        float num = grenade.Y - bottomY;
+                        // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
+                        if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( grenade.X, grenade.Y ) )
+                        {
+                            AddObject( grenade );
+                        }
+                    }
+                }
+            }
         }
 
 		protected void MoveUnits()
@@ -512,29 +581,42 @@ namespace Brostbuster
 			if ( this.state == TrapState.Open)
             {
 				// Iterate backwards since units may be destroyed during this loop
-				for (int i = floatingUnits.Count - 1; i >= 0; --i)
+				for (int i = floatingObjects.Count - 1; i >= 0; --i)
 				{
-					floatingUnits[i].MoveUnit(this.t);
+					floatingObjects[i].MoveObject(this.t);
 				}
 			}				
 			else
             {
 				// Iterate backwards since units may be destroyed during this loop
-				for (int i = floatingUnits.Count - 1; i >= 0; --i)
+				for (int i = floatingObjects.Count - 1; i >= 0; --i)
 				{
-					floatingUnits[i].MoveUnitToCenter(this.t);
+					floatingObjects[i].MoveUnitToCenter(this.t);
 				}
 			}
 		}
 
 		protected void ReleaseUnits()
         {
-			for (int i = 0; i < floatingUnits.Count; ++i)
+			for (int i = 0; i < floatingObjects.Count; ++i)
 			{
-				floatingUnits[i].ReleaseUnit();
-				grabbedUnits.Remove(floatingUnits[i].unit);
-				Map.units.Add(floatingUnits[i].unit);
-			}
+				floatingObjects[i].ReleaseObject();
+				if ( floatingObjects[i].trappedObject is Unit trappedUnit )
+				{
+                    grabbedUnits.Remove( trappedUnit);
+                    Map.units.Add( trappedUnit );
+                }
+                else if ( floatingObjects[i].trappedObject is Projectile trappedProjectile )
+                {
+					grabbedObjects.Remove( trappedProjectile );
+					Map.projectiles.Add( trappedProjectile );
+                }
+                else if ( floatingObjects[i].trappedObject is Grenade trappedGrenade )
+                {
+                    grabbedObjects.Remove( trappedGrenade );
+					Map.grenades.Add( trappedGrenade );
+                }
+            }
 		}
 	}
 }

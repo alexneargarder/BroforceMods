@@ -1,17 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using UnityEngine;
-using BroMakerLib;
-using BroMakerLib.Loggers;
-using System.Reflection;
-using System.IO;
-using HarmonyLib;
-
-
+﻿using UnityEngine;
 
 namespace Brostbuster
 {
-    class FloatingUnit
+    class FloatingObject
     {
         public const float moveSpeed = 35f;
         public float verticalMoveSpeed = 25f;
@@ -21,7 +12,7 @@ namespace Brostbuster
         public bool slowingDown = false;
 
         public GhostTrap trap;
-        public Unit unit;
+        public BroforceObject trappedObject;
         public Vector3 grabbedPosition;
         public Vector3 currentPosition;
         public float currentRotation = 0f;
@@ -31,13 +22,15 @@ namespace Brostbuster
         public float leftMostX, rightMostX;
         public float distanceToCenter = 0f;
         public bool reachedStartingHeight = false;
+        public float height = 0f;
+
         
-        public FloatingUnit(Unit grabbedUnit, GhostTrap parentTrap)
+        public FloatingObject(BroforceObject grabbedObject, GhostTrap parentTrap)
         {
             trap = parentTrap;
-            unit = grabbedUnit;
-            grabbedPosition = unit.transform.position;
-            currentPosition = unit.transform.position;
+            trappedObject = grabbedObject;
+            grabbedPosition = trappedObject.transform.position;
+            currentPosition = trappedObject.transform.position;
             currentRotation = 0f;
             if (UnityEngine.Random.value > 0.5f)
             {
@@ -86,6 +79,12 @@ namespace Brostbuster
             {
                 movingRight = UnityEngine.Random.value > 0.5f;
             }
+
+            // Store unit height
+            if ( grabbedObject is Unit grabbedUnit )
+            {
+                this.height = grabbedUnit.height;
+            }
         }
 
         public void DetermineLimits()
@@ -95,11 +94,11 @@ namespace Brostbuster
             rightMostX = (trap.X - leftMostX) + trap.X;
         }
 
-        public void MoveUnit(float t)
+        public void MoveObject(float t)
         {
-            if ( this.unit == null )
+            if ( this.trappedObject == null )
             {
-                RemoveUnit();
+                RemoveObject();
                 return;
             }
             // Close enough to begin swallow
@@ -198,11 +197,11 @@ namespace Brostbuster
             }
 
             // Ensure unit isn't moving
-            unit.X = currentPosition.x;
-            unit.Y = currentPosition.y;
+            trappedObject.X = currentPosition.x;
+            trappedObject.Y = currentPosition.y;
             // Move unit visually
-            unit.transform.position = currentPosition;
-            unit.transform.rotation = Quaternion.identity;
+            trappedObject.transform.position = currentPosition;
+            trappedObject.transform.rotation = Quaternion.identity;
 
             // Rotate unit
             currentRotation += rotationSpeed * t;
@@ -215,14 +214,14 @@ namespace Brostbuster
                 currentRotation += 360f;
             }
 
-            unit.transform.RotateAround(unit.transform.position + new Vector3(0, unit.height), Vector3.forward, currentRotation);
+            trappedObject.transform.RotateAround(trappedObject.transform.position + new Vector3(0, height), Vector3.forward, currentRotation);
         }
 
         public void MoveUnitToCenter(float t)
         {
-            if (this.unit == null)
+            if (this.trappedObject == null)
             {
-                RemoveUnit();
+                RemoveObject();
                 return;
             }
             if ( distanceToCenter == 0f )
@@ -233,48 +232,65 @@ namespace Brostbuster
             currentPosition = Vector3.MoveTowards(currentPosition, trap.transform.position, moveSpeed * t);
 
             // Ensure unit isn't moving
-            unit.X = currentPosition.x;
-            unit.Y = currentPosition.y;
+            trappedObject.X = currentPosition.x;
+            trappedObject.Y = currentPosition.y;
             // Move unit visually
-            unit.transform.position = currentPosition;
-            unit.transform.rotation = Quaternion.identity;
+            trappedObject.transform.position = currentPosition;
+            trappedObject.transform.rotation = Quaternion.identity;
 
-            unit.transform.RotateAround(unit.transform.position + new Vector3(0, unit.height), Vector3.forward, currentRotation);
+            trappedObject.transform.RotateAround(trappedObject.transform.position + new Vector3(0, height), Vector3.forward, currentRotation);
 
             float currentDistance = Vector3.Distance(currentPosition, trap.transform.position);
 
             // Scale down object
             if ( currentDistance > 2f )
             {
-                unit.transform.localScale = new Vector3(currentDistance / distanceToCenter, currentDistance / distanceToCenter, 1f);
+                trappedObject.transform.localScale = new Vector3(currentDistance / distanceToCenter, currentDistance / distanceToCenter, 1f);
             }
             else
             {
-                this.ConsumeUnit();
+                this.ConsumeObject();
             }
         }
 
-        public void ConsumeUnit()
+        public void ConsumeObject()
         {
-            ++trap.killedUnits;
-            trap.floatingUnits.Remove(this);
-            GhostTrap.grabbedUnits.Remove(this.unit);
-            UnityEngine.Object.Destroy(unit.gameObject);
+            if ( this.trappedObject is Unit trappedUnit )
+            {
+                ++trap.killedUnits;
+                GhostTrap.grabbedUnits.Remove( trappedUnit );
+            }
+            else
+            {
+                GhostTrap.grabbedObjects.Remove( trappedObject );
+            }
+
+                trap.floatingObjects.Remove( this );
+            UnityEngine.Object.Destroy( trappedObject.gameObject );
         }
 
-        public void RemoveUnit()
+        public void RemoveObject()
         {
-            ++trap.killedUnits;
-            trap.floatingUnits.Remove(this);
-            GhostTrap.grabbedUnits.Remove(this.unit);
+            if ( this.trappedObject is Unit trappedUnit )
+            {
+                ++trap.killedUnits;
+                GhostTrap.grabbedUnits.Remove( trappedUnit );
+            }
+            else
+            {
+                GhostTrap.grabbedObjects.Remove( trappedObject );
+            }
+
+            trap.floatingObjects.Remove( this );
         }
 
-        public void ReleaseUnit()
+        public void ReleaseObject()
         {
-            unit.X = currentPosition.x;
-            unit.Y = currentPosition.y;
-            unit.transform.position = currentPosition;
-            unit.transform.rotation = Quaternion.identity;
+            trappedObject.X = currentPosition.x;
+            trappedObject.Y = currentPosition.y;
+            trappedObject.transform.position = currentPosition;
+            trappedObject.transform.rotation = Quaternion.identity;
+            trappedObject.enabled = true;
         }
     }
 }
