@@ -2,6 +2,8 @@ v1.1.0 (unreleased)
 Changes for BroMaker update.
 Added option to set keybinding to toggle grapple.
 Added option to disable jump from toggling grapple.
+Added ability to climb along ceiling.
+Rebalanced explosives and explosive gum.
 
 v1.0.6
 Changes for BroMaker update.

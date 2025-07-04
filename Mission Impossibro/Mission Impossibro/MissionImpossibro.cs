@@ -60,6 +60,7 @@ namespace Mission_Impossibro
         protected const int MaxExplosives = 5;
         protected Explosive explosivePrefab;
         protected bool isElbowSlamming = false;
+        protected bool playedTriggerSound = false;
 
         // Melee Variables
         protected ExplosiveGum gumPrefab;
@@ -72,6 +73,7 @@ namespace Mission_Impossibro
         [SaveableSetting] public static bool PressKeyToToggleGrapple = false;
         public static KeyBindingForPlayers toggleGrappleKey = AllModKeyBindings.LoadKeyBinding( "Mission Impossibro", "Toggle Grapple" );
 
+        #region General
         protected override void Awake()
         {
             base.Awake();
@@ -240,6 +242,12 @@ namespace Mission_Impossibro
                 {
                     DetachGrapple();
                 }
+                // Switch to climbing along ceiling if close enough and holding left or right
+                else if ( (this.right || this.left) && this.CloseEnoughToClimbAlongCeiling() )
+                {
+                    this.DetachGrapple();
+                    this.StartHanging();
+                }
             }
 
             // Attach grapple using custom key
@@ -268,6 +276,7 @@ namespace Mission_Impossibro
                 DetachGrapple();
             }
         }
+        #endregion
 
         // Grapple methods
         #region Grapple
@@ -398,20 +407,9 @@ namespace Mission_Impossibro
 
         protected override void ChangeFrame()
         {
-            if ( !( this.grappleAttached || this.exitingGrapple ) )
+            if ( !( this.grappleAttached || this.exitingGrapple) && !( this.IsHangingOneArmed() && this.usingSpecial ) )
             {
-                ZipLine tempZipline = null;
-                // Make sure zipline doesn't interfere with explosive detonation animation
-                if ( this.triggeringExplosives && this.attachedToZipline != null )
-                {
-                    tempZipline = this.attachedToZipline;
-                    this.attachedToZipline = null;
-                }
                 base.ChangeFrame();
-                if ( tempZipline != null )
-                {
-                    this.attachedToZipline = tempZipline;
-                }
             }
             else
             {
@@ -553,7 +551,17 @@ namespace Mission_Impossibro
 
         protected override bool CanCheckClimbAlongCeiling()
         {
-            return this.health > 0 && !this.usingSpecial && !this.down && Physics.CheckSphere( new Vector3( base.X, base.Y + this.headHeight, 0f ), (float)( this.checkCeilingForHangRadius + ( ( this.yI <= 0f ) ? 0 : -2 ) ), Map.groundLayer );
+            return this.health > 0 && !this.down && !this.grappleAttached && Physics.CheckSphere( new Vector3( base.X, base.Y + this.headHeight, 0f ), (float)( this.checkCeilingForHangRadius + ( ( this.yI <= 0f ) ? 0 : -2 ) ), Map.groundLayer );
+        }
+
+        protected virtual bool CloseEnoughToClimbAlongCeiling()
+        {
+            return this.health > 0 && !this.usingSpecial && Physics.CheckSphere( new Vector3( base.X, base.Y + this.headHeight, 0f ), (float)( this.checkCeilingForHangRadius + ( ( this.yI <= 0f ) ? 0 : -2 ) ), Map.groundLayer );
+        }
+
+        protected virtual bool IsHangingOneArmed()
+        {
+            return ( base.actionState == ActionState.Hanging ) || ( base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed ) || ( this.attachedToZipline != null && base.actionState == ActionState.Jumping );
         }
         #endregion
 
@@ -612,8 +620,8 @@ namespace Mission_Impossibro
                 this.syncedDirection = (int)base.transform.localScale.x;
             }
 
-            // Fire while on zipline
-            if ( this.attachedToZipline != null && base.actionState == ActionState.Jumping )
+            // Fire while on zipline / hanging
+            if ( this.IsHangingOneArmed() )
             {
                 this.FireWeapon( base.X + num * 4f, base.Y + 5f, num * bulletSpeed, 0 );
             }
@@ -753,10 +761,20 @@ namespace Mission_Impossibro
                     {
                         this.gunCounter -= 0.12f;
                         ++this.gunFrame;
+                    }
+                    // Use other animation when hanging
+                    if ( this.IsHangingOneArmed() )
+                    {
                         if ( this.gunFrame < 4 )
                         {
                             // Use lowerleftpixel function to ignore hanging frames
-                            this.gunSprite.SetLowerLeftPixel( ( 17 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
+                            this.gunSprite.SetLowerLeftPixel( ( 27 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
+                            if ( this.gunFrame == 3 && !this.recalling && !this.playedTriggerSound )
+                            {
+                                Sound.GetInstance().PlaySoundEffectAt( detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f );
+                                //this.gunCounter -= 0.06f;
+                                this.playedTriggerSound = true;
+                            }
                         }
                         else
                         {
@@ -766,7 +784,31 @@ namespace Mission_Impossibro
                             }
                             this.gunFrame = 3;
                             // Use lowerleftpixel function to ignore hanging frames
-                            this.gunSprite.SetLowerLeftPixel( ( 17 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
+                            this.gunSprite.SetLowerLeftPixel( ( 27 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
+                        }
+                    }
+                    else
+                    {
+                        if ( this.gunFrame < 3 )
+                        {
+                            // Use lowerleftpixel function to ignore hanging frames
+                            this.gunSprite.SetLowerLeftPixel( ( 18 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
+                            if ( this.gunFrame == 2 && !this.recalling && !this.playedTriggerSound )
+                            {
+                                Sound.GetInstance().PlaySoundEffectAt( detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f );
+                                //this.gunCounter -= 0.06f;
+                                this.playedTriggerSound = true;
+                            }
+                        }
+                        else
+                        {
+                            if ( !this.usingSpecial )
+                            {
+                                this.StopSpecial();
+                            }
+                            this.gunFrame = 2;
+                            // Use lowerleftpixel function to ignore hanging frames
+                            this.gunSprite.SetLowerLeftPixel( ( 18 + this.gunFrame ) * this.gunSpritePixelWidth, 32f );
                         }
                     }
                 }
@@ -813,15 +855,7 @@ namespace Mission_Impossibro
                 // Out of explosives, wait to trigger
                 else
                 {
-                    if ( !this.hangingOneArmed )
-                    {
-                        this.SetGunSprite( 18, 0 );
-                    }
-                    else
-                    {
-                        // TODO: figure out what to do if hanging (current animation uses two arms)
-                        this.SetGunSprite( 0, 0 );
-                    }
+                    this.SetGunSprite( 18, 0 );
                 }
             }
             // Shoot while wall clinging
@@ -999,8 +1033,9 @@ namespace Mission_Impossibro
                 this.specialTime = 0;
                 this.gunCounter = 0;
                 this.triggeringExplosives = true;
-                this.gunFrame = 1;
-                this.SetGunSprite( 17 + this.gunFrame, 0 );
+                this.gunFrame = 0;
+                this.gunCounter = 0;
+                this.RunGun();
             }
         }
 
@@ -1016,15 +1051,15 @@ namespace Mission_Impossibro
                 this.usingSpecialFrame = 5;
             }
             this.fireRate = originalFireRate;
-            if ( !this.recalling )
-            {
-                Sound.GetInstance().PlaySoundEffectAt( detonatorSound, 0.8f, base.transform.position, 1f, true, true, false, 0f );
-            }
             // Detonate explosives
             foreach ( Explosive explosive in this.currentExplosives )
             {
                 explosive.life = 0.2f;
             }
+            this.triggeringExplosives = false;
+            this.ChangeFrame();
+            this.RunGun();
+            this.playedTriggerSound = false;
         }
 
         protected override void AnimateSpecial()
@@ -1048,6 +1083,7 @@ namespace Mission_Impossibro
                         this.gunSprite.meshRender.material = this.stealthGunMaterial;
                         HeroController.SetAvatarMaterial( playerNum, this.stealthAvatarMaterial );
                         this.stealthActive = true;
+                        this.gunFrame = 0;
                         this.ActivateGun();
                         this.SetGunPosition( 3f, 0f );
                         this.gunFrame = 0;
@@ -1063,7 +1099,6 @@ namespace Mission_Impossibro
                 // Take off balaclava
                 else
                 {
-                    this.triggeringExplosives = false;
 
                     if ( this.usingSpecialFrame < 1 )
                     {
@@ -1072,6 +1107,7 @@ namespace Mission_Impossibro
                         this.gunSprite.meshRender.material = this.normalGunMaterial;
                         HeroController.SetAvatarMaterial( playerNum, this.normalAvatarMaterial );
                         this.stealthActive = false;
+                        this.gunFrame = 0;
                         this.ActivateGun();
                         this.ChangeFrame();
                         return;
@@ -1103,14 +1139,21 @@ namespace Mission_Impossibro
                         return;
                     }
 
-                    this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 8 * this.spritePixelHeight );
+                    // Use alternate animation if hanging one armed
+                    if ( this.IsHangingOneArmed() )
+                    {
+                        this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 7 * this.spritePixelHeight );
+                    }
+                    else
+                    {
+                        this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 8 * this.spritePixelHeight );
+                    }
 
                     ++this.usingSpecialFrame;
                 }
                 // Take off balaclava
                 else
                 {
-                    this.triggeringExplosives = false;
 
                     if ( this.usingSpecialFrame < 0 )
                     {
@@ -1126,7 +1169,15 @@ namespace Mission_Impossibro
                         return;
                     }
 
-                    this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 8 * this.spritePixelHeight );
+                    // Use alternate animation if hanging one armed
+                    if ( this.IsHangingOneArmed() )
+                    {
+                        this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 7 * this.spritePixelHeight );
+                    }
+                    else
+                    {
+                        this.sprite.SetLowerLeftPixel( ( 26 + this.usingSpecialFrame ) * this.spritePixelWidth, 8 * this.spritePixelHeight );
+                    }
 
                     --this.usingSpecialFrame;
                 }
@@ -1139,6 +1190,7 @@ namespace Mission_Impossibro
         protected override void AnimatePunch()
         {
             this.AnimateMeleeCommon();
+            base.frameRate = 0.03f;
             int num = 25 + Mathf.Clamp( base.frame, 0, 8 );
             int num2 = 10;
             if ( base.frame == 5 )
@@ -1181,19 +1233,19 @@ namespace Mission_Impossibro
                 proj = ProjectileController.SpawnProjectileLocally( this.gumPrefab, this, unit.X, unit.Y + 6f, 0f, 0f, false, base.playerNum, false, false, 0f ) as ExplosiveGum;
                 proj.enabled = true;
 
-                this.sachelPackCooldown = 0.5f;
+                this.sachelPackCooldown = 0.8f;
             }
             else if ( base.Direction < 0 && Physics.Raycast( new Vector3( base.X + 6f, base.Y + 10f, 0f ), Vector3.left, out this.raycastHit, 16f, this.groundLayer | this.fragileLayer ) )
             {
                 proj = ProjectileController.SpawnProjectileLocally( this.gumPrefab, this, base.X - 6f, base.Y + 10f, -10f, 10f, false, base.playerNum, false, false, 0f ) as ExplosiveGum;
                 proj.enabled = true;
-                this.sachelPackCooldown = 0.5f;
+                this.sachelPackCooldown = 0.7f;
             }
             else if ( base.Direction > 0 && Physics.Raycast( new Vector3( base.X - 6f, base.Y + 10f, 0f ), Vector3.right, out this.raycastHit, 12f, this.groundLayer | this.fragileLayer ) )
             {
                 proj = ProjectileController.SpawnProjectileLocally( this.gumPrefab, this, base.X + 6f, base.Y + 10f, 10f, 10f, false, base.playerNum, false, false, 0f ) as ExplosiveGum;
                 proj.enabled = true;
-                this.sachelPackCooldown = 0.5f;
+                this.sachelPackCooldown = 0.7f;
             }
             else
             {
