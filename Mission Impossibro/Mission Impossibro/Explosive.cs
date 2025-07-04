@@ -19,13 +19,13 @@ namespace Mission_Impossibro
 
             // Setup Variables
             this.life = 100f;
-            this.range = 50f;
+            this.range = 65f;
             this.blastForce = 50f;
             this.sticky = true;
             this.stickyToUnits = true;
-            this.damage = 8;
-            this.damageInternal = 8;
-            this.fullDamage = 8;
+            this.damage = 12;
+            this.damageInternal = 12;
+            this.fullDamage = 12;
             this.damageType = DamageType.Fire;
             this.canHitGrenades = false;
             this.soundVolume = 0.4f;

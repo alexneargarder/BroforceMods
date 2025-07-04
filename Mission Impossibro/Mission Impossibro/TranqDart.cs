@@ -134,7 +134,14 @@ namespace Mission_Impossibro
                                         else
                                         {
                                             unit.Stun( stunTime );
-                                            Map.KnockAndDamageUnit( damageSender, unit, 2, damageType, xI, yI, (int)Mathf.Sign( xI ), false, X, Y, false );
+                                            if ( unit.maxHealth > 10 )
+                                            {
+                                                Map.KnockAndDamageUnit( damageSender, unit, damage + 2, damageType, xI, yI, (int)Mathf.Sign( xI ), false, X, Y, false );
+                                            }
+                                            else
+                                            {
+                                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), false, X, Y, false );
+                                            }
                                         }
                                     }
                                     else
