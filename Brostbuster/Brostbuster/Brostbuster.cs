@@ -236,8 +236,18 @@ namespace Brostbuster
             this.protonAudio.loop = false;
             this.protonAudio.volume = 0.33f;
             this.protonAudio.Play();
+            // Shorten beam startup if shutdown hasn't fully finished and beam was previously active
+            if ( this.shutdownTime - 0.2f > 0f && this.playedBeamStartup )
+            {
+                this.startupTime = this.shutdownTime / 2f;
+                this.protonAudio.time = this.startupTime / 2f;
+            }
+            else
+            {
+                this.startupTime = 0f;
+                this.protonAudio.time = 0f;
+            }
             this.playedBeamStartup = false;
-            this.startupTime = 0f;
         }
 
         protected override void RunFiring()
@@ -251,7 +261,8 @@ namespace Brostbuster
                     if ( this.startupTime > 1.1f || !this.protonAudio.isPlaying )
                     {
                         this.protonAudio.clip = protonBeamStartup;
-                        protonAudio.Play();
+                        this.protonAudio.time = 0f;
+                        this.protonAudio.Play();
                         this.StartProtonGun();
                         this.playedBeamStartup = true;
                     }
@@ -287,6 +298,7 @@ namespace Brostbuster
                     if ( this.shutdownTime <= 0f )
                     {
                         this.protonAudio.enabled = false;
+                        this.playedBeamStartup = false;
                     }
                 }
             }
