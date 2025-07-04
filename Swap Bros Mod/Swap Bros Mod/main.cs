@@ -623,6 +623,11 @@ namespace Swap_Bros_Mod
                 if (settings.enableBromaker)
                 {
                     LoadCustomBros();
+                    // Check if only custom bros in hardcore setting is enabled, and if so, remove the vanilla bros
+                    if ( OnlyCustomBrosInHardcore() )
+                    {
+                        currentBroList.Clear();
+                    }
                     currentBroList.AddRange(allCustomBros);
                 }
             }
@@ -897,6 +902,11 @@ namespace Swap_Bros_Mod
         public static int GetBromakerHardcoreAmount()
         {
             return BSett.instance.AvailableBros.Count();
+        }
+
+        public static bool OnlyCustomBrosInHardcore()
+        {
+            return BSett.instance.onlyCustomInHardcore;
         }
 
         public static string HeroTypeToString(HeroType hero)
