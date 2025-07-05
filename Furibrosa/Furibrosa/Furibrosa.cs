@@ -475,11 +475,6 @@ namespace Furibrosa
                 this.CancelMelee();
             }
             this.releasedFire = false;
-            float num = base.transform.localScale.x;
-            if ( !base.IsMine && base.Syncronize )
-            {
-                num = (float)this.syncedDirection;
-            }
             if ( Connect.IsOffline )
             {
                 this.syncedDirection = (int)base.transform.localScale.x;

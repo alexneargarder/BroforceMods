@@ -750,10 +750,6 @@ namespace Captain_Ameribro_Mod
                         }
                     }
                 }
-                /*			else if (this.currentZone != null && this.currentZone.PoolIndex != -1)
-                            {
-                                this.gunSprite.SetLowerLeftPixel(0f, 128f);
-                            }*/
             }
             if ( !this.animateSpecial && ( !this.gunSprite.gameObject.activeSelf || this.gunFrame == 0 ) && !this.hasBeenCoverInAcid )
             {
