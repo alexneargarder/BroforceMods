@@ -731,7 +731,7 @@ namespace Mission_Impossibro
         {
             if ( !this.WallDrag && !this.acceptedDeath )
             {
-                // FIring tranq gun
+                // Firing tranq gun
                 if ( !this.stealthActive && !( this.grappleAttached || this.exitingGrapple ) )
                 {
                     if ( this.gunFrame > 0 )
