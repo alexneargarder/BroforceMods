@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using BroMakerLib;
+﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
+using BroMakerLib.CustomObjects.Projectiles;
+using HarmonyLib;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
-using HarmonyLib;
-using BroMakerLib.CustomObjects.Projectiles;
+using static UnityEngine.UI.CanvasScaler;
 
 namespace Brostbuster
 {
@@ -27,6 +28,7 @@ namespace Brostbuster
         protected float currentOffset = 0f;
         protected float currentOffset2 = 0f;
         protected float sparkCooldown = 0;
+        protected float flameCooldown = 0;
         protected float muzzleFlashCooldown = 0f;
         protected int protonLine2Frame = 0;
         protected float protonLine2FrameCounter = 0f;
@@ -44,7 +46,7 @@ namespace Brostbuster
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
         public static int BrostbusterCount = 0;
-        public List<Brostbuster> currentBros;
+        public List<Brostbuster> currentBros = new List<Brostbuster>();
         public int currentBrosCount;
         public int acknowledgedCount = 0;
 
@@ -252,6 +254,10 @@ namespace Brostbuster
 
         protected override void RunFiring()
         {
+            this.protonDamageCooldown -= this.t;
+            this.effectCooldown -= this.t;
+            this.flameCooldown -= this.t;
+            this.fireKnockbackCooldown -= this.t;
             if ( this.fire )
             {
                 if ( !this.playedBeamStartup )
@@ -278,9 +284,6 @@ namespace Brostbuster
                     }
                     this.currentOffset += this.t * offsetSpeed;
                     this.currentOffset2 += this.t * offsetSpeed * 1.9f;
-                    this.protonDamageCooldown -= this.t;
-                    this.effectCooldown -= this.t;
-                    this.fireKnockbackCooldown -= this.t;
                     UpdateProtonGun();
                     this.StopRolling();
                     this.FireFlashAvatar();
@@ -647,15 +650,19 @@ namespace Brostbuster
             {
                 unit.Damage( protonUnitDamage, DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, unit.X, unit.Y );
                 unit.Knock( DamageType.Fire, base.transform.localScale.x * 30, 20, false );
-            }
-;
-            if ( this.effectCooldown <= 0 )
-            {
-                Puff puff = EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, unit.X + base.transform.localScale.x * 4, startPoint.y + UnityEngine.Random.Range( -3, 3 ), 0f, 0f, Vector3.zero, null );
-                this.effectCooldown = 0.15f;
+
+                // Deal extra damage to bosses
+                if ( BroMakerUtilities.IsBoss( unit ) )
+                {
+                    protonDamageCooldown = 0.065f;
+                }
+                else
+                {
+                    protonDamageCooldown = 0.08f;
+                }
             }
 
-            protonDamageCooldown = 0.08f;
+            MakeHitEffect( new Vector3( unit.X + base.transform.localScale.x * 4, startPoint.y ) );
         }
 
         protected void DamageCollider( RaycastHit hit )
@@ -681,15 +688,28 @@ namespace Brostbuster
                 {
                     hit.collider.SendMessage( "Damage", new DamageObject( protonWallDamage, DamageType.Bullet, 0f, 0f, hit.point.x, hit.point.y, this ) );
                 }
+
+                protonDamageCooldown = 0.05f;
             }
 
+            MakeHitEffect( new Vector3( hit.point.x + base.transform.localScale.x * 4, hit.point.y ) );
+        }
+
+        protected void MakeHitEffect(Vector3 hitPoint)
+        {
             if ( this.effectCooldown <= 0 )
             {
-                Puff puff = EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, hit.point.x + base.transform.localScale.x * 4, hit.point.y + UnityEngine.Random.Range( -3, 3 ), 0f, 0f, Vector3.zero, null );
+                EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, hitPoint.x, hitPoint.y + UnityEngine.Random.Range( -3, 3 ), 0f, 0f, Vector3.zero, null );
+
                 this.effectCooldown = 0.15f;
             }
 
-            protonDamageCooldown = 0.05f;
+            if ( this.flameCooldown <= 0 )
+            {
+                EffectsController.CreateFire( hitPoint.x, hitPoint.y + UnityEngine.Random.Range( -1f, 1f ) - 2f, 0f, 0f, new Vector3( base.transform.localScale.x * UnityEngine.Random.Range( 0, 20 ), UnityEngine.Random.Range( 0, 20 ), 0f ) );
+
+                this.flameCooldown = 0.1f;
+            }
         }
 
         protected void CreateExplosion( Vector3 position )
