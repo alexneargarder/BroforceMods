@@ -45,10 +45,7 @@ namespace Brostbuster
         protected bool playedBeamStartup = false;
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
-        public static int BrostbusterCount = 0;
-        public List<Brostbuster> currentBros = new List<Brostbuster>();
-        public int currentBrosCount;
-        public int acknowledgedCount = 0;
+        public static HashSet<Brostbuster> currentBros = new HashSet<Brostbuster>();
 
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
@@ -79,6 +76,27 @@ namespace Brostbuster
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             harmony.PatchAll( assembly );
+        }
+
+        public override int GetVariant()
+        {
+            // Don't duplicate brostbuster variants
+            if ( Brostbuster.currentBros.Count > 0 )
+            {
+                List<int> available = new List<int> { 0, 1, 2, 3 };
+                foreach ( Brostbuster bro in currentBros )
+                {
+                    available.Remove( bro.CurrentVariant );
+                }
+
+                Brostbuster.currentBros.Add( this );
+                return available[UnityEngine.Random.Range( 0, available.Count )];
+            }
+            else
+            {
+                Brostbuster.currentBros.Add( this );
+                return base.GetVariant();
+            }
         }
 
         protected override void Awake()
@@ -142,43 +160,10 @@ namespace Brostbuster
             slimerTrapOpen = ResourcesController.GetAudioClip( soundPath, "slimerTrapOpen.wav" );
         }
 
-        protected void FindOtherBros()
-        {
-            try
-            {
-                this.currentBros = new List<Brostbuster>();
-                for ( int i = 0; i < 4; ++i )
-                {
-                    if ( HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 &&
-                        HeroController.players[i].character is Brostbuster && HeroController.players[i].character != this )
-                    {
-                        this.currentBros.Add( HeroController.players[i].character as Brostbuster );
-                    }
-                }
-                this.currentBrosCount = currentBros.Count + 1;
-                this.acknowledgedCount = BrostbusterCount;
-            }
-            catch
-            {
-            }
-        }
-
         protected override void Start()
         {
             base.Start();
-            int recount = 0;
-            for ( int i = 0; i < 4; ++i )
-            {
-                if ( HeroController.players[i] != null && HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character is Brostbuster )
-                {
-                    ++recount;
-                }
-            }
-            ++BrostbusterCount;
-            if ( BrostbusterCount > 1 )
-            {
-                FindOtherBros();
-            }
+            Brostbuster.currentBros.Add( this );
         }
 
         protected override void Update()
@@ -193,6 +178,7 @@ namespace Brostbuster
                 // Revived
                 else
                 {
+                    Brostbuster.currentBros.Add( this );
                     this.acceptedDeath = false;
                 }
             }
@@ -204,27 +190,18 @@ namespace Brostbuster
                 this.protonAudio.enabled = false;
             }
 
-            // Brostbuster spawned or died and changed count
-            if ( BrostbusterCount != acknowledgedCount )
-            {
-                FindOtherBros();
-            }
-
             // Handle death
             if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
             {
                 this.StopProtonGun();
                 this.protonAudio.enabled = false;
-                ++BrostbusterCount;
+                
                 if ( !this.WillReviveAlready )
                 {
+                    Brostbuster.currentBros.Remove( this );
                     this.acceptedDeath = true;
                 }
             }
-        }
-
-        public override void UIOptions()
-        {
         }
 
         // Proton Gun methods
@@ -592,23 +569,27 @@ namespace Brostbuster
             }
 
             // Check for streams crossing
-            if ( currentBrosCount > 1 )
+            if ( currentBros.Count > 1 )
             {
-                for ( int i = 0; i < currentBros.Count; ++i )
+                try
                 {
-                    // Check both are firing and are around the same y level
-                    if ( currentBros[i].fire && currentBros[i].playedBeamStartup && Tools.FastAbsWithinRange( base.Y - currentBros[i].Y, 10 ) )
+                    foreach ( Brostbuster bro in currentBros )
                     {
-                        float distance = base.X - currentBros[i].X;
-                        // Check they are firing towards each other
-                        if ( Tools.FastAbsWithinRange( distance, currentRange ) && -1 * Mathf.Sign( distance ) == base.transform.localScale.x && Mathf.Sign( distance ) == currentBros[i].transform.localScale.x )
+                        // Check both are firing and are around the same y level
+                        if ( bro.fire && bro.playedBeamStartup && Tools.FastAbsWithinRange( base.Y - bro.Y, 10 ) )
                         {
-                            currentRange = Mathf.Abs( distance / 2.0f );
-                            haveCrossedStreams = true;
-                            haveHitGround = false;
+                            float distance = base.X - bro.X;
+                            // Check they are firing towards each other
+                            if ( Tools.FastAbsWithinRange( distance, currentRange ) && -1 * Mathf.Sign( distance ) == base.transform.localScale.x && Mathf.Sign( distance ) == bro.transform.localScale.x )
+                            {
+                                currentRange = Mathf.Abs( distance / 2.0f );
+                                haveCrossedStreams = true;
+                                haveHitGround = false;
+                            }
                         }
                     }
                 }
+                catch { }
             }
 
             Unit unit;
@@ -738,7 +719,7 @@ namespace Brostbuster
         {
             if ( this.actionState != ActionState.Dead )
             {
-                ++BrostbusterCount;
+                Brostbuster.currentBros.Remove( this );
             }
             base.OnDestroy();
         }
