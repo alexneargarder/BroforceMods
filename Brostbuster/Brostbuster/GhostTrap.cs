@@ -1,10 +1,11 @@
-﻿using System;
+﻿using BroMakerLib;
+using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
+using Effects;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-using BroMakerLib;
-using BroMakerLib.Loggers;
-using BroMakerLib.CustomObjects.Projectiles;
-using Effects;
+using static Text3D;
 
 namespace Brostbuster
 {
@@ -118,7 +119,7 @@ namespace Brostbuster
             trapClosed = ResourcesController.GetAudioClip( soundPath, "trapClosed.wav" );
         }
 
-		// Called when picking up and throwing already thrown grenade
+        // Called when picking up and throwing already thrown grenade
         public override void ThrowGrenade(float XI, float YI, float newX, float newY, int _playerNum)
         {
 			//base.ThrowGrenade(XI, YI, newX, newY, _playerNum);
@@ -424,21 +425,50 @@ namespace Brostbuster
 
 		protected void CheckReturnTrap()
 		{
-			if (this.firedBy != null && this.state == TrapState.Closed)
+			if ( this.state == TrapState.Closed)
 			{
-				float f = this.firedBy.transform.position.x - base.X;
-				float f2 = this.firedBy.transform.position.y + 10f - base.Y;
-				if (Mathf.Abs(f) < 9f && Mathf.Abs(f2) < 14f)
+				// Only return to owner if still living
+				if ( this.firedBy != null && ( this.firedBy as TestVanDammeAnim ).health > 0 )
 				{
-					Brostbuster bro = this.firedBy as Brostbuster;
-					if (bro && killedUnits > 0)
-					{
-						bro.ReturnTrap();
+                    float f = this.firedBy.transform.position.x - base.X;
+                    float f2 = this.firedBy.transform.position.y + 10f - base.Y;
+                    if ( Mathf.Abs( f ) < 9f && Mathf.Abs( f2 ) < 14f )
+                    {
+                        Brostbuster bro = this.firedBy as Brostbuster;
+                        if ( bro && killedUnits > 0 )
+                        {
+                            bro.ReturnTrap();
+                        }
+                        Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f );
+                        EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 3f, 0f, 0f );
+                        this.DestroyGrenade();
                     }
-					Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f);
-                    EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 3f, 0f, 0f );
-                    this.DestroyGrenade();
-				}
+                }
+				// Return to any brostbuster if original owner is dead
+				else
+				{
+                    for ( int i = 0; i < HeroController.players.Length; ++i )
+                    {
+                        if ( HeroController.players[i] != null && HeroController.players[i].IsAliveAndSpawnedHero() )
+                        {
+							if ( HeroController.players[i].character is Brostbuster bro )
+							{
+                                float f = bro.transform.position.x - base.X;
+                                float f2 = bro.transform.position.y + 10f - base.Y;
+                                if ( Mathf.Abs( f ) < 9f && Mathf.Abs( f2 ) < 14f )
+                                {
+                                    if ( killedUnits > 0 )
+                                    {
+                                        bro.ReturnTrap();
+                                    }
+                                    Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f );
+                                    EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 3f, 0f, 0f );
+                                    this.DestroyGrenade();
+                                }
+                            }
+                        }
+                    }
+                }
 			}
 		}
 
@@ -525,51 +555,55 @@ namespace Brostbuster
                 }
             }
 
-			// Find nearby projectile
-			for ( int i = 0; i < Map.projectiles.Count; ++i )
+			// Don't catch projectiles when closing
+			if ( this.state < TrapState.Closing )
 			{
-				Projectile projectile = Map.projectiles[i];
-                // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
-                if ( projectile != null && projectile.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( projectile.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( projectile ) )
+                // Find nearby projectile
+                for ( int i = 0; i < Map.projectiles.Count; ++i )
                 {
-                    // Check projectile is in rectangle around trap
-                    if ( Tools.FastAbsWithinRange( projectile.X - bottomX, 50f ) && Tools.FastAbsWithinRange( projectile.Y - bottomY, 20f ) )
+                    Projectile projectile = Map.projectiles[i];
+                    // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
+                    if ( projectile != null && projectile.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( projectile.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( projectile ) )
                     {
-						AddObject( projectile );
-                    }
-                    // Check projectile is in trap triangle
-                    else if ( Tools.FastAbsWithinRange( projectile.X - bottomX, width ) )
-                    {
-                        float num = projectile.Y - bottomY;
-                        // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
-                        if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( projectile.X, projectile.Y ) )
+                        // Check projectile is in rectangle around trap
+                        if ( Tools.FastAbsWithinRange( projectile.X - bottomX, 50f ) && Tools.FastAbsWithinRange( projectile.Y - bottomY, 20f ) )
                         {
                             AddObject( projectile );
                         }
+                        // Check projectile is in trap triangle
+                        else if ( Tools.FastAbsWithinRange( projectile.X - bottomX, width ) )
+                        {
+                            float num = projectile.Y - bottomY;
+                            // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
+                            if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( projectile.X, projectile.Y ) )
+                            {
+                                AddObject( projectile );
+                            }
+                        }
                     }
                 }
-            }
 
-			// Find nearby grenades
-			for ( int i = 0; i < Map.grenades.Count; ++i )
-			{
-                Grenade grenade = Map.grenades[i];
-                // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
-                if ( grenade != null && grenade.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( grenade.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( grenade ) )
+                // Find nearby grenades
+                for ( int i = 0; i < Map.grenades.Count; ++i )
                 {
-                    // Check projectile is in rectangle around trap
-                    if ( Tools.FastAbsWithinRange( grenade.X - bottomX, 50f ) && Tools.FastAbsWithinRange( grenade.Y - bottomY, 20f ) )
+                    Grenade grenade = Map.grenades[i];
+                    // Check that projectile is not null, damages the player, and is not already grabbed by this trap or another
+                    if ( grenade != null && grenade.gameObject.activeSelf && GameModeController.DoesPlayerNumDamage( grenade.playerNum, thrownBy ) && !grabbedObjects.ContainsKey( grenade ) )
                     {
-                        AddObject( grenade );
-                    }
-                    // Check projectile is in trap triangle
-                    else if ( Tools.FastAbsWithinRange( grenade.X - bottomX, width ) )
-                    {
-                        float num = grenade.Y - bottomY;
-                        // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
-                        if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( grenade.X, grenade.Y ) )
+                        // Check projectile is in rectangle around trap
+                        if ( Tools.FastAbsWithinRange( grenade.X - bottomX, 50f ) && Tools.FastAbsWithinRange( grenade.Y - bottomY, 20f ) )
                         {
                             AddObject( grenade );
+                        }
+                        // Check projectile is in trap triangle
+                        else if ( Tools.FastAbsWithinRange( grenade.X - bottomX, width ) )
+                        {
+                            float num = grenade.Y - bottomY;
+                            // Check that projectile is within the possible vertical range of the trap, is above the trap, and is inside the trap triangle
+                            if ( Tools.FastAbsWithinRange( num, height ) && ( Mathf.Sign( num ) == 1f ) && ShouldGrabUnit( grenade.X, grenade.Y ) )
+                            {
+                                AddObject( grenade );
+                            }
                         }
                     }
                 }
