@@ -86,6 +86,38 @@ namespace Utility_Mod
             "MUSCLETEMPLE5"
         };
 
+        public static string[] actualCampaignNames = new string[]
+        {
+            "WM_Intro(mouse)",
+            "WM_Mission1(mouse)",
+            "WM_Mission2 (mouse)",
+            "WM_City1(mouse)",
+            "WM_Bombardment(mouse)",
+            "WM_Village1(mouse)",
+            "WM_City2(mouse)",
+            "WM_Bombardment2(mouse)",
+            "WM_KazakhstanIndustrial(mouse)",
+            "WM_KazakhstanRainy(mouse)",
+            "WM_AlienMission1(mouse)",
+            "WM_AlienMission2(mouse)",
+            "WM_AlienMission3(mouse)",
+            "WM_AlienMission4(mouse)",
+            "WM_HELL",
+            "WM_Whitehouse",
+            "Challenge_Alien",
+            "Challenge_Bombardment1",
+            "Challenge_Ammo",
+            "Challenge_Dash",
+            "Challenge_Mech1",
+            "Challenge_MacBrover",
+            "Challenge_TimeBro",
+            "MuscleTemple_1",
+            "MuscleTemple_2",
+            "MuscleTemple_3",
+            "MuscleTemple_4",
+            "WM_Intro(mouse)"
+        };
+
         public static Dropdown unitDropdown;
 
         public static string[] unitList = new string[]
@@ -112,6 +144,13 @@ namespace Utility_Mod
             "Flex Ammo Crate", "Beehive", "Alien Egg", "Alien Egg Explosive"
         };
 
+        public static Dropdown controllerDropdown;
+
+        public static string[] controllerList = new string[]
+        {
+            "Keyboard 1", "Keyboard 2", "Keyboard 3", "Keyboard 4", "Controller 1", "Controller 2", "Controller 3", "Controller 4"
+        };
+
         public static string teleportX = "0";
         public static string teleportY = "0";
 
@@ -120,10 +159,14 @@ namespace Utility_Mod
 
         public static bool skipNextMenu = false;
 
+        public static bool loadedLevel = false;
+
         public static float levelStartedCounter = 0f;
 
         public static TestVanDammeAnim currentCharacter;
         public static Helicopter helicopter;
+
+        private static float _windowWidth = -1f;
 
         #region UMM
         static bool Load(UnityModManager.ModEntry modEntry)
@@ -167,6 +210,9 @@ namespace Utility_Mod
             unitDropdown = new Dropdown(400, 150, 200, 300, unitList, settings.selectedEnemy);
 
             objectDropdown = new Dropdown(400, 150, 200, 300, objectList, (int)settings.selectedObject);
+
+            controllerDropdown = new Dropdown( 400, 150, 200, 300, controllerList, settings.goToLevelControllerNum );
+            controllerDropdown.ToolTip = "Sets which controller controls player 1 when using the Go To Level button, if no players have joined yet";
 
             return true;
         }
@@ -371,8 +417,41 @@ namespace Utility_Mod
         #endregion
 
         #region UI
+        private static GUILayoutOption ScaledWidth(float width)
+        {
+            if (settings.scaleUIWithWindowWidth && _windowWidth > 0)
+            {
+                float scaleFactor = _windowWidth / 1200f;
+                return GUILayout.Width(width * scaleFactor);
+            }
+            return GUILayout.Width(width);
+        }
+
         static void OnGUI(UnityModManager.ModEntry modEntry)
         {
+            // Capture window width for UI scaling
+            if (_windowWidth < 0)
+            {
+                try
+                {
+                    GUILayout.BeginHorizontal();
+                    if (Event.current.type == EventType.Repaint)
+                    {
+                        Rect rect = GUILayoutUtility.GetRect(0, 0, GUILayout.ExpandWidth(true));
+                        if (rect.width > 1)
+                        {
+                            _windowWidth = rect.width;
+                        }
+                    }
+                    GUILayout.Label(" ");
+                    GUILayout.EndHorizontal();
+                }
+                catch (Exception)
+                {
+                }
+                return;
+            }
+
             string previousToolTip = string.Empty;
 
             GUIStyle headerStyle = new GUIStyle(GUI.skin.button);
@@ -454,17 +533,17 @@ namespace Utility_Mod
             GUILayout.BeginHorizontal();
             {
                 settings.cameraShake = GUILayout.Toggle(settings.cameraShake, new GUIContent("Camera Shake",
-                    "Disable this to have camera shake automatically set to 0 at the start of a level"), GUILayout.Width(100f));
+                    "Disable this to have camera shake automatically set to 0 at the start of a level"), ScaledWidth(100f));
 
                 settings.enableSkip = GUILayout.Toggle(settings.enableSkip, new GUIContent("Helicopter Skip",
-                    "Skips helicopter on world map and immediately takes you into a level"), GUILayout.Width(120f));
+                    "Skips helicopter on world map and immediately takes you into a level"), ScaledWidth(120f));
 
                 settings.endingSkip = GUILayout.Toggle(settings.endingSkip, new GUIContent("Ending Skip",
-                    "Speeds up the ending"), GUILayout.Width(100f));
+                    "Speeds up the ending"), ScaledWidth(100f));
 
-                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, new GUIContent("Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech"), GUILayout.Width(190f));
+                settings.quickMainMenu = GUILayout.Toggle(settings.quickMainMenu, new GUIContent("Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech"), ScaledWidth(190f));
 
-                settings.helicopterWait = GUILayout.Toggle(settings.helicopterWait, new GUIContent("Helicopter Wait", "Makes helicopter wait for all alive players before leaving"), GUILayout.Width(110f));
+                settings.helicopterWait = GUILayout.Toggle(settings.helicopterWait, new GUIContent("Helicopter Wait", "Makes helicopter wait for all alive players before leaving"), ScaledWidth(110f));
 
                 settings.disableConfirm = GUILayout.Toggle(settings.disableConfirm, new GUIContent("Fix Mod Window Disappearing",
                     "Disables confirmation screen when restarting or returning to map/menu"), GUILayout.ExpandWidth(false));
@@ -475,13 +554,15 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
             {
-                settings.skipBreakingCutscenes = GUILayout.Toggle(settings.skipBreakingCutscenes, new GUIContent("Disable Broken Cutscenes", "Prevents cutscenes that destroy the mod window from playing, includes all the flex powerup and ammo crate unlock cutscenes."), GUILayout.Width(170f));
+                settings.skipBreakingCutscenes = GUILayout.Toggle(settings.skipBreakingCutscenes, new GUIContent("Disable Broken Cutscenes", "Prevents cutscenes that destroy the mod window from playing, includes all the flex powerup and ammo crate unlock cutscenes."), ScaledWidth(170f));
 
                 Rect lastRect = GUILayoutUtility.GetLastRect();
                 lastRect.y += 20;
                 lastRect.width += 800;
 
-                settings.skipAllCutscenes = GUILayout.Toggle(settings.skipAllCutscenes, new GUIContent("Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes."), GUILayout.Width(170f));
+                settings.skipAllCutscenes = GUILayout.Toggle(settings.skipAllCutscenes, new GUIContent("Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes."), ScaledWidth(170f));
+
+                settings.scaleUIWithWindowWidth = GUILayout.Toggle(settings.scaleUIWithWindowWidth, new GUIContent("Scale UI with Window Width", "Scales UI elements based on window width"), ScaledWidth(200f));
 
                 GUI.Label(lastRect, GUI.tooltip);
                 previousToolTip = GUI.tooltip;
@@ -493,6 +574,8 @@ namespace Utility_Mod
 
         static void ShowLevelControls(UnityModManager.ModEntry modEntry, ref string previousToolTip)
         {
+            bool dropdownActive = false;
+
             GUILayout.BeginHorizontal();
             {
                 settings.loopCurrent = GUILayout.Toggle(settings.loopCurrent, new GUIContent("Loop Current Level", "After beating a level you replay the current one instead of moving on"), GUILayout.ExpandWidth(false));
@@ -545,7 +628,7 @@ namespace Utility_Mod
 
                         Main.settings.levelNum = levelNum.indexNumber;
 
-                        if (GUILayout.Button(new GUIContent("Go to level", "This only works on the world map screen"), GUILayout.Width(100)))
+                        if (GUILayout.Button(new GUIContent("Go to level"), ScaledWidth(100)))
                         {
                             GoToLevel();
                         }
@@ -554,7 +637,7 @@ namespace Utility_Mod
                         {
                             Rect lastRect = campaignNum.dropDownRect;
                             lastRect.y += 20;
-                            lastRect.width += 300;
+                            lastRect.width += 500;
 
                             GUI.Label(lastRect, GUI.tooltip);
                             previousToolTip = GUI.tooltip;
@@ -562,25 +645,54 @@ namespace Utility_Mod
                     }
                     GUILayout.EndHorizontal();
 
+                    dropdownActive = campaignNum.show || levelNum.show;
+
                     GUILayout.Space(25);
+
+                    GUILayout.BeginHorizontal( new GUILayoutOption[] { GUILayout.MinHeight( ( controllerDropdown.show ) ? 350 : 30 ), GUILayout.ExpandWidth( false ) }  );
+                    {
+                        GUILayout.Space( 1 );
+                        if ( !dropdownActive )
+                        {
+                            Main.settings.goToLevelOnStartup = GUILayout.Toggle( Main.settings.goToLevelOnStartup, new GUIContent( "Go to level on startup", "Spawns you into the level as soon as the game starts." ), ScaledWidth( 150 ) );
+
+                            Rect lastRect = GUILayoutUtility.GetLastRect();
+                            lastRect.y += 25;
+                            lastRect.width += 500;
+
+                            controllerDropdown.OnGUI( modEntry );
+                            Main.settings.goToLevelControllerNum = controllerDropdown.indexNumber;
+
+                            if ( GUI.tooltip != previousToolTip )
+                            {
+                                GUI.Label( lastRect, GUI.tooltip );
+                                previousToolTip = GUI.tooltip;
+                            }
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+
+                    dropdownActive = dropdownActive || controllerDropdown.show;
+
+                    GUILayout.Space( 25 );
 
                     GUILayout.BeginHorizontal();
                     {
                         GUILayout.Space(1);
 
-                        if (!campaignNum.show && !levelNum.show)
+                        if (!dropdownActive)
                         {
 
-                            if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            if (GUILayout.Button(new GUIContent("Previous Level", "This only works in game"), new GUILayoutOption[] { ScaledWidth(150), GUILayout.ExpandWidth(false) }))
                             {
                                 ChangeLevel(-1);
                             }
 
                             Rect lastRect = GUILayoutUtility.GetLastRect();
                             lastRect.y += 20;
-                            lastRect.width += 300;
+                            lastRect.width += 500;
 
-                            if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { GUILayout.Width(150), GUILayout.ExpandWidth(false) }))
+                            if (GUILayout.Button(new GUIContent("Next Level", "This only works in game"), new GUILayoutOption[] { ScaledWidth(150), GUILayout.ExpandWidth(false) }))
                             {
                                 ChangeLevel(1);
                             }
@@ -597,6 +709,8 @@ namespace Utility_Mod
                 GUILayout.EndVertical();
             }
             GUILayout.EndHorizontal();
+
+            GUILayout.Space( 15 );
         }
 
         static void ShowCheatOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
@@ -662,7 +776,7 @@ namespace Utility_Mod
 
             GUILayout.Space(15);
 
-            if (GUILayout.Button("Summon Mech", GUILayout.Width(140)))
+            if (GUILayout.Button("Summon Mech", ScaledWidth(140)))
             {
                 if (currentCharacter != null)
                 {
@@ -681,11 +795,11 @@ namespace Utility_Mod
 
             GUILayout.Space(25);
 
-            GUILayout.BeginHorizontal(GUILayout.Width(400));
+            GUILayout.BeginHorizontal(ScaledWidth(400));
 
             GUILayout.Label("Time Slow Factor: " + settings.timeSlowFactor);
 
-            if (settings.timeSlowFactor != (settings.timeSlowFactor = GUILayout.HorizontalSlider(settings.timeSlowFactor, 0, 5, GUILayout.Width(200))))
+            if (settings.timeSlowFactor != (settings.timeSlowFactor = GUILayout.HorizontalSlider(settings.timeSlowFactor, 0, 5, ScaledWidth(200))))
             {
                 Main.StartTimeSlow();
             }
@@ -706,11 +820,11 @@ namespace Utility_Mod
 
             GUILayout.Space(25);
 
-            GUILayout.BeginHorizontal(GUILayout.Width(500));
+            GUILayout.BeginHorizontal(ScaledWidth(500));
 
             GUILayout.Label("Scene to Load: ");
 
-            settings.sceneToLoad = GUILayout.TextField(settings.sceneToLoad, GUILayout.Width(200));
+            settings.sceneToLoad = GUILayout.TextField(settings.sceneToLoad, ScaledWidth(200));
 
             GUILayout.EndHorizontal();
 
@@ -765,11 +879,11 @@ namespace Utility_Mod
                 GUILayout.Label("X", GUILayout.Width(10));
                 teleportX = GUILayout.TextField(teleportX, GUILayout.Width(100));
                 GUILayout.Space(20);
-                GUILayout.Label("Y", GUILayout.Width(10));
+                GUILayout.Label("Y", ScaledWidth(10));
                 GUILayout.Space(10);
-                teleportY = GUILayout.TextField(teleportY, GUILayout.Width(100));
+                teleportY = GUILayout.TextField(teleportY, ScaledWidth(100));
 
-                if (GUILayout.Button("Teleport", GUILayout.Width(100)))
+                if (GUILayout.Button("Teleport", ScaledWidth(100)))
                 {
                     float x, y;
                     if (float.TryParse(teleportX, out x) && float.TryParse(teleportY, out y))
@@ -785,7 +899,7 @@ namespace Utility_Mod
 
             GUILayout.Space(15);
 
-            GUILayout.BeginHorizontal(GUILayout.Width(400));
+            GUILayout.BeginHorizontal(ScaledWidth(400));
 
             bool teleportEnabled = settings.currentRightClick == RightClick.TeleportToCursor;
             if (teleportEnabled != (teleportEnabled = GUILayout.Toggle(teleportEnabled, "Teleport to Cursor on Right Click")))
@@ -814,7 +928,7 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
             {
-                if (GUILayout.Button("Save Position for Custom Spawn", GUILayout.Width(250)))
+                if (GUILayout.Button("Save Position for Custom Spawn", ScaledWidth(250)))
                 {
                     if (currentCharacter != null)
                     {
@@ -823,7 +937,7 @@ namespace Utility_Mod
                     }
                 }
 
-                if (GUILayout.Button("Teleport to Custom Spawn Position", GUILayout.Width(300)))
+                if (GUILayout.Button("Teleport to Custom Spawn Position", ScaledWidth(300)))
                 {
                     if (currentCharacter != null)
                     {
@@ -839,7 +953,7 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
             {
-                if (GUILayout.Button("Teleport to Current Checkpoint ", GUILayout.Width(250)))
+                if (GUILayout.Button("Teleport to Current Checkpoint ", ScaledWidth(250)))
                 {
                     if (currentCharacter != null)
                     {
@@ -848,7 +962,7 @@ namespace Utility_Mod
                     }
                 }
 
-                if (GUILayout.Button("Teleport to Final Checkpoint", GUILayout.Width(200)))
+                if (GUILayout.Button("Teleport to Final Checkpoint", ScaledWidth(200)))
                 {
                     if (currentCharacter != null)
                     {
@@ -863,7 +977,7 @@ namespace Utility_Mod
             {
                 GUILayout.BeginHorizontal();
                 {
-                    if (GUILayout.Button("Save Position to Waypoint " + (i + 1), GUILayout.Width(250)))
+                    if (GUILayout.Button("Save Position to Waypoint " + (i + 1), ScaledWidth(250)))
                     {
                         if (currentCharacter != null)
                         {
@@ -872,7 +986,7 @@ namespace Utility_Mod
                         }
                     }
 
-                    if (GUILayout.Button("Teleport to Waypoint " + (i + 1), GUILayout.Width(200)))
+                    if (GUILayout.Button("Teleport to Waypoint " + (i + 1), ScaledWidth(200)))
                     {
                         if (currentCharacter != null)
                         {
@@ -938,7 +1052,7 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label(settings.zoomLevel.ToString("0.00"), GUILayout.Width(100));
+            GUILayout.Label(settings.zoomLevel.ToString("0.00"), ScaledWidth(100));
 
             settings.zoomLevel = GUILayout.HorizontalSlider(settings.zoomLevel, 0, 10);
 
@@ -1504,22 +1618,50 @@ namespace Utility_Mod
             lastCampaignNum = campaignNum.indexNumber;
         }
 
-        static void GoToLevel()
+        public static void GoToLevel()
         {
+            // Setup player 1 if they haven't yet joined (like if we're calling this function on the main menu
+            if ( !HeroController.IsPlayerPlaying(0) )
+            {
+                int playerNumber = 0;
+                PID pid = PID.MyID;
+                string playerName = PlayerOptions.Instance.playerName;
+                int controllerJoin = settings.goToLevelControllerNum;
 
-            string terrainName = "vietmanterrain";
-            string territoryName = "VIETMAN";
+                HeroController.PIDS[playerNumber] = pid;
+                HeroController.playerControllerIDs[playerNumber] = controllerJoin;
+                HeroController.SetPlayerName( playerNumber, playerName );
+                HeroController.SetIsPlaying( playerNumber, true );
+            }
 
-            territoryName = campaignList[campaignNum.indexNumber];
-            terrainName = terrainList[campaignNum.indexNumber];
+            LevelSelectionController.ResetLevelAndGameModeToDefault();
+            GameState.Instance.ResetToDefault();
 
-            HarmonyPatches.WorldMapController_Update_Patch.GoToLevel(territoryName, levelNum.indexNumber, terrainName);
+            int campaignIndex = campaignNum.indexNumber;
+            int levelIndex = levelNum.indexNumber;
+
+            if (campaignIndex >= 0 && campaignIndex < actualCampaignNames.Length)
+            {
+                GameState.Instance.campaignName = actualCampaignNames[campaignIndex];
+                LevelSelectionController.CurrentLevelNum = levelIndex;
+            }
+            else
+            {
+                GameState.Instance.campaignName = actualCampaignNames[0];
+                LevelSelectionController.CurrentLevelNum = 0;
+            }
+
+            GameState.Instance.loadMode = MapLoadMode.Campaign;
+            GameState.Instance.gameMode = GameMode.Campaign;
+            GameState.Instance.returnToWorldMap = true;
+            GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
+            GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+
+            GameModeController.LoadNextScene( GameState.Instance );
         }
 
         static void ChangeLevel(int levelNum)
         {
-            // GameModeController instance = Traverse.Create(typeof(GameModeController)).Field("instance").GetValue() as GameModeController;
-
             LevelSelectionController.CurrentLevelNum += levelNum;
 
             Map.ClearSuperCheckpointStatus();

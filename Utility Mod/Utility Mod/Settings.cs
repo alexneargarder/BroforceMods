@@ -48,6 +48,7 @@ namespace Utility_Mod
         // General Options
         public bool cameraShake = false;
         public bool enableSkip = true;
+        public bool scaleUIWithWindowWidth = false;
         public bool endingSkip = true;
         public bool disableConfirm = true;
         public bool quickMainMenu = false;
@@ -59,6 +60,8 @@ namespace Utility_Mod
         public bool loopCurrent = false;
         public int campaignNum = 0;
         public int levelNum = 0;
+        public bool goToLevelOnStartup = false;
+        public int goToLevelControllerNum = 0;
 
         // Cheat Options
         public bool invulnerable = false;

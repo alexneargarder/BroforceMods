@@ -12,6 +12,7 @@ namespace Utility_Mod
         private Vector2 scrollViewVector;
         public Rect dropDownRect;
         public string[] list;
+        public string ToolTip;
 
         public int indexNumber;
         public bool show;
@@ -66,11 +67,8 @@ namespace Utility_Mod
             }
             else
             {
-                GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), list[indexNumber]);
+                GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), new GUIContent( list[indexNumber], this.ToolTip ) );
             }
-
-
-
         }
     }
 }
