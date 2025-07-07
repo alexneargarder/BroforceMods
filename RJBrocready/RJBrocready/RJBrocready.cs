@@ -197,7 +197,6 @@ namespace RJBrocready
             if ( startAsTheThing )
             {
                 this.theThing = true;
-                base.GetComponent<Renderer>().material = this.thingMaterial;
                 this.BecomeTheThing();
             }
         }
@@ -256,6 +255,12 @@ namespace RJBrocready
             this.tentacleImpaleSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale1.wav" );
             this.tentacleImpaleSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale2.wav" );
             this.tentacleImpaleSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale3.wav" );
+        }
+
+        public override int GetVariant()
+        {
+            // Always start as human variant
+            return 0;
         }
 
         protected override void Update()
@@ -1149,6 +1154,7 @@ namespace RJBrocready
             {
                 base.GetComponent<Collider>().enabled = true;
             }
+            this.SwitchVariant( 1 );
             this.headHeight = this.standingHeadHeight;
             this.waistHeight = this.standingWaistHeight;
             this.doRollOnLand = true;
@@ -1164,17 +1170,8 @@ namespace RJBrocready
             this.gunSprite.pixelDimensions = new Vector2( 64f, 64f );
             this.gunSprite.SetSize( 64, 64 );
             this.gunSprite.RecalcTexture();
-            this.gunSpriteOffset = new Vector2( -2f, 0f );
-            this.specialMaterials = new List<Material> { this.thingSpecialIconMaterial };
-            this.specialMaterialOffset = new Vector2( 3, 0 );
-            this.specialMaterialSpacing = 4f;
-            if ( this.pockettedSpecialAmmo.Count == 0 )
-            {
-                BroMakerUtilities.SetSpecialMaterials( this.playerNum, this.specialMaterials, this.specialMaterialOffset, this.specialMaterialSpacing );
-            }
             this.SpecialAmmo = 2;
             this.originalSpecialAmmo = 2;
-            HeroController.SetAvatarMaterial( playerNum, this.thingAvatarMaterial );
         }
 
         protected void EnterMonsterForm()
@@ -1293,7 +1290,7 @@ namespace RJBrocready
             this.canCeilingHang = true;
 
             this.SetGunPosition( 0, 0 );
-            this.gunSpriteOffset = new Vector2( -2f, 0f );
+            this.CurrentGunSpriteOffset = new Vector2( -2f, 0f );
             this.SetGunSprite( 0, 0 );
 
             base.GetComponent<Renderer>().material = this.thingMaterial;
