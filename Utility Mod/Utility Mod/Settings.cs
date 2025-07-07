@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Xml.Serialization;
+using UnityEngine;
 using UnityModManagerNet;
 
 namespace Utility_Mod
@@ -84,6 +85,38 @@ namespace Utility_Mod
         public float[] waypointsY = new float[] { 0f, 0f, 0f, 0f, 0f };
         public float SpawnPositionX = 0;
         public float SpawnPositionY = 0;
+
+        [Serializable]
+        public class LevelSpawnPosition
+        {
+            public string levelKey;
+            public float x;
+            public float y;
+        }
+
+        [XmlIgnore]
+        public Dictionary<string, Vector2> levelSpawnPositions = new Dictionary<string, Vector2>();
+
+        [XmlArray("LevelSpawnPositions")]
+        public LevelSpawnPosition[] SerializedSpawnPositions
+        {
+            get
+            {
+                return levelSpawnPositions.Select(kvp => new LevelSpawnPosition 
+                { 
+                    levelKey = kvp.Key, 
+                    x = kvp.Value.x, 
+                    y = kvp.Value.y 
+                }).ToArray();
+            }
+            set
+            {
+                levelSpawnPositions = value?.ToDictionary(
+                    lsp => lsp.levelKey, 
+                    lsp => new Vector2(lsp.x, lsp.y)
+                ) ?? new Dictionary<string, Vector2>();
+            }
+        }
 
         // DEBUG Options
         public int selectedEnemy = 0;
