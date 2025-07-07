@@ -45,6 +45,7 @@ namespace Utility_Mod
         public bool showCheatOptions = false;
         public bool showTeleportOptions = false;
         public bool showDebugOptions = false;
+        public bool showKeybindingOptions = false;
 
         // General Options
         public bool cameraShake = false;
