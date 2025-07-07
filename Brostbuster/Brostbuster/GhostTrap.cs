@@ -5,7 +5,6 @@ using Effects;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Text3D;
 
 namespace Brostbuster
 {
@@ -25,9 +24,10 @@ namespace Brostbuster
 		protected float counter = 0f;
 		protected const float trapWidth = 224f;
 		protected const float trapHeight = 128f;
-		protected float trapFramerate = 0.3f;
-		protected const int lastOpeningFrame = 4;
-		protected const int lastFrame = 14;
+		protected float trapFramerate = 0.145f;
+		// Starting from 0
+		protected const int lastOpeningFrame = 9;
+		protected const int lastFrame = 19;
 
 		// State
 		public enum TrapState
@@ -417,7 +417,7 @@ namespace Brostbuster
         {
 			this.frame = lastOpeningFrame;
 			this.counter = 0;
-			this.trapFramerate = 0.2f;
+			this.trapFramerate = 0.11f;
 			this.state = TrapState.ClosingAnimation;
 			this.sprite.SetLowerLeftPixel(frame * trapWidth, trapHeight);
 			this.ReleaseUnits();
