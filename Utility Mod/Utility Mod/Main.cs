@@ -1511,6 +1511,10 @@ namespace Utility_Mod
 
         static void ExecuteAction(string actionName)
         {
+            if ( HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null )
+            {
+                currentCharacter = HeroController.players[0].character;
+            }
             switch (actionName)
             {
                 // Level Controls
@@ -2311,6 +2315,10 @@ namespace Utility_Mod
             // Setup player 1 if they haven't yet joined (like if we're calling this function on the main menu
             if ( !HeroController.IsPlayerPlaying(0) )
             {
+                // Setup save slot
+                PlayerProgress.currentWorldMapSaveSlot = 0;
+                GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[0];
+
                 int playerNumber = 0;
                 PID pid = PID.MyID;
                 string playerName = PlayerOptions.Instance.playerName;
