@@ -306,10 +306,9 @@ namespace Utility_Mod
         [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
         static class Player_WorkOutSpawnScenario_Patch
         {
-            // Make the mod work with BroMaker
             public static void Prefix(Player __instance)
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal))
+                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
                 {
                     return;
                 }
@@ -318,7 +317,7 @@ namespace Utility_Mod
             }
             public static void Postfix(ref Player.SpawnType __result)
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal))
+                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
                 {
                     return;
                 }
@@ -335,7 +334,7 @@ namespace Utility_Mod
         {
             public static void Prefix(Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos)
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal))
+                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
                 {
                     return;
                 }
@@ -344,14 +343,21 @@ namespace Utility_Mod
                 {
                     spawnType = Player.SpawnType.CustomSpawnPoint;
                     spawnViaAirDrop = false;
-                    if (Main.settings.changeSpawn)
+                    
+                    if (Main.HasCustomSpawnForCurrentLevel())
+                    {
+                        Vector2 customSpawn = Main.GetCustomSpawnForCurrentLevel();
+                        pos.x = customSpawn.x;
+                        pos.y = customSpawn.y;
+                    }
+                    else if (Main.settings.changeSpawnFinal)
+                    {
+                        pos = Main.GetFinalCheckpointPos();
+                    }
+                    else if (Main.settings.changeSpawn)
                     {
                         pos.x = Main.settings.SpawnPositionX;
                         pos.y = Main.settings.SpawnPositionY;
-                    }
-                    else
-                    {
-                        pos = Main.GetFinalCheckpointPos();
                     }
                 }
             }

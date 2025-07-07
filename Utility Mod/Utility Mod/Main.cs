@@ -930,22 +930,39 @@ namespace Utility_Mod
             {
                 if (GUILayout.Button("Save Position for Custom Spawn", ScaledWidth(250)))
                 {
-                    if (currentCharacter != null)
+                    if (currentCharacter != null && GameState.Instance != null)
                     {
-                        settings.SpawnPositionX = currentCharacter.X;
-                        settings.SpawnPositionY = currentCharacter.Y;
+                        SaveCustomSpawnForCurrentLevel(currentCharacter.X, currentCharacter.Y);
+                        Log($"Saved spawn position for {GetCurrentLevelKey()}");
                     }
                 }
 
                 if (GUILayout.Button("Teleport to Custom Spawn Position", ScaledWidth(300)))
                 {
-                    if (currentCharacter != null)
+                    if (currentCharacter != null && HasCustomSpawnForCurrentLevel())
                     {
-                        TeleportToCoords(settings.SpawnPositionX, settings.SpawnPositionY);
+                        Vector2 spawn = GetCustomSpawnForCurrentLevel();
+                        TeleportToCoords(spawn.x, spawn.y);
                     }
                 }
 
-                GUILayout.Label("Saved position: " + settings.SpawnPositionX + ", " + settings.SpawnPositionY);
+                if (GUILayout.Button("Clear Custom Spawn", ScaledWidth(150)))
+                {
+                    if (GameState.Instance != null)
+                    {
+                        ClearCustomSpawnForCurrentLevel();
+                    }
+                }
+
+                if (HasCustomSpawnForCurrentLevel())
+                {
+                    Vector2 spawn = GetCustomSpawnForCurrentLevel();
+                    GUILayout.Label($"Saved position: {spawn.x:F2}, {spawn.y:F2}");
+                }
+                else
+                {
+                    GUILayout.Label("Saved position: None");
+                }
             }
             GUILayout.EndHorizontal();
 
@@ -1727,6 +1744,39 @@ namespace Utility_Mod
                 }
             }
             return Map.checkPoints[Map.checkPoints.Count - 1].transform.position;
+        }
+
+        public static string GetCurrentLevelKey()
+        {
+            return $"{GameState.Instance.campaignName}_{GameState.Instance.levelNumber}";
+        }
+
+        public static bool HasCustomSpawnForCurrentLevel()
+        {
+            string key = GetCurrentLevelKey();
+            return settings.levelSpawnPositions.ContainsKey(key);
+        }
+
+        public static Vector2 GetCustomSpawnForCurrentLevel()
+        {
+            string key = GetCurrentLevelKey();
+            if (settings.levelSpawnPositions.TryGetValue(key, out Vector2 position))
+            {
+                return position;
+            }
+            return Vector2.zero;
+        }
+
+        public static void SaveCustomSpawnForCurrentLevel(float x, float y)
+        {
+            string key = GetCurrentLevelKey();
+            settings.levelSpawnPositions[key] = new Vector2(x, y);
+        }
+
+        public static void ClearCustomSpawnForCurrentLevel()
+        {
+            string key = GetCurrentLevelKey();
+            settings.levelSpawnPositions.Remove(key);
         }
         #endregion
     }
