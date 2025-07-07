@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
-using static UnityEngine.UI.CanvasScaler;
 
 namespace Brostbuster
 {
@@ -632,10 +631,10 @@ namespace Brostbuster
                 unit.Damage( protonUnitDamage, DamageType.Fire, base.transform.localScale.x, 0, (int)base.transform.localScale.x, this, unit.X, unit.Y );
                 unit.Knock( DamageType.Fire, base.transform.localScale.x * 30, 20, false );
 
-                // Deal extra damage to bosses
-                if ( BroMakerUtilities.IsBoss( unit ) )
+                // Deal extra damage to bosses and vehicles
+                if ( BroMakerUtilities.IsBoss( unit ) || unit is Tank )
                 {
-                    protonDamageCooldown = 0.065f;
+                    protonDamageCooldown = 0.055f;
                 }
                 else
                 {
