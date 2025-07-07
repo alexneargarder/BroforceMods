@@ -1,5 +1,7 @@
 v2.3.3 (unreleased)
-Add beehive to list of spawnable objects
+Added beehive to list of spawnable objects
+Added ability to go to level without being on the world map. 
+Added option to go to level immediately when the game starts.
 
 v2.3.2
 Added option for skipping cutscenes that destroy the mod window, this is enabled by default.

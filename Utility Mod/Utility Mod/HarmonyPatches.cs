@@ -129,72 +129,6 @@ namespace Utility_Mod
         public static class WorldMapController_Update_Patch
         {
             public static WorldMapController instance;
-            public static void GoToLevel(string campaignName, int levelNum, string terrainName)
-            {
-                if (instance == null || !Main.enabled)
-                {
-                    //Main.Log("instance null");
-                    return;
-                }
-
-                WorldTerritory3D territoryObject = null; // = WorldMapController.GetTerritory(campaignName);
-
-                WorldTerritory3D[] territories = Traverse.Create(typeof(WorldMapController)).Field("territories3D").GetValue() as WorldTerritory3D[];
-                foreach (WorldTerritory3D ter in territories)
-                {
-                    //Main.Log(ter.properties.territoryName + " == " + campaignName + " = " + (ter.properties.territoryName == campaignName));
-                    if (ter.properties.territoryName == campaignName)
-                    {
-                        territoryObject = ter;
-                    }
-                }
-
-                if (territoryObject == null)
-                {
-                    //Main.Log(campaignName + " territory not found");
-                    return;
-                }
-
-                WorldMapController.QueuedAction item = default(WorldMapController.QueuedAction);
-
-                if (territoryObject.properties.isBurning)
-                {
-                    item.actionType = WorldMapController.QueuedActions.Burning;
-
-                }
-                else if ((Main.campaignNum.indexNumber + 1) >= 11)
-                {
-                    item.actionType = WorldMapController.QueuedActions.Alien;
-                }
-                else
-                {
-                    item.actionType = WorldMapController.QueuedActions.Terrorist;
-                }
-
-                item.territory = territoryObject;
-                (Traverse.Create(instance).Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>).Add(item);
-
-                //Main.mod.Logger.Log(territoryObject.properties.territoryName);
-                //Main.mod.Logger.Log("isburning: " + territoryObject.properties.isBurning + " isCity: " + territoryObject.properties.isCity + " isSecret: " +
-                //    territoryObject.properties.isCity + " state: " + territoryObject.properties.state);
-
-                //return;
-
-                foreach (TerritoryProgress territoryProgress in WorldMapProgressController.currentProgress.territoryProgress)
-                {
-                    //Main.mod.Logger.Log(territoryProgress.name.ToLower() + " == " + territoryObject.properties.territoryName.ToLower() + " = " + (territoryProgress.name.ToLower() == territoryObject.properties.territoryName.ToLower()));
-                    if (territoryProgress.name.ToLower() == terrainName)
-                    {
-                        //Main.mod.Logger.Log("found territory changed level");
-                        territoryProgress.startLevel = levelNum;
-                    }
-                }
-
-                WorldMapController.RestTransport(territoryObject);
-                WorldMapController.EnterMission(territoryObject.GetCampaignName(), territoryObject.properties.loadingText, territoryObject.properties);
-
-
-            }
             static void Prefix(WorldMapController __instance)
             {
                 if (!Main.enabled)
@@ -438,6 +372,26 @@ namespace Utility_Mod
                 Traverse.Create(__instance).Method("InitializeMenu").GetValue();
 
                 Main.skipNextMenu = true;
+            }
+
+            public static void Postfix()
+            {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                if ( !Main.loadedLevel && Main.settings.goToLevelOnStartup )
+                {
+                    Main.loadedLevel = true;
+                    if ( !Main.settings.cameraShake )
+                    {
+                        PlayerOptions.Instance.cameraShakeAmount = 0f;
+                    }
+                    Main.GoToLevel();
+                }
+
+                Main.loadedLevel = true;
             }
         }
 
