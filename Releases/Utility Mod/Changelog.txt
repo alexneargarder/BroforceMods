@@ -1,8 +1,9 @@
 v2.4.0 (unreleased)
-Added beehive to list of spawnable objects
+Added option to set keybindings for pretty much all toggles and buttons.
 Added ability to go to level without being on the world map. 
 Added option to go to level immediately when the game starts.
 Changed custom spawn position to save per level.
+Added beehive to list of spawnable objects
 
 v2.3.2
 Added option for skipping cutscenes that destroy the mod window, this is enabled by default.
