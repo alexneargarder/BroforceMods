@@ -7,40 +7,49 @@ using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class ExplosiveBarrel : CustomGrenade
+    public class ExplosiveBarrelProjectile : CustomProjectile
     {
         protected bool exploded = false;
+        protected float range = 50f;
 
         protected override void Awake()
         {
-            if ( !this.RanSetup )
-            {
-                this.defaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
-            }
+            this.projectileSize = 12f;
+
+            this.damage = 14;
+            this.damageInternal = this.damage;
+            this.fullDamage = this.damage;
 
             base.Awake();
-
-            // Setup properties
-            this.size = 8f;
-            this.ShouldKillIfNotVisible = false;
-            this.damage = 25;
-            this.useAngularFriction = true;
-            this.angularFrictionM = 6f;
-            this.bounceOffEnemies = true;
-            this.rotateAtRightAngles = false;
-            this.lifeM = 6;
-            this.frictionM = 0.6f;
-            this.shrink = false;
-            this.destroyInsideWalls = false;
-            this.rotationSpeedMultiplier = 1.5f;
         }
 
-        protected override void Bounce( bool bounceX, bool bounceY )
+        protected override void SetRotation()
         {
-            this.Death();
+            // Don't rotate based on momentum
+            if ( this.xI > 0f )
+            {
+                base.transform.localScale = new Vector3( -1f, 1f, 1f );
+            }
+            else
+            {
+                base.transform.localScale = new Vector3( 1f, 1f, 1f );
+            }
+
+            base.transform.eulerAngles = new Vector3( 0f, 0f, 0f );
         }
 
-        protected override void MakeEffects()
+        protected override void Update()
+        {
+            this.ApplyGravity();
+            base.Update();
+        }
+
+        protected virtual void ApplyGravity()
+        {
+            this.yI -= 500f * this.t;
+        }
+
+        protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
         {
             if ( this.exploded )
             {
@@ -64,5 +73,7 @@ namespace Drunken_Broster.MeleeItems
             Map.ExplodeUnits( this, 12, this.damageType, this.range * 1.2f, this.range, base.X, base.Y - 6f, 200f, 300f, 15, false, false, true );
             Map.ExplodeUnits( this, 1, this.damageType, this.range * 1f, this.range, base.X, base.Y - 6f, 200f, 300f, -1, false, false, true );
         }
+
+
     }
 }

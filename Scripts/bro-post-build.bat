@@ -14,3 +14,4 @@ set "OutDir=%~9"
 
 del "%BROFORCEPATH%\BroMaker_Storage\%ProjectName%\*.cache"
 XCOPY /Y /R "%TargetPath%" "%BROFORCEPATH%\BroMaker_Storage\%ProjectName%\%ProjectName%.dll*"
+start steam://rungameid/274190

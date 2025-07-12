@@ -34,11 +34,6 @@ namespace Drunken_Broster
         // General
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
-
-        // Sounds
-        AudioClip slurp;
-
-        // Sprites
         protected Material normalSprite;
         protected Material drunkSprite;
 
@@ -118,8 +113,10 @@ namespace Drunken_Broster
         protected float warningCounter = 0f;
         protected bool warningOn = false;
         public FlickerFader fire1, fire2, fire3;
+        public AudioClip[] barrelExplodeSounds;
 
         // Special
+        AudioClip slurp;
         public bool wasDrunk = false; // Was drunk before starting special
         public bool drunk = false;
         protected const float maxDrunkTime = 15f;
@@ -188,7 +185,7 @@ namespace Drunken_Broster
             coconutProjectile = CustomGrenade.CreatePrefab<CoconutProjectile>();
 
             // TODO: Load explosive barrel
-            explosiveBarrelProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            explosiveBarrelProjectile = CustomProjectile.CreatePrefab<ExplosiveBarrelProjectile>();
 
             // TODO: Load soccer ball
             soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
@@ -373,11 +370,13 @@ namespace Drunken_Broster
 
         public override void PrefabSetup()
         {
+            base.PrefabSetup();
             ThemeHolder theme = Map.Instance.jungleThemeReference;
             BarrelBlock explosiveBarrel = theme.blockPrefabBarrels[1].GetComponent<BarrelBlock>();
             this.fire1 = explosiveBarrel.fire1;
             this.fire2 = explosiveBarrel.fire2;
             this.fire3 = explosiveBarrel.fire3;
+            this.barrelExplodeSounds = explosiveBarrel.soundHolder.deathSounds;
         }
         #endregion
 
@@ -2132,29 +2131,29 @@ namespace Drunken_Broster
             }
         }
 
-        protected virtual void RunBarrelEffects()
+        protected void RunBarrelEffects()
         {
+            // TODO: remove this
             //RocketLib.Utils.DrawDebug.DrawCrosshair( "barrel crosshair", new Vector3( base.X, base.Y + 8f, 0f ), 5f, Color.red );
-            //return;
-            if ( this.explosionCounter > 0f )
+            if ( !this.doingMelee && this.explosionCounter > 0f )
             {
-                this.flameCounter += this.t;
                 this.explosionCounter -= this.t;
-                if ( this.explosionCounter < 8f )
+                if ( this.explosionCounter < 3f )
                 {
-                    if ( this.flameCounter > 0f && this.explosionCounter > 0.3f )
+                    this.flameCounter += this.t;
+                    if ( this.flameCounter > 0f && this.explosionCounter > 0.2f )
                     {
-                        if ( this.explosionCounter < 3f )
+                        if ( this.explosionCounter < 1f )
                         {
                             this.flameCounter -= 0.09f;
                         }
-                        else if ( this.explosionCounter < 5f )
+                        else if ( this.explosionCounter < 2f )
                         {
                             this.flameCounter -= 0.12f;
                         }
                         else
                         {
-                            this.flameCounter -= 0.15f;
+                            this.flameCounter -= 0.2f;
                         }
                         Vector3 vector = UnityEngine.Random.insideUnitCircle;
                         switch ( UnityEngine.Random.Range( 0, 3 ) )
@@ -2171,17 +2170,17 @@ namespace Drunken_Broster
                         }
                     }
                     this.RunBarrelWarning( this.t, this.explosionCounter );
-                    if ( this.explosionCounter <= 0f )
+                    if ( this.explosionCounter <= 0.1f )
                     {
-                        // TODO: explode
+                        this.ExplodeBarrelInHands();
                     }
                 }
             }
         }
 
-        protected virtual void RunBarrelWarning( float t, float explosionTime )
+        protected void RunBarrelWarning( float t, float explosionTime )
         {
-            if ( explosionTime < 3f )
+            if ( explosionTime < 1.5f )
             {
                 this.warningCounter += t;
                 if ( this.warningOn && this.warningCounter > 0.0667f )
@@ -2189,16 +2188,69 @@ namespace Drunken_Broster
                     this.warningOn = false;
                     this.warningCounter -= 0.0667f;
                 }
-                else if ( this.warningCounter > 0.0667f && explosionTime < 0.175f )
+                else if ( this.warningCounter > 0.0667f && explosionTime < 0.5f )
                 {
                     this.warningOn = true;
                     this.warningCounter -= 0.0667f;
                 }
-                else if ( this.warningCounter > 0.175f && explosionTime < 0.5f )
+                else if ( this.warningCounter > 0.175f && explosionTime < 1f )
                 {
                     this.warningOn = true;
                     this.warningCounter -= 0.175f;
                 }
+                else if ( this.warningCounter > 0.25f )
+                {
+                    this.warningOn = true;
+                    this.warningCounter -= 0.25f;
+                }
+                this.SetGunSprite( 0, 0 );
+            }
+        }
+
+        protected void ExplodeBarrelInHands()
+        {
+            float range = 50f;
+            EffectsController.CreateExplosionRangePop( base.X, base.Y, -1f, range * 2f );
+            EffectsController.CreateSparkShower( base.X, base.Y, 70, 3f, 200f, 0f, 250f, 0.6f, 0.5f );
+            EffectsController.CreatePlumes( base.X, base.Y, 3, 8f, 315f, 0f, 0f );
+            Vector3 vector = new Vector3( UnityEngine.Random.value, UnityEngine.Random.value );
+            EffectsController.CreateShaderExplosion( EffectsController.ExplosionSize.Medium, new Vector3( base.X + vector.x * range * 0.25f, base.Y + vector.y * range * 0.25f ), UnityEngine.Random.value * 0.5f );
+            vector = new Vector3( UnityEngine.Random.value, UnityEngine.Random.value );
+            EffectsController.CreateShaderExplosion( EffectsController.ExplosionSize.Medium, new Vector3( base.X + vector.x * range * 0.25f, base.Y + vector.y * range * 0.25f ), 0f );
+            EffectsController.CreateShaderExplosion( EffectsController.ExplosionSize.Large, new Vector3( base.X, base.Y ), 0f );
+            SortOfFollow.Shake( 1f );
+            this.sound.PlaySoundEffectAt( this.barrelExplodeSounds, 0.7f, base.transform.position, 1f, true, false, false, 0f );
+            Map.DisturbWildLife( base.X, base.Y, 120f, 5 );
+            MapController.DamageGround( this, 12, DamageType.Fire, range, base.X, base.Y, null, false );
+            Map.ShakeTrees( base.X, base.Y, 256f, 64f, 128f );
+            MapController.BurnUnitsAround_NotNetworked( this, this.playerNum, 1, range * 2f, base.X, base.Y, true, true );
+            Map.ExplodeUnits( this, 12, DamageType.Fire, range * 1.2f, range, base.X, base.Y - 6f, 200f, 300f, this.playerNum, false, true, true );
+            Map.ExplodeUnits( this, 1, DamageType.Fire, range * 1f, range, base.X, base.Y - 6f, 200f, 300f, this.playerNum, false, true, true );
+            this.ExtraKnock( DamageType.Fire, -1 * base.transform.localScale.x * 150, 400, false );
+
+            // Remove held item
+            this.holdingItem = false;
+            this.heldItem = MeleeItem.None;
+            this.thrownItem = false;
+            this.gunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );
+            this.gunSpriteMelee.gameObject.SetActive( false );
+        }
+
+        protected void ExtraKnock( DamageType damageType, float xI, float yI, bool forceTumble )
+        {
+            this.impaledBy = null;
+            this.impaledByTransform = null;
+            if ( this.frozenTime > 0f )
+            {
+                return;
+            }
+            this.xI = Mathf.Clamp( this.xI + xI / 2f, -1200f, 1200f );
+            this.xIBlast = Mathf.Clamp( this.xIBlast + xI / 2f, -1200f, 1200f );
+            this.yI = this.yI + yI;
+            if ( this.IsParachuteActive && yI > 0f )
+            {
+                this.IsParachuteActive = false;
+                this.Tumble();
             }
         }
 
@@ -2310,7 +2362,7 @@ namespace Drunken_Broster
             // Setup barrel warning
             if ( this.heldItem == MeleeItem.ExplosiveBarrel )
             {
-                this.explosionCounter = 10f;
+                this.explosionCounter = 5f;
                 this.warningOn = false;
             }
         }
@@ -2364,7 +2416,7 @@ namespace Drunken_Broster
                     this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 6f, 0f, 0f, base.transform.localScale.x * 350f, 100f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    
+                    this.explosiveBarrelProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.SoccerBall:
                     

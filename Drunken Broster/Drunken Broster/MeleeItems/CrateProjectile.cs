@@ -16,7 +16,8 @@ namespace Drunken_Broster.MeleeItems
             if ( shrapnelPrefabs == null )
             {
                 shrapnelPrefabs = new Shrapnel[3];
-                CrateBlock crateBlock = Map.Instance.activeTheme.blockPrefabWood[0] as CrateBlock;
+                ThemeHolder jungleTheme = Map.Instance.jungleThemeReference;
+                CrateBlock crateBlock = jungleTheme.blockPrefabWood[0] as CrateBlock;
                 shrapnelPrefabs[0] = crateBlock.shrapnelPrefab;
                 shrapnelPrefabs[1] = crateBlock.shrapnelBitPrefab;
                 shrapnelPrefabs[2] = crateBlock.shrapnelBitPrefab3;
