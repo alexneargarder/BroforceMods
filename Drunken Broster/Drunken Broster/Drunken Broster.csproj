@@ -90,7 +90,7 @@
     <Compile Include="MeleeItems\BottleProjectile.cs" />
     <Compile Include="MeleeItems\CoconutProjectile.cs" />
     <Compile Include="MeleeItems\CrateProjectile.cs" />
-    <Compile Include="MeleeItems\ExplosiveBarrel.cs" />
+    <Compile Include="MeleeItems\ExplosiveBarrelProjectile.cs" />
     <Compile Include="MeleeItems\ShootableCircularDoodad.cs" />
     <Compile Include="MeleeItems\TireProjectile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
