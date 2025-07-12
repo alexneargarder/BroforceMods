@@ -45,6 +45,7 @@ namespace Brostbuster
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
         public static HashSet<Brostbuster> currentBros = new HashSet<Brostbuster>();
+        protected float currentGunPosition = 0f;
 
         // Ghost Trap
         GhostTrap trapPrefab, currentTrap;
@@ -63,6 +64,7 @@ namespace Brostbuster
         // Misc
         protected bool acceptedDeath = false;
 
+        #region General
         public override void PreloadAssets()
         {
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
@@ -202,6 +204,7 @@ namespace Brostbuster
                 }
             }
         }
+        #endregion
 
         // Proton Gun methods
         #region ProtonGun
@@ -341,6 +344,12 @@ namespace Brostbuster
             }
         }
 
+        protected override void SetGunPosition( float xOffset, float yOffset )
+        {
+            currentGunPosition = yOffset;
+            base.SetGunPosition( xOffset, yOffset );
+        }
+
         protected override void StopFiring()
         {
             base.StopFiring();
@@ -394,7 +403,7 @@ namespace Brostbuster
 
         protected void DrawProtonLine()
         {
-            Vector3 startPoint = new Vector3( base.X + base.transform.localScale.x * 10f, base.Y + 7f, 0 );
+            Vector3 startPoint = new Vector3( base.X + base.transform.localScale.x * 10f, base.Y + 7f + currentGunPosition, 0 );
             Vector3 endPoint = Vector3.zero;
             Vector3 startPointCap = startPoint;
             startPoint.x += base.transform.localScale.x * 10f;
