@@ -22,6 +22,10 @@ The Compiled Mod folder can be placed into your Mods folder here to see what thi
 C:\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\Compiled Mod
 There is also an Info.json file in the Compliled Mod Folder that shows you how you need to have that set up.
 
+## How to Create Your Own Bros
+
+For detailed instructions on how to create custom bros for Broforce, see [the BroMaker wiki.](https://github.com/Gorzontrok/Bro-Maker/wiki)
+
 ## Useful Links
 
 * [How to install Unity Mod Manager and my mods](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
