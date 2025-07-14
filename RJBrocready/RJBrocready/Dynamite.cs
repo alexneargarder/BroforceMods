@@ -13,7 +13,7 @@ namespace RJBrocready
         protected int flashFrame = 0;
         protected bool flashReversing = false;
         Rigidbody rigidbody;
-        AudioClip explosionSound;
+        public AudioClip explosionSound;
 
         protected override void Awake()
         {
