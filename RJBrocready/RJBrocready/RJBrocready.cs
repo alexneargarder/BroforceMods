@@ -36,6 +36,7 @@ namespace RJBrocready
         public AudioClip[] axeHitSound;
         protected bool playedAxeSound = false;
         protected bool meleeBufferedPress = false;
+        protected bool meleeHasHitTerrain = false;
 
         // The Thing
         public enum ThingState
@@ -77,7 +78,7 @@ namespace RJBrocready
         public AudioClip[] whipMissSounds;
 
         // The Thing Melee
-        protected AudioClip biteSound;
+        public AudioClip biteSound;
 
         // The Thing Special
         SpriteSM tentacleWhipSprite;
@@ -725,7 +726,7 @@ namespace RJBrocready
             {
             }
             this.meleeChosenUnit = null;
-            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, 5 ) )
+            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, 20 ) )
             {
                 this.meleeHasHit = true;
             }
@@ -748,9 +749,21 @@ namespace RJBrocready
                 MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, component.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
                 return true;
             }
+            if ( this.raycastHit.collider.GetComponent<Block>() != null )
+            {
+                meleeDamage *= 4;
+            }
+            // Hit non block entity so don't continue dealing damage
+            else
+            {
+                this.meleeHasHitTerrain = true;
+            }
             MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
-            this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.3f, base.transform.position, 1f, true, false, false, 0f );
-            EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
+            if ( !this.meleeHasHit )
+            {
+                this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.3f, base.transform.position, 1f, true, false, false, 0f );
+                EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
+            }
             return true;
         }
 
@@ -835,6 +848,12 @@ namespace RJBrocready
             }
         }
 
+        protected override void ResetMeleeValues()
+        {
+            base.ResetMeleeValues();
+            this.meleeHasHitTerrain = false;
+        }
+
         protected override bool CanStartNewMelee()
         {
             return !( this.doingMelee || this.usingSpecial );
@@ -889,9 +908,16 @@ namespace RJBrocready
                     base.counter -= 0.066f;
                     this.MeleeAttack( true, true );
                 }
-                else if ( base.frame > 3 && !this.meleeHasHit && base.frame < 6 )
+                else if ( base.frame > 3 && base.frame < 6 )
                 {
-                    this.MeleeAttack( false, false );
+                    if ( !this.meleeHasHit  )
+                    {
+                        this.MeleeAttack( false, false );
+                    }
+                    else if ( !this.meleeHasHitTerrain )
+                    {
+                        this.TryMeleeTerrain( 0, 15 );
+                    }
                 }
                 if ( base.frame >= 8 )
                 {
@@ -976,6 +1002,16 @@ namespace RJBrocready
             }
             this.playedAxeSound = false;
             base.CancelMelee();
+        }
+
+        // Don't cancel melee when hitting wall
+        protected override void HitLeftWall()
+        {
+        }
+
+        // Don't cancel melee when hitting wall
+        protected override void HitRightWall()
+        {
         }
         #endregion
 
@@ -2200,14 +2236,14 @@ namespace RJBrocready
             if ( Map.HitUnits( this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ) )
             {
                 temp.Clear();
-                Map.HitUnits( this, base.playerNum, 12, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ); ;
+                Map.HitUnits( this, base.playerNum, 24, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ); ;
                 this.meleeHasHit = true;
             }
             else if ( playMissSound )
             {
             }
             this.meleeChosenUnit = null;
-            if ( shouldTryHitTerrain && this.ThingHitTerrain( 20, 4, 0, 12f, 6, true ) )
+            if ( shouldTryHitTerrain && this.ThingHitTerrain( 20, 4, 0, 12f, 15, true ) )
             {
                 this.meleeHasHit = true;
             }
