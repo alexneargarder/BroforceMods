@@ -35,10 +35,5 @@
     "fireRate": 0.1,
     "canChimneyFlip": true,
     "originalSpecialAmmo": 2
-  },
-  "afterAwake": {},
-  "beforeStart": {},
-  "afterStart": {
-    
   }
 }

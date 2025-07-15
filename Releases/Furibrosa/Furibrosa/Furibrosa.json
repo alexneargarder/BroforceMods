@@ -3,6 +3,8 @@
   "characterPreset": "Furibrosa",
   "parameters": {
     "BetterAnimation": true,
+    "Sprite": "sprite.png",
+    "GunSprite": "gunSpriteCrossbow.png",
     "SpecialIcons": "special.png",
     "SpecialIconOffset":
     {
@@ -37,13 +39,5 @@
     "canChimneyFlip": true,
     "originalSpecialAmmo": 1,
     "gunSpriteHangingFrame": 9
-  },
-  "afterAwake": {},
-  "beforeStart": {
-    "sprite": "sprite.png",
-    "gunSprite": "gunSpriteCrossbow.png"
-  },
-  "afterStart": {
-    
   }
 }

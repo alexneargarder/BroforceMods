@@ -3,6 +3,8 @@
   "characterPreset": "Drunken Broster",
   "parameters": {
     "BetterAnimation": true,
+    "Sprite": "sprite.png",
+    "GunSprite": "gunSprite.png",
     "SpecialIcons": "special.png",
     "Avatar": "avatar.png",
     "GunSpriteOffset":
@@ -31,13 +33,5 @@
     "fireRate": 0.1,
     "canChimneyFlip": true,
     "originalSpecialAmmo": 1
-  },
-  "afterAwake": {},
-  "beforeStart": {
-    "sprite": "sprite.png",
-    "gunSprite": "gunSprite.png"
-  },
-  "afterStart": {
-    
   }
 }
