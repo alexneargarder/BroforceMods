@@ -101,6 +101,7 @@ namespace Drunken_Broster
         public CustomProjectile skullProjectile;
         public MeshRenderer gunSpriteMelee;
         public SpriteSM gunSpriteMeleeSprite;
+        public SpriteSM originalGunSprite;
         public Material meleeSpriteGrabThrowing;
         protected bool throwingHeldItem = false;
         protected bool thrownItem = false;
@@ -159,6 +160,9 @@ namespace Drunken_Broster
             gunSpriteMeleeSprite.CalcUVs();
             gunSpriteMeleeSprite.UpdateUVs();
             gunSpriteMeleeSprite.offset = new Vector3( 0f, 15f, 0f );
+
+            // Store original gunsprite
+            this.originalGunSprite = this.gunSprite;
 
             // Load melee sprite for grabbing and throwing animations
             this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( directoryPath, "meleeSpriteGrabThrowing.png" );
@@ -397,41 +401,10 @@ namespace Drunken_Broster
             }
         }
 
-        protected override void ActivateGun()
-        {
-            if ( this.holdingItem )
-            {
-                this.gunSpriteMelee.gameObject.SetActive( true );
-            }
-            else
-            {
-                base.ActivateGun();
-            }
-        }
-
-        protected override void DeactivateGun()
-        {
-            if ( this.holdingItem )
-            {
-                this.gunSpriteMelee.gameObject.SetActive( false );
-            }
-            else
-            {
-                base.DeactivateGun();
-            }
-        }
-
         protected override void SetGunSprite( int spriteFrame, int spriteRow )
         {
-            SpriteSM currentSprite;
-
-            if ( !this.holdingItem )
+            if ( this.holdingItem )
             {
-                currentSprite = this.gunSprite;
-            }
-            else
-            {
-                currentSprite = this.gunSpriteMeleeSprite;
                 spriteRow += ( (int)this.heldItem ) * 2;
 
                 if ( this.heldItem == MeleeItem.ExplosiveBarrel && this.warningOn )
@@ -442,19 +415,19 @@ namespace Drunken_Broster
 
             if ( base.actionState == ActionState.Hanging )
             {
-                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+                this.gunSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
             }
             else if ( base.actionState == ActionState.ClimbingLadder && hangingOneArmed )
             {
-                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+                this.gunSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
             }
             else if ( attachedToZipline != null && base.actionState == ActionState.Jumping )
             {
-                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
+                this.gunSprite.SetLowerLeftPixel( gunSpritePixelWidth * ( gunSpriteHangingFrame + spriteFrame ), gunSpritePixelHeight * ( 1 + spriteRow ) );
             }
             else
             {
-                currentSprite.SetLowerLeftPixel( gunSpritePixelWidth * spriteFrame, gunSpritePixelHeight * ( 1 + spriteRow ) );
+                this.gunSprite.SetLowerLeftPixel( gunSpritePixelWidth * spriteFrame, gunSpritePixelHeight * ( 1 + spriteRow ) );
             }
         }
 
@@ -1129,7 +1102,7 @@ namespace Drunken_Broster
 
         protected override void SetGunPosition( float xOffset, float yOffset )
         {
-            this.gunSprite.transform.localPosition = new Vector3( xOffset, yOffset, -1f );
+            this.gunSprite.transform.localPosition = new Vector3( xOffset, yOffset - 1f, -1f );
         }
 
         public bool HitUnitsStationaryAttack( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
@@ -2227,11 +2200,7 @@ namespace Drunken_Broster
             this.ExtraKnock( DamageType.Fire, -1 * base.transform.localScale.x * 150, 400, false );
 
             // Remove held item
-            this.holdingItem = false;
-            this.heldItem = MeleeItem.None;
-            this.thrownItem = false;
-            this.gunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );
-            this.gunSpriteMelee.gameObject.SetActive( false );
+            this.ClearHeldItem();
         }
 
         protected void ExtraKnock( DamageType damageType, float xI, float yI, bool forceTumble )
@@ -2338,13 +2307,7 @@ namespace Drunken_Broster
             }
             else if ( this.thrownItem )
             {
-                this.canChimneyFlip = true;
-                this.throwingHeldItem = false;
-                this.holdingItem = false;
-                this.heldItem = MeleeItem.None;
-                this.thrownItem = false;
-                this.gunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );
-                this.gunSpriteMelee.gameObject.SetActive( false );
+                this.ClearHeldItem();
             }
             base.CancelMelee();
         }
@@ -2354,8 +2317,9 @@ namespace Drunken_Broster
             this.holdingItem = true;
             this.heldItem = this.chosenItem;
             this.chosenItem = MeleeItem.None;
-            this.gunSpriteMelee.gameObject.SetActive( this.gunSprite.gameObject.activeSelf );
-            this.gunSprite.gameObject.SetActive( false );
+            this.gunSpriteMelee.gameObject.SetActive( this.originalGunSprite.gameObject.activeSelf );
+            this.originalGunSprite.gameObject.SetActive( false );
+            this.gunSprite = this.gunSpriteMeleeSprite;
 
             // Setup barrel warning
             if ( this.heldItem == MeleeItem.ExplosiveBarrel )
@@ -2363,6 +2327,18 @@ namespace Drunken_Broster
                 this.explosionCounter = 5f;
                 this.warningOn = false;
             }
+        }
+
+        protected void ClearHeldItem()
+        {
+            this.canChimneyFlip = true;
+            this.throwingHeldItem = false;
+            this.holdingItem = false;
+            this.heldItem = MeleeItem.None;
+            this.thrownItem = false;
+            this.originalGunSprite.gameObject.SetActive( this.gunSpriteMelee.gameObject.activeSelf );
+            this.gunSpriteMelee.gameObject.SetActive( false );
+            this.gunSprite = this.originalGunSprite;
         }
 
         protected void StartThrowingItem()
