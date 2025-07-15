@@ -22,13 +22,11 @@ namespace Drunken_Broster
     [HeroPreset( "Drunken Broster", HeroType.Rambro )]
     public class DrunkenBroster : CustomHero
     {
-        // TODO: remove this 
+        // TODO: remove all of these
         [SaveableSetting]
         public static int currentItem;
         public static KeyBindingForPlayers switchItemKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item" );
         public static KeyBindingForPlayers switchItemBackKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item Back" );
-        public static bool freezeProjectile = false;
-        public static bool spawnGibs = false;
         public static DrunkenBroster currentBroster;
 
         // General
@@ -97,7 +95,7 @@ namespace Drunken_Broster
         public CustomGrenade bottleProjectile;
         public CustomProjectile crateProjectile;
         public CustomGrenade coconutProjectile;
-        public CustomProjectile explosiveBarrelProjectile;
+        public CustomGrenade explosiveBarrelProjectile;
         public CustomProjectile soccerBallProjectile;
         public CustomProjectile alienEggProjectile;
         public CustomProjectile skullProjectile;
@@ -185,7 +183,7 @@ namespace Drunken_Broster
             coconutProjectile = CustomGrenade.CreatePrefab<CoconutProjectile>();
 
             // TODO: Load explosive barrel
-            explosiveBarrelProjectile = CustomProjectile.CreatePrefab<ExplosiveBarrelProjectile>();
+            explosiveBarrelProjectile = CustomGrenade.CreatePrefab<ExplosiveBarrelProjectile>();
 
             // TODO: Load soccer ball
             soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
@@ -2180,7 +2178,7 @@ namespace Drunken_Broster
 
         protected void RunBarrelWarning( float t, float explosionTime )
         {
-            if ( explosionTime < 1.5f )
+            if ( explosionTime < 2f )
             {
                 this.warningCounter += t;
                 if ( this.warningOn && this.warningCounter > 0.0667f )
@@ -2188,20 +2186,20 @@ namespace Drunken_Broster
                     this.warningOn = false;
                     this.warningCounter -= 0.0667f;
                 }
-                else if ( this.warningCounter > 0.0667f && explosionTime < 0.5f )
+                else if ( this.warningCounter > 0.0667f && explosionTime < 0.75f )
                 {
                     this.warningOn = true;
                     this.warningCounter -= 0.0667f;
                 }
-                else if ( this.warningCounter > 0.175f && explosionTime < 1f )
+                else if ( this.warningCounter > 0.175f && explosionTime < 1.25f )
                 {
                     this.warningOn = true;
                     this.warningCounter -= 0.175f;
                 }
-                else if ( this.warningCounter > 0.25f )
+                else if ( this.warningCounter > 0.2f )
                 {
                     this.warningOn = true;
-                    this.warningCounter -= 0.25f;
+                    this.warningCounter -= 0.2f;
                 }
                 this.SetGunSprite( 0, 0 );
             }
@@ -2413,10 +2411,11 @@ namespace Drunken_Broster
                     this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 6f, 0f, 0f, base.transform.localScale.x * 350f, 100f, base.playerNum );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * 350f, 100f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    this.explosiveBarrelProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
+                    ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
+                    explosiveBarrel.explosionCounter = Mathf.Max( 4 - Mathf.Abs( 5 - this.explosionCounter ), 1 );
                     break;
                 case MeleeItem.SoccerBall:
                     

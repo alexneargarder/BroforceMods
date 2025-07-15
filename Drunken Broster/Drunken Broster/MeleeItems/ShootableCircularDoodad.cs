@@ -5,7 +5,7 @@ namespace Drunken_Broster.MeleeItems
     public class ShootableCircularDoodad : Doodad
     {
         public float radius = 0f;
-        public TireProjectile owner;
+        public CircularProjectile owner;
 
         protected override void Awake()
         {
