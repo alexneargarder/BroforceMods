@@ -3,6 +3,8 @@
   "characterPreset": "Captain Ameribro",
   "parameters": {
     "BetterAnimation": true,
+    "Sprite": "captainAmeribroMain.png",
+    "GunSprite": "captainAmeribroGun.png",
     "SpecialIcons": "CaptainAmeribroSpecial.png",
     "Avatar": "captainAmeribroAvatar.png",
     "GunSpriteOffset":
@@ -33,12 +35,5 @@
     "originalSpecialAmmo": 1,
     "canAirdash": true,
     "airdashMaxTime": 0.23
-  },
-  "afterAwake": {},
-  "beforeStart": {
-    "sprite": "captainAmeribroMain.png",
-    "gunSprite": "captainAmeribroGun.png"
-  },
-  "afterStart": {
   }
 }

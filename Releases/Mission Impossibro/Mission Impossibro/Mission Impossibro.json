@@ -3,6 +3,8 @@
   "characterPreset": "Mission Impossibro",
   "parameters": {
     "BetterAnimation": true,
+    "Sprite": "sprite.png",
+    "GunSprite": "gunSprite.png",
     "SpecialIcons": "special.png",
     "Avatar": "avatar.png",
     "GunSpriteOffset":
@@ -32,13 +34,5 @@
     "fireRate": 0.3,
     "canChimneyFlip": true,
     "originalSpecialAmmo": 2
-  },
-  "afterAwake": {},
-  "beforeStart": {
-    "sprite": "sprite.png",
-    "gunSprite": "gunSprite.png"
-  },
-  "afterStart": {
-    
   }
 }
