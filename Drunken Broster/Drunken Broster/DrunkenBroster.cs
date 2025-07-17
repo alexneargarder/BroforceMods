@@ -2402,7 +2402,7 @@ namespace Drunken_Broster
                 case MeleeItem.Skull:
                     try
                     {
-                        this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 125f, base.playerNum );
+                        this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 100f, base.playerNum );
                     }
                     catch ( Exception ex )
                     {
