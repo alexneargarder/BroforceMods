@@ -1,5 +1,5 @@
-﻿using BroMakerLib.Loggers;
-using HarmonyLib;
+﻿using HarmonyLib;
+using System.Reflection;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
@@ -11,7 +11,7 @@ namespace Drunken_Broster.MeleeItems
         public Traverse attachedUnitTraverse;
         public int playerNum;
         public MonoBehaviour firedBy;
-        public float diveCountdown = 1f;
+        public float diveCountdown = 0.4f;
         protected Unit targettedUnit = null;
 
         public static SkullProjectile CreatePrefab()
@@ -44,9 +44,26 @@ namespace Drunken_Broster.MeleeItems
             this.attachedUnit.xI = xI;
             this.attachedUnit.yI = yI;
             this.attachedUnit.zOffset = _zOffset;
-            this.attachedUnit.playerNum = playerNum;
+            this.attachedUnit.playerNum = 5;
+            this.playerNum = playerNum;
             this.attachedUnit.SetFriendlyExplosion();
             this.firedBy = FiredBy;
+            
+            // Delay fire animation
+            this.attachedUnitTraverse.Field( "fireAnimDelay" ).SetValue( 0.3f );
+
+            // Fix exclamation mark bubble appearing on top of enemy
+            for ( int i = 0; i < this.attachedUnit.transform.childCount; ++i )
+            {
+                if ( this.attachedUnit.transform.GetChild(i).name == "ExclamationMark" )
+                {
+                    ReactionBubble reaction = this.attachedUnit.transform.GetChild( i ).GetComponent<ReactionBubble>();
+                    reaction.SetPosition( reaction.transform.localPosition );
+                    Traverse reactionTrav = Traverse.Create( reaction );
+                    reactionTrav.Field( "yStart" ).SetValue( reaction.transform.localPosition.y );
+                    break;
+                }
+            }
         }
 
         public void Update()
@@ -58,6 +75,12 @@ namespace Drunken_Broster.MeleeItems
                 {
                     this.StartDiving();
                 }
+                // Check for enemies along path
+                else if ( Map.HitUnits( this.attachedUnit, this.attachedUnit, this.playerNum, 4, DamageType.Melee, 3f, this.attachedUnit.X, this.attachedUnit.Y, this.attachedUnit.xI, this.attachedUnit.yI, false, false ) )
+                {
+                    typeof( HellLostSoul ).GetMethod( "MakeEffects", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( attachedUnit, new object[] { } );
+                    this.attachedUnit.CheckDestroyed();
+                }
             }
         }
 
@@ -66,7 +89,9 @@ namespace Drunken_Broster.MeleeItems
             Vector3 target = Vector3.zero;
 
             // Find nearest enemy unit in the direction the skull is flying that has direct line of sight to the skull
-            Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy( this.playerNum, 30, this.attachedUnit.X + this.attachedUnit.transform.localScale.x * 20, this.attachedUnit.Y, false );
+            this.attachedUnit.playerNum = this.playerNum;
+            Unit nearestVisibleUnitDamagebleBy = Map.GetNearestVisibleUnitDamagebleBy( this.playerNum, 40, this.attachedUnit.X + this.attachedUnit.transform.localScale.x * 20, this.attachedUnit.Y, false );
+            this.attachedUnit.playerNum = 5;
             // Check that we found a unit, it hasn't already been hit, and it is in the direction the shield is traveling.
             if ( nearestVisibleUnitDamagebleBy != null && nearestVisibleUnitDamagebleBy.gameObject.activeInHierarchy && ( Mathf.Sign( nearestVisibleUnitDamagebleBy.X - this.attachedUnit.X ) == Mathf.Sign( this.attachedUnit.transform.localScale.x ) ) )
             {
@@ -77,18 +102,15 @@ namespace Drunken_Broster.MeleeItems
             else
             {
                 float randomAngle = UnityEngine.Random.Range(-65f, -15f) * Mathf.Deg2Rad;
-                BMLogger.Log( "chosen angle: " + randomAngle );
-                float distance = UnityEngine.Random.Range(150f, 300f);
+                float distance = 500;
                 
-                float targetX = this.attachedUnit.X + Mathf.Cos(randomAngle) * distance;
+                // Adjust angle based on facing direction
+                float targetX = this.attachedUnit.X + Mathf.Cos(randomAngle) * distance * this.attachedUnit.transform.localScale.x;
                 float targetY = this.attachedUnit.Y + Mathf.Sin(randomAngle) * distance;
                 
                 target = new Vector3(targetX, targetY, 0f);
-
-                BMLogger.Log( "targetting: " + targetX +  " " + targetY );
             }
 
-            this.attachedUnit.StartDiving( target, -1, 0 );
             if ( this.attachedUnit.enemyAI.mentalState != MentalState.Alerted )
             {
                 this.attachedUnit.enemyAI.FullyAlert( target.x, target.y, -1 );
