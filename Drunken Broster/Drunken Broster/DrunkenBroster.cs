@@ -98,7 +98,7 @@ namespace Drunken_Broster
         public CustomGrenade explosiveBarrelProjectile;
         public CustomProjectile soccerBallProjectile;
         public CustomProjectile alienEggProjectile;
-        public CustomProjectile skullProjectile;
+        public SkullProjectile skullProjectile;
         public MeshRenderer gunSpriteMelee;
         public SpriteSM gunSpriteMeleeSprite;
         public SpriteSM originalGunSprite;
@@ -190,13 +190,13 @@ namespace Drunken_Broster
             explosiveBarrelProjectile = CustomGrenade.CreatePrefab<ExplosiveBarrelProjectile>();
 
             // TODO: Load soccer ball
-            soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            //soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load alien egg
-            alienEggProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            //alienEggProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
             // TODO: Load skull
-            skullProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            skullProjectile = SkullProjectile.CreatePrefab();
 
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
@@ -2400,7 +2400,14 @@ namespace Drunken_Broster
                     
                     break;
                 case MeleeItem.Skull:
-                    
+                    try
+                    {
+                        this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 125f, base.playerNum );
+                    }
+                    catch ( Exception ex )
+                    {
+                        BMLogger.Log( "exception: " + ex.ToString() );
+                    }
                     break;
                 default:
                     
