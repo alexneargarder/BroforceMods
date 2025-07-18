@@ -71,14 +71,18 @@ namespace RJBrocready
         protected bool releasedFire = false;
         protected bool firedOnce = false;
         protected float firePressed = 0f;
+        protected bool playedHitSound = false;
+        protected bool playedMissSound = false;
         public AudioClip[] whipStartSounds;
         public AudioClip whipStartSound;
+        public AudioClip[] tentacleHitSounds;
+        public AudioClip[] tentacleHitTerrainSounds;
         public AudioClip[] whipHitSounds;
         public AudioClip[] whipHitSounds2;
         public AudioClip[] whipMissSounds;
 
         // The Thing Melee
-        public AudioClip biteSound;
+        public AudioClip[] biteSound;
 
         // The Thing Special
         SpriteSM tentacleWhipSprite;
@@ -135,7 +139,7 @@ namespace RJBrocready
             CustomHero.PreloadSprites( directoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png" } );
             CustomHero.PreloadSprites( Path.Combine( directoryPath, "projectiles" ), new List<string> { "Dynamite.png" } );
             CustomHero.PreloadSounds( Path.Combine( directoryPath, "sounds" ), new List<string>() { "dynamiteExplosion.wav", "flameStart.wav", "flameLoop.wav", "fireAxe1.wav", "fireAxe2.wav", "fireAxe3.wav", "axeHit1.wav", "axeHit2.wav", "axeHit3.wav" } );
-            CustomHero.PreloadSounds( Path.Combine( Path.Combine( directoryPath, "sounds" ), "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "KnifeStab2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
+            CustomHero.PreloadSounds( Path.Combine( Path.Combine( directoryPath, "sounds" ), "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "whipStart3.wav", "KnifeStab2.wav", "tentacleHit1.wav", "tentacleHit2.wav", "tentacleHit3.wav", "tentacleHitTerrain1.wav", "tentacleHitTerrain2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "bite2.wav", "bite3.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
         }
 
         protected override void Start()
@@ -229,11 +233,21 @@ namespace RJBrocready
 
             this.reformSound = ResourcesController.GetAudioClip( thingSoundPath, "transformBack.wav" );
 
-            this.whipStartSounds = new AudioClip[2];
+            this.whipStartSounds = new AudioClip[3];
             this.whipStartSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipStart1.wav" );
             this.whipStartSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipStart2.wav" );
+            this.whipStartSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "whipStart3.wav" );
 
             this.whipStartSound = ResourcesController.GetAudioClip( thingSoundPath, "KnifeStab2.wav" );
+
+            this.tentacleHitSounds = new AudioClip[3];
+            this.tentacleHitSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleHit1.wav" );
+            this.tentacleHitSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleHit2.wav" );
+            this.tentacleHitSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleHit3.wav" );
+
+            this.tentacleHitTerrainSounds = new AudioClip[2];
+            this.tentacleHitTerrainSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleHitTerrain1.wav" );
+            this.tentacleHitTerrainSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleHitTerrain2.wav" );
 
             this.whipHitSounds = new AudioClip[3];
             this.whipHitSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "whipHit11.wav" );
@@ -250,7 +264,10 @@ namespace RJBrocready
             this.whipMissSounds[1] = ResourcesController.GetAudioClip( thingSoundPath, "whipMiss2.wav" );
             this.whipMissSounds[2] = ResourcesController.GetAudioClip( thingSoundPath, "whipMiss3.wav" );
 
-            this.biteSound = ResourcesController.GetAudioClip( thingSoundPath, "bite.wav" );
+            this.biteSound = new AudioClip[3];
+            this.biteSound[0] = ResourcesController.GetAudioClip( thingSoundPath, "bite.wav" );
+            this.biteSound[1] = ResourcesController.GetAudioClip( thingSoundPath, "bite2.wav" );
+            this.biteSound[2] = ResourcesController.GetAudioClip( thingSoundPath, "bite3.wav" );
 
             this.tentacleImpaleSounds = new AudioClip[3];
             this.tentacleImpaleSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "tentacleImpale1.wav" );
@@ -461,7 +478,6 @@ namespace RJBrocready
                     {
                         this.fireFlashCounter -= 0.1f;
                         EffectsController.CreateMuzzleFlashEffect( base.X + base.transform.localScale.x * 11f, base.Y + 10f, -25f, ( base.transform.localScale.x * 60f + this.xI ) * 0.01f, ( UnityEngine.Random.value * 60f - 30f ) * 0.01f, base.transform );
-                        //EffectsController.CreateMuzzleFlashEffect(base.X + base.transform.localScale.x * 11f, base.Y + 11f, -25f, (base.transform.localScale.x * 70f + this.xI) * 0.01f, (UnityEngine.Random.value * 70f - 35f) * 0.01f, base.transform);
                         this.FireFlashAvatar();
                     }
                 }
@@ -470,7 +486,6 @@ namespace RJBrocready
                 if ( this.fire )
                 {
                     // Start flame loop
-                    //if ( !this.flameSource.isPlaying )
                     if ( !this.flameSource.loop && ( this.flameSource.clip.length - this.flameSource.time ) <= 0.02f )
                     {
                         this.flameSource.clip = flameLoop;
@@ -735,7 +750,8 @@ namespace RJBrocready
 
         protected override bool TryMeleeTerrain( int offset = 0, int meleeDamage = 2 )
         {
-            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 20 + offset ), this.groundLayer ) )
+            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 22 + offset ), this.groundLayer ) 
+                && !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 12f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 22 + offset ), this.groundLayer ) )
             {
                 return false;
             }
@@ -1417,7 +1433,7 @@ namespace RJBrocready
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            if ( !( gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm ) )
+            if ( !this.doingMelee && !( gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm ) )
             {
                 base.SetGestureAnimation( gesture );
             }
@@ -1632,14 +1648,13 @@ namespace RJBrocready
 
         protected void ThingFireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
-            bool flag;
-            Map.DamageDoodads( 3, DamageType.Blade, x, y, xSpeed, ySpeed, 14f, base.playerNum, out flag, null );
+            Map.DamageDoodads( 5, DamageType.Blade, x, y, xSpeed, ySpeed, 14f, base.playerNum, out _, null );
             if ( Physics.Raycast( new Vector3( base.X - 6f * base.transform.localScale.x, base.Y + this.waistHeight, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 33f, this.fragileLayer ) && this.raycastHit.collider.gameObject.GetComponent<Parachute>() == null )
             {
                 this.raycastHit.collider.gameObject.SendMessage( "Open", (int)base.transform.localScale.x );
                 MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, 1, DamageType.Crush, base.transform.localScale.x * 500f, 50f, base.X, base.Y );
             }
-            if ( HitUnits( this, playerNum, 7, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
+            if ( HitUnits( this, playerNum, 9, DamageType.Blade, 20f, 24f, x + base.transform.localScale.x * 5f, y, xSpeed, ySpeed, true, true, true, false, alreadyHitUnits ) )
             {
             }
 
@@ -1722,6 +1737,8 @@ namespace RJBrocready
                     {
                         this.alreadyHitUnits = new List<Unit>();
                         this.hasHitTerrain = false;
+                        this.playedHitSound = false;
+                        this.playedMissSound = false;
                         Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
 
@@ -1731,15 +1748,21 @@ namespace RJBrocready
                     }
 
                     // Play whip sound
-                    if ( this.gunFrame == 9 )
+                    if ( this.gunFrame >= 9 && this.gunFrame < 11 )
                     {
-                        Sound.GetInstance().PlaySoundEffectAt( this.whipStartSound, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
-                        if ( this.alreadyHitUnits.Count > 0 )
+                        if ( !this.playedHitSound && this.alreadyHitUnits.Count > 0 )
                         {
-                            Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                            this.playedHitSound = true;
+                            Sound.GetInstance().PlaySoundEffectAt( this.tentacleHitSounds, 0.7f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                         }
-                        else
+                        else if ( !this.playedHitSound && this.hasHitTerrain )
                         {
+                            this.playedHitSound = true;
+                            Sound.GetInstance().PlaySoundEffectAt( this.tentacleHitTerrainSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        }
+                        else if ( !this.playedMissSound && !this.playedHitSound )
+                        {
+                            this.playedMissSound = true;
                             Sound.GetInstance().PlaySoundEffectAt( this.whipMissSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                         }
                     }
@@ -1880,23 +1903,12 @@ namespace RJBrocready
                 }
                 else if ( gunFrame == 10 )
                 {
-                    this.sound.PlaySoundEffectAt( this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f );
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.25f, base.transform.position, 1f, true, false, false, 0f );
                 }
                 // Eat mook
                 else if ( this.gunFrame == 12 )
                 {
-                    this.ThingMeleeAttack( true, true );
-                    this.tentacleLine.enabled = false;
-                    this.currentTentacleState = TentacleState.Inactive;
-                    // Release unit if still alive
-                    if ( this.unitHit.health > 0 )
-                    {
-                        this.unitHit.Unimpale( 3, DamageType.Blade, 0f, 0f, this );
-                        if ( unitHit is Mook )
-                        {
-                            unitHit.useImpaledFrames = false;
-                        }
-                    }
+                    this.EatMook();
                 }
                 else if ( this.gunFrame > 15 )
                 {
@@ -1912,6 +1924,34 @@ namespace RJBrocready
                 {
                     base.frameRate = 0.07f;
                 }
+            }
+        }
+
+        protected void EatMook()
+        {
+            // Eat Mook
+            this.ThingMeleeAttack( true, true );
+            this.tentacleLine.enabled = false;
+            this.currentTentacleState = TentacleState.Inactive;
+            // Release unit if still alive
+            if ( this.unitHit.health > 0 )
+            {
+                this.unitHit.Unimpale( 3, DamageType.Blade, 0f, 0f, this );
+                if ( unitHit is Mook )
+                {
+                    unitHit.useImpaledFrames = false;
+                }
+            }
+            // Blood explosion if enemy was killed
+            else
+            {
+                float range = 25f;
+                float blastForce = 15f;
+                EffectsController.CreateExplosionRangePop( base.X + base.transform.localScale.x * 3f, base.Y + 3f, -1f, range * 2 );
+                Map.ExplodeUnits( this, 13, DamageType.Explosion, range, range, base.X + base.transform.localScale.x * 3f, base.Y + 3f, blastForce * 40f, blastForce * 15f, base.playerNum, false, false, true );
+                EffectsController.CreateSlimeExplosion( base.X + base.transform.localScale.x * 3f, base.Y + 3f, 15f, 15f, 140f, 0f, 0f, 0f, 0f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Red );
+                Map.DisturbWildLife( base.X, base.Y, 80f, base.playerNum );
+                Map.DamageDoodads( 20, DamageType.Explosion, base.X, base.Y, 0f, 0f, range, base.playerNum, out _, null );
             }
         }
 
@@ -2236,7 +2276,7 @@ namespace RJBrocready
             if ( Map.HitUnits( this, base.playerNum, 1, 1, DamageType.Blade, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ) )
             {
                 temp.Clear();
-                Map.HitUnits( this, base.playerNum, 24, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp ); ;
+                Map.HitUnits( this, base.playerNum, 24, 25, DamageType.GibIfDead, 12f, 24f, base.X + transform.localScale.x * 8f, base.Y + 8f, transform.localScale.x * 100f, 100f, true, true, true, temp );
                 this.meleeHasHit = true;
             }
             else if ( playMissSound )
@@ -2248,6 +2288,7 @@ namespace RJBrocready
                 this.meleeHasHit = true;
             }
             this.TriggerBroMeleeEvent();
+            SortOfFollow.Shake( 0.5f );
         }
 
         protected bool ThingHitTerrain( float xdistance, float ydistance, int offset, float yoffset, int meleeDamage, bool playSound )
@@ -2317,7 +2358,7 @@ namespace RJBrocready
                 this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 320f );
                 if ( this.gunFrame == 3 && !this.playedAxeSound )
                 {
-                    this.sound.PlaySoundEffectAt( this.biteSound, 0.16f, base.transform.position, 1f, true, false, false, 0f );
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.25f, base.transform.position, 1f, true, false, false, 0f );
                     this.playedAxeSound = true;
                 }
                 else if ( this.gunFrame == 6 )

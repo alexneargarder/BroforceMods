@@ -1,6 +1,8 @@
 v1.1.0 (unreleased)
 Changes for BroMaker update.
 Added option to not carry over death in IronBro mode.
+Allow special to hit nearby enemies.
+Improved sound effects.
 Fixed gunsprite looking weird when firing on a zipline.
 
 v1.0.5
