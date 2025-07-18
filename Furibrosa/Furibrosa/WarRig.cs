@@ -20,6 +20,8 @@ namespace Furibrosa
         public Unit pilotUnit = null;
         public bool pilotted = false;
         public Furibrosa summoner = null;
+        protected bool pilotIsFuribrosa = false;
+        protected int previousLayer = 0;
         protected MobileSwitch pilotSwitch;
         protected bool hasResetDamage;
         protected float shieldDamage;
@@ -84,9 +86,9 @@ namespace Furibrosa
         protected bool usingBlueFlame = false;
 
         // Audio Variables
-        AudioSource vehicleEngineAudio;
+        public AudioSource vehicleEngineAudio;
         protected const float vehicleEngineVolume = 0.2f;
-        AudioSource vehicleHornAudio;
+        public AudioSource vehicleHornAudio;
         public AudioClip vehicleIdleLoop, vehicleRev, vehicleHorn, vehicleHornLong;
         public AudioClip[] vehicleHit;
         public AudioClip harpoonFire;
@@ -222,6 +224,53 @@ namespace Furibrosa
             // Create gibs
             InitializeGibs();
 
+            // Setup audio
+            if ( this.vehicleEngineAudio == null )
+            {
+                this.vehicleEngineAudio = base.gameObject.AddComponent<AudioSource>();
+                this.vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
+                this.vehicleEngineAudio.dopplerLevel = 0f;
+                this.vehicleEngineAudio.minDistance = 100f;
+                this.vehicleEngineAudio.maxDistance = 750f;
+                this.vehicleEngineAudio.spatialBlend = 1f;
+                this.vehicleEngineAudio.spatialize = false;
+                this.vehicleEngineAudio.volume = vehicleEngineVolume;
+            }
+
+            if ( this.vehicleHornAudio == null )
+            {
+                this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
+                this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
+                this.vehicleHornAudio.dopplerLevel = 0f;
+                this.vehicleHornAudio.minDistance = 100f;
+                this.vehicleHornAudio.maxDistance = 750f;
+                this.vehicleHornAudio.spatialBlend = 1f;
+                this.vehicleEngineAudio.spatialize = true;
+                this.vehicleHornAudio.volume = 1f;
+            }
+
+            // Load Audio
+            try
+            {
+                directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
+                directoryPath = Path.Combine( directoryPath, "sounds" );
+                this.vehicleIdleLoop = ResourcesController.GetAudioClip( directoryPath, "vehicleIdleLoop.wav" );
+                this.vehicleRev = ResourcesController.GetAudioClip( directoryPath, "vehicleBoost.wav" );
+                this.vehicleHorn = ResourcesController.GetAudioClip( directoryPath, "vehicleHornMedium.wav" );
+                this.vehicleHornLong = ResourcesController.GetAudioClip( directoryPath, "vehicleHornLong.wav" );
+
+                this.vehicleHit = new AudioClip[3];
+                this.vehicleHit[0] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit1.wav" );
+                this.vehicleHit[1] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit2.wav" );
+                this.vehicleHit[2] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit3.wav" );
+
+                this.harpoonFire = ResourcesController.GetAudioClip( directoryPath, "harpoon.wav" );
+            }
+            catch ( Exception ex )
+            {
+                BMLogger.Log( "Exception Loading Audio: " + ex.ToString() );
+            }
+
             this.gameObject.SetActive(false);
         }
 
@@ -270,7 +319,8 @@ namespace Furibrosa
             this.bloodColor = BloodColor.None;
             this.dashSpeedM = 1.5f;
 
-            if (base.gameObject.GetComponent<AudioSource>() == null)
+            // Setup audio
+            if ( this.vehicleEngineAudio == null )
             {
                 this.vehicleEngineAudio = base.gameObject.AddComponent<AudioSource>();
                 this.vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -281,20 +331,18 @@ namespace Furibrosa
                 this.vehicleEngineAudio.spatialize = false;
                 this.vehicleEngineAudio.volume = vehicleEngineVolume;
             }
-            else
-            {
-                this.vehicleEngineAudio = this.GetComponent<AudioSource>();
-            }
 
-            // Setup audio
-            this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
-            this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
-            this.vehicleHornAudio.dopplerLevel = 0f;
-            this.vehicleHornAudio.minDistance = 100f;
-            this.vehicleHornAudio.maxDistance = 750f;
-            this.vehicleHornAudio.spatialBlend = 1f;
-            this.vehicleEngineAudio.spatialize = true;
-            this.vehicleHornAudio.volume = 1f;
+            if ( this.vehicleHornAudio == null )
+            {
+                this.vehicleHornAudio = base.gameObject.AddComponent<AudioSource>();
+                this.vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
+                this.vehicleHornAudio.dopplerLevel = 0f;
+                this.vehicleHornAudio.minDistance = 100f;
+                this.vehicleHornAudio.maxDistance = 750f;
+                this.vehicleHornAudio.spatialBlend = 1f;
+                this.vehicleEngineAudio.spatialize = true;
+                this.vehicleHornAudio.volume = 1f;
+            }
 
             // Make sure gib holder exists
             if (this.gibs == null)
@@ -322,28 +370,6 @@ namespace Furibrosa
                 this.platform = platformObject.GetComponent<BoxCollider>();
                 this.platform.center = new Vector3(-9f, 44f, -4.5f);
                 this.platform.size = new Vector3(80f, 12f, 64f);
-            }
-
-            // Load Audio
-            try
-            {
-                directoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                directoryPath = Path.Combine(directoryPath, "sounds");
-                this.vehicleIdleLoop = ResourcesController.GetAudioClip(directoryPath, "vehicleIdleLoop.wav");
-                this.vehicleRev = ResourcesController.GetAudioClip( directoryPath, "vehicleBoost.wav");
-                this.vehicleHorn = ResourcesController.GetAudioClip( directoryPath, "vehicleHornMedium.wav");
-                this.vehicleHornLong = ResourcesController.GetAudioClip( directoryPath, "vehicleHornLong.wav");
-
-                this.vehicleHit = new AudioClip[3];
-                this.vehicleHit[0] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit1.wav");
-                this.vehicleHit[1] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit2.wav");
-                this.vehicleHit[2] = ResourcesController.GetAudioClip( directoryPath, "vehicleHit3.wav");
-
-                this.harpoonFire = ResourcesController.GetAudioClip( directoryPath, "harpoon.wav");
-            }
-            catch (Exception ex)
-            {
-                BMLogger.Log("Exception Loading Audio: " + ex.ToString());
             }
 
             this.DisableSprites();
@@ -488,19 +514,38 @@ namespace Furibrosa
                 return;
             }
 
+            // Check if pilot unit was destroyed (in case they dropped out)
+            if ( this.pilotted && this.pilotUnit == null )
+            {
+                this.DisChargePilot( 0f, false, null );
+            }
+
             base.Update();
 
             // Set camera position
             if (pilotted)
             {
                 // Controls where camera is
-                this.pilotUnit.SetXY(base.X, base.Y + 25f);
-                this.pilotUnit.row = this.row;
-                this.pilotUnit.collumn = this.collumn;
-                this.pilotUnit.transform.position = new Vector3(this.pilotUnit.X, this.pilotUnit.Y, 10f);
-                if (this.pilotUnit.playerNum < 0)
+                if (this.pilotIsFuribrosa)
                 {
-                    this.pilotUnit.gameObject.SetActive(false);
+                    this.pilotUnit.SetXY(base.X, base.Y + 25f);
+                    this.pilotUnit.row = this.row;
+                    this.pilotUnit.collumn = this.collumn;
+                    this.pilotUnit.transform.position = new Vector3(this.pilotUnit.X, this.pilotUnit.Y, 10f);
+                    if (this.pilotUnit.playerNum < 0)
+                    {
+                        this.pilotUnit.gameObject.SetActive(false);
+                    }
+                }
+                else
+                {
+                    // Position non-Furibrosa pilots at the window and keep them visible
+                    this.pilotUnit.SetXY(base.X + 11f * base.transform.localScale.x, base.Y + 25f);
+                    this.pilotUnit.row = this.row;
+                    this.pilotUnit.collumn = this.collumn;
+                    this.pilotUnit.transform.position = new Vector3(this.pilotUnit.X, this.pilotUnit.Y, this.transform.position.z + 0.3f );
+                    this.pilotUnit.transform.localScale = this.transform.localScale;
+                    this.pilotUnit.GetComponent<Renderer>().enabled = true;
                 }
             }
 
@@ -703,7 +748,7 @@ namespace Furibrosa
             if (this.pilotted)
             {
                 base.CheckInput();
-                if (doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
+                if (this.pilotIsFuribrosa && doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder)
                 {
                     if (Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f)
                     {
@@ -736,17 +781,15 @@ namespace Furibrosa
         #region Animation
         protected override void ChangeFrame()
         {
-            // Don't mess with animations if furiosa is leaning out
             if ( currentFuriosaState == FuriosaState.InVehicle )
             {
-                // Animate furiosa in vehicle
-                if (this.pilotted)
+                if (this.pilotted && this.pilotIsFuribrosa)
                 {
                     this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
                 }
-                // Animate empty vehicle
                 else
                 {
+                    // Show empty vehicle for non-Furibrosa pilots or when empty
                     this.sprite.SetLowerLeftPixel(0, this.spritePixelHeight);
                 }
             }
@@ -2966,7 +3009,12 @@ namespace Furibrosa
         #region Piloting
         public override bool CanPilotUnit(int newPlayerNum)
         {
-            return HeroController.players[newPlayerNum].character is Furibrosa;
+            return true;
+        }
+
+        public override void PilotUnit( Unit pilotUnit )
+        {
+            this.PilotUnitRPC( pilotUnit );
         }
 
         public override void PilotUnitRPC(Unit newPilotUnit)
@@ -3016,24 +3064,41 @@ namespace Furibrosa
             BroMakerUtilities.SetSpecialMaterials(PilotUnit.playerNum, this.specialSprite, new Vector2(46f, 0f), 5f);
             this.UpdateSpecialIcon();
 
-            // Get info from Furiosa;
-            Furibrosa furibrosa = PilotUnit as Furibrosa;
-            if ( furibrosa.currentState == PrimaryState.Switching )
+            // Get info from Furiosa
+            if ( PilotUnit is Furibrosa furibrosa )
             {
-                this.currentPrimaryState = furibrosa.nextState;
-            }
-            else
-            {
-                this.currentPrimaryState = furibrosa.currentState;
-            }
+                this.pilotIsFuribrosa = true;
+                if ( furibrosa.currentState == PrimaryState.Switching )
+                {
+                    this.currentPrimaryState = furibrosa.nextState;
+                }
+                else
+                {
+                    this.currentPrimaryState = furibrosa.currentState;
+                }
 
-            if (this.currentPrimaryState == PrimaryState.FlareGun)
-            {
-                this.gunSprite.meshRender.material = this.flareGunMat;
+                if (this.currentPrimaryState == PrimaryState.FlareGun)
+                {
+                    this.gunSprite.meshRender.material = this.flareGunMat;
+                }
+                else
+                {
+                    this.gunSprite.meshRender.material = this.crossbowMat;
+                }
             }
             else
             {
+                this.pilotIsFuribrosa = false;
+                this.currentPrimaryState = PrimaryState.Crossbow;
                 this.gunSprite.meshRender.material = this.crossbowMat;
+                this.previousLayer = PilotUnit.gameObject.layer;
+                // Ensure pilotting unit appears behind window
+                PilotUnit.gameObject.layer = 20;
+                PilotUnit.GetComponent<InvulnerabilityFlash>().enabled = false;
+                BroBase bro = PilotUnit as BroBase;
+                bro.frame = 0;
+                bro.SetGestureAnimation( GestureElement.Gestures.None );
+                bro.ForceChangeFrame();
             }
             this.SetGunSprite(0, 0);
         }
@@ -3045,7 +3110,7 @@ namespace Furibrosa
 
         protected virtual void DisChargePilotRPC(float disChargeYI, bool stunPilot, Unit dischargedBy)
         {
-            if (this.pilotUnit != dischargedBy)
+            if (this.pilotUnit != dischargedBy || this.pilotUnit == null )
             {
                 this.currentFuriosaState = FuriosaState.InVehicle;
                 this.gunFrame = 0;
@@ -3055,31 +3120,60 @@ namespace Furibrosa
                 this.chargeTime = 0f;
                 this.chargeFramerate = 0.09f;
 
-                // Make sure furiosa is holding the same weapon she was holding in the vehicle
-                Furibrosa furibrosa = this.pilotUnit as Furibrosa;
-                if ( this.currentPrimaryState != furibrosa.currentState )
+                if ( pilotUnit != null )
                 {
-                    if ( this.currentPrimaryState == PrimaryState.Switching )
+                    Furibrosa furibrosa = this.pilotUnit as Furibrosa;
+                    if ( furibrosa != null && this.currentPrimaryState != furibrosa.currentState )
                     {
-                        // We don't need to change Furiosa's state unless it's a different one than the one we're switching to
-                        if (this.nextPrimaryState != furibrosa.currentState)
+                        if ( this.currentPrimaryState == PrimaryState.Switching )
                         {
-                            furibrosa.nextState = this.nextPrimaryState;
+                            if ( this.nextPrimaryState != furibrosa.currentState )
+                            {
+                                furibrosa.nextState = this.nextPrimaryState;
+                                furibrosa.SwitchWeapon();
+                            }
+                        }
+                        else
+                        {
+                            furibrosa.nextState = this.currentPrimaryState;
                             furibrosa.SwitchWeapon();
                         }
                     }
+
+                    // Remove invulnerability in case we received it while piloting vehicle
+                    if ( furibrosa != null )
+                    {
+                        furibrosa.ClearInvulnerability();
+                    }
                     else
                     {
-                        furibrosa.nextState = this.currentPrimaryState;
-                        furibrosa.SwitchWeapon();
+                        // Reset layer to normal layer
+                        this.pilotUnit.gameObject.layer = this.previousLayer;
+                        // Re-enable invulnerability flash
+                        this.pilotUnit.GetComponent<InvulnerabilityFlash>().enabled = true;
                     }
+
+                    // Fix special ammo
+                    BroBase bro = pilotUnit as BroBase;
+                    for ( int i = 0; i < bro.player.hud.grenadeIcons.Length; ++i )
+                    {
+                        bro.player.hud.grenadeIcons[i].gameObject.SetActive( false );
+                    }
+                    if ( bro.pockettedSpecialAmmo.Count > 0 )
+                    {
+                        bro.player.hud.SetGrenadeMaterials( bro.pockettedSpecialAmmo[bro.pockettedSpecialAmmo.Count - 1] );
+                        bro.player.hud.SetGrenades( 1 );
+                    }
+                    else
+                    {
+                        bro.player.hud.SetGrenadeMaterials( bro.heroType );
+                        bro.player.hud.SetGrenades( bro.SpecialAmmo );
+                    }
+
+                    this.pilotUnit.GetComponent<Renderer>().enabled = true;
+                    this.pilotUnit.DischargePilotingUnit( base.X, Mathf.Clamp( base.Y + 32f, -6f, 100000f ), this.xI + ( ( !stunPilot ) ? 0f : ( (float)( UnityEngine.Random.Range( 0, 2 ) * 2 - 1 ) * disChargeYI * 0.3f ) ), disChargeYI + 100f + ( ( this.pilotUnit.playerNum >= 0 ) ? 0f : ( disChargeYI * 0.5f ) ), stunPilot );
                 }
 
-                // Remove invulnerability in case we received it while piloting vehicle
-                furibrosa.ClearInvulnerability();
-
-                this.pilotUnit.GetComponent<Renderer>().enabled = true;
-                this.pilotUnit.DischargePilotingUnit(base.X, Mathf.Clamp(base.Y + 32f, -6f, 100000f), this.xI + ((!stunPilot) ? 0f : ((float)(UnityEngine.Random.Range(0, 2) * 2 - 1) * disChargeYI * 0.3f)), disChargeYI + 100f + ((this.pilotUnit.playerNum >= 0) ? 0f : (disChargeYI * 0.5f)), stunPilot);
                 base.StopPlayerBubbles();
                 this.pilotUnit = null;
                 this.pilotted = false;
@@ -3095,8 +3189,6 @@ namespace Furibrosa
                 this.currentPrimaryState = PrimaryState.Crossbow;
                 this.ChangeFrame();
                 this.RunGun();
-
-                furibrosa.ResetSpecialIcons();
             }
         }
 
@@ -3116,7 +3208,7 @@ namespace Furibrosa
             this.chargeTime = 0f;
             this.chargeFramerate = 0.09f;
 
-            if ( this.currentPrimaryState != PrimaryState.Switching )
+            if ( this.pilotIsFuribrosa && this.currentPrimaryState != PrimaryState.Switching )
             {
                 if ( this.currentFuriosaState == FuriosaState.InVehicle || this.currentFuriosaState == FuriosaState.GoingIn )
                 {
@@ -3148,9 +3240,9 @@ namespace Furibrosa
             {
                 return;
             }
-
+            
             // Reset timer whenever we press fire
-            if ( this.fire )
+            if ( this.fire && this.pilotIsFuribrosa )
             {
                 this.hangingOutTimer = 8f;
             }
@@ -3199,6 +3291,12 @@ namespace Furibrosa
 
         protected override void UseFire()
         {
+            // Non-Furibrosa pilots can't fire weapons from the WarRig
+            if (!this.pilotIsFuribrosa)
+            {
+                return;
+            }
+            
             if (this.doingMelee)
             {
                 this.CancelMelee();
@@ -3280,7 +3378,7 @@ namespace Furibrosa
             }
 
             // Switch Weapon Pressed
-            if (this.pilotted && switchWeaponKey.IsDown(playerNum))
+            if (this.pilotted && this.pilotIsFuribrosa && switchWeaponKey.IsDown(playerNum))
             {
                 StartSwitchingWeapon();
             }
@@ -3289,9 +3387,16 @@ namespace Furibrosa
             if ( this.currentFuriosaState == FuriosaState.InVehicle && this.currentPrimaryState != PrimaryState.Switching )
             {
                 this.DeactivateGun();
-                if (this.pilotted)
+                if (this.pilotted )
                 {
-                    this.sprite.SetLowerLeftPixel(2 * this.spritePixelWidth, this.spritePixelHeight);
+                    if ( this.pilotIsFuribrosa )
+                    {
+                        this.sprite.SetLowerLeftPixel( 2 * this.spritePixelWidth, this.spritePixelHeight );
+                    }
+                    else
+                    {
+                        this.sprite.SetLowerLeftPixel( 0, this.spritePixelHeight );
+                    }
                 }
             }
             // Animate leaning out

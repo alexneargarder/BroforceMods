@@ -385,22 +385,19 @@ namespace Furibrosa
         public override void Death( float xI, float yI, DamageObject damage )
         {
             this.ReleaseUnit( false );
-            this.DestroyCurrentWarRig();
             base.Death( xI, yI, damage );
         }
 
         protected override void OnDestroy()
         {
             this.ReleaseUnit( false );
-            this.DestroyCurrentWarRig();
             base.OnDestroy();
         }
 
         public override void RecallBro()
         {
-            // Destroy War Rig and release unit if despawning
+            // Release unit if despawning
             this.ReleaseUnit( false );
-            this.DestroyCurrentWarRig();
 
             base.RecallBro();
         }
@@ -1117,14 +1114,10 @@ namespace Furibrosa
         #endregion
 
         #region Special
-        // Make War Rig blow up
-        protected void DestroyCurrentWarRig()
+        // Clear reference to current War Rig
+        protected void ClearCurrentWarRig()
         {
-            if ( currentWarRig != null )
-            {
-                this.currentWarRig.Death();
-                this.currentWarRig = null;
-            }
+            this.currentWarRig = null;
         }
 
         Vector3 DetermineWarRigSpawn()
@@ -1146,7 +1139,8 @@ namespace Furibrosa
             if ( this.SpecialAmmo > 0 && this.specialGrenade != null )
             {
                 this.SpecialAmmo--;
-                this.DestroyCurrentWarRig();
+                // Only clear reference, don't destroy existing War Rigs
+                this.ClearCurrentWarRig();
                 this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>( warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity );
                 this.currentWarRig.SetTarget( this, base.X + base.transform.localScale.x * 10f, new Vector3( base.transform.localScale.x, this.currentWarRig.transform.localScale.y, this.currentWarRig.transform.localScale.z ), base.transform.localScale.x );
                 this.currentWarRig.gameObject.SetActive( true );
@@ -1190,16 +1184,6 @@ namespace Furibrosa
             this.flareGunNormalMat.SetColor( "_TintColor", Color.gray );
             this.flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
             this.holdingArm.material.SetColor( "_TintColor", Color.gray );
-        }
-
-        public void ResetSpecialIcons()
-        {
-            for ( int i = 0; i < this.player.hud.grenadeIcons.Length; ++i )
-            {
-                this.player.hud.grenadeIcons[i].gameObject.SetActive( false );
-            }
-            this.player.hud.SetGrenades( this.SpecialAmmo );
-            BroMakerUtilities.SetSpecialMaterials( this.playerNum, this.originalSpecialMat, new Vector2( 5f, 0f ), 0f );
         }
         #endregion
     }

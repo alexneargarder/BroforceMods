@@ -1,6 +1,7 @@
 v1.1.0
 Changes for BroMaker update.
 Improved pickup animation.
+Allow other bros to drive war rig.
 
 v1.0.3
 Fixed bug with Furiosa being unable to pilot War Rig in multiplayer in some cases.
