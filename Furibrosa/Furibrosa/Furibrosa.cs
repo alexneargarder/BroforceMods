@@ -63,6 +63,10 @@ namespace Furibrosa
         protected bool throwingMook = false;
         protected float holdingXOffset = 0f;
         protected float holdingYOffset = 0f;
+        protected float targetHoldingXOffset = 0f;
+        protected float targetHoldingYOffset = 0f;
+        protected float interpolationSpeed = 20f;
+        protected bool isInterpolating = false;
 
         // Special
         static protected WarRig warRigPrefab;
@@ -297,6 +301,22 @@ namespace Furibrosa
             {
                 this.ReleaseUnit( false );
             }
+
+            // Smoothly interpolate holding offsets
+            if ( this.grabbedUnit != null && this.isInterpolating )
+            {
+                this.holdingXOffset = Mathf.Lerp( this.holdingXOffset, this.targetHoldingXOffset, Time.deltaTime * this.interpolationSpeed );
+                this.holdingYOffset = Mathf.Lerp( this.holdingYOffset, this.targetHoldingYOffset, Time.deltaTime * this.interpolationSpeed );
+                
+                // Check if we're close enough to stop interpolating
+                if ( Mathf.Abs( this.holdingXOffset - this.targetHoldingXOffset ) < 0.01f && 
+                     Mathf.Abs( this.holdingYOffset - this.targetHoldingYOffset ) < 0.01f )
+                {
+                    this.holdingXOffset = this.targetHoldingXOffset;
+                    this.holdingYOffset = this.targetHoldingYOffset;
+                    this.isInterpolating = false;
+                }
+            }
         }
 
         protected override void LateUpdate()
@@ -401,6 +421,11 @@ namespace Furibrosa
             base.SetGunPosition( xOffset, yOffset );
             if ( this.grabbedUnit != null )
             {
+                if ( !this.isInterpolating )
+                {
+                    this.holdingXOffset = 11f + xOffset;
+                    this.holdingYOffset = 4.5f + yOffset;
+                }
                 this.holdingArm.transform.localPosition = this.gunSprite.transform.localPosition + new Vector3( 0f, 0f, 0.1f );
                 this.holdingArm.transform.localScale = this.gunSprite.transform.localScale;
             }
@@ -821,20 +846,24 @@ namespace Furibrosa
                 switch ( base.frame )
                 {
                     case 3:
-                        this.holdingXOffset = 5f;
-                        this.holdingYOffset = 1f;
+                        this.targetHoldingXOffset = 5f;
+                        this.targetHoldingYOffset = 1f;
+                        this.isInterpolating = true;
                         break;
                     case 4:
-                        this.holdingXOffset = 7f;
-                        this.holdingYOffset = 2f;
+                        this.targetHoldingXOffset = 7f;
+                        this.targetHoldingYOffset = 2f;
+                        this.isInterpolating = true;
                         break;
                     case 5:
-                        this.holdingXOffset = 9f;
-                        this.holdingYOffset = 3f;
+                        this.targetHoldingXOffset = 9f;
+                        this.targetHoldingYOffset = 3f;
+                        this.isInterpolating = true;
                         break;
                     case 6:
-                        this.holdingXOffset = 11f;
-                        this.holdingYOffset = 4.5f;
+                        this.targetHoldingXOffset = 11f;
+                        this.targetHoldingYOffset = 4.5f;
+                        this.isInterpolating = true;
                         break;
                 }
             }
@@ -905,8 +934,9 @@ namespace Furibrosa
 
         protected override void CancelMelee()
         {
-            this.holdingXOffset = 11f;
-            this.holdingYOffset = 4.5f;
+            this.targetHoldingXOffset = 11f;
+            this.targetHoldingYOffset = 4.5f;
+            this.isInterpolating = true;
             if ( this.grabbedUnit != null )
             {
                 this.SwitchToHoldingMaterials();
@@ -964,6 +994,11 @@ namespace Furibrosa
                     unit.playerNum = this.playerNum;
                     this.gunSprite.gameObject.layer = 28;
                     this.doRollOnLand = false;
+                    // Initialize holding offsets to prevent jumping
+                    this.holdingXOffset = 5f;
+                    this.holdingYOffset = 1f;
+                    this.targetHoldingXOffset = 5f;
+                    this.targetHoldingYOffset = 1f;
                     if ( unit is MookJetpack )
                     {
                         MookJetpack mookJetpack = unit as MookJetpack;
@@ -1068,6 +1103,11 @@ namespace Furibrosa
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
+            // Don't allow flexing during melee
+            if ( this.doingMelee )
+            {
+                return;
+            }
             if ( gesture == GestureElement.Gestures.Flex )
             {
                 this.ReleaseUnit( false );
