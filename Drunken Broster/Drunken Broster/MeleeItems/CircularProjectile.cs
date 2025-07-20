@@ -1,5 +1,6 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
 using RocketLib;
 using Rogueforce;
 using System;
@@ -15,6 +16,8 @@ namespace Drunken_Broster.MeleeItems
         protected float damageCooldown = 0f;
         protected RaycastHit raycastHit;
         protected LayerMask groundAndLadderLayer;
+        protected int bounceGroundDamage = 10;
+        protected float hitUnitForce = 1.0f;
 
         protected override void Awake()
         {
@@ -33,6 +36,9 @@ namespace Drunken_Broster.MeleeItems
             this.bounceOffEnemies = true;
             this.weight = 2f;
             this.friendlyFire = false;
+            this.bounceM = 1.0f;
+            this.bounceOffEnemies = false;
+            this.zOffset = 0.5f;
 
             // Allow this grenade to be hit by bullets and other attacks
             ShootableCircularDoodad doodad = this.GetOrAddComponent<ShootableCircularDoodad>();
@@ -83,13 +89,16 @@ namespace Drunken_Broster.MeleeItems
             return base.Update();
         }
 
-        // Override check wall collisions to prevent tire from falling through ladders
+        // Override check wall collisions
         protected override void CheckWallCollisions( ref bool bounceY, ref bool bounceX, ref float yIT, ref float xIT )
         {
-            if ( ConstrainToBlockAndFloor( this, base.X, base.Y, this.size, ref xIT, ref yIT, ref bounceX, ref bounceY, this.groundAndLadderLayer ) )
+            // Use sphere-based collision instead of point-based
+            if ( ConstrainToBlocksWithSphere( this, base.X, base.Y, this.size, ref xIT, ref yIT, ref bounceX, ref bounceY, this.groundAndLadderLayer ) )
             {
                 this.Bounce( bounceX, bounceY );
             }
+            
+            // Parent to moving platforms
             this.parentedCollider = null;
             if ( this.moveWithRestingTransform && Physics.Raycast( base.transform.position + Vector3.up * 2f, Vector3.down, out RaycastHit raycastHit, this.size + 2f, Map.groundLayer ) && raycastHit.distance - 2f <= this.size )
             {
@@ -102,178 +111,95 @@ namespace Drunken_Broster.MeleeItems
                 }
             }
         }
-
-        protected bool ConstrainToBlockAndFloor( MonoBehaviour obj, float x, float y, float size, ref float xIT, ref float yIT, ref bool bounceX, ref bool bounceY, LayerMask floorLayer )
+        
+        private bool ConstrainToBlocksWithSphere( MonoBehaviour obj, float x, float y, float size, ref float xIT, ref float yIT, ref bool bounceX, ref bool bounceY, LayerMask floorLayer )
         {
-            Grenade grenade = obj as Grenade;
-            bool result = false;
+            bool hitSomething = false;
+            
+            // Skip if no movement
             if ( xIT == 0f && yIT == 0f )
             {
                 return false;
             }
-            if ( xIT > 16f || xIT < -16f )
+            
+            // Calculate desired position after movement
+            float newX = x + xIT;
+            float newY = y + yIT;
+            
+            // Check if the new position would overlap with anything
+            Collider[] overlaps = Physics.OverlapSphere( new Vector3( newX, newY, 0f ), size, floorLayer );
+            
+            foreach ( Collider hit in overlaps )
             {
-                float num = Mathf.Sign( xIT ) * ( Mathf.Abs( xIT ) - 16f );
-                float num2 = yIT;
-                if ( ConstrainToBlockAndFloor( obj, x, y, size, ref num, ref num2, ref bounceX, ref bounceY, floorLayer ) )
+                // Handle ladder collisions specially
+                if ( hit.gameObject.layer == LayerMask.NameToLayer( "Ladders" ) )
                 {
-                    xIT = num;
-                    yIT = num2;
-                    return true;
-                }
-            }
-            if ( yIT > 16f || yIT < -16f )
-            {
-                float num3 = Mathf.Sign( yIT ) * ( Mathf.Abs( yIT ) - 16f );
-                float num4 = xIT;
-                if ( ConstrainToBlockAndFloor( obj, x, y, size, ref num4, ref num3, ref bounceX, ref bounceY, floorLayer ) )
-                {
-                    xIT = num4;
-                    yIT = num3;
-                    return true;
-                }
-            }
-            float x2;
-            if ( xIT > 0f )
-            {
-                x2 = x + xIT + size;
-            }
-            else if ( xIT < 0f )
-            {
-                x2 = x + xIT - size;
-            }
-            else
-            {
-                x2 = x;
-            }
-            float y2;
-            if ( yIT > 0f )
-            {
-                y2 = y + yIT + size;
-            }
-            else if ( yIT < 0f )
-            {
-                y2 = y + yIT - size;
-            }
-            else
-            {
-                y2 = y;
-            }
-            int collumn = Map.GetCollumn( x );
-            int row = Map.GetRow( y );
-            int collumn2 = Map.GetCollumn( x2 );
-            int row2 = Map.GetRow( y2 );
-            if ( row2 != row )
-            {
-                // Constrain to floor layer if moving down
-                Collider[] array = Physics.OverlapSphere( new Vector3( (float)( collumn * 16 ), (float)( row2 * 16 ), 0f ), 0.1f, ( yIT < 0 ) ? floorLayer : Map.groundLayer );
-                if ( array.Length > 0 )
-                {
+                    // Ladders only block downward movement
                     if ( yIT < 0f )
                     {
-                        yIT = (float)( row2 * 16 + 8 ) + size - y;
-                    }
-                    else if ( yIT > 0f )
-                    {
-                        yIT = (float)( row2 * 16 - 8 ) - size - y;
-                    }
-                    result = true;
-                    bounceY = true;
-                    if ( grenade != null )
-                    {
-                        foreach ( Collider collider in array )
-                        {
-                            collider.SendMessage( "StepOn", grenade, SendMessageOptions.DontRequireReceiver );
-                        }
-                    }
-                    for ( int j = 0; j < array.Length; j++ )
-                    {
-                        if ( array[j].GetComponent<SawBlade>() != null && grenade != null )
-                        {
-                            grenade.Death();
-                        }
+                        yIT = 0f;
+                        bounceY = true;
+                        hitSomething = true;
                     }
                 }
-            }
-            if ( collumn2 != collumn )
-            {
-                Collider[] array = Physics.OverlapSphere( new Vector3( (float)( collumn2 * 16 ), (float)( row * 16 ), 0f ), 0.1f, Map.groundLayer );
-                if ( array.Length > 0 )
+                else
                 {
-                    if ( xIT < 0f )
+                    // Regular collision - need to figure out which direction to bounce
+                    Bounds bounds = hit.bounds;
+                    
+                    // Calculate how much we're overlapping in each direction
+                    float leftOverlap = (newX + size) - (bounds.min.x);
+                    float rightOverlap = (bounds.max.x) - (newX - size);
+                    float bottomOverlap = (newY + size) - (bounds.min.y);
+                    float topOverlap = (bounds.max.y) - (newY - size);
+                    
+                    // Only process if we're actually overlapping
+                    if ( leftOverlap > 0 && rightOverlap > 0 && bottomOverlap > 0 && topOverlap > 0 )
                     {
-                        xIT = (float)( collumn2 * 16 + 8 ) + size - x;
-                    }
-                    else if ( xIT > 0f )
-                    {
-                        xIT = (float)( collumn2 * 16 - 8 ) - size - x;
-                    }
-                    result = true;
-                    if ( grenade != null )
-                    {
-                        foreach ( Collider collider2 in array )
+                        // Find the smallest overlap to determine bounce direction
+                        float minOverlap = Mathf.Min( Mathf.Min(leftOverlap, rightOverlap), Mathf.Min(bottomOverlap, topOverlap) );
+                        
+                        if ( minOverlap == leftOverlap && xIT > 0 )
                         {
-                            collider2.SendMessage( "StepOn", grenade );
+                            xIT = -leftOverlap;
+                            bounceX = true;
                         }
-                    }
-                    bounceX = true;
-                    for ( int l = 0; l < array.Length; l++ )
-                    {
-                        if ( array[l].GetComponent<SawBlade>() != null && grenade != null )
+                        else if ( minOverlap == rightOverlap && xIT < 0 )
                         {
-                            grenade.Death();
+                            xIT = rightOverlap;
+                            bounceX = true;
                         }
+                        else if ( minOverlap == bottomOverlap && yIT > 0 )
+                        {
+                            yIT = -bottomOverlap;
+                            bounceY = true;
+                        }
+                        else if ( minOverlap == topOverlap && yIT < 0 )
+                        {
+                            yIT = topOverlap;
+                            bounceY = true;
+                        }
+                        
+                        hitSomething = true;
                     }
                 }
             }
-            if ( !bounceX && !bounceY && collumn2 != collumn && row2 != row )
-            {
-                Collider[] array = Physics.OverlapSphere( new Vector3( (float)( collumn2 * 16 ), (float)( row2 * 16 ), 0f ), 0.1f, Map.groundLayer );
-                if ( array.Length > 0 )
-                {
-                    bounceX = true;
-                    bounceY = true;
-                    if ( xIT < 0f )
-                    {
-                        xIT = (float)( collumn2 * 16 + 8 ) + size - x;
-                    }
-                    else if ( xIT > 0f )
-                    {
-                        xIT = (float)( collumn2 * 16 - 8 ) - size - x;
-                    }
-                    if ( yIT < 0f )
-                    {
-                        yIT = (float)( row2 * 16 + 8 ) + size - y;
-                    }
-                    else if ( yIT > 0f )
-                    {
-                        yIT = (float)( row2 * 16 - 8 ) - size - y;
-                    }
-                    if ( grenade != null )
-                    {
-                        foreach ( Collider collider3 in array )
-                        {
-                            collider3.SendMessage( "StepOn", grenade );
-                        }
-                        for ( int n = 0; n < array.Length; n++ )
-                        {
-                            if ( array[n].GetComponent<SawBlade>() != null && grenade != null )
-                            {
-                                grenade.Death();
-                            }
-                        }
-                    }
-                    result = true;
-                }
-            }
-            return result;
+            
+            return hitSomething;
         }
 
         protected virtual void HitUnits()
         {
-            if ( Mathf.Abs( this.xI ) > 80f && Map.HitUnits( this, this.playerNum, this.damage, this.damage, this.damageType, this.size, this.size, this.X, this.Y, this.xI * 2f, Mathf.Abs( this.xI * 2.5f ), true, true, false, this.alreadyHitUnits, false, false ) )
+            if ( Mathf.Abs( this.xI ) > 80f && Map.HitUnits( this, this.playerNum, this.damage, this.damage, this.damageType, this.size, this.size + 4f, this.X, this.Y, this.xI * 2f * this.hitUnitForce, Mathf.Abs( this.xI * 2.5f ) * this.hitUnitForce, true, true, false, this.alreadyHitUnits, false, false ) )
             {
                 this.hitDelay = 0.1f;
+                if ( this.bounceOffEnemies )
+                {
+                    float previousBounceM = this.bounceM;
+                    this.bounceM *= 0.5f;
+                    this.Bounce( true, false );
+                    this.bounceM = previousBounceM;
+                }
             }
         }
 
@@ -318,32 +244,48 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Bounce( bool bounceX, bool bounceY )
         {
+            //BMLogger.Log( "bouncex: " + bounceX + " bounceY: " + bounceY );
             if ( bounceX )
             {
                 // Try to hit ground if moving fast enough
                 // Center
                 if ( Mathf.Abs( this.xI ) > 100f && Physics.Raycast( new Vector3( base.X, base.Y, 0f ), new Vector3( Mathf.Sign( this.xI ), 0f ), out this.raycastHit, this.size + 3f, Map.groundAndDamageableObjects ) && this.raycastHit.distance < this.size + 2f )
                 {
-                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, 10, this.damageType, this.xI, this.yI );
+                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, this.bounceGroundDamage, this.damageType, this.xI, this.yI );
                 }
                 // Down
                 else if ( Mathf.Abs( this.xI ) > 100f && Physics.Raycast( new Vector3( base.X, base.Y + 4f, 0f ), new Vector3( Mathf.Sign( this.xI ), 0f ), out this.raycastHit, this.size + 3f, Map.groundAndDamageableObjects ) && this.raycastHit.distance < this.size + 2f )
                 {
-                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, 10, this.damageType, this.xI, this.yI );
+                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, this.bounceGroundDamage, this.damageType, this.xI, this.yI );
                 }
                 // Up
                 else if ( Mathf.Abs( this.xI ) > 100f && Physics.Raycast( new Vector3( base.X, base.Y - 4f, 0f ), new Vector3( Mathf.Sign( this.xI ), 0f ), out this.raycastHit, this.size + 3f, Map.groundAndDamageableObjects ) && this.raycastHit.distance < this.size + 2f )
                 {
-                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, 10, this.damageType, this.xI, this.yI );
+                    this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, this.bounceGroundDamage, this.damageType, this.xI, this.yI );
                 }
-                this.xI *= -0.8f;
+
+                if ( Mathf.Abs(this.xI) > 50 )
+                {
+                    this.PlayBounceSound(bounceX, bounceY);
+                }
+
+                this.xI *= -0.8f * this.bounceM;
                 this.rI *= -1f;
                 this.alreadyHitUnits.Clear();
             }
             if ( bounceY )
             {
-                this.yI *= -0.6f;
+                if ( Mathf.Abs( this.yI ) > 50 )
+                {
+                    this.PlayBounceSound(bounceX, bounceY);
+                }
+                this.yI *= -0.6f * this.bounceM;
             }
+        }
+
+        protected virtual void PlayBounceSound( bool bounceX, bool bounceY )
+        {
+
         }
 
         protected virtual void ProjectileApplyDamageToBlock( GameObject blockObject, int damage, DamageType type, float forceX, float forceY )
