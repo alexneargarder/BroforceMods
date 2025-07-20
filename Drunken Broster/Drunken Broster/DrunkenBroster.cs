@@ -27,7 +27,13 @@ namespace Drunken_Broster
         public static int currentItem;
         public static KeyBindingForPlayers switchItemKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item" );
         public static KeyBindingForPlayers switchItemBackKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item Back" );
+        public static KeyBindingForPlayers debugKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Debug Key" );
         public static DrunkenBroster currentBroster;
+        [SaveableSetting]
+        public static float currentYOffset = 0f;
+        [SaveableSetting]
+        public static string currentYOffsetString = "0";
+        public float spawnCountdown = 0.25f;
 
         // General
         protected bool acceptedDeath = false;
@@ -96,7 +102,7 @@ namespace Drunken_Broster
         public CustomProjectile crateProjectile;
         public CustomGrenade coconutProjectile;
         public CustomGrenade explosiveBarrelProjectile;
-        public CustomProjectile soccerBallProjectile;
+        public CustomGrenade soccerBallProjectile;
         public CustomProjectile alienEggProjectile;
         public SkullProjectile skullProjectile;
         public MeshRenderer gunSpriteMelee;
@@ -168,34 +174,19 @@ namespace Drunken_Broster
             this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( directoryPath, "meleeSpriteGrabThrowing.png" );
 
             // Setup throwables
-            // Load tire
             tireProjectile = CustomGrenade.CreatePrefab<TireProjectile>();
-
-            // Load acid eggg
             acidEggProjectile = CustomProjectile.CreatePrefab<AcidEggProjectile>();
-
-            // Load beehive
             beehiveProjectile = CustomProjectile.CreatePrefab<BeehiveProjectile>();
-
-            // Load bottle
             bottleProjectile = CustomGrenade.CreatePrefab<BottleProjectile>();
-
-            // Load crate
             crateProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
-
-            // TODO: Load coconut
             coconutProjectile = CustomGrenade.CreatePrefab<CoconutProjectile>();
-
-            // TODO: Load explosive barrel
             explosiveBarrelProjectile = CustomGrenade.CreatePrefab<ExplosiveBarrelProjectile>();
-
-            // TODO: Load soccer ball
-            //soccerBallProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
+            soccerBallProjectile = CustomGrenade.CreatePrefab<SoccerBallProjectile>();
 
             // TODO: Load alien egg
             //alienEggProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
 
-            // TODO: Load skull
+            // Load skull
             skullProjectile = SkullProjectile.CreatePrefab();
 
             // Load sounds
@@ -291,12 +282,44 @@ namespace Drunken_Broster
                 }
             }
 
+            // TODO: remove this
+            if ( DrunkenBroster.debugKey.PressedDown( this.playerNum ) )
+            {
+                this.Debug();
+            }
+
+            // TODO: remove this
+            if ( this.spawnCountdown > 0 )
+            {
+                this.spawnCountdown -= this.t;
+                if ( this.spawnCountdown <= 0 )
+                {
+                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
+                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
+                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
+                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
+                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
+                }
+            }
+
             // Run flame / warning effect if holding explosive barrel
             if ( this.holdingItem && this.heldItem == MeleeItem.ExplosiveBarrel )
             {
                 this.RunBarrelEffects();
             }
         }
+
+        // TODO: remove this
+        public static void makeTextBox( string label, ref string text, ref float val )
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label( label );
+            text = GUILayout.TextField( text );
+            GUILayout.EndHorizontal();
+
+            float.TryParse( text, out val );
+        }
+
 
         // TODO: remove this
         public override void UIOptions()
@@ -327,6 +350,10 @@ namespace Drunken_Broster
             GUILayout.Space( 10 );
             switchItemBackKey.OnGUI( out _, true );
             GUILayout.Space( 10 );
+            debugKey.OnGUI( out _, true );
+            GUILayout.Space( 10 );
+
+            makeTextBox( "offset", ref currentYOffsetString, ref currentYOffset );
 
             //DrunkenBroster.freezeProjectile = GUILayout.Toggle( DrunkenBroster.freezeProjectile, "Freeze projectile" );
             //if ( GUILayout.Button( "Spawn Gibs", GUILayout.Width( 100 ) ) )
@@ -355,8 +382,19 @@ namespace Drunken_Broster
             //}
 
             //currentBroster.coconutProjectile.GenerateMatchingCode( coconut );
+        }
 
-            
+        // TODO: remove this
+        public void Debug()
+        {
+            // Towards corner
+            //this.tireProjectile.SpawnGrenadeLocally( this, 464, 445 + currentYOffset, 0, 0, 350, -350, base.playerNum, 0 );
+            // Above corner
+            //this.tireProjectile.SpawnGrenadeLocally( this, 485 + currentYOffset, 445, 0, 0, 0, -10, base.playerNum, 0 );
+            // Above ladder
+            //this.tireProjectile.SpawnGrenadeLocally( this, 863 + currentYOffset, 440, 0, 0, 0, -10, base.playerNum, 0 );
+            // Above hole
+            this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2394,7 +2432,7 @@ namespace Drunken_Broster
                     explosiveBarrel.explosionCounter = Mathf.Max( 4 - Mathf.Abs( 5 - this.explosionCounter ), 1 );
                     break;
                 case MeleeItem.SoccerBall:
-                    
+                    this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * 350f, 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:
                     
