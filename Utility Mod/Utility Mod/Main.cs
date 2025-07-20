@@ -252,6 +252,11 @@ namespace Utility_Mod
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
             modEntry.OnUpdate = OnUpdate;
+            
+            // Create GameObject for mouse position display
+            GameObject mouseDisplayGO = new GameObject("UtilityMod_MousePositionDisplay");
+            mouseDisplayGO.AddComponent<MousePositionDisplay>();
+            UnityEngine.Object.DontDestroyOnLoad(mouseDisplayGO);
             try
             {
                 settings = Settings.Load<Settings>(modEntry);
@@ -1213,7 +1218,6 @@ namespace Utility_Mod
                         if (currentCharacter != null && GameState.Instance != null)
                         {
                             SaveCustomSpawnForCurrentLevel(currentCharacter.X, currentCharacter.Y);
-                            Log($"Saved spawn position for {GetCurrentLevelKey()}");
                         }
                     }
 
@@ -1368,6 +1372,14 @@ namespace Utility_Mod
                     GUI.Label(lastRect, GUI.tooltip);
                     previousToolTip = GUI.tooltip;
                 }
+
+                GUILayout.Space(10);
+
+                GUILayout.BeginHorizontal();
+
+                settings.showMousePosition = GUILayout.Toggle(settings.showMousePosition, new GUIContent("Show Mouse Position", "Displays the world coordinates of the mouse cursor on screen"));
+
+                GUILayout.EndHorizontal();
 
                 GUILayout.Space(30);
 
