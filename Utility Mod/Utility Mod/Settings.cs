@@ -126,6 +126,7 @@ namespace Utility_Mod
         public bool setZoom = false;
         public bool suppressAnnouncer = false;
         public bool maxCageSpawns = false;
+        public bool showMousePosition = false;
         public bool middleClickToChangeRightClick = true;
         public bool showCursor = false;
         public CurrentObject selectedObject = 0;
