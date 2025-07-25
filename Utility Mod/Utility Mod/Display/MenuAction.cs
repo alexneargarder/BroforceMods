@@ -30,6 +30,7 @@ namespace Utility_Mod
         GoToWaypoint1,
         GoToWaypoint2,
         GoToWaypoint3,
+        GoToFinalCheckpoint,
         
         // Starting Level Actions
         SetCurrentLevel,
@@ -209,6 +210,17 @@ namespace Utility_Mod
                 Type = waypointNumber == 1 ? MenuActionType.GoToWaypoint1 : 
                        waypointNumber == 2 ? MenuActionType.GoToWaypoint2 : 
                        MenuActionType.GoToWaypoint3
+            };
+        }
+        
+        // Constructor for go to final checkpoint action
+        public static MenuAction CreateGoToFinalCheckpoint()
+        {
+            return new MenuAction
+            {
+                Id = "action_goto_final_checkpoint",
+                DisplayName = "Go to Final Checkpoint",
+                Type = MenuActionType.GoToFinalCheckpoint
             };
         }
         
@@ -490,6 +502,10 @@ namespace Utility_Mod
                     Main.GoToWaypoint(2);
                     break;
                     
+                case MenuActionType.GoToFinalCheckpoint:
+                    ExecuteGoToFinalCheckpoint();
+                    break;
+                    
                 // Starting Level Actions
                 case MenuActionType.SetCurrentLevel:
                     ExecuteSetCurrentLevelAsStarting();
@@ -566,6 +582,16 @@ namespace Utility_Mod
                 HeroController.players[0] != null && HeroController.players[0].character != null)
             {
                 Main.TeleportToCoords(position.x, position.y);
+            }
+        }
+        
+        private void ExecuteGoToFinalCheckpoint()
+        {
+            if (HeroController.players != null && HeroController.players.Length > 0 && 
+                HeroController.players[0] != null && HeroController.players[0].character != null)
+            {
+                Vector3 finalCheckpointPos = Main.GetFinalCheckpointPos();
+                Main.TeleportToCoords(finalCheckpointPos.x, finalCheckpointPos.y);
             }
         }
         

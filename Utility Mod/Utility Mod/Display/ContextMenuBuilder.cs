@@ -1052,6 +1052,8 @@ namespace Utility_Mod
                 manager.CloseMenu();
             }));
             
+            AddWaypointMenuItem(parentMenu, MenuAction.CreateGoToFinalCheckpoint());
+            
             parentMenu.AddSeparator();
             
             // Set waypoints
