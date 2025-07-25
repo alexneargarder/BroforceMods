@@ -1034,6 +1034,134 @@ namespace Swap_Bros_Mod
             }
             return HeroType.None;
         }
+
+        /// <summary>
+        /// Ensures the bro list is up to date with the current game state.
+        /// Call this before accessing currentBroList to ensure it contains all available bros.
+        /// </summary>
+        /// <remarks>
+        /// This method updates the bro list based on:
+        /// - IronBro mode unlocked bros
+        /// - BroMaker custom bros
+        /// - Current game settings
+        /// </remarks>
+        public static void EnsureBroListUpdated()
+        {
+            try
+            {
+                if (!enabled)
+                {
+                    return;
+                }
+
+                // Update list based on current game mode
+                if (GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked)
+                {
+                    if (GetHardcoreCount() != currentBroList.Count)
+                    {
+                        CreateBroList();
+                    }
+                }
+                else if (settings.enableBromaker && CustomCountChanged())
+                {
+                    LoadCustomBros();
+                    CreateBroList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Exception in EnsureBroListUpdated: " + ex.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Swaps a specific player to a specific bro by index in the current bro list.
+        /// </summary>
+        /// <param name="playerNum">The player number (0-3)</param>
+        /// <param name="broIndex">The index in currentBroList of the bro to swap to</param>
+        /// <returns>True if the swap was successful, false otherwise</returns>
+        /// <remarks>
+        /// This method will fail if:
+        /// - The mod is disabled
+        /// - Player number is invalid (not 0-3)
+        /// - Bro index is out of range
+        /// - Player is not alive or is in a vehicle
+        /// </remarks>
+        public static bool SwapToSpecificBro(int playerNum, int broIndex)
+        {
+            try
+            {
+                if (!enabled)
+                {
+                    return false;
+                }
+
+                if (playerNum < 0 || playerNum > 3)
+                {
+                    return false;
+                }
+
+                if (broIndex < 0 || broIndex >= currentBroList.Count)
+                {
+                    return false;
+                }
+
+                var player = HeroController.players[playerNum];
+                if (player == null || !player.IsAlive() || player.character == null)
+                {
+                    return false;
+                }
+
+                // Check if player is in a state where they can swap
+                if (player.character.pilottedUnit != null)
+                {
+                    return false;
+                }
+
+                // Get current position and velocity
+                Vector3 position = player.GetCharacterPosition();
+                float xI = (float)Traverse.Create(player.character).Field("xI").GetValue();
+                float yI = (float)Traverse.Create(player.character).Field("yI").GetValue();
+
+                // Set the selected bro index
+                settings.selGridInt[playerNum] = broIndex;
+
+                // Mark manual spawn to prevent the spawn patch from changing our selection
+                manualSpawn = true;
+
+                // Handle custom bro spawning
+                if (settings.enableBromaker && IsBroCustom(broIndex))
+                {
+                    MakeCustomBroSpawn(playerNum, GetSelectedBroName(playerNum));
+                    player.SetSpawnPositon(player._character, Player.SpawnType.TriggerSwapBro, false, position);
+                    player.SpawnHero(HeroType.Rambro);
+                }
+                else
+                {
+                    player.SetSpawnPositon(player._character, Player.SpawnType.TriggerSwapBro, false, position);
+                    if (settings.enableBromaker)
+                    {
+                        DisableCustomBroSpawning(playerNum);
+                    }
+                    player.SpawnHero(GetSelectedBroHeroType(playerNum));
+                    if (settings.enableBromaker)
+                    {
+                        EnableCustomBroSpawning();
+                    }
+                }
+
+                // Restore position, velocity and remove invulnerability
+                player.character.SetPositionAndVelocity(position.x, position.y, xI, yI);
+                player.character.SetInvulnerable(0f, false);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log("Exception in SwapToSpecificBro: " + ex.ToString());
+                return false;
+            }
+        }
     }
 }
 

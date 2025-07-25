@@ -4,47 +4,29 @@ using System.Linq;
 using System.Xml.Serialization;
 using UnityEngine;
 using UnityModManagerNet;
+using RocketLib;
+using RocketLib.Extensions;
 
 namespace Utility_Mod
 {
-    public enum RightClick
+    public enum EnemyPaintMode
     {
-        None = 0,
-        TeleportToCursor = 1,
-        SpawnEnemy = 2,
-        SpawnObject = 3
-    }
-
-    public enum CurrentObject
-    {
-        Dirt = 0,
-        ExplosiveBarrel = 1,
-        RedExplosiveBarrel = 2,
-        PropaneTank = 3,
-        RescueCage = 4,
-        Crate = 5,
-        AmmoCrate = 6,
-        TimeAmmoCrate = 7,
-        RCCarAmmoCrate = 8,
-        AirStrikeAmmoCrate = 9,
-        MechDropAmmoCrate = 10,
-        AlienPheromonesAmmoCrate = 11,
-        SteroidsAmmoCrate = 12,
-        PigAmmoCrate = 13,
-        FlexAmmoCrate = 14,
-        BeeHive = 15,
-        AlienEgg = 16,
-        AlienEggExplosive = 17,
+        TimeBased = 0,
+        DistanceBased = 1
     }
 
     public class Settings : UnityModManager.ModSettings
     {
+        // Version marker - if this is still 0 after loading, we know settings weren't loaded from file
+        public int SettingsVersion = 0;
+        
         // Show / hide each section
         public bool showGeneralOptions = false;
         public bool showLevelOptions = false;
         public bool showCheatOptions = false;
         public bool showTeleportOptions = false;
         public bool showDebugOptions = false;
+        public bool showRightClickOptions = false;
         public bool showKeybindingOptions = false;
 
         // General Options
@@ -79,7 +61,6 @@ namespace Utility_Mod
         public bool enableFlight = false;
 
         // Teleport Options
-        public RightClick currentRightClick = RightClick.TeleportToCursor;
         public bool changeSpawn = false;
         public bool changeSpawnFinal = false;
         public float[] waypointsX = new float[] { 0f, 0f, 0f, 0f, 0f };
@@ -87,52 +68,68 @@ namespace Utility_Mod
         public float SpawnPositionX = 0;
         public float SpawnPositionY = 0;
 
-        [Serializable]
-        public class LevelSpawnPosition
-        {
-            public string levelKey;
-            public float x;
-            public float y;
-        }
-
         [XmlIgnore]
         public Dictionary<string, Vector2> levelSpawnPositions = new Dictionary<string, Vector2>();
 
         [XmlArray("LevelSpawnPositions")]
-        public LevelSpawnPosition[] SerializedSpawnPositions
+        public SerializableKeyValuePair<string, Vector2>[] SerializedSpawnPositions
         {
-            get
-            {
-                return levelSpawnPositions.Select(kvp => new LevelSpawnPosition 
-                { 
-                    levelKey = kvp.Key, 
-                    x = kvp.Value.x, 
-                    y = kvp.Value.y 
-                }).ToArray();
-            }
-            set
-            {
-                levelSpawnPositions = value?.ToDictionary(
-                    lsp => lsp.levelKey, 
-                    lsp => new Vector2(lsp.x, lsp.y)
-                ) ?? new Dictionary<string, Vector2>();
-            }
+            get => levelSpawnPositions.ToSerializableArray();
+            set => levelSpawnPositions = value.ToDictionary();
         }
 
         // DEBUG Options
-        public int selectedEnemy = 0;
         public bool printAudioPlayed = false;
         public float zoomLevel = 1f;
         public bool setZoom = false;
         public bool suppressAnnouncer = false;
         public bool maxCageSpawns = false;
         public bool showMousePosition = false;
-        public bool middleClickToChangeRightClick = true;
         public bool showCursor = false;
-        public CurrentObject selectedObject = 0;
+
+        // Context Menu Settings
+        public bool contextMenuEnabled = false;
+        public float contextMenuHoldDuration = 0.2f;
+        public bool showHoldProgressIndicator = false;
+        public bool enableRecentItems = true;
+        public int maxRecentItems = 5;
+        public float menuBackgroundR = 0.1f;  // Dark gray background
+        public float menuBackgroundG = 0.1f;
+        public float menuBackgroundB = 0.1f;
+        public float menuBackgroundAlpha = 0.9f;  // 90% opaque
+        public float menuTextR = 1.0f;  // White text
+        public float menuTextG = 1.0f;
+        public float menuTextB = 1.0f;
+        public float menuHighlightR = 0.2f;  // Lighter gray for hover
+        public float menuHighlightG = 0.3f;
+        public float menuHighlightB = 0.4f;
+        public float menuHighlightAlpha = 0.9f;
+        public int menuFontSize = 16;  // Default font size
+        public MenuAction selectedQuickAction = null;  // Stores the selected quick action
+        public List<MenuAction> recentlyUsedItems = new List<MenuAction>();  // List of recently used menu items
+        public EnemyPaintMode enemyPaintMode = EnemyPaintMode.TimeBased;
+        public float enemyPaintDelay = 0.5f;  // Time delay between enemy spawns in paint mode
+        public float enemyPaintDistance = 2f;  // Distance threshold in blocks for distance-based enemy painting (1 block = 16 units)
+        public float blockPaintDistance = 1f;  // Distance threshold in blocks for block/doodad painting (1 block = 16 units)
+        public bool enableLevelEditReplay = false;  // Global toggle for automatically replaying level edits
+        public bool isRecordingLevelEdits = false;  // Whether we're currently recording edits
+        
+        [XmlIgnore]
+        public Dictionary<string, LevelEditRecord> levelEditRecords = new Dictionary<string, LevelEditRecord>();
+        
+        [XmlArray("LevelEditRecords")]
+        public SerializableKeyValuePair<string, LevelEditRecord>[] SerializedEditRecords
+        {
+            get => levelEditRecords.ToSerializableArray();
+            set => levelEditRecords = value.ToDictionary();
+        }
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {
+            // Always ensure version is saved as non-zero
+            if (SettingsVersion == 0)
+                SettingsVersion = 1;
+                
             Save(this, modEntry);
         }
 
