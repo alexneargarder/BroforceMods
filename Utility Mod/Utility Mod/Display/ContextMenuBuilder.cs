@@ -670,6 +670,18 @@ namespace Utility_Mod
                 IsChecked = Main.settings.invulnerable,
                 OnToggle = (isChecked) => {
                     Main.settings.invulnerable = isChecked;
+                    // Apply invincibility immediately like the mod UI does
+                    if (Main.currentCharacter != null)
+                    {
+                        if (isChecked)
+                        {
+                            Main.currentCharacter.SetInvulnerable(float.MaxValue, false);
+                        }
+                        else
+                        {
+                            Main.currentCharacter.SetInvulnerable(0, false);
+                        }
+                    }
                 }
             });
             
@@ -681,6 +693,24 @@ namespace Utility_Mod
                 IsChecked = Main.settings.infiniteLives,
                 OnToggle = (isChecked) => {
                     Main.settings.infiniteLives = isChecked;
+                    // Apply infinite lives immediately like the mod UI does
+                    if (Main.currentCharacter != null)
+                    {
+                        if (isChecked)
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                HeroController.SetLives(i, int.MaxValue);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                HeroController.SetLives(i, 1);
+                            }
+                        }
+                    }
                 }
             });
             
