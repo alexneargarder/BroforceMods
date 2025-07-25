@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -10,93 +11,104 @@ namespace Utility_Mod
 {
     public class HarmonyPatches
     {
-        [HarmonyPatch(typeof(WorldMapController), "ProcessNextAction")]
+        // Track if we've already replayed edits for this level
+        static string lastReplayedLevelKey = "";
+        
+        static IEnumerator ReplayLevelEditsDelayed()
+        {
+            // Wait a bit to ensure level is fully loaded
+            yield return new WaitForSeconds(0.5f);
+            
+            // Replay the edits
+            ContextMenuManager.ReplayLevelEdits();
+        }
+        [HarmonyPatch( typeof( WorldMapController ), "ProcessNextAction" )]
         static class WorldMapController_ProcessNextAction_Patch
         {
             public static int nextCampaign = 0;
-            static bool Prefix(WorldMapController __instance)
+            static bool Prefix( WorldMapController __instance )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                     return true;
-                if (!Main.settings.cameraShake)
+                if ( !Main.settings.cameraShake )
                 {
                     PlayerOptions.Instance.cameraShakeAmount = 0f;
                 }
-                if (!Main.settings.enableSkip)
+                if ( !Main.settings.enableSkip )
                 {
                     return true;
                 }
 
-                Traverse actionQueueTraverse = Traverse.Create(__instance);
-                List<WorldMapController.QueuedAction> actionQueue = actionQueueTraverse.Field("actionQueue").GetValue() as List<WorldMapController.QueuedAction>;
+                Traverse actionQueueTraverse = Traverse.Create( __instance );
+                List<WorldMapController.QueuedAction> actionQueue = actionQueueTraverse.Field( "actionQueue" ).GetValue() as List<WorldMapController.QueuedAction>;
 
-                WorldTerritory3D[] territories = Traverse.Create(__instance).Field("territories3D").GetValue() as WorldTerritory3D[];
+                WorldTerritory3D[] territories = Traverse.Create( __instance ).Field( "territories3D" ).GetValue() as WorldTerritory3D[];
 
-                if (actionQueue.Count > 0)
+                if ( actionQueue.Count > 0 )
                 {
                     WorldMapController.QueuedAction queuedAction = actionQueue[0];
-                    switch (queuedAction.actionType)
+                    switch ( queuedAction.actionType )
                     {
                         case WorldMapController.QueuedActions.Helicopter:
-                            WorldCamera.instance.MoveToHelicopter(0f);
+                            WorldCamera.instance.MoveToHelicopter( 0f );
                             break;
                         case WorldMapController.QueuedActions.Terrorist:
                             queuedAction.territory.BecomeEnemyBase();
                             break;
                         case WorldMapController.QueuedActions.Alien:
-                            queuedAction.territory.SetState(TerritoryState.Infested);
+                            queuedAction.territory.SetState( TerritoryState.Infested );
                             break;
                         case WorldMapController.QueuedActions.Burning:
-                            queuedAction.territory.SetState(TerritoryState.TerroristBurning);
+                            queuedAction.territory.SetState( TerritoryState.TerroristBurning );
                             break;
                         case WorldMapController.QueuedActions.Liberated:
-                            queuedAction.territory.SetState(TerritoryState.Liberated);
+                            queuedAction.territory.SetState( TerritoryState.Liberated );
                             break;
                         case WorldMapController.QueuedActions.Hell:
-                            queuedAction.territory.SetState(TerritoryState.Hell);
+                            queuedAction.territory.SetState( TerritoryState.Hell );
                             break;
                         case WorldMapController.QueuedActions.Secret:
                             break;
                     }
-                    actionQueue.RemoveAt(0);
-                    Traverse queueCounter = Traverse.Create(__instance);
-                    if (queuedAction.actionType == WorldMapController.QueuedActions.Hell)
+                    actionQueue.RemoveAt( 0 );
+                    Traverse queueCounter = Traverse.Create( __instance );
+                    if ( queuedAction.actionType == WorldMapController.QueuedActions.Hell )
                     {
                         //queueCounter = 5.2f;
-                        queueCounter.Field("queueCounter").SetValue(0);
+                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
                     }
-                    else if (queuedAction.actionType == WorldMapController.QueuedActions.Liberated)
+                    else if ( queuedAction.actionType == WorldMapController.QueuedActions.Liberated )
                     {
                         //queueCounter = 2f;
-                        queueCounter.Field("queueCounter").SetValue(0);
+                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
                     }
-                    else if (queuedAction.actionType == WorldMapController.QueuedActions.Secret)
+                    else if ( queuedAction.actionType == WorldMapController.QueuedActions.Secret )
                     {
                         //queueCounter = 0f;
-                        queueCounter.Field("queueCounter").SetValue(0);
+                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
                     }
                     else
                     {
                         //queueCounter = 1.6f;
-                        queueCounter.Field("queueCounter").SetValue(0);
+                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
                     }
                 }
-                else if (WorldCamera.instance.CamState != WorldCamera.CameraState.FollowHelicopter && WorldCamera.instance.CamState != WorldCamera.CameraState.MoveToHelicopter)
+                else if ( WorldCamera.instance.CamState != WorldCamera.CameraState.FollowHelicopter && WorldCamera.instance.CamState != WorldCamera.CameraState.MoveToHelicopter )
                 {
-                    WorldCamera.instance.MoveToHelicopter(0f);
+                    WorldCamera.instance.MoveToHelicopter( 0f );
                 }
-                actionQueueTraverse.Field("actionQueue").SetValue(actionQueue);
+                actionQueueTraverse.Field( "actionQueue" ).SetValue( actionQueue );
 
                 nextCampaign = -1;
-                foreach (WorldTerritory3D ter in territories)
+                foreach ( WorldTerritory3D ter in territories )
                 {
-                    if (ter.properties.state == TerritoryState.Liberated)
+                    if ( ter.properties.state == TerritoryState.Liberated )
                     {
-                        for (int i = 0; i < Main.campaignList.Length; ++i)
+                        for ( int i = 0; i < Main.campaignList.Length; ++i )
                         {
-                            if (ter.properties.territoryName == Main.campaignList[i])
+                            if ( ter.properties.territoryName == Main.campaignList[i] )
                             {
-                                if (i > nextCampaign)
+                                if ( i > nextCampaign )
                                 {
                                     nextCampaign = i;
                                 }
@@ -107,16 +119,16 @@ namespace Utility_Mod
                 }
                 ++nextCampaign;
 
-                foreach (WorldTerritory3D ter in territories)
+                foreach ( WorldTerritory3D ter in territories )
                 {
-                    if (ter.properties.state == TerritoryState.TerroristBase || ter.properties.state == TerritoryState.Hell
+                    if ( ter.properties.state == TerritoryState.TerroristBase || ter.properties.state == TerritoryState.Hell
                         || ter.properties.state == TerritoryState.Infested || ter.properties.state == TerritoryState.TerroristBurning
-                        || ter.properties.state == TerritoryState.TerroristAirBase)
+                        || ter.properties.state == TerritoryState.TerroristAirBase )
                     {
-                        if (ter.properties.territoryName == Main.campaignList[nextCampaign] && GameState.Instance.campaignName != ter.GetCampaignName())
+                        if ( ter.properties.territoryName == Main.campaignList[nextCampaign] && GameState.Instance.campaignName != ter.GetCampaignName() )
                         {
-                            WorldMapController.RestTransport(ter);
-                            WorldMapController.EnterMission(ter.GetCampaignName(), ter.properties.loadingText, ter.properties);
+                            WorldMapController.RestTransport( ter );
+                            WorldMapController.EnterMission( ter.GetCampaignName(), ter.properties.loadingText, ter.properties );
                         }
                     }
                 }
@@ -125,38 +137,38 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(WorldMapController), "Update")]
+        [HarmonyPatch( typeof( WorldMapController ), "Update" )]
         public static class WorldMapController_Update_Patch
         {
             public static WorldMapController instance;
-            static void Prefix(WorldMapController __instance)
+            static void Prefix( WorldMapController __instance )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                     return;
 
                 instance = __instance;
             }
         }
 
-        [HarmonyPatch(typeof(GameModeController), "LevelFinish")]
+        [HarmonyPatch( typeof( GameModeController ), "LevelFinish" )]
         static class GameModeController_LevelFinish_Patch
         {
-            static bool Prefix(GameModeController __instance, LevelResult result)
+            static bool Prefix( GameModeController __instance, LevelResult result )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return true;
                 }
 
                 // Check if helicopter should wait for ohter players
-                if (Main.settings.helicopterWait)
+                if ( Main.settings.helicopterWait )
                 {
-                    if (result != LevelResult.Success || (HeroController.GetPlayersOnHelicopterAmount() == 0))
+                    if ( result != LevelResult.Success || ( HeroController.GetPlayersOnHelicopterAmount() == 0 ) )
                     {
                         return true;
                     }
 
-                    if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount())
+                    if ( HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() )
                     {
                         Helicopter_Leave_Patch.attachCalled = false;
                         Main.helicopter.Leave();
@@ -167,58 +179,58 @@ namespace Utility_Mod
                         return false;
                     }
                 }
-                
-                if (Main.settings.loopCurrent && result == LevelResult.Success)
+
+                if ( Main.settings.loopCurrent && result == LevelResult.Success )
                 {
                     bool temp = Main.settings.disableConfirm;
                     Main.settings.disableConfirm = true;
-                    PauseMenu_RestartLevel_Patch.Prefix(null);
+                    PauseMenu_RestartLevel_Patch.Prefix( null );
                     Main.settings.disableConfirm = temp;
                 }
 
                 return true;
             }
 
-            static void Postfix(GameModeController __instance, LevelResult result)
+            static void Postfix( GameModeController __instance, LevelResult result )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return;
                 }
 
-                if (Main.settings.endingSkip && (result == LevelResult.Success) && !((GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4) || (GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 5)))
+                if ( Main.settings.endingSkip && ( result == LevelResult.Success ) && !( ( GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4 ) || ( GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 5 ) ) )
                 {
                     GameModeController.MakeFinishInstant();
                 }
             }
         }
 
-        [HarmonyPatch(typeof(PauseMenu), "ReturnToMenu")]
+        [HarmonyPatch( typeof( PauseMenu ), "ReturnToMenu" )]
         static class PauseMenu_ReturnToMenu_Patch
         {
-            static bool Prefix(PauseMenu __instance)
+            static bool Prefix( PauseMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
 
-                PauseGameConfirmationPopup m_ConfirmationPopup = (Traverse.Create(__instance).Field("m_ConfirmationPopup").GetValue() as PauseGameConfirmationPopup);
+                PauseGameConfirmationPopup m_ConfirmationPopup = ( Traverse.Create( __instance ).Field( "m_ConfirmationPopup" ).GetValue() as PauseGameConfirmationPopup );
 
-                MethodInfo dynMethod = m_ConfirmationPopup.GetType().GetMethod("ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-                dynMethod.Invoke(m_ConfirmationPopup, null);
+                MethodInfo dynMethod = m_ConfirmationPopup.GetType().GetMethod( "ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance );
+                dynMethod.Invoke( m_ConfirmationPopup, null );
 
                 return false;
             }
 
         }
 
-        [HarmonyPatch(typeof(PauseMenu), "ReturnToMap")]
+        [HarmonyPatch( typeof( PauseMenu ), "ReturnToMap" )]
         static class PauseMenu_ReturnToMap_Patch
         {
-            static bool Prefix(PauseMenu __instance)
+            static bool Prefix( PauseMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
@@ -230,38 +242,48 @@ namespace Utility_Mod
 
         }
 
-        [HarmonyPatch(typeof(PauseMenu), "RestartLevel")]
+        [HarmonyPatch( typeof( GameModeController ), "RestartLevel" )]
+        static class GameModeController_RestartLevel_Patch
+        {
+            public static void Prefix()
+            {
+                // Reset level replay tracking when restarting
+                lastReplayedLevelKey = "";
+            }
+        }
+        
+        [HarmonyPatch( typeof( PauseMenu ), "RestartLevel" )]
         static class PauseMenu_RestartLevel_Patch
         {
-            public static bool Prefix(PauseMenu __instance)
+            public static bool Prefix( PauseMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
 
                 Map.ClearSuperCheckpointStatus();
 
-                (Traverse.Create(typeof(TriggerManager)).Field("alreadyTriggeredTriggerOnceTriggers").GetValue() as List<string>).Clear();
+                ( Traverse.Create( typeof( TriggerManager ) ).Field( "alreadyTriggeredTriggerOnceTriggers" ).GetValue() as List<string> ).Clear();
 
-                if (GameModeController.publishRun)
+                if ( GameModeController.publishRun )
                 {
                     GameModeController.publishRun = false;
                     LevelEditorGUI.levelEditorActive = true;
                 }
-                PauseController.SetPause(PauseStatus.UnPaused);
+                PauseController.SetPause( PauseStatus.UnPaused );
                 GameModeController.RestartLevel();
 
                 return false;
             }
         }
 
-        [HarmonyPatch(typeof(MapController), "SpawnMook_Networked")]
+        [HarmonyPatch( typeof( MapController ), "SpawnMook_Networked" )]
         static class MapController_SpawnMook_Networked
         {
             public static bool Prefix()
             {
-                if (!Main.enabled || !Main.settings.disableEnemySpawn)
+                if ( !Main.enabled || !Main.settings.disableEnemySpawn )
                 {
                     return true;
                 }
@@ -270,12 +292,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(MapController), "SpawnMook_Local")]
+        [HarmonyPatch( typeof( MapController ), "SpawnMook_Local" )]
         static class MapController_SpawnMook_Local
         {
             public static bool Prefix()
             {
-                if (!Main.enabled || !Main.settings.disableEnemySpawn)
+                if ( !Main.enabled || !Main.settings.disableEnemySpawn )
                 {
                     return true;
                 }
@@ -284,17 +306,17 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Map), "PlaceDoodad")]
+        [HarmonyPatch( typeof( Map ), "PlaceDoodad" )]
         static class Map_PlaceDoodad
         {
-            public static bool Prefix(Map __instance, ref DoodadInfo doodad, ref GameObject __result)
+            public static bool Prefix( Map __instance, ref DoodadInfo doodad, ref GameObject __result )
             {
-                if (!Main.enabled || !Main.settings.disableEnemySpawn)
+                if ( !Main.enabled || !Main.settings.disableEnemySpawn )
                 {
                     return true;
                 }
 
-                if (doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss)
+                if ( doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss )
                 {
                     return false;
                 }
@@ -303,79 +325,89 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Player), "WorkOutSpawnScenario")]
+        [HarmonyPatch( typeof( Player ), "WorkOutSpawnScenario" )]
         static class Player_WorkOutSpawnScenario_Patch
         {
-            public static void Prefix(Player __instance)
+            public static void Prefix( Player __instance )
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
+                if ( !Main.enabled || ( !( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() ) && !Main.settings.changeSpawnFinal ) )
                 {
                     return;
                 }
 
                 __instance.firstDeployment = false;
             }
-            public static void Postfix(ref Player.SpawnType __result)
+            public static void Postfix( ref Player.SpawnType __result )
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
+                if ( !Main.enabled || ( !( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() ) && !Main.settings.changeSpawnFinal ) )
                 {
                     return;
                 }
 
-                if (__result != Player.SpawnType.RespawnAtRescueBro)
+                if ( __result != Player.SpawnType.RespawnAtRescueBro )
                 {
                     __result = Player.SpawnType.Unknown;
                 }
             }
         }
 
-        [HarmonyPatch(typeof(Player), "SetSpawnPositon")]
+        [HarmonyPatch( typeof( Player ), "SetSpawnPositon" )]
         static class Player_SetSpawnPositon_Patch
         {
-            public static void Prefix(Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos)
+            public static void Prefix( Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos )
             {
-                if (!Main.enabled || (!Main.settings.changeSpawn && !Main.settings.changeSpawnFinal && !Main.HasCustomSpawnForCurrentLevel()))
+                // Check if we need to replay level edits
+                if (Main.enabled && Main.settings.enableLevelEditReplay)
+                {
+                    string currentLevelKey = Main.GetCurrentLevelKey();
+                    if (lastReplayedLevelKey != currentLevelKey)
+                    {
+                        lastReplayedLevelKey = currentLevelKey;
+                        // Trigger replay with a small delay
+                        if (ContextMenuManager.Instance != null)
+                        {
+                            ContextMenuManager.Instance.StartCoroutine(ReplayLevelEditsDelayed());
+                        }
+                    }
+                }
+                
+                if ( !Main.enabled || ( !( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() ) && !Main.settings.changeSpawnFinal ) )
                 {
                     return;
                 }
 
-                if (spawnType != Player.SpawnType.RespawnAtRescueBro)
+                if ( spawnType != Player.SpawnType.RespawnAtRescueBro )
                 {
                     spawnType = Player.SpawnType.CustomSpawnPoint;
                     spawnViaAirDrop = false;
-                    
-                    if (Main.HasCustomSpawnForCurrentLevel())
+
+                    if ( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() )
                     {
                         Vector2 customSpawn = Main.GetCustomSpawnForCurrentLevel();
                         pos.x = customSpawn.x;
                         pos.y = customSpawn.y;
                     }
-                    else if (Main.settings.changeSpawnFinal)
+                    else if ( Main.settings.changeSpawnFinal )
                     {
                         pos = Main.GetFinalCheckpointPos();
-                    }
-                    else if (Main.settings.changeSpawn)
-                    {
-                        pos.x = Main.settings.SpawnPositionX;
-                        pos.y = Main.settings.SpawnPositionY;
                     }
                 }
             }
         }
 
-        [HarmonyPatch(typeof(MainMenu), "Start")]
+        [HarmonyPatch( typeof( MainMenu ), "Start" )]
         static class MainMenu_Start_Patch
         {
-            public static void Prefix(MainMenu __instance)
+            public static void Prefix( MainMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.quickMainMenu)
+                if ( !Main.enabled || !Main.settings.quickMainMenu )
                 {
                     return;
                 }
 
                 Main.skipNextMenu = false;
 
-                Traverse.Create(__instance).Method("InitializeMenu").GetValue();
+                Traverse.Create( __instance ).Method( "InitializeMenu" ).GetValue();
 
                 Main.skipNextMenu = true;
             }
@@ -394,24 +426,24 @@ namespace Utility_Mod
                     {
                         PlayerOptions.Instance.cameraShakeAmount = 0f;
                     }
-                    Main.GoToLevel();
+                    Main.GoToLevel(Main.campaignNum.indexNumber, Main.levelNum.indexNumber);
                 }
 
                 Main.loadedLevel = true;
             }
         }
 
-        [HarmonyPatch(typeof(MainMenu), "InitializeMenu")]
+        [HarmonyPatch( typeof( MainMenu ), "InitializeMenu" )]
         static class MainMenu_InitializeMenu_Patch
         {
-            public static bool Prefix(MainMenu __instance)
+            public static bool Prefix( MainMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.quickMainMenu)
+                if ( !Main.enabled || !Main.settings.quickMainMenu )
                 {
                     return true;
                 }
 
-                if (Main.skipNextMenu)
+                if ( Main.skipNextMenu )
                 {
                     Main.skipNextMenu = false;
                     return false;
@@ -421,19 +453,19 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(TestVanDammeAnim), "SetSpecialAmmoRPC")]
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "SetSpecialAmmoRPC" )]
         static class TestVanDammeAnim_SetSpecialAmmoRPC_Patch
         {
-            public static void Prefix(TestVanDammeAnim __instance, ref int ammo)
+            public static void Prefix( TestVanDammeAnim __instance, ref int ammo )
             {
-                if (!Main.enabled || !Main.settings.infiniteSpecials)
+                if ( !Main.enabled || !Main.settings.infiniteSpecials )
                 {
                     return;
                 }
 
-                if (ammo == 0)
+                if ( ammo == 0 )
                 {
-                    if (__instance.originalSpecialAmmo > 0)
+                    if ( __instance.originalSpecialAmmo > 0 )
                     {
                         ammo = __instance.originalSpecialAmmo;
                     }
@@ -445,12 +477,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(TestVanDammeAnim), "SetInvulnerable")]
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "SetInvulnerable" )]
         static class TestVanDammeAnim_SetInvulnerable_Patch
         {
-            public static void Prefix(ref float time)
+            public static void Prefix( ref float time )
             {
-                if (!Main.enabled || !Main.settings.invulnerable)
+                if ( !Main.enabled || !Main.settings.invulnerable )
                 {
                     return;
                 }
@@ -459,12 +491,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(NetworkedUnit), "Awake")]
+        [HarmonyPatch( typeof( NetworkedUnit ), "Awake" )]
         static class NetworkedUnit_Awake_Patch
         {
-            public static void Postfix(NetworkedUnit __instance)
+            public static void Postfix( NetworkedUnit __instance )
             {
-                if (!Main.enabled || !Main.settings.oneHitEnemies)
+                if ( !Main.enabled || !Main.settings.oneHitEnemies )
                 {
                     return;
                 }
@@ -474,12 +506,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Player), "SpawnHero")]
+        [HarmonyPatch( typeof( Player ), "SpawnHero" )]
         static class Player_InstantiateHero_Patch
         {
             public static void Postfix()
             {
-                if (!Main.enabled || !Main.settings.slowTime)
+                if ( !Main.enabled || !Main.settings.slowTime )
                 {
                     return;
                 }
@@ -488,12 +520,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Player), "SetLivesRPC")]
+        [HarmonyPatch( typeof( Player ), "SetLivesRPC" )]
         static class Player_SetLivesRPC_Patch
         {
-            public static void Prefix(ref int _lives)
+            public static void Prefix( ref int _lives )
             {
-                if (!Main.enabled || !Main.settings.infiniteLives)
+                if ( !Main.enabled || !Main.settings.infiniteLives )
                 {
                     return;
                 }
@@ -502,17 +534,17 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(TestVanDammeAnim), "ApplyFallingGravity")]
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "ApplyFallingGravity" )]
         static class TestVanDammeAnim_ApplyFallingGravity_Patch
         {
-            public static bool Prefix(TestVanDammeAnim __instance)
+            public static bool Prefix( TestVanDammeAnim __instance )
             {
-                if (!Main.enabled || !(Main.settings.disableGravity || Main.settings.enableFlight))
+                if ( !Main.enabled || !( Main.settings.disableGravity || Main.settings.enableFlight ) )
                 {
                     return true;
                 }
 
-                if (__instance.yI <= 0 && !__instance.down)
+                if ( __instance.yI <= 0 && !__instance.down )
                 {
                     __instance.yI = 0;
                     return false;
@@ -521,26 +553,26 @@ namespace Utility_Mod
                 return true;
             }
         }
-        [HarmonyPatch(typeof(Sound), "PlayAudioClip")]
+        [HarmonyPatch( typeof( Sound ), "PlayAudioClip" )]
         static class Sound_PlayAudioClip_Patch
         {
-            public static void Prefix(ref AudioClip clip)
+            public static void Prefix( ref AudioClip clip )
             {
-                if (!Main.enabled || !Main.settings.printAudioPlayed)
+                if ( !Main.enabled || !Main.settings.printAudioPlayed )
                 {
                     return;
                 }
 
-                Main.Log("Audio clip played: " + clip.name);
+                Main.Log( "Audio clip played: " + clip.name );
             }
         }
 
-        [HarmonyPatch(typeof(GameModeController), "ResetForNextLevel")]
+        [HarmonyPatch( typeof( GameModeController ), "ResetForNextLevel" )]
         static class GameModeController_ResetForNextLevel_Patch
         {
             public static void Prefix()
             {
-                if (!Main.enabled || !Main.settings.setZoom)
+                if ( !Main.enabled || !Main.settings.setZoom )
                 {
                     return;
                 }
@@ -550,12 +582,12 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(HeroController), "DoCountDown")]
+        [HarmonyPatch( typeof( HeroController ), "DoCountDown" )]
         static class HeroController_DoCountDown_Patch
         {
             public static void Prefix()
             {
-                if (!Main.enabled || !Main.settings.suppressAnnouncer)
+                if ( !Main.enabled || !Main.settings.suppressAnnouncer )
                 {
                     return;
                 }
@@ -564,43 +596,43 @@ namespace Utility_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Map), "PlaceDoodad")]
+        [HarmonyPatch( typeof( Map ), "PlaceDoodad" )]
         static class Map_PlaceDoodad_Patch
         {
-            public static bool Prefix(Map __instance, ref DoodadInfo doodad, GameObject __result)
+            public static bool Prefix( Map __instance, ref DoodadInfo doodad, GameObject __result )
             {
-                if (!Main.enabled || !Main.settings.maxCageSpawns)
+                if ( !Main.enabled || !Main.settings.maxCageSpawns )
                 {
                     return true;
                 }
 
-                if (doodad.type == DoodadType.Cage)
+                if ( doodad.type == DoodadType.Cage )
                 {
-                    GridPoint gridPoint = new GridPoint(doodad.position.collumn, doodad.position.row);
+                    GridPoint gridPoint = new GridPoint( doodad.position.collumn, doodad.position.row );
                     gridPoint.collumn -= Map.lastXLoadOffset;
                     gridPoint.row -= Map.lastYLoadOffset;
 
-                    Vector3 vector = new Vector3((float)(gridPoint.c * 16), (float)(gridPoint.r * 16), 5f);
+                    Vector3 vector = new Vector3( (float)( gridPoint.c * 16 ), (float)( gridPoint.r * 16 ), 5f );
 
-                    if (GameModeController.IsHardcoreMode)
+                    if ( GameModeController.IsHardcoreMode )
                     {
                         Map.havePlacedCageForHardcore = true;
                         Map.cagesSinceLastHardcoreCage = 0;
                     }
 
-                    __result = (UnityEngine.Object.Instantiate<Block>(__instance.activeTheme.blockPrefabCage, vector, Quaternion.identity) as Cage).gameObject;
+                    __result = ( UnityEngine.Object.Instantiate<Block>( __instance.activeTheme.blockPrefabCage, vector, Quaternion.identity ) as Cage ).gameObject;
                     __result.GetComponent<Cage>().row = gridPoint.row;
                     __result.GetComponent<Cage>().collumn = gridPoint.collumn;
 
                     doodad.entity = __result;
                     __result.transform.parent = __instance.transform;
                     Block component = __result.GetComponent<Block>();
-                    if (component != null)
+                    if ( component != null )
                     {
                         component.OnSpawned();
                     }
-                    Registry.RegisterDeterminsiticGameObject(__result.gameObject);
-                    if (component != null)
+                    Registry.RegisterDeterminsiticGameObject( __result.gameObject );
+                    if ( component != null )
                     {
                         component.FirstFrame();
                     }
@@ -613,28 +645,28 @@ namespace Utility_Mod
         }
 
         // Make helicopter wait for players
-        [HarmonyPatch(typeof(TestVanDammeAnim), "AttachToHelicopter")]
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "AttachToHelicopter" )]
         static class TestVanDammeAnim_AttachToHelicopter_Patch
         {
-            static void Prefix(TestVanDammeAnim __instance)
+            static void Prefix( TestVanDammeAnim __instance )
             {
                 Helicopter_Leave_Patch.attachCalled = true;
             }
         }
 
         // Make helicopter wait for players
-        [HarmonyPatch(typeof(Helicopter), "Leave")]
+        [HarmonyPatch( typeof( Helicopter ), "Leave" )]
         static class Helicopter_Leave_Patch
         {
             public static bool attachCalled = false;
-            static bool Prefix(Helicopter __instance)
+            static bool Prefix( Helicopter __instance )
             {
-                if (!Main.enabled || !Main.settings.helicopterWait)
+                if ( !Main.enabled || !Main.settings.helicopterWait )
                 {
                     return true;
                 }
 
-                if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() || (HeroController.GetPlayersOnHelicopterAmount() == 0 && !attachCalled))
+                if ( HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() || ( HeroController.GetPlayersOnHelicopterAmount() == 0 && !attachCalled ) )
                 {
                     return true;
                 }
@@ -647,17 +679,17 @@ namespace Utility_Mod
         }
 
         // Make helicopter wait for players
-        [HarmonyPatch(typeof(Map), "StartLevelEndExplosions")]
+        [HarmonyPatch( typeof( Map ), "StartLevelEndExplosions" )]
         static class Map_StartLevelEndExplosions_Patch
         {
-            static bool Prefix(Map __instance)
+            static bool Prefix( Map __instance )
             {
-                if (!Main.enabled || !Main.settings.helicopterWait)
+                if ( !Main.enabled || !Main.settings.helicopterWait )
                 {
                     return true;
                 }
-                    
-                if (HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount())
+
+                if ( HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() )
                 {
                     return true;
                 }
@@ -669,45 +701,45 @@ namespace Utility_Mod
         }
 
         // Make helicopter wait for players
-        [HarmonyPatch(typeof(Player), "RemoveLife")]
+        [HarmonyPatch( typeof( Player ), "RemoveLife" )]
         static class Player_RemoveLife_Patch
         {
-            static void Postfix(Player __instance)
+            static void Postfix( Player __instance )
             {
-                if (!Main.enabled || !Main.settings.helicopterWait)
+                if ( !Main.enabled || !Main.settings.helicopterWait )
                     return;
 
-                if (GameModeController.IsHardcoreMode && (((HeroController.GetPlayersOnHelicopterAmount() == (HeroController.GetPlayersAliveCount()) && HeroController.GetPlayersOnHelicopterAmount() > 0)) || (HeroController.GetTotalLives() == 0)))
+                if ( GameModeController.IsHardcoreMode && ( ( ( HeroController.GetPlayersOnHelicopterAmount() == ( HeroController.GetPlayersAliveCount() ) && HeroController.GetPlayersOnHelicopterAmount() > 0 ) ) || ( HeroController.GetTotalLives() == 0 ) ) )
                 {
-                    GameModeController.LevelFinish(LevelResult.ForcedFail);
+                    GameModeController.LevelFinish( LevelResult.ForcedFail );
                 }
-                if (!GameModeController.IsHardcoreMode && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() && HeroController.GetPlayersOnHelicopterAmount() > 0)
+                if ( !GameModeController.IsHardcoreMode && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() && HeroController.GetPlayersOnHelicopterAmount() > 0 )
                 {
-                    GameModeController.LevelFinish(LevelResult.Success);
+                    GameModeController.LevelFinish( LevelResult.Success );
                 }
 
             }
         }
 
-        [HarmonyPatch(typeof(CutsceneController), "LoadCutScene")]
+        [HarmonyPatch( typeof( CutsceneController ), "LoadCutScene" )]
         static class CutsceneController_LoadCutScene_Patch
         {
-            public static bool Prefix(CutsceneController __instance, ref CutsceneName name)
+            public static bool Prefix( CutsceneController __instance, ref CutsceneName name )
             {
                 if ( !Main.enabled )
                 {
                     return true;
                 }
 
-                if ( Main.settings.skipBreakingCutscenes && (name == CutsceneName.FlexAir || name == CutsceneName.FlexGolden || name == CutsceneName.FlexInvincible || name == CutsceneName.FlexTeleport ) )
+                if ( Main.settings.skipBreakingCutscenes && ( name == CutsceneName.FlexAir || name == CutsceneName.FlexGolden || name == CutsceneName.FlexInvincible || name == CutsceneName.FlexTeleport ) )
                 {
                     return false;
                 }
-                else if ( Main.settings.skipBreakingCutscenes && (name == CutsceneName.AmmoAirstrike || name == CutsceneName.AmmoMechDrop || name == CutsceneName.AmmoPheromones || name == CutsceneName.AmmoRCCar || name == CutsceneName.AmmoStandard || name == CutsceneName.AmmoSteroids || name == CutsceneName.AmmoTimeSlow) )
+                else if ( Main.settings.skipBreakingCutscenes && ( name == CutsceneName.AmmoAirstrike || name == CutsceneName.AmmoMechDrop || name == CutsceneName.AmmoPheromones || name == CutsceneName.AmmoRCCar || name == CutsceneName.AmmoStandard || name == CutsceneName.AmmoSteroids || name == CutsceneName.AmmoTimeSlow ) )
                 {
-                    string sceneToLoad = GameModeController.FinishCampaignFromCutscene(true);
+                    string sceneToLoad = GameModeController.FinishCampaignFromCutscene( true );
                     GameState.Instance.sceneToLoad = sceneToLoad;
-                    GameModeController.LoadNextScene(GameState.Instance);
+                    GameModeController.LoadNextScene( GameState.Instance );
                     return false;
                 }
                 else if ( Main.settings.skipAllCutscenes )

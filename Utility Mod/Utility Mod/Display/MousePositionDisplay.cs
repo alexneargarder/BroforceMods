@@ -6,7 +6,13 @@ namespace Utility_Mod
 {
     public class MousePositionDisplay : MonoBehaviour
     {
+        #region Fields
+
         private GUIStyle mousePositionStyle;
+
+        #endregion
+
+        #region Unity Lifecycle
         
         void OnGUI()
         {
@@ -66,5 +72,7 @@ namespace Utility_Mod
             // Draw using styled box
             GUI.Box(new Rect(x, y, width, height), displayText, mousePositionStyle);
         }
+
+        #endregion
     }
 }

@@ -252,96 +252,39 @@ namespace Swap_Bros_Mod
 
                 if ((((leftPressed || rightPressed) && Main.cooldown == 0f && __instance.IsAlive()) || (Main.settings.clickingEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
                 {
-                    float X, Y, XI, YI;
-                    Vector3 vec = __instance.GetCharacterPosition();
-                    X = vec.x;
-                    Y = vec.y;
-                    XI = (float)Traverse.Create(__instance.character).Field("xI").GetValue();
-                    YI = (float)Traverse.Create(__instance.character).Field("yI").GetValue();
-                    Main.manualSpawn = true;
-
+                    // If clicking is enabled and player clicked a bro
                     if (Main.settings.clickingEnabled && Main.switched[curPlayer])
                     {
-                        if (Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
-                        {
-                            Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
-
-                            __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                            __instance.SpawnHero(HeroType.Rambro);
-
-                            __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                            __instance.character.SetInvulnerable(0f, false);
-                        }
-                        else
-                        {
-                            __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                            if (Main.settings.enableBromaker)
-                                Main.DisableCustomBroSpawning(curPlayer);
-                            __instance.SpawnHero(Main.GetSelectedBroHeroType(curPlayer));
-                            if (Main.settings.enableBromaker)
-                                Main.EnableCustomBroSpawning();
-
-                            __instance.character.SetPositionAndVelocity(X, Y, XI, YI);
-                            __instance.character.SetInvulnerable(0f, false);
-                        }
+                        Main.SwapToSpecificBro(curPlayer, Main.settings.selGridInt[curPlayer]);
                         Main.switched[curPlayer] = false;
                         return;
                     }
 
                     // If our list of IronBro characters is out of date, update it
-                    if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked && Main.currentBroList.Count() != Main.GetHardcoreCount())
-                    {
-                        Main.CreateBroList();
-                    }
+                    Main.EnsureBroListUpdated();
 
+                    int targetIndex = Main.settings.selGridInt[curPlayer];
+                    
                     if (leftPressed)
                     {
-                        --Main.settings.selGridInt[curPlayer];
-                        if (Main.settings.selGridInt[curPlayer] < 0)
+                        targetIndex--;
+                        if (targetIndex < 0)
                         {
-                            Main.settings.selGridInt[curPlayer] = Main.maxBroNum;
+                            targetIndex = Main.maxBroNum;
                         }
                     }
                     else if (rightPressed)
                     {
-                        ++Main.settings.selGridInt[curPlayer];
-                        if (Main.settings.selGridInt[curPlayer] > Main.maxBroNum)
+                        targetIndex++;
+                        if (targetIndex > Main.maxBroNum)
                         {
-                            Main.settings.selGridInt[curPlayer] = 0;
+                            targetIndex = 0;
                         }
                     }
 
-                    // If character spawning is custom 
-                    if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
+                    if (Main.SwapToSpecificBro(curPlayer, targetIndex))
                     {
-                        Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
-
-                        __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                        __instance.SpawnHero(HeroType.Rambro);
-
-                        __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                        __instance.character.SetInvulnerable(0f, false);
-
                         Main.cooldown = Main.settings.swapCoolDown;
-                    }
-                    else
-                    {
-                        __instance.SetSpawnPositon(__instance._character, Player.SpawnType.TriggerSwapBro, false, __instance.GetCharacterPosition());
-                        if (Main.settings.enableBromaker)
-                        {
-                            Main.DisableCustomBroSpawning(curPlayer);
-                        }
-
-                        __instance.SpawnHero(Main.GetSelectedBroHeroType(curPlayer));
-
-                        if (Main.settings.enableBromaker)
-                            Main.EnableCustomBroSpawning();
-
-                        __instance._character.SetPositionAndVelocity(X, Y, XI, YI);
-                        __instance.character.SetInvulnerable(0f, false);
-
-                        Main.cooldown = Main.settings.swapCoolDown;
-
                     }
                 }
                 return;

@@ -369,6 +369,7 @@ Releases/Alex's Bros/Mission Impossibro
 Releases/Alex's Bros/Brocready
 Releases/**/*.dll
 CLAUDE.md
+.claude/
 settings.local.json
 *settings.json
 Settings.xml

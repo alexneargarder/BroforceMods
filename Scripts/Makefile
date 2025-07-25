@@ -58,10 +58,8 @@ post-build:
 	@rm -f "$(DEST_DIR)"/*.cache 2>/dev/null || true
 	@echo "Copying $(PROJECT_NAME).dll to $(DEST_DIR)..."
 	@cp -f "$(TARGET_DLL)" "$(DEST_DIR)/"
-	@if [ "$(PROJECT_TYPE)" = "bro" ]; then \
-		echo "Launching Broforce via Steam..."; \
-		cmd.exe /c start steam://rungameid/274190; \
-	fi
+	@echo "Launching Broforce via Steam..."
+	@cmd.exe /c start steam://rungameid/274190
 	@echo "Build complete!"
 
 # Clean build

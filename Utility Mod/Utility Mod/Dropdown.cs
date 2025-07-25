@@ -9,6 +9,8 @@ namespace Utility_Mod
 {
     public class Dropdown
     {
+        #region Fields and Properties
+
         private Vector2 scrollViewVector;
         public Rect dropDownRect;
         public string[] list;
@@ -16,6 +18,11 @@ namespace Utility_Mod
 
         public int indexNumber;
         public bool show;
+
+        #endregion
+
+        #region Constructor
+
         public Dropdown(float x, float y, float width, float height, string[] options, int setIndexNumber, bool setShow = false)
         {
             dropDownRect = new Rect(x, y, width, height);
@@ -25,6 +32,10 @@ namespace Utility_Mod
             scrollViewVector = Vector2.zero;
             show = setShow;
         }
+
+        #endregion
+
+        #region GUI Rendering
 
         public void OnGUI(UnityModManager.ModEntry modEntry)
         {
@@ -70,5 +81,7 @@ namespace Utility_Mod
                 GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), new GUIContent( list[indexNumber], this.ToolTip ) );
             }
         }
+
+        #endregion
     }
 }

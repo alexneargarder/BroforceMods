@@ -14,3 +14,4 @@ set "OutDir=%~9"
 
 del "%BROFORCEPATH%\mods\%ProjectName%\*.cache"
 XCOPY /Y /R "%TargetPath%" "%BROFORCEPATH%\mods\%ProjectName%\%ProjectName%.dll*"
+start steam://rungameid/274190
