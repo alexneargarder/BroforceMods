@@ -288,20 +288,6 @@ namespace Drunken_Broster
                 this.Debug();
             }
 
-            // TODO: remove this
-            if ( this.spawnCountdown > 0 )
-            {
-                this.spawnCountdown -= this.t;
-                if ( this.spawnCountdown <= 0 )
-                {
-                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
-                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
-                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
-                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
-                    ProjectileController.SpawnProjectileLocally( HeroController.GetHeroPrefab( HeroType.Rambro ).projectile, this, 841, 390, 0, -300, 0 );
-                }
-            }
-
             // Run flame / warning effect if holding explosive barrel
             if ( this.holdingItem && this.heldItem == MeleeItem.ExplosiveBarrel )
             {
@@ -394,7 +380,7 @@ namespace Drunken_Broster
             // Above ladder
             //this.tireProjectile.SpawnGrenadeLocally( this, 863 + currentYOffset, 440, 0, 0, 0, -10, base.playerNum, 0 );
             // Above hole
-            this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
+            //this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
         }
 
         public override void HarmonyPatches( Harmony harmony )
