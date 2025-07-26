@@ -10,7 +10,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
-using static RocketLib.Utils.TestVanDammeAnimTypes;
+using static RocketLib.Utils.UnitTypes;
 using BSett = BroMakerLib.Settings;
 
 namespace Control_Enemies_Mod
@@ -38,7 +38,7 @@ namespace Control_Enemies_Mod
         public static float displayWarningTime = 0f;
         public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
         public static string[] spawnBehaviorList = new string[] { "Spawn As Ghost", "Automatically Spawn as Enemies" };
-        public static string[] fullUnitList = TestVanDammeAnimTypes.allUnitNames;
+        public static string[] fullUnitList = UnitTypes.AllUnitNames;
         public static bool[] filteredUnitList;
         public static string[] currentUnitList;
         public static string[] previousSelection = { "", "", "", "" };
@@ -2126,7 +2126,7 @@ namespace Control_Enemies_Mod
 
         public static GameObject SpawnUnit(UnitType type, Vector3 vector)
         {
-            GameObject __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(type.GetUnitPrefab(), vector, Quaternion.identity).gameObject;
+            GameObject __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>(type.GetTestVanDammeAnimPrefab(), vector, Quaternion.identity).gameObject;
 
             if (__result != null)
             {
