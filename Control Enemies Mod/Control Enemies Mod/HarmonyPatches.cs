@@ -5,7 +5,8 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using Net = Networking.Networking;
-using static RocketLib.Utils.TestVanDammeAnimTypes;
+using RocketLib.Utils;
+using static RocketLib.Utils.UnitTypes;
 using System.Runtime.CompilerServices;
 
 namespace Control_Enemies_Mod
@@ -908,26 +909,6 @@ namespace Control_Enemies_Mod
         static class MookArmouredGuy_FallDamage_Patch
         {
             public static bool Prefix(MookArmouredGuy __instance, ref float yI)
-            {
-                if (!Main.enabled || !Main.settings.disableFallDamage)
-                {
-                    return true;
-                }
-
-                if (__instance.name == "c")
-                {
-                    return false;
-                }
-
-                return true;
-            }
-        }
-
-        // Disable fall damage for MookBigGuyElite
-        [HarmonyPatch(typeof(MookBigGuyElite), "FallDamage")]
-        static class MookBigGuyElite_FallDamage_Patch
-        {
-            public static bool Prefix(MookBigGuyElite __instance, ref float yI)
             {
                 if (!Main.enabled || !Main.settings.disableFallDamage)
                 {
