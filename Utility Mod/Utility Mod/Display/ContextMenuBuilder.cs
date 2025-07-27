@@ -1357,6 +1357,78 @@ namespace Utility_Mod
                             }
                         }
                     }
+                    
+                    // Add Flex Powers submenu
+                    MenuItem flexPowersMenu = new MenuItem("Flex Powers");
+                    
+                    // Air Jump
+                    var airJumpAction = MenuAction.CreateGiveFlexAirJump(unit);
+                    var airJumpItem = new MenuItem("Give Air Jump", () => {
+                        manager.ExecuteAction(airJumpAction);
+                    })
+                    {
+                        ActionId = airJumpAction.Id,
+                        MenuAction = airJumpAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && airJumpAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    flexPowersMenu.AddSubItem(airJumpItem);
+                    
+                    // Invulnerability
+                    var invulnerabilityAction = MenuAction.CreateGiveFlexInvulnerability(unit);
+                    var invulnerabilityItem = new MenuItem("Give Invulnerability", () => {
+                        manager.ExecuteAction(invulnerabilityAction);
+                    })
+                    {
+                        ActionId = invulnerabilityAction.Id,
+                        MenuAction = invulnerabilityAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && invulnerabilityAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    flexPowersMenu.AddSubItem(invulnerabilityItem);
+                    
+                    // Golden Light
+                    var goldenLightAction = MenuAction.CreateGiveFlexGoldenLight(unit);
+                    var goldenLightItem = new MenuItem("Give Golden Light", () => {
+                        manager.ExecuteAction(goldenLightAction);
+                    })
+                    {
+                        ActionId = goldenLightAction.Id,
+                        MenuAction = goldenLightAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && goldenLightAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    flexPowersMenu.AddSubItem(goldenLightItem);
+                    
+                    // Teleport
+                    var teleportAction = MenuAction.CreateGiveFlexTeleport(unit);
+                    var teleportItem = new MenuItem("Give Teleport", () => {
+                        manager.ExecuteAction(teleportAction);
+                    })
+                    {
+                        ActionId = teleportAction.Id,
+                        MenuAction = teleportAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && teleportAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    flexPowersMenu.AddSubItem(teleportItem);
+                    
+                    flexPowersMenu.AddSeparator();
+                    
+                    // Clear Flex Power
+                    var clearFlexAction = MenuAction.CreateClearFlexPower(unit);
+                    var clearFlexItem = new MenuItem("Clear Flex Power", () => {
+                        manager.ExecuteAction(clearFlexAction);
+                    })
+                    {
+                        ActionId = clearFlexAction.Id,
+                        MenuAction = clearFlexAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && clearFlexAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    flexPowersMenu.AddSubItem(clearFlexItem);
+                    
+                    manager.CurrentMenu.AddItem(flexPowersMenu);
                 }
                 else
                 {
