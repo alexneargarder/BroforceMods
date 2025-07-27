@@ -78,8 +78,6 @@ namespace Drunken_Broster.MeleeItems
                 this.ChangeFrame();
             }
 
-            //RocketLib.Utils.DrawDebug.DrawCrosshair( "egg_crosshair", base.transform.position, 7f, Color.red );
-
             this.r += this.rI * this.t;
 
             this.SetRotation();

@@ -182,11 +182,7 @@ namespace Drunken_Broster
             coconutProjectile = CustomGrenade.CreatePrefab<CoconutProjectile>();
             explosiveBarrelProjectile = CustomGrenade.CreatePrefab<ExplosiveBarrelProjectile>();
             soccerBallProjectile = CustomGrenade.CreatePrefab<SoccerBallProjectile>();
-
-            // TODO: Load alien egg
-            //alienEggProjectile = CustomProjectile.CreatePrefab<CrateProjectile>();
-
-            // Load skull
+            alienEggProjectile = CustomProjectile.CreatePrefab<AlienEggProjectile>();
             skullProjectile = SkullProjectile.CreatePrefab();
 
             // Load sounds
@@ -2421,17 +2417,10 @@ namespace Drunken_Broster
                     this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * 350f, 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:
-                    
+                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * 350f, 125f, base.playerNum );
                     break;
                 case MeleeItem.Skull:
-                    try
-                    {
-                        this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 100f, base.playerNum );
-                    }
-                    catch ( Exception ex )
-                    {
-                        BMLogger.Log( "exception: " + ex.ToString() );
-                    }
+                    this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 100f, base.playerNum );
                     break;
                 default:
                     
