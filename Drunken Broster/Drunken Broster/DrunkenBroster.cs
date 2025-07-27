@@ -76,7 +76,6 @@ namespace Drunken_Broster
         public float fistVolume = 0.7f;
         public float wallHitVolume = 0.3f;
 
-
         // Melee
         public enum MeleeItem
         {
@@ -392,6 +391,8 @@ namespace Drunken_Broster
 
         public override void PrefabSetup()
         {
+            this.SoundHolderHeroType = HeroType.BroLee;
+
             base.PrefabSetup();
             ThemeHolder theme = Map.Instance.jungleThemeReference;
             BarrelBlock explosiveBarrel = theme.blockPrefabBarrels[1].GetComponent<BarrelBlock>();
@@ -399,6 +400,14 @@ namespace Drunken_Broster
             this.fire2 = explosiveBarrel.fire2;
             this.fire3 = explosiveBarrel.fire3;
             this.barrelExplodeSounds = explosiveBarrel.soundHolder.deathSounds;
+
+            string soundPath = Path.Combine( this.directoryPath, "sounds" );
+
+            this.soundHolder.attack3Sounds = new AudioClip[13];
+            for ( int i = 0; i < this.soundHolder.attack3Sounds.Length; ++i )
+            {
+                this.soundHolder.attack3Sounds[i] = ResourcesController.GetAudioClip( soundPath, "KungFu" + i + ".wav" );
+            }
         }
         #endregion
 
@@ -732,7 +741,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayFistSound();
+                        this.PlayHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -774,7 +783,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayFistSound();
+                        this.PlayHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -827,11 +836,11 @@ namespace Drunken_Broster
             if ( !this.drunk )
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 250f + this.xI, 200f, 6f, base.playerNum, out _, this );
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 8f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * 5f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayFistSound();
+                        this.PlayHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -876,7 +885,7 @@ namespace Drunken_Broster
                     {
                         if ( !this.hasHitWithFists )
                         {
-                            this.PlayFistSound();
+                            this.PlayHitSound();
                         }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
@@ -909,7 +918,7 @@ namespace Drunken_Broster
                     {
                         if ( !this.hasHitWithFists )
                         {
-                            this.PlayFistSound();
+                            this.PlayHitSound();
                         }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
@@ -966,7 +975,7 @@ namespace Drunken_Broster
             {
                 if ( !this.hasHitWithFists )
                 {
-                    this.PlayFistSound();
+                    this.PlayHitSound();
                 }
                 this.hasHitWithFists = true;
                 this.attackHasHit = true;
@@ -1011,11 +1020,11 @@ namespace Drunken_Broster
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 2f, base.transform.localScale.x * 120f, 100f, 6f, base.playerNum, out _, this );
                 this.lastAttackingTime = Time.time;
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 9f, 6f, base.X + base.transform.localScale.x * 7f, base.Y + 2f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 9f, 4f, base.X + base.transform.localScale.x * 7f, base.Y + 3f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayFistSound();
+                        this.PlayHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -1024,7 +1033,7 @@ namespace Drunken_Broster
                     this.hasHitThisAttack = true;
                     this.xIAttackExtra = 0f;
                     this.TimeBump();
-                    this.postAttackHitPauseTime = 0.15f;
+                    this.postAttackHitPauseTime = 0.12f;
                     this.xI = 0f;
                     this.yI = 0f;
                     if ( this.drunk )
@@ -1955,18 +1964,18 @@ namespace Drunken_Broster
             if ( Time.time - this.lastSoundTime > 0.3f )
             {
                 this.lastSoundTime = Time.time;
-                // TODO: Add kung fu noises from bro lee
-                //Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
+                Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
             }
         }
 
+        // Sound played when starting your primary attack, sounds like a swish
         protected override void PlayAttackSound()
         {
-            // TODO: Add attack sound
-            //base.PlayAttackSound();
+            base.PlayAttackSound();
         }
 
-        public void PlayFistSound()
+        // Sound played when hitting an enemy with your primary attack
+        public void PlayHitSound()
         {
             if ( this.sound == null )
             {
@@ -1974,11 +1983,11 @@ namespace Drunken_Broster
             }
             if ( this.sound != null )
             {
-                // TODO: Add fist hit sound
-                //this.sound.PlaySoundEffectAt(this.soundHolder.special2Sounds, this.sliceVolume, base.transform.position, 1f, true, false, false, 0f);
+                this.sound.PlaySoundEffectAt(this.soundHolder.special2Sounds, 0.7f, base.transform.position, 1f, true, false, false, 0f);
             }
         }
 
+        // Sound played when hitting a wall with your primary attack
         public void PlayWallSound()
         {
             if ( this.sound == null )
@@ -1987,8 +1996,7 @@ namespace Drunken_Broster
             }
             if ( this.sound != null )
             {
-                // TODO: Add wall sound, whatever that is, check brocsnipes or bro lee's attack2sounds 
-                //this.sound.PlaySoundEffectAt(this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f);
+                this.sound.PlaySoundEffectAt(this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f);
             }
         }
 
