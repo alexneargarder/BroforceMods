@@ -50,6 +50,11 @@ namespace Utility_Mod
         // Player Actions
         GiveExtraLife,
         RefillSpecial,
+        GiveFlexAirJump,
+        GiveFlexInvulnerability,
+        GiveFlexGoldenLight,
+        GiveFlexTeleport,
+        ClearFlexPower,
         
         // Special Actions
         ZiplinePlacement,
@@ -421,6 +426,66 @@ namespace Utility_Mod
             };
         }
         
+        // Constructor for give flex air jump action
+        public static MenuAction CreateGiveFlexAirJump(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_flex_air_jump",
+                DisplayName = "Give Air Jump",
+                Type = MenuActionType.GiveFlexAirJump,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give flex invulnerability action
+        public static MenuAction CreateGiveFlexInvulnerability(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_flex_invulnerability",
+                DisplayName = "Give Invulnerability",
+                Type = MenuActionType.GiveFlexInvulnerability,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give flex golden light action
+        public static MenuAction CreateGiveFlexGoldenLight(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_flex_golden_light",
+                DisplayName = "Give Golden Light",
+                Type = MenuActionType.GiveFlexGoldenLight,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give flex teleport action
+        public static MenuAction CreateGiveFlexTeleport(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_flex_teleport",
+                DisplayName = "Give Teleport",
+                Type = MenuActionType.GiveFlexTeleport,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for clear flex power action
+        public static MenuAction CreateClearFlexPower(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_clear_flex_power",
+                DisplayName = "Clear Flex Power",
+                Type = MenuActionType.ClearFlexPower,
+                TargetUnit = targetUnit
+            };
+        }
+        
         #endregion
         
         #region Execution Methods
@@ -560,6 +625,26 @@ namespace Utility_Mod
                     
                 case MenuActionType.RefillSpecial:
                     ExecuteRefillSpecial(position, isQuickAction);
+                    break;
+                    
+                case MenuActionType.GiveFlexAirJump:
+                    ExecuteGiveFlexPower(position, isQuickAction, PickupType.FlexAirJump);
+                    break;
+                    
+                case MenuActionType.GiveFlexInvulnerability:
+                    ExecuteGiveFlexPower(position, isQuickAction, PickupType.FlexInvulnerability);
+                    break;
+                    
+                case MenuActionType.GiveFlexGoldenLight:
+                    ExecuteGiveFlexPower(position, isQuickAction, PickupType.FlexGoldenLight);
+                    break;
+                    
+                case MenuActionType.GiveFlexTeleport:
+                    ExecuteGiveFlexPower(position, isQuickAction, PickupType.FlexTeleport);
+                    break;
+                    
+                case MenuActionType.ClearFlexPower:
+                    ExecuteClearFlexPower(position, isQuickAction);
                     break;
                     
                 // Special Actions
@@ -1249,6 +1334,157 @@ namespace Utility_Mod
             {
                 var bro = targetUnit as TestVanDammeAnim;
                 bro.SpecialAmmo = bro.originalSpecialAmmo;
+            }
+        }
+        
+        private void ExecuteGiveFlexPower(Vector3 position, bool isQuickAction, PickupType flexPowerType)
+        {
+            Unit targetUnit = null;
+            
+            // Use stored target if available (clicked directly from context menu)
+            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
+            {
+                targetUnit = TargetUnit;
+                TargetUnit = null; // Clear after use
+            }
+            
+            // If no stored target or it's a quick action, find nearest player character
+            if (targetUnit == null)
+            {
+                float closestDistance = float.MaxValue;
+                
+                // Use raycast from camera through mouse position for more accurate detection
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+                
+                // Check raycast hits first (more precise)
+                foreach (RaycastHit hit in hits)
+                {
+                    Unit unit = hit.collider.GetComponent<Unit>();
+                    if (unit == null)
+                        unit = hit.collider.GetComponentInParent<Unit>();
+                        
+                    // Check if this unit is a player character
+                    if (unit != null && unit.health > 0 && !unit.destroyed)
+                    {
+                        for (int i = 0; i < HeroController.players.Length; i++)
+                        {
+                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
+                            {
+                                targetUnit = unit;
+                                break;
+                            }
+                        }
+                        if (targetUnit != null) break;
+                    }
+                }
+                
+                // If no direct hit, find closest player character to position
+                if (targetUnit == null)
+                {
+                    foreach (Player player in HeroController.players)
+                    {
+                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
+                        {
+                            float distance = Vector3.Distance(player.character.transform.position, position);
+                            if (distance < closestDistance)
+                            {
+                                closestDistance = distance;
+                                targetUnit = player.character;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (targetUnit != null)
+            {
+                // Find the player object for this unit
+                for (int i = 0; i < HeroController.players.Length; i++)
+                {
+                    if (HeroController.players[i] != null && HeroController.players[i].character == targetUnit)
+                    {
+                        // Clear any existing flex power first
+                        HeroController.players[i].ClearFlexPower();
+                        // Then add the new flex power
+                        HeroController.players[i].AddFlexPower(flexPowerType, false);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        private void ExecuteClearFlexPower(Vector3 position, bool isQuickAction)
+        {
+            Unit targetUnit = null;
+            
+            // Use stored target if available (clicked directly from context menu)
+            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
+            {
+                targetUnit = TargetUnit;
+                TargetUnit = null; // Clear after use
+            }
+            
+            // If no stored target or it's a quick action, find nearest player character
+            if (targetUnit == null)
+            {
+                float closestDistance = float.MaxValue;
+                
+                // Use raycast from camera through mouse position for more accurate detection
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+                
+                // Check raycast hits first (more precise)
+                foreach (RaycastHit hit in hits)
+                {
+                    Unit unit = hit.collider.GetComponent<Unit>();
+                    if (unit == null)
+                        unit = hit.collider.GetComponentInParent<Unit>();
+                        
+                    // Check if this unit is a player character
+                    if (unit != null && unit.health > 0 && !unit.destroyed)
+                    {
+                        for (int i = 0; i < HeroController.players.Length; i++)
+                        {
+                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
+                            {
+                                targetUnit = unit;
+                                break;
+                            }
+                        }
+                        if (targetUnit != null) break;
+                    }
+                }
+                
+                // If no direct hit, find closest player character to position
+                if (targetUnit == null)
+                {
+                    foreach (Player player in HeroController.players)
+                    {
+                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
+                        {
+                            float distance = Vector3.Distance(player.character.transform.position, position);
+                            if (distance < closestDistance)
+                            {
+                                closestDistance = distance;
+                                targetUnit = player.character;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (targetUnit != null)
+            {
+                // Find the player object for this unit
+                for (int i = 0; i < HeroController.players.Length; i++)
+                {
+                    if (HeroController.players[i] != null && HeroController.players[i].character == targetUnit)
+                    {
+                        HeroController.players[i].ClearFlexPower();
+                        break;
+                    }
+                }
             }
         }
         
