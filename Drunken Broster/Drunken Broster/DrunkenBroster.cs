@@ -2015,6 +2015,7 @@ namespace Drunken_Broster
                 return;
             }
 
+            this.StopAttack();
             base.frame = 0;
             base.counter = -0.05f;
             ResetMeleeValues();
@@ -2025,6 +2026,7 @@ namespace Drunken_Broster
             SetMeleeType();
             meleeStartPos = base.transform.position;
             this.progressedFarEnough = false;
+            this.canWallClimb = false;
 
             // Switch to melee sprite
             base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
@@ -2329,6 +2331,8 @@ namespace Drunken_Broster
             {
                 this.ClearHeldItem();
             }
+
+            this.canWallClimb = true;
             base.CancelMelee();
         }
 
@@ -2380,6 +2384,8 @@ namespace Drunken_Broster
             DeactivateGun();
             SetMeleeType();
             meleeStartPos = base.transform.position;
+            this.progressedFarEnough = false;
+            this.canWallClimb = false;
 
             // Switch to melee sprite
             base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
@@ -2481,6 +2487,26 @@ namespace Drunken_Broster
                     this.ApplyFallingGravity();
                 }
             }
+        }
+
+        public override void SetGestureAnimation( GestureElement.Gestures gesture )
+        {
+            // Don't allow flexing during melee
+            if ( this.doingMelee )
+            {
+                return;
+            }
+            base.SetGestureAnimation( gesture );
+        }
+
+        // Don't cancel melee when hitting wall
+        protected override void HitLeftWall()
+        {
+        }
+
+        // Don't cancel melee when hitting wall
+        protected override void HitRightWall()
+        {
         }
         #endregion
 
@@ -2794,6 +2820,11 @@ namespace Drunken_Broster
 
         protected override void Jump( bool wallJump )
         {
+            // Don't allow wall jumping while doing melee
+            if ( this.doingMelee && wallJump )
+            {
+                return;
+            }
             // Allow jumping after strike frame on upwards, forwards, and stationary attacks
             if ( ( !this.attackUpwards || this.attackFrames > this.attackUpwardsStrikeFrame ) && ( !this.attackForwards || this.attackFrames > this.attackForwardsStrikeFrame ) && ( !this.attackStationary || this.attackFrames > this.attackStationaryStrikeFrame || this.hasHitThisAttack ) )
             {
