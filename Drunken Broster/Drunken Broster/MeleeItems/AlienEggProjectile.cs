@@ -1,27 +1,30 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
 using BroMakerLib.Loggers;
+using HarmonyLib;
+using System;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
 {
-    public class AcidEggProjectile : CustomProjectile
+    public class AlienEggProjectile : CustomProjectile
     {
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
         protected int frame = 0;
         protected float counter = 0;
-        protected float frameRate = 0.07f;
+        protected float frameRate = 0.06f;
         protected int cycle = 0;
         protected bool exploded = false;
-        protected float range = 30f;
         protected float r = 90f;
         protected float rI = 0f;
         protected float rotationSpeedMultiplier = 1.5f;
-
         protected BloodColor bloodColor = BloodColor.Green;
         protected float explodeRange = 40f;
+        public GibHolder openedEggGibHolder;
+        protected AlienClimber faceHugger;
+        protected float spawnFacehuggerTimer = 0.2f;
 
         protected override void Awake()
         {
@@ -43,11 +46,28 @@ namespace Drunken_Broster.MeleeItems
             base.Awake();
         }
 
+        public override void PrefabSetup()
+        {
+            base.PrefabSetup();
+
+            AlienEggBlock prefab = Map.Instance.activeTheme.blockAlienEgg as AlienEggBlock;
+            this.openedEggGibHolder = prefab.openedEggGibHolder;
+        }
+
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
         {
             this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 200f ) * this.rotationSpeedMultiplier;
 
             base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
+
+            this.faceHugger = Map.SpawnFaceHugger( newX, newY, 0f, 0f );
+            this.faceHugger.RegisterUnit();
+            Registry.RegisterDeterminsiticGameObject( this.faceHugger.gameObject );
+            this.faceHugger.transform.parent = base.transform;
+            this.faceHugger.ForceStart();
+            this.faceHugger.gameObject.SetActive( false );
+            this.faceHugger.playerNum = 5;
+            this.faceHugger.firingPlayerNum = 5;
         }
 
         protected override void SetRotation()
@@ -83,6 +103,23 @@ namespace Drunken_Broster.MeleeItems
             this.SetRotation();
 
             base.Update();
+
+            if ( this.spawnFacehuggerTimer > 0 )
+            {
+                this.spawnFacehuggerTimer -= this.t;
+                if ( this.spawnFacehuggerTimer <= 0 )
+                {
+                    try
+                    {
+                        this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                    }
+                    catch ( Exception ex )
+                    {
+                        BMLogger.ExceptionLog( ex );
+                    }
+                    this.Death();
+                }
+            }
         }
 
         protected virtual void ApplyGravity()
@@ -92,12 +129,28 @@ namespace Drunken_Broster.MeleeItems
 
         protected void ChangeFrame()
         {
-            if ( this.frame >= 6 )
+            if ( this.frame >= 5 )
             {
                 this.frame = 0;
                 ++this.cycle;
             }
             this.sprite.SetLowerLeftPixel_X( 32f * this.frame );
+        }
+
+        protected void LaunchFaceHugger()
+        {
+            this.faceHugger.SetXY( base.X, base.Y );
+            this.faceHugger.transform.parent = null;
+            this.faceHugger.gameObject.SetActive( true );
+            this.faceHugger.transform.rotation = Quaternion.identity;
+            this.faceHugger.playerNum = 5;
+            this.faceHugger.firingPlayerNum = 5;
+            Traverse trav = Traverse.Create( this.faceHugger );
+            trav.Field( "usingSpecial" ).SetValue( true );
+            trav.Method( "UseSpecial" ).GetValue();
+            this.faceHugger.xI = this.xI;
+            this.faceHugger.yI = this.yI + 50;
+            EffectsController.CreateSlimeParticles( BloodColor.Green, base.X, base.Y, 45, 8f, 8f, 140f, this.faceHugger.xI * 0.5f, this.faceHugger.yI * 0.5f );
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
@@ -107,16 +160,9 @@ namespace Drunken_Broster.MeleeItems
                 return;
             }
             this.exploded = true;
-            MapController.DamageGround( this, 15, DamageType.Explosion, this.explodeRange, base.X, base.Y, null, false );
-            Map.ExplodeUnits( this, 9, DamageType.Acid, this.explodeRange * 2.3f, this.explodeRange * 1.5f, base.X, base.Y + 3f, 500f, 300f, base.playerNum, false, false, true );
-            Map.ShakeTrees( base.X, base.Y, 128f, 48f, 80f );
-            SortOfFollow.Shake( 1f );
-            Map.DisturbWildLife( base.X, base.Y, 80f, base.playerNum );
-            EffectsController.CreateExplosionRangePop( base.X, base.Y + 6f, -1f, this.explodeRange * 1.5f );
-            EffectsController.CreateSlimeParticlesSpray( this.bloodColor, base.X, base.Y + 6f, 1f, 34, 6f, 5f, 300f, this.xI * 0.6f, this.yI * 0.2f + 150f, 0.6f );
-            EffectsController.CreateSlimeExplosion( base.X, base.Y, 15f, 15f, 140f, 0f, 0f, 0f, 0f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Green );
-            EffectsController.CreateSlimeCover( 15, base.X, base.Y + 8f, 60f, false );
-
+            this.LaunchFaceHugger();
+            EffectsController.CreateGibs( this.openedEggGibHolder, base.X, base.Y, 10f, 10f, 0f, 0f );
+            Block.MakeAlienBlockCollapseEffects( base.X, base.Y, xI, yI, true );
         }
 
     }

@@ -86,6 +86,7 @@
     <Compile Include="DrunkenBroster.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="MeleeItems\AcidEggProjectile.cs" />
+    <Compile Include="MeleeItems\AlienEggProjectile.cs" />
     <Compile Include="MeleeItems\BeehiveProjectile.cs" />
     <Compile Include="MeleeItems\BottleProjectile.cs" />
     <Compile Include="MeleeItems\CoconutProjectile.cs" />
