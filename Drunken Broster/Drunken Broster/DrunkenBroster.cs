@@ -664,10 +664,6 @@ namespace Drunken_Broster
         protected void StartAttackStationary()
         {
             this.FireFlashAvatar();
-            if ( base.actionState == ActionState.ClimbingLadder )
-            {
-                base.actionState = ActionState.Jumping;
-            }
             this.StopAttack();
             this.MakeKungfuSound();
             this.postAttackHitPauseTime = 0f;
@@ -675,6 +671,15 @@ namespace Drunken_Broster
             this.attackStationary = true;
             this.jumpTime = 0f;
             ++this.stationaryAttackCounter;
+            // Leg Sweep
+            if ( this.stationaryAttackCounter % 2 == 0 )
+            {
+                this.attackStationaryStrikeFrame = 4;
+            }
+            // Forward punch
+            {
+                this.attackStationaryStrikeFrame = 2;
+            }
             this.ChangeFrame();
             //this.CreateFaderTrailInstance();
             this.ClearCurrentAttackVariables();
@@ -779,7 +784,7 @@ namespace Drunken_Broster
             else
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, 700f * base.transform.localScale.x, 250f, 6f, base.playerNum, out _, this );
-                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
+                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 5f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -969,6 +974,10 @@ namespace Drunken_Broster
 
         protected void PerformAttackUpwards()
         {
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
             DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 6f ), base.Y + 12f, base.transform.localScale.x * 80f, 1100f, 7f, base.playerNum, out _, this );
             this.lastAttackingTime = Time.time;
             if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit ) )
@@ -1015,6 +1024,10 @@ namespace Drunken_Broster
 
         protected void PerformAttackDownwards()
         {
+            if ( base.actionState == ActionState.ClimbingLadder )
+            {
+                base.actionState = ActionState.Jumping;
+            }
             // Sober Attack
             if ( !this.drunk )
             {
