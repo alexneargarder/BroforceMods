@@ -55,6 +55,15 @@ namespace Utility_Mod
         GiveFlexGoldenLight,
         GiveFlexTeleport,
         ClearFlexPower,
+        GiveSpecialAmmoStandard,
+        GiveSpecialAmmoAirstrike,
+        GiveSpecialAmmoTimeslow,
+        GiveSpecialAmmoRemoteControlCar,
+        GiveSpecialAmmoMechDrop,
+        GiveSpecialAmmoAlienPheromones,
+        GiveSpecialAmmoSteroids,
+        GiveSpecialAmmoPiggy,
+        ClearSpecialAmmo,
         
         // Special Actions
         ZiplinePlacement,
@@ -486,6 +495,114 @@ namespace Utility_Mod
             };
         }
         
+        // Constructor for give special ammo standard action
+        public static MenuAction CreateGiveSpecialAmmoStandard(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_standard",
+                DisplayName = "Give Standard Ammo",
+                Type = MenuActionType.GiveSpecialAmmoStandard,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo airstrike action
+        public static MenuAction CreateGiveSpecialAmmoAirstrike(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_airstrike",
+                DisplayName = "Give Airstrike",
+                Type = MenuActionType.GiveSpecialAmmoAirstrike,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo timeslow action
+        public static MenuAction CreateGiveSpecialAmmoTimeslow(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_timeslow",
+                DisplayName = "Give Time Slow",
+                Type = MenuActionType.GiveSpecialAmmoTimeslow,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo remote control car action
+        public static MenuAction CreateGiveSpecialAmmoRemoteControlCar(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_rc_car",
+                DisplayName = "Give RC Car",
+                Type = MenuActionType.GiveSpecialAmmoRemoteControlCar,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo mech drop action
+        public static MenuAction CreateGiveSpecialAmmoMechDrop(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_mech_drop",
+                DisplayName = "Give Mech Drop",
+                Type = MenuActionType.GiveSpecialAmmoMechDrop,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo alien pheromones action
+        public static MenuAction CreateGiveSpecialAmmoAlienPheromones(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_alien_pheromones",
+                DisplayName = "Give Alien Pheromones",
+                Type = MenuActionType.GiveSpecialAmmoAlienPheromones,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo steroids action
+        public static MenuAction CreateGiveSpecialAmmoSteroids(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_steroids",
+                DisplayName = "Give Steroids",
+                Type = MenuActionType.GiveSpecialAmmoSteroids,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for give special ammo piggy action
+        public static MenuAction CreateGiveSpecialAmmoPiggy(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_give_special_ammo_piggy",
+                DisplayName = "Give Piggy",
+                Type = MenuActionType.GiveSpecialAmmoPiggy,
+                TargetUnit = targetUnit
+            };
+        }
+        
+        // Constructor for clear special ammo action
+        public static MenuAction CreateClearSpecialAmmo(Unit targetUnit = null)
+        {
+            return new MenuAction
+            {
+                Id = "action_clear_special_ammo",
+                DisplayName = "Clear Special Ammo",
+                Type = MenuActionType.ClearSpecialAmmo,
+                TargetUnit = targetUnit
+            };
+        }
+        
         #endregion
         
         #region Execution Methods
@@ -647,6 +764,42 @@ namespace Utility_Mod
                     ExecuteClearFlexPower(position, isQuickAction);
                     break;
                     
+                case MenuActionType.GiveSpecialAmmoStandard:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.Standard);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoAirstrike:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.Airstrike);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoTimeslow:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.Timeslow);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoRemoteControlCar:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.RemoteControlCar);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoMechDrop:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.MechDrop);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoAlienPheromones:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.AlienPheromones);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoSteroids:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.Steroids);
+                    break;
+                    
+                case MenuActionType.GiveSpecialAmmoPiggy:
+                    ExecuteGiveSpecialAmmo(position, isQuickAction, PockettedSpecialAmmoType.Piggy);
+                    break;
+                    
+                case MenuActionType.ClearSpecialAmmo:
+                    ExecuteClearSpecialAmmo(position, isQuickAction);
+                    break;
+                    
                 // Special Actions
                 case MenuActionType.ZiplinePlacement:
                     // This is handled specially in ContextMenuManager
@@ -668,6 +821,69 @@ namespace Utility_Mod
             {
                 Main.TeleportToCoords(position.x, position.y);
             }
+        }
+        
+        private Unit FindTargetPlayer(Vector3 position, bool isQuickAction)
+        {
+            Unit targetUnit = null;
+            
+            // Use stored target if available (clicked directly from context menu)
+            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
+            {
+                targetUnit = TargetUnit;
+                TargetUnit = null; // Clear after use
+            }
+            
+            // If no stored target or it's a quick action, find nearest player character
+            if (targetUnit == null)
+            {
+                float closestDistance = float.MaxValue;
+                
+                // Use raycast from camera through mouse position for more accurate detection
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+                
+                // Check raycast hits first (more precise)
+                foreach (RaycastHit hit in hits)
+                {
+                    Unit unit = hit.collider.GetComponent<Unit>();
+                    if (unit == null)
+                        unit = hit.collider.GetComponentInParent<Unit>();
+                        
+                    // Check if this unit is a player character
+                    if (unit != null && unit.health > 0 && !unit.destroyed)
+                    {
+                        for (int i = 0; i < HeroController.players.Length; i++)
+                        {
+                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
+                            {
+                                targetUnit = unit;
+                                break;
+                            }
+                        }
+                        if (targetUnit != null) break;
+                    }
+                }
+                
+                // If no direct hit, find closest player character to position
+                if (targetUnit == null)
+                {
+                    foreach (Player player in HeroController.players)
+                    {
+                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
+                        {
+                            float distance = Vector3.Distance(player.character.transform.position, position);
+                            if (distance < closestDistance)
+                            {
+                                closestDistance = distance;
+                                targetUnit = player.character;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return targetUnit;
         }
         
         private void ExecuteGoToFinalCheckpoint()
@@ -815,63 +1031,7 @@ namespace Utility_Mod
                 return;
             }
             
-            Unit targetUnit = null;
-            
-            // Use stored target if available (clicked directly from context menu)
-            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
-            {
-                targetUnit = TargetUnit;
-                TargetUnit = null; // Clear after use
-            }
-            
-            // If no stored target or it's a quick action, find nearest player character
-            if (targetUnit == null)
-            {
-                float closestDistance = float.MaxValue;
-                
-                // Use raycast from camera through mouse position for more accurate detection
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-                
-                // Check raycast hits first (more precise)
-                foreach (RaycastHit hit in hits)
-                {
-                    Unit unit = hit.collider.GetComponent<Unit>();
-                    if (unit == null)
-                        unit = hit.collider.GetComponentInParent<Unit>();
-                        
-                    // Check if this unit is a player character
-                    if (unit != null && unit.health > 0 && !unit.destroyed)
-                    {
-                        for (int i = 0; i < HeroController.players.Length; i++)
-                        {
-                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
-                            {
-                                targetUnit = unit;
-                                break;
-                            }
-                        }
-                        if (targetUnit != null) break;
-                    }
-                }
-                
-                // If no direct hit, find closest player character to position
-                if (targetUnit == null)
-                {
-                    foreach (Player player in HeroController.players)
-                    {
-                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
-                        {
-                            float distance = Vector3.Distance(player.character.transform.position, position);
-                            if (distance < closestDistance)
-                            {
-                                closestDistance = distance;
-                                targetUnit = player.character;
-                            }
-                        }
-                    }
-                }
-            }
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
             
             if (targetUnit != null)
             {
@@ -1196,63 +1356,7 @@ namespace Utility_Mod
         
         private void ExecuteGiveExtraLife(Vector3 position, bool isQuickAction)
         {
-            Unit targetUnit = null;
-            
-            // Use stored target if available (clicked directly from context menu)
-            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
-            {
-                targetUnit = TargetUnit;
-                TargetUnit = null; // Clear after use
-            }
-            
-            // If no stored target or it's a quick action, find nearest player character
-            if (targetUnit == null)
-            {
-                float closestDistance = float.MaxValue;
-                
-                // Use raycast from camera through mouse position for more accurate detection
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-                
-                // Check raycast hits first (more precise)
-                foreach (RaycastHit hit in hits)
-                {
-                    Unit unit = hit.collider.GetComponent<Unit>();
-                    if (unit == null)
-                        unit = hit.collider.GetComponentInParent<Unit>();
-                        
-                    // Check if this unit is a player character
-                    if (unit != null && unit.health > 0 && !unit.destroyed)
-                    {
-                        for (int i = 0; i < HeroController.players.Length; i++)
-                        {
-                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
-                            {
-                                targetUnit = unit;
-                                break;
-                            }
-                        }
-                        if (targetUnit != null) break;
-                    }
-                }
-                
-                // If no direct hit, find closest player character to position
-                if (targetUnit == null)
-                {
-                    foreach (Player player in HeroController.players)
-                    {
-                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
-                        {
-                            float distance = Vector3.Distance(player.character.transform.position, position);
-                            if (distance < closestDistance)
-                            {
-                                closestDistance = distance;
-                                targetUnit = player.character;
-                            }
-                        }
-                    }
-                }
-            }
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
             
             if (targetUnit != null)
             {
@@ -1272,63 +1376,7 @@ namespace Utility_Mod
         
         private void ExecuteRefillSpecial(Vector3 position, bool isQuickAction)
         {
-            Unit targetUnit = null;
-            
-            // Use stored target if available (clicked directly from context menu)
-            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
-            {
-                targetUnit = TargetUnit;
-                TargetUnit = null; // Clear after use
-            }
-            
-            // If no stored target or it's a quick action, find nearest player character
-            if (targetUnit == null)
-            {
-                float closestDistance = float.MaxValue;
-                
-                // Use raycast from camera through mouse position for more accurate detection
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-                
-                // Check raycast hits first (more precise)
-                foreach (RaycastHit hit in hits)
-                {
-                    Unit unit = hit.collider.GetComponent<Unit>();
-                    if (unit == null)
-                        unit = hit.collider.GetComponentInParent<Unit>();
-                        
-                    // Check if this unit is a player character
-                    if (unit != null && unit.health > 0 && !unit.destroyed)
-                    {
-                        for (int i = 0; i < HeroController.players.Length; i++)
-                        {
-                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
-                            {
-                                targetUnit = unit;
-                                break;
-                            }
-                        }
-                        if (targetUnit != null) break;
-                    }
-                }
-                
-                // If no direct hit, find closest player character to position
-                if (targetUnit == null)
-                {
-                    foreach (Player player in HeroController.players)
-                    {
-                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
-                        {
-                            float distance = Vector3.Distance(player.character.transform.position, position);
-                            if (distance < closestDistance)
-                            {
-                                closestDistance = distance;
-                                targetUnit = player.character;
-                            }
-                        }
-                    }
-                }
-            }
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
             
             if (targetUnit != null && targetUnit is TestVanDammeAnim)
             {
@@ -1339,63 +1387,7 @@ namespace Utility_Mod
         
         private void ExecuteGiveFlexPower(Vector3 position, bool isQuickAction, PickupType flexPowerType)
         {
-            Unit targetUnit = null;
-            
-            // Use stored target if available (clicked directly from context menu)
-            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
-            {
-                targetUnit = TargetUnit;
-                TargetUnit = null; // Clear after use
-            }
-            
-            // If no stored target or it's a quick action, find nearest player character
-            if (targetUnit == null)
-            {
-                float closestDistance = float.MaxValue;
-                
-                // Use raycast from camera through mouse position for more accurate detection
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-                
-                // Check raycast hits first (more precise)
-                foreach (RaycastHit hit in hits)
-                {
-                    Unit unit = hit.collider.GetComponent<Unit>();
-                    if (unit == null)
-                        unit = hit.collider.GetComponentInParent<Unit>();
-                        
-                    // Check if this unit is a player character
-                    if (unit != null && unit.health > 0 && !unit.destroyed)
-                    {
-                        for (int i = 0; i < HeroController.players.Length; i++)
-                        {
-                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
-                            {
-                                targetUnit = unit;
-                                break;
-                            }
-                        }
-                        if (targetUnit != null) break;
-                    }
-                }
-                
-                // If no direct hit, find closest player character to position
-                if (targetUnit == null)
-                {
-                    foreach (Player player in HeroController.players)
-                    {
-                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
-                        {
-                            float distance = Vector3.Distance(player.character.transform.position, position);
-                            if (distance < closestDistance)
-                            {
-                                closestDistance = distance;
-                                targetUnit = player.character;
-                            }
-                        }
-                    }
-                }
-            }
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
             
             if (targetUnit != null)
             {
@@ -1416,63 +1408,7 @@ namespace Utility_Mod
         
         private void ExecuteClearFlexPower(Vector3 position, bool isQuickAction)
         {
-            Unit targetUnit = null;
-            
-            // Use stored target if available (clicked directly from context menu)
-            if (!isQuickAction && TargetUnit != null && !TargetUnit.destroyed && TargetUnit.health > 0)
-            {
-                targetUnit = TargetUnit;
-                TargetUnit = null; // Clear after use
-            }
-            
-            // If no stored target or it's a quick action, find nearest player character
-            if (targetUnit == null)
-            {
-                float closestDistance = float.MaxValue;
-                
-                // Use raycast from camera through mouse position for more accurate detection
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-                
-                // Check raycast hits first (more precise)
-                foreach (RaycastHit hit in hits)
-                {
-                    Unit unit = hit.collider.GetComponent<Unit>();
-                    if (unit == null)
-                        unit = hit.collider.GetComponentInParent<Unit>();
-                        
-                    // Check if this unit is a player character
-                    if (unit != null && unit.health > 0 && !unit.destroyed)
-                    {
-                        for (int i = 0; i < HeroController.players.Length; i++)
-                        {
-                            if (HeroController.players[i] != null && HeroController.players[i].character == unit)
-                            {
-                                targetUnit = unit;
-                                break;
-                            }
-                        }
-                        if (targetUnit != null) break;
-                    }
-                }
-                
-                // If no direct hit, find closest player character to position
-                if (targetUnit == null)
-                {
-                    foreach (Player player in HeroController.players)
-                    {
-                        if (player != null && player.character != null && player.character.health > 0 && !player.character.destroyed)
-                        {
-                            float distance = Vector3.Distance(player.character.transform.position, position);
-                            if (distance < closestDistance)
-                            {
-                                closestDistance = distance;
-                                targetUnit = player.character;
-                            }
-                        }
-                    }
-                }
-            }
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
             
             if (targetUnit != null)
             {
@@ -1484,6 +1420,43 @@ namespace Utility_Mod
                         HeroController.players[i].ClearFlexPower();
                         break;
                     }
+                }
+            }
+        }
+        
+        private void ExecuteGiveSpecialAmmo(Vector3 position, bool isQuickAction, PockettedSpecialAmmoType ammoType)
+        {
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
+            
+            if (targetUnit != null && targetUnit is TestVanDammeAnim)
+            {
+                var bro = targetUnit as TestVanDammeAnim;
+                // Give the pocketed special ammo
+                bro.PickupPockettableAmmo(ammoType);
+            }
+        }
+        
+        private void ExecuteClearSpecialAmmo(Vector3 position, bool isQuickAction)
+        {
+            Unit targetUnit = FindTargetPlayer(position, isQuickAction);
+            
+            if (targetUnit != null && targetUnit is TestVanDammeAnim)
+            {
+                var bro = targetUnit as TestVanDammeAnim;
+                // Check if this bro is a BroBase (which has pockettedSpecialAmmo)
+                if (bro is BroBase broBase)
+                {
+                    // Clear pocketed special ammo list
+                    if (broBase.pockettedSpecialAmmo != null)
+                    {
+                        broBase.pockettedSpecialAmmo.Clear();
+                    }
+                }
+                // Update HUD
+                if (bro.player != null)
+                {
+                    bro.player.hud.SetGrenadeMaterials(bro.heroType);
+                    bro.player.hud.SetGrenades(bro.SpecialAmmo);
                 }
             }
         }
