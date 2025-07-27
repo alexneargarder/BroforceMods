@@ -1429,6 +1429,104 @@ namespace Utility_Mod
                     flexPowersMenu.AddSubItem(clearFlexItem);
                     
                     manager.CurrentMenu.AddItem(flexPowersMenu);
+                    
+                    // Add Special Ammo submenu
+                    MenuItem specialAmmoMenu = new MenuItem("Special Ammo");
+                    
+                    // Airstrike
+                    var airstrikeAction = MenuAction.CreateGiveSpecialAmmoAirstrike(unit);
+                    var airstrikeItem = new MenuItem("Give Airstrike", () => {
+                        manager.ExecuteAction(airstrikeAction);
+                    })
+                    {
+                        ActionId = airstrikeAction.Id,
+                        MenuAction = airstrikeAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && airstrikeAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(airstrikeItem);
+                    
+                    // Time Slow
+                    var timeslowAction = MenuAction.CreateGiveSpecialAmmoTimeslow(unit);
+                    var timeslowItem = new MenuItem("Give Time Slow", () => {
+                        manager.ExecuteAction(timeslowAction);
+                    })
+                    {
+                        ActionId = timeslowAction.Id,
+                        MenuAction = timeslowAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && timeslowAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(timeslowItem);
+                    
+                    // RC Car
+                    var rcCarAction = MenuAction.CreateGiveSpecialAmmoRemoteControlCar(unit);
+                    var rcCarItem = new MenuItem("Give RC Car", () => {
+                        manager.ExecuteAction(rcCarAction);
+                    })
+                    {
+                        ActionId = rcCarAction.Id,
+                        MenuAction = rcCarAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && rcCarAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(rcCarItem);
+                    
+                    // Mech Drop
+                    var mechDropAction = MenuAction.CreateGiveSpecialAmmoMechDrop(unit);
+                    var mechDropItem = new MenuItem("Give Mech Drop", () => {
+                        manager.ExecuteAction(mechDropAction);
+                    })
+                    {
+                        ActionId = mechDropAction.Id,
+                        MenuAction = mechDropAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && mechDropAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(mechDropItem);
+                    
+                    // Alien Pheromones
+                    var alienPheromonesAction = MenuAction.CreateGiveSpecialAmmoAlienPheromones(unit);
+                    var alienPheromonesItem = new MenuItem("Give Alien Pheromones", () => {
+                        manager.ExecuteAction(alienPheromonesAction);
+                    })
+                    {
+                        ActionId = alienPheromonesAction.Id,
+                        MenuAction = alienPheromonesAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && alienPheromonesAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(alienPheromonesItem);
+                    
+                    // Steroids
+                    var steroidsAction = MenuAction.CreateGiveSpecialAmmoSteroids(unit);
+                    var steroidsItem = new MenuItem("Give Steroids", () => {
+                        manager.ExecuteAction(steroidsAction);
+                    })
+                    {
+                        ActionId = steroidsAction.Id,
+                        MenuAction = steroidsAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && steroidsAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(steroidsItem);
+                    
+                    specialAmmoMenu.AddSeparator();
+                    
+                    // Clear Special Ammo
+                    var clearAmmoAction = MenuAction.CreateClearSpecialAmmo(unit);
+                    var clearAmmoItem = new MenuItem("Clear Special Ammo", () => {
+                        manager.ExecuteAction(clearAmmoAction);
+                    })
+                    {
+                        ActionId = clearAmmoAction.Id,
+                        MenuAction = clearAmmoAction,
+                        ShowCheckbox = true,
+                        IsChecked = (Main.settings.selectedQuickAction != null && clearAmmoAction.Id == Main.settings.selectedQuickAction.Id)
+                    };
+                    specialAmmoMenu.AddSubItem(clearAmmoItem);
+                    
+                    manager.CurrentMenu.AddItem(specialAmmoMenu);
                 }
                 else
                 {
