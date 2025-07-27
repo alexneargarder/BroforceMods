@@ -1402,7 +1402,10 @@ namespace Drunken_Broster
             this.xIAttackExtra = 0f;
             if ( base.Y > this.groundHeight + 1f )
             {
-                base.actionState = ActionState.Jumping;
+                if ( base.actionState != ActionState.ClimbingLadder )
+                {
+                    base.actionState = ActionState.Jumping;
+                }
             }
             else if ( this.right || this.left )
             {
@@ -2923,16 +2926,16 @@ namespace Drunken_Broster
             }
         }
 
-        // Don't grab laddeer when doing drunk downwards attack
+        // Don't grab ladder when doing upwards / downwards attacks
         protected override bool IsOverLadder( ref float ladderXPos )
         {
-            return !( this.drunk && this.attackDownwards ) && base.IsOverLadder( ref ladderXPos );
+            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( ref ladderXPos );
         }
 
-        // Don't grab laddeer when doing drunk downwards attack
+        // Don't grab ladder when doing drunk downwards attack
         protected override bool IsOverLadder( float xOffset, ref float ladderXPos )
         {
-            return !( this.drunk && this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
+            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
         }
         #endregion
     }
