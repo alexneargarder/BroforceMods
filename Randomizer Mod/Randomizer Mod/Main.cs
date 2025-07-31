@@ -1808,7 +1808,7 @@ namespace Randomizer_Mod
             return blockPrefab;
         }
 
-        public static bool Prefix(Map __instance, ref GroundType placeGroundType, ref int x, ref int y, ref Block[,] newBlocks, ref bool addToRegistry, ref Block __result)
+        public static bool Prefix(Map __instance, ref GroundType placeGroundType, ref int x, ref int y, ref Block[,] newBlocks, ref bool addToRegistry, ref Block __result, ref GroundType[,] ___groundTypes, ref Block ___currentBlock)
         {
             if (!Main.enabled)
             {
@@ -1818,15 +1818,13 @@ namespace Randomizer_Mod
             if ( Main.settings.enableCratesTurningIntoAmmo && placeGroundType == GroundType.WoodenBlock && Main.settings.cratesToAmmoPercent > rnd.NextDouble() * 100 )
             {
                 Map_PlaceDoodad.mapInstance = __instance;
-                Traverse trav = Traverse.Create(__instance);
 
                 Vector3 vector = new Vector3((float)(x * 16), (float)(y * 16), 5f);
                 Block currentBlock = UnityEngine.Object.Instantiate<Block>( getRandomBlockPrefab(), vector, Quaternion.identity);
                 if (placeGroundType != GroundType.Cage && (placeGroundType != GroundType.AlienFlesh || newBlocks != Map.backGroundBlocks))
                 {
                     newBlocks[x, y] = currentBlock;
-                    Traverse groundTypesTrav = trav.Field("groundTypes");
-                    (groundTypesTrav.GetValue() as GroundType[,])[x, y] = placeGroundType;
+                    ___groundTypes[x, y] = placeGroundType;
                 }
                 if (currentBlock != null)
                 {
@@ -1845,7 +1843,7 @@ namespace Randomizer_Mod
                 {
                     currentBlock.transform.parent = __instance.transform;
                     __result = currentBlock;
-                    trav.Field("currentBlock").SetValue(currentBlock);
+                    ___currentBlock = currentBlock;
                 }
                 return false;
             }
@@ -1903,7 +1901,7 @@ namespace Randomizer_Mod
     [HarmonyPatch(typeof(MinibossEndCheck), "Update")]
     static class MinibossEndCheck_Update
     {
-        public static void Prefix(MinibossEndCheck __instance)
+        public static void Prefix(MinibossEndCheck __instance, Unit ___miniBossUnit, float ___explosionDeathCount, ref float ___finishedCounter)
         {
             if (!Main.enabled || Main.settings.enableInstantWin)
             {
@@ -1917,22 +1915,15 @@ namespace Randomizer_Mod
                 return;
            
 
-            Traverse trav = Traverse.Create(__instance);
-
-            Unit miniBossUnit = trav.Field("miniBossUnit").GetValue<Unit>();
-
-            if ( miniBossUnit.health <= 0 )
+            if ( ___miniBossUnit.health <= 0 )
             {
-                float explosionDeathCount = trav.Field("explosionDeathCount").GetValue<float>();
-
-                if ( explosionDeathCount > 0 )
+                if ( ___explosionDeathCount > 0 )
                 {
-                    float explosionDeathCounter = trav.Field("finishedCounter").GetValue<float>();
 
-                    if (explosionDeathCounter + Time.deltaTime > 0.33f)
+                    if (___finishedCounter + Time.deltaTime > 0.33f)
                     {
 
-                        if ((explosionDeathCount - 1) <= 0)
+                        if ((___explosionDeathCount - 1) <= 0)
                         {
                             Main.ignoreNextWin = true;
                         }
