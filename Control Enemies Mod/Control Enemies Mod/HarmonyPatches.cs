@@ -276,7 +276,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Mook), "NotifyDeathType")]
         static class Mook_NotifyDeathType_Patch
         {
-            public static void Prefix(Mook __instance)
+            public static void Prefix(Mook __instance, DeathType ___deathType)
             {
                 if (!Main.enabled)
                 {
@@ -285,7 +285,7 @@ namespace Control_Enemies_Mod
 
                 if ( __instance.name == "c" && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
                 {
-                    Main.previousDeathType[__instance.playerNum] = (DeathType)Traverse.Create(__instance).GetFieldValue("deathType");
+                    Main.previousDeathType[__instance.playerNum] = ___deathType;
                 }
             }
         }
@@ -379,19 +379,16 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(PlayerHUD), "SetAvatarDead")]
         static class PlayerHUD_SetAvatarDead_Patch
         {
-            public static bool Prefix(PlayerHUD __instance)
+            public static bool Prefix(PlayerHUD __instance, int ___playerNum, ref bool ___SetToDead)
             {
                 if (!Main.enabled)
                 {
                     return true;
                 }
 
-                Traverse trav = Traverse.Create(__instance);
-                int playerNum = (int)trav.Field("playerNum").GetValue();
-
-                if (Main.countdownToRespawn[playerNum] > 0)
+                if (Main.countdownToRespawn[___playerNum] > 0)
                 {
-                    trav.Field("SetToDead").SetValue(true);
+                    ___SetToDead = true;
                     return false;
                 }
 
@@ -741,7 +738,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(TestVanDammeAnim), "PlayStunnedSound")]
         static class TestVanDammeAnim_PlayStunnedSound_Patch
         {
-            public static bool Prefix(TestVanDammeAnim __instance)
+            public static bool Prefix(TestVanDammeAnim __instance, ref float ___stunVocalDelay)
             {
                 if (!Main.enabled)
                 {
@@ -752,7 +749,7 @@ namespace Control_Enemies_Mod
                 if (__instance.name == "c" && Main.holdingGesture[__instance.playerNum])
                 {
                     __instance.PlayLaughterSound();
-                    __instance.SetFieldValue("stunVocalDelay", 0.4f + UnityEngine.Random.Range(0.3f, 0.9f));
+                    ___stunVocalDelay = 0.4f + UnityEngine.Random.Range(0.3f, 0.9f);
                     return false;
                 }
 
@@ -1529,7 +1526,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookSuicide), "MakeEffects")]
         static class MookSuicide_MakeEffects_Patch
         {
-            public static bool Prefix(MookSuicide __instance)
+            public static bool Prefix(MookSuicide __instance, bool ___recalling)
             {
                 if (!Main.enabled)
                 {
@@ -1537,7 +1534,7 @@ namespace Control_Enemies_Mod
                 }
                 
                 // Don't explode if recalling
-                if ( __instance.name == "c" && (bool)__instance.GetFieldValue("recalling"))
+                if ( __instance.name == "c" && ___recalling)
                 {
                     return false;
                 }
@@ -1549,7 +1546,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookSuicideUndead), "MakeEffects")]
         static class MookSuicideUndead_MakeEffects_Patch
         {
-            public static bool Prefix(MookSuicideUndead __instance)
+            public static bool Prefix(MookSuicideUndead __instance, bool ___recalling)
             {
                 if (!Main.enabled)
                 {
@@ -1557,7 +1554,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't explode if recalling
-                if (__instance.name == "c" && (bool)__instance.GetFieldValue("recalling"))
+                if (__instance.name == "c" && ___recalling)
                 {
                     return false;
                 }
@@ -1572,7 +1569,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(HellLostSoul), "MakeEffects")]
         static class HellLostSoul_MakeEffects_Patch
         {
-            public static void Prefix(HellLostSoul __instance)
+            public static void Prefix(HellLostSoul __instance, bool ___diving)
             {
                 if (!Main.enabled)
                 {
@@ -1580,7 +1577,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Deathtype is set to suicide if the game thinks you're attacking
-                if ( __instance.name == "c" && (bool)__instance.GetFieldValue("diving") )
+                if ( __instance.name == "c" && ___diving )
                 {
                     __instance.fire = true;
                 }
@@ -1590,7 +1587,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(AlienMosquito), "MakeEffects")]
         static class AlienMosquito_MakeEffects_Patch
         {
-            public static void Prefix(AlienMosquito __instance)
+            public static void Prefix(AlienMosquito __instance, bool ___diving)
             {
                 if (!Main.enabled)
                 {
@@ -1598,7 +1595,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Deathtype is set to suicide if the game thinks you're attacking
-                if (__instance.name == "c" && (bool)__instance.GetFieldValue("diving"))
+                if (__instance.name == "c" && ___diving)
                 {
                     __instance.fire = true;
                 }
@@ -1703,7 +1700,7 @@ namespace Control_Enemies_Mod
         {
             public static bool allowJetpack = false;
 
-            public static bool Prefix(MookJetpack __instance)
+            public static bool Prefix(MookJetpack __instance, ref float ___jetpacksDelay)
             {
                 if (!Main.enabled)
                 {
@@ -1714,13 +1711,13 @@ namespace Control_Enemies_Mod
                 {
                     if (!allowJetpack)
                     {
-                        Traverse.Create(__instance).SetFieldValue("jetpacksDelay", 1000000f);
+                        ___jetpacksDelay = 1000000f;
                         return false;
                     }
                     else
                     {
                         allowJetpack = false;
-                        Traverse.Create(__instance).SetFieldValue("jetpacksDelay", 0f);
+                        ___jetpacksDelay = 0f;
                         return true;
                     }
                 }
@@ -1833,7 +1830,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(Mook), "DischargePilotingUnit")]
         static class Mook_DischargePilotingUnit_Patch
         {
-            public static bool Prefix(Mook __instance, ref float x, ref float y, ref float xI, ref float yI, ref bool stunUnit)
+            public static bool Prefix(Mook __instance, ref float x, ref float y, ref float xI, ref float yI, ref bool stunUnit, ref float ___ignoreHighFivePressTime, ref float ___jumpTime, ref float ___stunTime)
             {
                 if (!Main.enabled)
                 {
@@ -1843,7 +1840,6 @@ namespace Control_Enemies_Mod
                 // Prevent mook from taking damage if it's a player controlled enemy
                 if ( __instance.name == "c" )
                 {
-                    Traverse trav = Traverse.Create(__instance);
                     __instance.SetInvulnerable(0.1f, false, false);
                     if (__instance.gunSprite != null)
                     {
@@ -1851,8 +1847,8 @@ namespace Control_Enemies_Mod
                         __instance.gunSprite.GetComponent<Renderer>().enabled = true;
                     }
                     __instance.GetComponent<Renderer>().enabled = true;
-                    trav.SetFieldValue("ignoreHighFivePressTime", 0.1f);
-                    trav.SetFieldValue("jumpTime", 0.13f);
+                    ___ignoreHighFivePressTime = 0.1f;
+                    ___jumpTime = 0.13f;
                     __instance.enabled = true;
                     __instance.health = 1;
                     __instance.pilottedUnit = null;
@@ -1876,7 +1872,7 @@ namespace Control_Enemies_Mod
                     }
                     else
                     {
-                        trav.SetFieldValue("stunTime", 0f);
+                        ___stunTime = 0f;
                     }
 
                     __instance.xI = xI;
@@ -1919,7 +1915,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(MookSuicide), "Start")]
         static class MookSuicide_Start_Patch
         {
-            public static void Postfix(MookSuicide __instance)
+            public static void Postfix(MookSuicide __instance, ref float ___halfWidth)
             {
                 if (!Main.enabled)
                 {
@@ -1929,7 +1925,7 @@ namespace Control_Enemies_Mod
                 // Fix suicide mooks being unable to wall climb
                 if ( __instance.name == "c" )
                 {
-                    Traverse.Create(__instance).SetFieldValue("halfWidth", 6f);
+                    ___halfWidth = 6f;
                 }
             }
         }
@@ -2643,16 +2639,14 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(PlayerHUD), "FlashAvatar")]
         static class PlayerHUD_FlashAvatar_Patch
         {
-            public static bool Prefix(PlayerHUD __instance)
+            public static bool Prefix(PlayerHUD __instance, int ___playerNum)
             {
                 if (!Main.enabled || !Main.settings.competitiveModeEnabled)
                 {
                     return true;
                 }
 
-                int playerNum = (int) Traverse.Create(__instance).GetFieldValue("playerNum");
-
-                return playerNum == Main.currentHeroNum;
+                return ___playerNum == Main.currentHeroNum;
             }
         }
 
@@ -2944,7 +2938,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(GiantElevator), "StartMoving")]
         static class GiantElevator_StartMoving_Patch
         {
-            public static bool Prefix(GiantElevator __instance)
+            public static bool Prefix(GiantElevator __instance, float ___floorY, bool ___hasDoneVictory)
             {
                 if (!Main.enabled || !Main.settings.competitiveModeEnabled)
                 {
@@ -2957,10 +2951,7 @@ namespace Control_Enemies_Mod
                     return false;
                 }
 
-                Traverse trav = Traverse.Create(__instance);
-                float floorY = (float) trav.GetFieldValue("floorY");
-                bool hasDoneVictory = (bool) trav.GetFieldValue("hasDoneVictory");
-                if ( !Main.openedPortal && floorY < 0f && !hasDoneVictory )
+                if ( !Main.openedPortal && ___floorY < 0f && !___hasDoneVictory )
                 {
                     // Check if any players are able to win
                     for (int i = 0; i < 4; ++i)
@@ -3091,7 +3082,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch(typeof(GameModeController), "DetermineLevelOutcome")]
         static class GameModeController_DetermineLevelOutcome_Patch
         {
-            public static void Prefix(GameModeController __instance)
+            public static void Prefix(GameModeController __instance, LevelResult ___levelResult)
             {
                 if (!Main.enabled || !Main.settings.competitiveModeEnabled)
                 {
@@ -3100,9 +3091,8 @@ namespace Control_Enemies_Mod
 
                 if ( Main.onWinAttempt )
                 {
-                    LevelResult result = (LevelResult)Traverse.Create(__instance).GetFieldValue("levelResult");
                     // Win and show success screen
-                    if ( result == LevelResult.Success )
+                    if ( ___levelResult == LevelResult.Success )
                     {
                         Main.onWinAttempt = false;
                         Main.anyAttemptingWin = false;
