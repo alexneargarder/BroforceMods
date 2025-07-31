@@ -196,6 +196,22 @@ namespace Utility_Mod
             }
         }
         
+        // Calculate width without drawing (for submenus)
+        public void CalculateWidthOnly()
+        {
+            if (!stylesInitialized)
+            {
+                InitializeStyles();
+                stylesInitialized = true;
+            }
+            
+            if (!widthCalculated)
+            {
+                CalculateDynamicWidth();
+                widthCalculated = true;
+            }
+        }
+        
         private void DrawWindow(int id)
         {
             // Menu rect is now relative to window (0,0)
@@ -521,11 +537,8 @@ namespace Utility_Mod
             // We need to know the submenu width before positioning, so trigger its calculation
             activeSubmenu.SetPosition(new Vector2(submenuPos.x, Screen.height - submenuPos.y));
             
-            // Force the submenu to calculate its width by calling Draw once
-            // (This is a bit hacky but necessary to get the correct width)
-            GUI.BeginGroup(new Rect(-9999, -9999, 1, 1)); // Draw offscreen
-            activeSubmenu.Draw();
-            GUI.EndGroup();
+            // Calculate submenu width without drawing
+            activeSubmenu.CalculateWidthOnly();
             
             // Get submenu height for vertical bounds checking
             float submenuHeight = activeSubmenu.GetMenuHeight();
