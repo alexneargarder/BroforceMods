@@ -792,13 +792,6 @@ namespace Captain_Ameribro_Mod
             }
         }
 
-        // Copied from Neo
-        protected override void SetGunPosition( float xOffset, float yOffset )
-        {
-            // Fixes arms being offset from body
-            this.gunSprite.transform.localPosition = new Vector3( xOffset + 4f, yOffset, -1f );
-        }
-
         protected override void PressHighFiveMelee( bool forceHighFive = false )
         {
             if ( this.right && this.CanAirDash( DirectionEnum.Right ) && this.SpecialAmmo > 0 )
