@@ -175,29 +175,29 @@ namespace Furibrosa
             LoadSprite(this.gunSprite.gameObject, "vehicleCrossbow.png", new Vector3(0f, 31f, 0.1f));
 
             // Load wheel sprites
-            GameObject wheelsObject = new GameObject("WarRigWheels", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject wheelsObject = new GameObject("WarRigWheels", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             wheelsObject.transform.parent = this.transform;
             this.wheelsSprite = LoadSprite(wheelsObject, "vehicleWheels.png", new Vector3(0f, 31f, 0.1f));
 
             // Load bumper sprites
-            GameObject bumperObject = new GameObject("WarRigBumper", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject bumperObject = new GameObject("WarRigBumper", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             bumperObject.transform.parent = this.transform;
             this.bumperSprite = LoadSprite(bumperObject, "vehicleBumper.png", new Vector3(0f, 31f, 0.1f));
 
             // Load long smokestack sprites
-            GameObject longSmokestacksObject = new GameObject("WarRigLongSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject longSmokestacksObject = new GameObject("WarRigLongSmokestacks", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             longSmokestacksObject.transform.parent = this.transform;
             this.longSmokestacksSprite = LoadSprite(longSmokestacksObject, "vehicleLongSmokestacks.png", new Vector3(0f, 56f, 0.1f));
             this.longSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
 
             // Load short smokestack sprites
-            GameObject shortSmokestacksObject = new GameObject("WarRigShortSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject shortSmokestacksObject = new GameObject("WarRigShortSmokestacks", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             shortSmokestacksObject.transform.parent = this.transform;
             this.shortSmokestacksSprite = LoadSprite(shortSmokestacksObject, "vehicleShortSmokestacks.png", new Vector3(0f, 56f, 0.1f));
             this.shortSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
 
             // Load front smokestack sprites
-            GameObject frontSmokestacksObject = new GameObject("WarRigFrontSmokestacks", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject frontSmokestacksObject = new GameObject("WarRigFrontSmokestacks", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             frontSmokestacksObject.transform.parent = this.transform;
             this.frontSmokestacksSprite = LoadSprite(frontSmokestacksObject, "vehicleFrontSmokestacks.png", new Vector3(0f, 31f, 0.1f));
             this.frontSmokestacksSprite.SetLowerLeftPixel(0f, 128f);
@@ -214,7 +214,7 @@ namespace Furibrosa
             // Create Harpoon prefab if not yet created
             if (harpoonPrefab == null)
             {
-                harpoonPrefab = new GameObject("Harpoon", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Harpoon) }).GetComponent<Harpoon>();
+                harpoonPrefab = new GameObject("Harpoon", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(BoxCollider), typeof(Harpoon) }).GetComponent<Harpoon>();
                 harpoonPrefab.gameObject.SetActive(false);
                 harpoonPrefab.soundHolder = (HeroController.GetHeroPrefab(HeroType.Predabro) as Predabro).projectile.soundHolder;
                 harpoonPrefab.Setup();
@@ -411,7 +411,7 @@ namespace Furibrosa
 
         protected void InitializeGibs()
         {
-            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(Transform), typeof(GibHolder) }).GetComponent<GibHolder>();
+            this.gibs = new GameObject("WarRigGibs", new Type[] { typeof(GibHolder) }).GetComponent<GibHolder>();
             this.gibs.gameObject.SetActive(false);
             UnityEngine.Object.DontDestroyOnLoad(this.gibs);
             CreateGib("Scrap", new Vector2(397, 8), new Vector2(10, 4), 10f, 4f, new Vector3(-25f, 30f, 0f));

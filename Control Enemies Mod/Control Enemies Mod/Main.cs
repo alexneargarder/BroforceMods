@@ -1126,7 +1126,7 @@ namespace Control_Enemies_Mod
             // Create ghost prefab
             if ( ghostPrefab == null )
             {
-                ghostPrefab = new GameObject("GhostPlayer", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(GhostPlayer) }).GetComponent<GhostPlayer>();
+                ghostPrefab = new GameObject("GhostPlayer", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(GhostPlayer) }).GetComponent<GhostPlayer>();
                 ghostPrefab.gameObject.SetActive(false);
                 ghostPrefab.Setup();
                 UnityEngine.Object.DontDestroyOnLoad(ghostPrefab);
@@ -1994,7 +1994,7 @@ namespace Control_Enemies_Mod
         {
             try
             {
-                bulletPrefab = new GameObject("MindControlBullet", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(MindControlBullet) }).GetComponent<MindControlBullet>();
+                bulletPrefab = new GameObject("MindControlBullet", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM), typeof(MindControlBullet) }).GetComponent<MindControlBullet>();
                 bulletPrefab.gameObject.SetActive(false);
                 EllenRipbro ellenRipbro = (HeroController.GetHeroPrefab(HeroType.EllenRipbro) as EllenRipbro);
                 bulletPrefab.Setup(ellenRipbro);
