@@ -86,6 +86,10 @@ namespace Utility_Mod
         public bool maxCageSpawns = false;
         public bool showMousePosition = false;
         public bool showCursor = false;
+        public bool captureUnityLogs = false;  
+        public bool captureUnityErrors = true;  
+        public bool captureUnityWarnings = true;  
+        public bool captureUnityInfo = true;
 
         // Context Menu Settings
         public bool contextMenuEnabled = false;

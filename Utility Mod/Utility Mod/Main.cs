@@ -285,6 +285,13 @@ namespace Utility_Mod
             contextMenuGO.AddComponent<ContextMenuManager>();
             UnityEngine.Object.DontDestroyOnLoad( contextMenuGO );
 
+            // Initialize Unity log capture if enabled
+            if ( settings.captureUnityLogs )
+            {
+                Application.logMessageReceived += OnUnityLogMessageReceived;
+                Log( "Unity log capture initialized (enabled in settings)" );
+            }
+
             return true;
         }
 
@@ -296,6 +303,14 @@ namespace Utility_Mod
         static bool OnToggle( UnityModManager.ModEntry modEntry, bool value )
         {
             enabled = value;
+            
+            // Clean up Unity log capture when mod is disabled
+            if ( !value && settings != null && settings.captureUnityLogs )
+            {
+                Application.logMessageReceived -= OnUnityLogMessageReceived;
+                Log( "Unity log capture disabled (mod toggled off)" );
+            }
+            
             return true;
         }
 
@@ -304,6 +319,48 @@ namespace Utility_Mod
             if (mod != null)
             {
                 mod.Logger.Log(str);
+            }
+        }
+
+        private static void OnUnityLogMessageReceived( string condition, string stackTrace, LogType type )
+        {
+            // Check if we should capture this log type
+            if ( !settings.captureUnityLogs ) return;
+            
+            bool shouldCapture = false;
+            string colorTag = "";
+            string colorCloseTag = "";
+            
+            switch ( type )
+            {
+                case LogType.Error:
+                case LogType.Exception:
+                    shouldCapture = settings.captureUnityErrors;
+                    colorTag = "<color=red>";
+                    colorCloseTag = "</color>";
+                    break;
+                case LogType.Warning:
+                    shouldCapture = settings.captureUnityWarnings;
+                    colorTag = "<color=yellow>";
+                    colorCloseTag = "</color>";
+                    break;
+                case LogType.Log:
+                case LogType.Assert:
+                    shouldCapture = settings.captureUnityInfo;
+                    colorTag = "<color=#00BFFF>"; // DeepSkyBlue for better visibility
+                    colorCloseTag = "</color>";
+                    break;
+            }
+
+            if ( !shouldCapture ) return;
+
+            // Format and log the message with color
+            Log( $"[Unity] {colorTag}{condition}{colorCloseTag}" );
+            
+            // Include stack trace for errors and exceptions (also colored)
+            if ( !string.IsNullOrEmpty( stackTrace ) && ( type == LogType.Error || type == LogType.Exception ) )
+            {
+                Log( $"[Unity] {colorTag}Stack trace:\n{stackTrace}{colorCloseTag}" );
             }
         }
 
@@ -1305,7 +1362,7 @@ namespace Utility_Mod
 
                 lastRect = GUILayoutUtility.GetLastRect();
                 lastRect.y += 20;
-                lastRect.width += 300;
+                lastRect.width += 600;
                 if ( GUI.tooltip != previousToolTip )
                 {
                     GUI.Label( lastRect, GUI.tooltip );
@@ -1313,6 +1370,53 @@ namespace Utility_Mod
                 }
 
                 GUILayout.Space( 20 );
+
+                // Unity Log Capture Options
+                bool previousCaptureState = settings.captureUnityLogs;
+                settings.captureUnityLogs = GUILayout.Toggle( settings.captureUnityLogs, 
+                    new GUIContent( "Capture Unity Logs", "Captures Unity's Debug.Log output, warnings, and errors to UnityModManager's log file. Logs are color-coded: red for errors, yellow for warnings, blue for info." ) );
+
+                lastRect = GUILayoutUtility.GetLastRect();
+
+                // Handle enabling/disabling the log capture
+                if ( previousCaptureState != settings.captureUnityLogs )
+                {
+                    if ( settings.captureUnityLogs )
+                    {
+                        Application.logMessageReceived += OnUnityLogMessageReceived;
+                        Log( "Unity log capture enabled" );
+                    }
+                    else
+                    {
+                        Application.logMessageReceived -= OnUnityLogMessageReceived;
+                        Log( "Unity log capture disabled" );
+                    }
+                }
+
+                if ( settings.captureUnityLogs )
+                {
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space( 20 );
+                    GUILayout.BeginVertical();
+                    
+                    settings.captureUnityErrors = GUILayout.Toggle( settings.captureUnityErrors, "Capture Errors" );
+                    settings.captureUnityWarnings = GUILayout.Toggle( settings.captureUnityWarnings, "Capture Warnings" );
+                    settings.captureUnityInfo = GUILayout.Toggle( settings.captureUnityInfo, "Capture Info/Log Messages" );
+                    lastRect = GUILayoutUtility.GetLastRect();
+
+                    GUILayout.EndVertical();
+                    GUILayout.EndHorizontal();
+                }
+
+                lastRect.y += 25;
+                lastRect.width += 600;
+                if ( GUI.tooltip != previousToolTip )
+                {
+                    GUI.Label( lastRect, GUI.tooltip );
+                    previousToolTip = GUI.tooltip;
+                }
+
+                GUILayout.Space( 35 );
             }
         }
 
