@@ -572,11 +572,11 @@ namespace Mission_Impossibro
             // Fixes arms being offset from body
             if ( !this.stealthActive )
             {
-                this.gunSprite.transform.localPosition = new Vector3( xOffset + 1f, yOffset, -1f );
+                base.SetGunPosition( xOffset, yOffset );
             }
             else
             {
-                this.gunSprite.transform.localPosition = new Vector3( xOffset, yOffset + 0.4f, -1f );
+                this.gunSprite.transform.localPosition = new Vector3( xOffset, yOffset + 0.4f, -.001f );
             }
 
         }
