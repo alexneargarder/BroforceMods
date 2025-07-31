@@ -77,7 +77,7 @@ namespace Furibrosa
             this.canMakeEffectsMoreThanOnce = true;
 
             // Setup platform collider
-            this.platformCollider = new GameObject("HarpoonCollider", new Type[] { typeof(Transform), typeof(BoxCollider) }).GetComponent<BoxCollider>();
+            this.platformCollider = new GameObject("HarpoonCollider", new Type[] { typeof(BoxCollider) }).GetComponent<BoxCollider>();
             this.platformCollider.enabled = false;
             this.platformCollider.transform.parent = this.transform;
             this.platformCollider.material = new PhysicMaterial();
@@ -91,7 +91,7 @@ namespace Furibrosa
             (this.platformCollider as BoxCollider).size = new Vector3(20f, 1f, 1f);
 
             // Setup foreground sprite
-            GameObject foreground = new GameObject("HarpoonForeground", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
+            GameObject foreground = new GameObject("HarpoonForeground", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) });
             foreground.transform.parent = this.transform;
             foreground.GetComponent<MeshRenderer>().material = material;
             SpriteSM foregroundSprite = foreground.GetComponent<SpriteSM>();

@@ -149,7 +149,7 @@ namespace Drunken_Broster
             this.drunkSprite = ResourcesController.GetMaterial( directoryPath, "drunkSprite.png" );
 
             // Setup melee gunsprite
-            gunSpriteMelee = new GameObject( "GunSpriteMelee", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
+            gunSpriteMelee = new GameObject( "GunSpriteMelee", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
             gunSpriteMelee.transform.parent = this.transform;
             gunSpriteMelee.gameObject.SetActive( false );
             gunSpriteMelee.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteMelee.png" );
