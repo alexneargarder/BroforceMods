@@ -364,17 +364,15 @@ namespace Swap_Bros_Mod
         [HarmonyPatch(typeof(PauseMenu), "ReturnToMenu")]
         static class PauseMenu_ReturnToMenu_Patch
         {
-            static bool Prefix(PauseMenu __instance)
+            static bool Prefix(PauseMenu __instance, PauseGameConfirmationPopup ___m_ConfirmationPopup)
             {
                 if (!Main.enabled || !Main.settings.disableConfirm)
                 {
                     return true;
                 }
 
-                PauseGameConfirmationPopup m_ConfirmationPopup = (Traverse.Create(__instance).Field("m_ConfirmationPopup").GetValue() as PauseGameConfirmationPopup);
-
-                MethodInfo dynMethod = m_ConfirmationPopup.GetType().GetMethod("ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-                dynMethod.Invoke(m_ConfirmationPopup, null);
+                MethodInfo dynMethod = ___m_ConfirmationPopup.GetType().GetMethod("ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+                dynMethod.Invoke(___m_ConfirmationPopup, null);
 
                 return false;
             }

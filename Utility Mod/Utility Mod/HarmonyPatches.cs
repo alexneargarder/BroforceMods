@@ -26,7 +26,7 @@ namespace Utility_Mod
         static class WorldMapController_ProcessNextAction_Patch
         {
             public static int nextCampaign = 0;
-            static bool Prefix( WorldMapController __instance )
+            static bool Prefix( WorldMapController __instance, List<WorldMapController.QueuedAction> ___actionQueue, WorldTerritory3D[] ___territories3D, ref float ___queueCounter )
             {
                 if ( !Main.enabled )
                     return true;
@@ -39,14 +39,11 @@ namespace Utility_Mod
                     return true;
                 }
 
-                Traverse actionQueueTraverse = Traverse.Create( __instance );
-                List<WorldMapController.QueuedAction> actionQueue = actionQueueTraverse.Field( "actionQueue" ).GetValue() as List<WorldMapController.QueuedAction>;
 
-                WorldTerritory3D[] territories = Traverse.Create( __instance ).Field( "territories3D" ).GetValue() as WorldTerritory3D[];
 
-                if ( actionQueue.Count > 0 )
+                if ( ___actionQueue.Count > 0 )
                 {
-                    WorldMapController.QueuedAction queuedAction = actionQueue[0];
+                    WorldMapController.QueuedAction queuedAction = ___actionQueue[0];
                     switch ( queuedAction.actionType )
                     {
                         case WorldMapController.QueuedActions.Helicopter:
@@ -70,37 +67,35 @@ namespace Utility_Mod
                         case WorldMapController.QueuedActions.Secret:
                             break;
                     }
-                    actionQueue.RemoveAt( 0 );
-                    Traverse queueCounter = Traverse.Create( __instance );
+                    ___actionQueue.RemoveAt( 0 );
                     if ( queuedAction.actionType == WorldMapController.QueuedActions.Hell )
                     {
                         //queueCounter = 5.2f;
-                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
+                        ___queueCounter = 0;
                     }
                     else if ( queuedAction.actionType == WorldMapController.QueuedActions.Liberated )
                     {
                         //queueCounter = 2f;
-                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
+                        ___queueCounter = 0;
                     }
                     else if ( queuedAction.actionType == WorldMapController.QueuedActions.Secret )
                     {
                         //queueCounter = 0f;
-                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
+                        ___queueCounter = 0;
                     }
                     else
                     {
                         //queueCounter = 1.6f;
-                        queueCounter.Field( "queueCounter" ).SetValue( 0 );
+                        ___queueCounter = 0;
                     }
                 }
                 else if ( WorldCamera.instance.CamState != WorldCamera.CameraState.FollowHelicopter && WorldCamera.instance.CamState != WorldCamera.CameraState.MoveToHelicopter )
                 {
                     WorldCamera.instance.MoveToHelicopter( 0f );
                 }
-                actionQueueTraverse.Field( "actionQueue" ).SetValue( actionQueue );
 
                 nextCampaign = -1;
-                foreach ( WorldTerritory3D ter in territories )
+                foreach ( WorldTerritory3D ter in ___territories3D )
                 {
                     if ( ter.properties.state == TerritoryState.Liberated )
                     {
@@ -119,7 +114,7 @@ namespace Utility_Mod
                 }
                 ++nextCampaign;
 
-                foreach ( WorldTerritory3D ter in territories )
+                foreach ( WorldTerritory3D ter in ___territories3D )
                 {
                     if ( ter.properties.state == TerritoryState.TerroristBase || ter.properties.state == TerritoryState.Hell
                         || ter.properties.state == TerritoryState.Infested || ter.properties.state == TerritoryState.TerroristBurning
@@ -208,17 +203,15 @@ namespace Utility_Mod
         [HarmonyPatch( typeof( PauseMenu ), "ReturnToMenu" )]
         static class PauseMenu_ReturnToMenu_Patch
         {
-            static bool Prefix( PauseMenu __instance )
+            static bool Prefix( PauseMenu __instance, PauseGameConfirmationPopup ___m_ConfirmationPopup )
             {
                 if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
 
-                PauseGameConfirmationPopup m_ConfirmationPopup = ( Traverse.Create( __instance ).Field( "m_ConfirmationPopup" ).GetValue() as PauseGameConfirmationPopup );
-
-                MethodInfo dynMethod = m_ConfirmationPopup.GetType().GetMethod( "ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance );
-                dynMethod.Invoke( m_ConfirmationPopup, null );
+                MethodInfo dynMethod = ___m_ConfirmationPopup.GetType().GetMethod( "ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance );
+                dynMethod.Invoke( ___m_ConfirmationPopup, null );
 
                 return false;
             }
