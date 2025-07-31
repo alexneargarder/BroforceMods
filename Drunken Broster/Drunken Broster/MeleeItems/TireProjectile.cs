@@ -47,7 +47,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected void InitializeGibs()
         {
-            this.gibs = new GameObject( "TireProjectileGibs", new Type[] { typeof( Transform ), typeof( GibHolder ) } ).GetComponent<GibHolder>();
+            this.gibs = new GameObject( "TireProjectileGibs", new Type[] { typeof( GibHolder ) } ).GetComponent<GibHolder>();
             this.gibs.gameObject.SetActive( false );
             UnityEngine.Object.DontDestroyOnLoad( this.gibs );
             CreateGib( "TireHub", new Vector2( 22, 12 ), new Vector2( 8, 8 ), 8f, 8f, new Vector3( 0f, 0f, 0f ) );

@@ -153,7 +153,7 @@ namespace RJBrocready
 
             dynamitePrefab = CustomGrenade.CreatePrefab<Dynamite>();
 
-            tentacleWhipSprite = new GameObject( "TentacleWhip", new Type[] { typeof( Transform ), typeof( MeshRenderer ), typeof( MeshFilter ), typeof( SpriteSM ) } ).GetComponent<SpriteSM>();
+            tentacleWhipSprite = new GameObject( "TentacleWhip", new Type[] { typeof( MeshRenderer ), typeof( MeshFilter ), typeof( SpriteSM ) } ).GetComponent<SpriteSM>();
             MeshRenderer renderer = tentacleWhipSprite.GetComponent<MeshRenderer>();
             renderer.material = ResourcesController.GetMaterial( directoryPath, "tentacle.png" );
             renderer.material.mainTexture.wrapMode = TextureWrapMode.Clamp;
@@ -167,12 +167,12 @@ namespace RJBrocready
             tentacleWhipSprite.SetTextureDefaults();
             tentacleWhipSprite.gameObject.SetActive( false );
 
-            tentacleLine = new GameObject( "TentacleLine", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
+            tentacleLine = new GameObject( "TentacleLine", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             tentacleLine.transform.parent = this.transform;
             tentacleLine.material = ResourcesController.GetMaterial( directoryPath, "tentacleLine.png" );
             tentacleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
-            this.tentacleImpaler = new GameObject( "TentacleImpaler", new Type[] { typeof( Transform ) } ).transform;
+            this.tentacleImpaler = new GameObject( "TentacleImpaler" ).transform;
 
             this.fragileGroundLayer = this.fragileLayer | this.groundLayer;
 

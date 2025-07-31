@@ -86,7 +86,7 @@ namespace Mission_Impossibro
 
             gumPrefab = CustomSachelPack.CreatePrefab<ExplosiveGum>();
 
-            grappleLine = new GameObject( "GrappleLine", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
+            grappleLine = new GameObject( "GrappleLine", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             grappleLine.transform.parent = this.transform;
             grappleLine.material = ResourcesController.GetMaterial( directoryPath, "line.png" );
             grappleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;

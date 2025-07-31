@@ -107,17 +107,17 @@ namespace Brostbuster
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
             string soundPath = Path.Combine( directoryPath, "sounds" );
 
-            protonLine1 = new GameObject( "ProtonLine1", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
+            protonLine1 = new GameObject( "ProtonLine1", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine1.transform.parent = this.transform;
             protonLine1.material = ResourcesController.GetMaterial( directoryPath, "protonLine1.png" );
             protonLine1.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
-            protonLine1Cap = new GameObject( "ProtonLine1End", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
+            protonLine1Cap = new GameObject( "ProtonLine1End", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine1Cap.transform.parent = this.transform;
             protonLine1Cap.material = ResourcesController.GetMaterial( directoryPath, "protonLine1End.png" );
             protonLine1Cap.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
-            protonLine2 = new GameObject( "ProtonLine2", new Type[] { typeof( Transform ), typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
+            protonLine2 = new GameObject( "ProtonLine2", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine2.transform.parent = this.transform;
             protonLine2Mats = new Material[4];
             for ( int i = 0; i < 4; ++i )

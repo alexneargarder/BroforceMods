@@ -31,7 +31,7 @@ namespace Control_Enemies_Mod
 
         public static void LoadSprites()
         {
-            scorePrefab = new GameObject("ControlEnemiesModScore", new Type[] { typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).GetComponent<SpriteSM>();
+            scorePrefab = new GameObject("ControlEnemiesModScore", new Type[] { typeof(MeshFilter), typeof(MeshRenderer), typeof(SpriteSM) }).GetComponent<SpriteSM>();
             scorePrefab.gameObject.SetActive(false);
 
             MeshRenderer renderer = scorePrefab.gameObject.GetComponent<MeshRenderer>();

@@ -111,7 +111,7 @@ namespace Furibrosa
 
             if ( boltPrefab == null )
             {
-                boltPrefab = new GameObject( "Bolt", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BoxCollider ), typeof( Bolt ) } ).GetComponent<Bolt>();
+                boltPrefab = new GameObject( "Bolt", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BoxCollider ), typeof( Bolt ) } ).GetComponent<Bolt>();
                 boltPrefab.gameObject.SetActive( false );
                 boltPrefab.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Predabro ) as Predabro ).projectile.soundHolder;
                 boltPrefab.Setup( false );
@@ -120,7 +120,7 @@ namespace Furibrosa
 
             if ( explosiveBoltPrefab == null )
             {
-                explosiveBoltPrefab = new GameObject( "ExplosiveBolt", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BoxCollider ), typeof( Bolt ) } ).GetComponent<Bolt>();
+                explosiveBoltPrefab = new GameObject( "ExplosiveBolt", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( BoxCollider ), typeof( Bolt ) } ).GetComponent<Bolt>();
                 explosiveBoltPrefab.gameObject.SetActive( false );
                 explosiveBoltPrefab.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Predabro ) as Predabro ).projectile.soundHolder;
                 explosiveBoltPrefab.Setup( true );
@@ -143,7 +143,7 @@ namespace Furibrosa
                 }
             }
 
-            holdingArm = new GameObject( "FuribrosaArm", new Type[] { typeof( Transform ), typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
+            holdingArm = new GameObject( "FuribrosaArm", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
             holdingArm.transform.parent = this.transform;
             holdingArm.gameObject.SetActive( false );
             holdingArm.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteHolding.png" );
