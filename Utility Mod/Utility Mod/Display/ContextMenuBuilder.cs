@@ -985,6 +985,17 @@ namespace Utility_Mod
 
         public void BuildDebugOptionsSubmenu(MenuItem parentMenu)
         {
+            // Print Audio Played
+            parentMenu.AddSubItem(new MenuItem("Print Audio Played", (Action)null)
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.printAudioPlayed,
+                OnToggle = (isChecked) => {
+                    Main.settings.printAudioPlayed = isChecked;
+                }
+            });
+            
             // Suppress Announcer
             parentMenu.AddSubItem(new MenuItem("Suppress Announcer", (Action)null)
             {
