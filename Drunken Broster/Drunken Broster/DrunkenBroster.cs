@@ -432,14 +432,13 @@ namespace Drunken_Broster
             // TODO: setup preloading assets
         }
 
-        public override void PrePrefabSetup()
+        public override void BeforePrefabSetup()
         {
             this.SoundHolderHeroType = HeroType.BroLee;
         }
 
-        public override void PrefabSetup()
+        public override void AfterPrefabSetup()
         {
-            base.PrefabSetup();
             ThemeHolder theme = Map.Instance.jungleThemeReference;
             BarrelBlock explosiveBarrel = theme.blockPrefabBarrels[1].GetComponent<BarrelBlock>();
             this.fire1 = explosiveBarrel.fire1;

@@ -91,10 +91,13 @@ namespace Captain_Ameribro_Mod
             CustomHero.PreloadSounds( directoryPath, new List<string> { "special1.wav", "special2.wav", "special3.wav", "ShieldShing.wav", "melee1part1.wav", "melee3part2.wav", "meleeterrainhit1.wav", "meleeterrainhit2.wav", "swish.wav", "grunt1.wav", "grunt2.wav", "grunt3.wav", "grunt4.wav", "grunt5.wav", "ricochet1.wav", "ricochet2.wav", "ricochet3.wav", "ricochet4.wav", "pistol1.wav", "pistol2.wav", "pistol3.wav", "pistol4.wav" } );
         }
 
-        public override void PrefabSetup()
+        public override void BeforePrefabSetup()
         {
-            base.PrefabSetup();
+            this.SoundHolderVoiceType = SoundHolderVoiceTypes.MaleDeep;
+        }
 
+        public override void AfterPrefabSetup()
+        {
             this.SetupSounds();
         }
 
