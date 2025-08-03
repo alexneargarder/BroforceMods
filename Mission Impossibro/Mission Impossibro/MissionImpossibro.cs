@@ -109,10 +109,8 @@ namespace Mission_Impossibro
             CustomHero.PreloadSounds( directoryPath, new List<string> { "gun1.wav", "gun2.wav", "gun3.wav", "gun4.wav", "gun5.wav", "gun6.wav", "gun7.wav", "Click_Metal1.wav", "Click_Metal2.wav", "Click_Metal3.wav", "Click_Metal5.wav", "Click_Metal6.wav" } );
         }
 
-        public override void PrefabSetup()
+        public override void AfterPrefabSetup()
         {
-            base.PrefabSetup();
-
             string soundPath = Path.Combine( Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location ), "sounds" );
 
             // Load sounds

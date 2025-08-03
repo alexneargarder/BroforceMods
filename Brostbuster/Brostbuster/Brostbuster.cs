@@ -100,6 +100,11 @@ namespace Brostbuster
             }
         }
 
+        public override void BeforePrefabSetup()
+        {
+            this.SoundHolderVoiceType = SoundHolderVoiceTypes.MaleLight;
+        }
+
         protected override void Awake()
         {
             base.Awake();
