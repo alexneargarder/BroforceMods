@@ -5,6 +5,15 @@
 # Auto-detect project name from current directory
 PROJECT_NAME := $(notdir $(CURDIR))
 
+# Check if we're in the root directory or Scripts directory
+ifeq ($(PROJECT_NAME),BroforceMods)
+    IS_ROOT = true
+else ifeq ($(PROJECT_NAME),Scripts)
+    IS_ROOT = true
+else
+    IS_ROOT = false
+endif
+
 # Handle special case for Captain Ameribro
 ifeq ($(PROJECT_NAME),Captain Ameribro)
     PROJECT_DIR = Captain Ameribro Mod
@@ -26,8 +35,8 @@ BROFORCE_PATH = /mnt/c/Program Files (x86)/Steam/steamapps/common/Broforce
 PROJECT_DIR_WIN = $(shell wslpath -w "$(CURDIR)")
 PROJECT_FILE_WIN = $(PROJECT_DIR_WIN)\\$(PROJECT_DIR)\\$(PROJECT_NAME).csproj
 
-# Auto-detect project type by checking for BroMakerLib reference
-PROJECT_TYPE := $(shell grep -q "BroMakerLib" "$(PROJECT_FILE)" 2>/dev/null && echo "bro" || echo "mod")
+# Auto-detect project type by checking for CustomHero or HeroPreset (bros have these, mods don't)
+PROJECT_TYPE := $(shell if grep -E 'class.*:.*CustomHero|HeroPreset' "$(PROJECT_DIR)"/*.cs 2>/dev/null >/dev/null; then echo "bro"; else echo "mod"; fi)
 
 # Allow TYPE override
 ifdef TYPE
@@ -43,43 +52,39 @@ endif
 
 # Default target
 .PHONY: all
+ifeq ($(IS_ROOT),true)
+all: help
+else
 all: build
+endif
 
-# Build all projects in the repository
+# Build all projects in the repository (without launching game)
 .PHONY: all-projects
 all-projects:
 	@echo "Building all BroforceMods projects..."
+	@echo ""
+	@echo "MODS:"
 	@echo "========================================"
-	@for dir in "Brostbuster" "Captain Ameribro" "Control Enemies Mod" "Drunken Broster" "Furibrosa" "IronBro Multiplayer Mod" "Mission Impossibro" "RJBrocready" "Randomizer Mod" "Swap Bros Mod" "Utility Mod"; do \
+	@for dir in "Control Enemies Mod" "IronBro Multiplayer Mod" "Randomizer Mod" "Swap Bros Mod" "Utility Mod"; do \
 		if [ -d "$$dir" ] || [ -d "../$$dir" ]; then \
-			echo ""; \
-			echo "Building $$dir..."; \
-			echo "----------------------------------------"; \
+			printf "%-30s ... " "$$dir"; \
 			if [ -d "$$dir" ]; then \
-				(cd "$$dir" && $(MAKE) -f ../Scripts/Makefile build) || echo "Failed to build $$dir"; \
+				(cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
 			else \
-				(cd "../$$dir" && $(MAKE) -f ../Scripts/Makefile build) || echo "Failed to build $$dir"; \
+				(cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
 			fi; \
 		fi; \
 	done
 	@echo ""
+	@echo "BROS:"
 	@echo "========================================"
-	@echo "All projects built!"
-
-# Build all projects without launching Broforce
-.PHONY: all-projects-no-launch
-all-projects-no-launch:
-	@echo "Building all BroforceMods projects (no launch)..."
-	@echo "========================================"
-	@for dir in "Brostbuster" "Captain Ameribro" "Control Enemies Mod" "Drunken Broster" "Furibrosa" "IronBro Multiplayer Mod" "Mission Impossibro" "RJBrocready" "Randomizer Mod" "Swap Bros Mod" "Utility Mod"; do \
+	@for dir in "Brostbuster" "Captain Ameribro" "Drunken Broster" "Furibrosa" "Mission Impossibro" "RJBrocready"; do \
 		if [ -d "$$dir" ] || [ -d "../$$dir" ]; then \
-			echo ""; \
-			echo "Building $$dir..."; \
-			echo "----------------------------------------"; \
+			printf "%-30s ... " "$$dir"; \
 			if [ -d "$$dir" ]; then \
-				(cd "$$dir" && $(MAKE) -f ../Scripts/Makefile build-no-launch) || echo "Failed to build $$dir"; \
+				(cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
 			else \
-				(cd "../$$dir" && $(MAKE) -f ../Scripts/Makefile build-no-launch) || echo "Failed to build $$dir"; \
+				(cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
 			fi; \
 		fi; \
 	done
@@ -90,60 +95,79 @@ all-projects-no-launch:
 # Pre-build: Kill Broforce if running
 .PHONY: pre-build
 pre-build:
-	@echo "Running pre-build for $(PROJECT_TYPE): $(PROJECT_NAME)..."
-	@echo "Killing Broforce_beta.exe if running..."
 	@taskkill.exe /f /t /im Broforce_beta.exe 2>/dev/null || true
 
 # Build the project
 .PHONY: build
-build: pre-build
-	@echo "Building $(PROJECT_NAME) (detected as: $(PROJECT_TYPE))..."
-	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent=""
-	@$(MAKE) -f $(MAKEFILE_LIST) post-build
+build:
+ifeq ($(IS_ROOT),true)
+	@echo "Error: Not in a project directory."
+	@echo "Run from within a project directory or use 'make -f Scripts/Makefile all-projects'"
+	@echo ""
+	@$(MAKE) -s -f $(MAKEFILE_LIST) help
+else
+	@$(MAKE) -s -f $(MAKEFILE_LIST) pre-build
+	@echo "Building $(PROJECT_NAME)..."
+	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog
+	@$(MAKE) -s -f $(MAKEFILE_LIST) post-build
+endif
 
 # Build without launching Broforce
 .PHONY: build-no-launch
-build-no-launch: pre-build
-	@echo "Building $(PROJECT_NAME) (detected as: $(PROJECT_TYPE))..."
-	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent=""
-	@$(MAKE) -f $(MAKEFILE_LIST) post-build-no-launch
+build-no-launch:
+ifeq ($(IS_ROOT),true)
+	@echo "Error: Not in a project directory."
+	@echo "Run from within a project directory or use 'make -f Scripts/Makefile all-projects'"
+	@echo ""
+	@$(MAKE) -s -f $(MAKEFILE_LIST) help
+else
+	@$(MAKE) -s -f $(MAKEFILE_LIST) pre-build
+	@echo "Building $(PROJECT_NAME)..."
+	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog
+	@$(MAKE) -s -f $(MAKEFILE_LIST) post-build-no-launch
+endif
 
 # Post-build: Copy files and optionally launch Steam
 .PHONY: post-build
 post-build:
-	@echo "Running post-build..."
-	@echo "Creating destination directory: $(DEST_DIR)"
 	@mkdir -p "$(DEST_DIR)"
-	@echo "Removing cache files..."
 	@rm -f "$(DEST_DIR)"/*.cache 2>/dev/null || true
-	@echo "Copying $(BUILD_DLL_NAME) to $(DEST_DIR)/$(DEST_DLL_NAME)..."
 	@cp -f "$(TARGET_DLL)" "$(DEST_DIR)/$(DEST_DLL_NAME)"
-	@echo "Launching Broforce via Steam..."
 	@cmd.exe /c start steam://rungameid/274190
-	@echo "Build complete!"
 
 # Post-build without launching Broforce
 .PHONY: post-build-no-launch
 post-build-no-launch:
-	@echo "Running post-build..."
-	@echo "Creating destination directory: $(DEST_DIR)"
 	@mkdir -p "$(DEST_DIR)"
-	@echo "Removing cache files..."
 	@rm -f "$(DEST_DIR)"/*.cache 2>/dev/null || true
-	@echo "Copying $(BUILD_DLL_NAME) to $(DEST_DIR)/$(DEST_DLL_NAME)..."
 	@cp -f "$(TARGET_DLL)" "$(DEST_DIR)/$(DEST_DLL_NAME)"
-	@echo "Build complete!"
 
 # Clean build
 .PHONY: clean
 clean:
+ifeq ($(IS_ROOT),true)
+	@echo "Error: Not in a project directory."
+	@echo "Run from within a project directory"
+	@echo ""
+	@$(MAKE) -s -f $(MAKEFILE_LIST) help
+else
 	@echo "Cleaning $(PROJECT_NAME)..."
 	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /t:Clean /p:Configuration=Debug
 	@echo "Clean complete!"
+endif
 
 # Rebuild (clean + build)
 .PHONY: rebuild
-rebuild: clean build
+rebuild:
+ifeq ($(IS_ROOT),true)
+	@echo "Error: Not in a project directory."
+	@echo "Run from within a project directory"
+	@echo ""
+	@$(MAKE) -s -f $(MAKEFILE_LIST) help
+else
+	@$(MAKE) -s -f $(MAKEFILE_LIST) clean
+	@$(MAKE) -s -f $(MAKEFILE_LIST) build
+endif
 
 # Show detected configuration
 .PHONY: info
@@ -174,8 +198,7 @@ help:
 	@echo "  make help             - Show this help"
 	@echo ""
 	@echo "All-Projects Targets (run from Scripts or root directory):"
-	@echo "  make all-projects           - Build all projects"
-	@echo "  make all-projects-no-launch - Build all projects without launching"
+	@echo "  make all-projects           - Build all projects (without launching)"
 	@echo ""
 	@echo "Options:"
 	@echo "  TYPE=mod|bro      - Override auto-detected project type"
