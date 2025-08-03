@@ -2476,38 +2476,39 @@ namespace Drunken_Broster
 
         protected void ThrowHeldItem()
         {
+            bool angleDownwards = this.down && this.IsOnGround() && this.ducking;
             switch ( this.heldItem )
             {
                 case MeleeItem.Tire:
-                    this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 );
+                    this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 150f : 275f), angleDownwards ? 25f : 50f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AcidEgg:
-                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * 350f, 125f, base.playerNum );
+                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Beehive:
-                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 125f, base.playerNum );
+                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Bottle:
-                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * 400f, 125f, base.playerNum );
+                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 225f : 400f), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Crate:
-                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * 225f, 125f, base.playerNum );
+                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * (angleDownwards ? 150f : 225f), angleDownwards ? 75f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * 350f, 100f, base.playerNum );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 40f : 100f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * 275f, 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
+                    ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 150f : 275f), angleDownwards ? 25f : 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
                     explosiveBarrel.explosionCounter = Mathf.Max( 4 - Mathf.Abs( 5 - this.explosionCounter ), 1 );
                     break;
                 case MeleeItem.SoccerBall:
-                    this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * 350f, 150f, base.playerNum, 0 );
+                    this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 60f : 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:
-                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * 350f, 125f, base.playerNum );
+                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Skull:
-                    this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * 350f, 100f, base.playerNum );
+                    this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 40f : 100f, base.playerNum );
                     break;
                 default:
                     
