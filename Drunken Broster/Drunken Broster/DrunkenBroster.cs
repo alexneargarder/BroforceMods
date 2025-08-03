@@ -124,7 +124,7 @@ namespace Drunken_Broster
         AudioClip slurp;
         public bool wasDrunk = false; // Was drunk before starting special
         public bool drunk = false;
-        protected const float maxDrunkTime = 15f;
+        protected const float maxDrunkTime = 12f;
         public float drunkCounter = 0f;
         protected int usingSpecialFrame = 0;
         protected float originalSpeed = 0;
@@ -893,7 +893,7 @@ namespace Drunken_Broster
             if ( !this.drunk )
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 250f + this.xI, 200f, 6f, base.playerNum, out _, this );
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * 5f, base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * (3f + this.attackSpriteRow == 0 ? 1f : 0f), base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -1098,7 +1098,7 @@ namespace Drunken_Broster
                     this.hasHitThisAttack = true;
                     this.xIAttackExtra = 0f;
                     this.TimeBump();
-                    this.postAttackHitPauseTime = 0.12f;
+                    this.postAttackHitPauseTime = 0.08f;
                     this.xI = 0f;
                     this.yI = 0f;
                     if ( this.drunk )
@@ -2033,7 +2033,7 @@ namespace Drunken_Broster
             if ( Time.time - this.lastSoundTime > 0.3f )
             {
                 this.lastSoundTime = Time.time;
-                Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, 1f, true, false, false, 0f);
+                Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, this.drunk ? 0.85f : 1f, true, false, false, 0f);
             }
         }
 
@@ -2647,6 +2647,12 @@ namespace Drunken_Broster
             // Make sure we aren't holding anything before drinking
             if ( this.heldItem == MeleeItem.None )
             {
+                // Don't use additional specials if already drunk
+                if ( this.drunk )
+                {
+                    return;
+                }
+
                 if ( this.SpecialAmmo > 0 )
                 {
                     this.wasDrunk = false;
@@ -2734,7 +2740,7 @@ namespace Drunken_Broster
 
         protected void PlayDrinkingSound()
         {
-            this.sound.PlaySoundEffectAt( this.slurp, 0.35f, base.transform.position, 1f, true, false, true, 0f );
+            this.sound.PlaySoundEffectAt( this.slurp, 1f, base.transform.position, 0.9f, true, false, true, 0f );
         }
 
         protected override void UseSpecial()
