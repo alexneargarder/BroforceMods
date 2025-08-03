@@ -14,4 +14,9 @@ set "OutDir=%~9"
 
 del "%BROFORCEPATH%\mods\%ProjectName%\*.cache"
 XCOPY /Y /R "%TargetPath%" "%BROFORCEPATH%\mods\%ProjectName%\%ProjectName%.dll*"
-start steam://rungameid/274190
+
+rem Check if no-launch toggle file exists
+set "TOGGLE_FILE=%ProjectDir%..\..\Scripts\no-launch.toggle"
+if not exist "%TOGGLE_FILE%" (
+    start steam://rungameid/274190
+)

@@ -374,3 +374,6 @@ settings.local.json
 *settings.json
 Settings.xml
 Settings.xml*
+
+# Toggle file for disabling game launch after builds
+Scripts/no-launch.toggle
