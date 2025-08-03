@@ -92,8 +92,6 @@ namespace Furibrosa
         {
             base.Start();
 
-            this.soundHolderVoice = ( HeroController.GetHeroPrefab( HeroType.Xebro ) as Xebro ).soundHolderVoice;
-
             this.meleeType = MeleeType.Disembowel;
 
             this.crossbowMat = ResourcesController.GetMaterial( Path.Combine( directoryPath, "gunSpriteCrossbow.png" ) );
@@ -203,10 +201,13 @@ namespace Furibrosa
             }
         }
 
-        public override void PrefabSetup()
+        public override void BeforePrefabSetup()
         {
-            base.PrefabSetup();
+            this.SoundHolderVoiceType = SoundHolderVoiceTypes.Female;
+        }
 
+        public override void AfterPrefabSetup()
+        {
             // Load Audio
             string soundPath = Path.Combine( directoryPath, "sounds" );
             this.crossbowSounds = new AudioClip[4];

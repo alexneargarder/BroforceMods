@@ -206,10 +206,8 @@ namespace RJBrocready
             }
         }
 
-        public override void PrefabSetup()
+        public override void AfterPrefabSetup()
         {
-            base.PrefabSetup();
-
             string soundPath = Path.Combine( directoryPath, "sounds" );
             string thingSoundPath = Path.Combine( soundPath, "ThingSounds" );
 
