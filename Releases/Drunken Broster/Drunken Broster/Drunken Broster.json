@@ -32,6 +32,6 @@
     "speed": 130,
     "fireRate": 0.1,
     "canChimneyFlip": true,
-    "originalSpecialAmmo": 1
+    "originalSpecialAmmo": 2
   }
 }
