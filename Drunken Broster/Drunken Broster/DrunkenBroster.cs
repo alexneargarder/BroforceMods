@@ -74,7 +74,8 @@ namespace Drunken_Broster
         protected float lastAttackingTime = 0;
         protected bool startNewAttack = false;
         public float fistVolume = 0.7f;
-        public float wallHitVolume = 0.3f;
+        public float wallHitVolume = 0.25f;
+        protected bool playedWallHit = false;
 
         // Melee
         public enum MeleeItem
@@ -128,8 +129,13 @@ namespace Drunken_Broster
         protected int usingSpecialFrame = 0;
         protected float originalSpeed = 0;
 
-        #region General
+        // Roll
+        protected bool isSlidingFromLanding = false;
+        protected float slideExtraSpeed = 0f;
+        protected float dashSlideCooldown = 0f;
+        protected AudioSource rollSound;
 
+        #region General
         protected override void Start()
         {
             base.Start();
@@ -187,9 +193,6 @@ namespace Drunken_Broster
             // Load sounds
             directoryPath = Path.Combine( directoryPath, "sounds" );
             slurp = ResourcesController.GetAudioClip( directoryPath, "slurp.wav" );
-
-            // TODO: enable rolling
-            doRollOnLand = false;
 
             // TODO: remove this
             DrunkenBroster.currentBroster = this;
@@ -287,6 +290,46 @@ namespace Drunken_Broster
             if ( this.holdingItem && this.heldItem == MeleeItem.ExplosiveBarrel )
             {
                 this.RunBarrelEffects();
+            }
+
+            if ( rollingFrames > 0 )
+            {
+                // Return to normal speed as animation ends
+                if ( this.rollingFrames <= 6 )
+                {
+                    this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, 10f, this.t * 5f );
+                }
+                else
+                {
+                    this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, -80f, this.t * 3f );
+                }
+            }
+            else
+            {
+                this.slideExtraSpeed = 0f;
+            }
+            if ( !this.doingMelee )
+            {
+                this.speed = this.originalSpeed + this.slideExtraSpeed;
+            }
+            bool flag = false;
+            if ( base.actionState == ActionState.Jumping && Mathf.Sign( this.yI ) < 0f && base.IsGroundBelow( 16f ) && this.health > 0 && ( this.left || this.right ) && ( !this.left || !this.right ) && this.doRollOnLand && this.yI < -350f && this.skinnedMookOnMyBack == null )
+            {
+                flag = true;
+            }
+            if ( ( flag || this.rollingFrames > 0 ) && Map.DeflectProjectiles( this, base.playerNum, 8f, base.X + (float)( base.Direction * 6 ), base.Y + 6f, (float)( base.Direction * 200 ), true ) )
+            {
+                EffectsController.CreateMeleeStrikeLargeEffect( base.X + (float)( base.Direction * 6 ), base.Y + 6f, 0f, 0f );
+            }
+            if ( this.rollingFrames == 0 && this.dashSlideCooldown <= 0f && this.dashing && this.down )
+            {
+                this.RollOnLand();
+                this.dashSlideCooldown = 0.7f;
+            }
+            this.dashSlideCooldown -= this.t;
+            if ( base.actionState == ActionState.Jumping )
+            {
+                this.StopRolling();
             }
         }
 
@@ -410,6 +453,12 @@ namespace Drunken_Broster
             for ( int i = 0; i < this.soundHolder.attack3Sounds.Length; ++i )
             {
                 this.soundHolder.attack3Sounds[i] = ResourcesController.GetAudioClip( soundPath, "KungFu" + i + ".wav" );
+            }
+
+            this.soundHolder.attack4Sounds = new AudioClip[2];
+            for ( int i = 0; i < this.soundHolder.attack4Sounds.Length; ++i )
+            {
+                this.soundHolder.attack4Sounds[i] = ResourcesController.GetAudioClip( soundPath, "slide_" + i + ".wav" );
             }
         }
         #endregion
@@ -1400,6 +1449,7 @@ namespace Drunken_Broster
         {
             this.hasHitThisAttack = false;
             this.attackStationary = ( this.attackUpwards = ( this.attackDownwards = ( this.attackForwards = false ) ) );
+            this.playedWallHit = false;
             this.attackFrames = 0;
             base.frame = 0;
             this.xIAttackExtra = 0f;
@@ -2009,6 +2059,12 @@ namespace Drunken_Broster
         // Sound played when hitting a wall with your primary attack
         public void PlayWallSound()
         {
+            // Don't play wall sound multiple times
+            if ( this.playedWallHit )
+            {
+                return;
+            }
+            this.playedWallHit = true;
             if ( this.sound == null )
             {
                 this.sound = Sound.GetInstance();
@@ -2021,8 +2077,7 @@ namespace Drunken_Broster
 
         protected override void PlayAidDashSound()
         {
-            // TODO: Add air dash sound
-            //this.PlaySpecialAttackSound(0.5f);
+            this.PlaySpecialAttackSound(0.5f);
         }
         #endregion
 
@@ -2708,9 +2763,7 @@ namespace Drunken_Broster
         protected void BecomeDrunk()
         {
             base.GetComponent<Renderer>().material = this.drunkSprite;
-            // TODO: revert drunk counter
-            //this.drunkCounter = maxDrunkTime;
-            this.drunkCounter = 1000;
+            this.drunkCounter = maxDrunkTime;
             this.drunk = true;
             this.speed = this.originalSpeed = 110;
             this.enemyFistDamage = 11;
@@ -2845,6 +2898,19 @@ namespace Drunken_Broster
             }
         }
 
+        // Don't grab ladder when doing upwards / downwards attacks
+        protected override bool IsOverLadder( ref float ladderXPos )
+        {
+            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( ref ladderXPos );
+        }
+
+        // Don't grab ladder when doing drunk downwards attack
+        protected override bool IsOverLadder( float xOffset, ref float ladderXPos )
+        {
+            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
+        }
+
+        #region Roll
         protected override void Jump( bool wallJump )
         {
             // Don't allow wall jumping while doing melee
@@ -2867,6 +2933,21 @@ namespace Drunken_Broster
                         this.dashingMelee = false;
                     }
                 }
+            }
+            // Cancel slide
+            this.StopRolling();
+        }
+
+        protected override void StartDashing()
+        {
+            bool dashing = this.dashing;
+            base.StartDashing();
+            if ( this.dashSlideCooldown <= 0f && !dashing && this.rollingFrames <= 0 )
+            {
+                this.isSlidingFromLanding = false;
+                this.slideExtraSpeed = this.originalSpeed * 0.75f;
+                this.RollOnLand();
+                this.dashSlideCooldown = 0.6f;
             }
         }
 
@@ -2918,6 +2999,8 @@ namespace Drunken_Broster
             }
             else
             {
+                float yI = this.yI;
+
                 base.Land();
 
                 // Switch to dashing melee
@@ -2926,20 +3009,70 @@ namespace Drunken_Broster
                     this.dashingMelee = true;
                     this.jumpingMelee = false;
                 }
+
+                // Gain slide speed
+                if ( this.rollingFrames > 0 )
+                {
+                    this.isSlidingFromLanding = true;
+                    this.slideExtraSpeed = Mathf.Abs( yI ) * 0.3f;
+
+                    // Shorten animation to make it look more natural
+                    this.rollingFrames -= 1;
+                    this.ChangeFrame();
+                }
+
             }
         }
 
-        // Don't grab ladder when doing upwards / downwards attacks
-        protected override bool IsOverLadder( ref float ladderXPos )
+        protected override bool CanDoRollOnLand()
         {
-            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( ref ladderXPos );
+            return this.doRollOnLand && this.yI < -180f && this.skinnedMookOnMyBack == null;
         }
 
-        // Don't grab ladder when doing drunk downwards attack
-        protected override bool IsOverLadder( float xOffset, ref float ladderXPos )
+        protected override void RollOnLand()
         {
-            return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
+            this.rollingFrames = 17;
         }
+
+        protected override void StopRolling()
+        {
+            if ( this.rollSound != null && this.rollSound.isPlaying )
+            {
+                this.rollSound.Stop();
+                this.rollSound = null;
+            }
+            base.StopRolling();
+        }
+
+        protected override void AnimateRolling()
+        {
+            this.frameRate = 0.075f;
+            int lastFrame = 17;
+            // Laying on ground
+            if ( this.rollingFrames <= (lastFrame - 5) && this.rollingFrames >= 8 )
+            {
+                this.frameRate = 0.065f;
+            }
+            // Get up attack
+            else if ( this.rollingFrames < 8 )
+            {
+                this.frameRate = 0.07f;
+            }
+
+            if ( this.rollingFrames > 4 && this.rollingFrames < (lastFrame - 2) && Mathf.Abs(this.xI) > 30f )
+            {
+                EffectsController.CreateFootPoofEffect( base.X - base.transform.localScale.x * 6f, base.Y + 1.5f, 0f, new Vector3( base.transform.localScale.x * -20f, 0f ), BloodColor.None );
+            }
+            if ( this.rollingFrames == ( lastFrame - 4 ) )
+            {
+                //this.sound.PlaySoundEffectAt( this.soundHolder.special4Sounds, 0.17f, base.transform.position, 1f, true, false, false, 0f );
+                this.rollSound = this.sound.PlaySoundEffectAt( this.soundHolder.attack4Sounds, 0.25f, base.transform.position, 1f, true, false, false, 0f );
+            }
+            this.sprite.SetLowerLeftPixel( (float)( ( lastFrame - this.rollingFrames ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 16 ) );
+            //this.sprite.SetLowerLeftPixel( (float)( ( 19 + ( 13 - this.rollingFrames ) ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 2 ) );
+            this.DeactivateGun();
+        }
+        #endregion
         #endregion
     }
 }
