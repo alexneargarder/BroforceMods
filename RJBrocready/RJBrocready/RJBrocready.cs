@@ -128,11 +128,6 @@ namespace RJBrocready
         public static bool permanentlyBecomeThingInIronBro = true;
 
         #region General
-        protected override void Awake()
-        {
-            base.Awake();
-        }
-
         public override void PreloadAssets()
         {
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
