@@ -121,7 +121,7 @@ namespace Drunken_Broster
         public AudioClip[] barrelExplodeSounds;
 
         // Special
-        AudioClip slurp;
+        public AudioClip slurp;
         public bool wasDrunk = false; // Was drunk before starting special
         public bool drunk = false;
         protected const float maxDrunkTime = 12f;
@@ -150,7 +150,6 @@ namespace Drunken_Broster
             this.hitPuff = broLeePrefab.hitPuff;
 
             // Load sprites
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
             this.normalSprite = base.GetComponent<Renderer>().material;
             this.drunkSprite = ResourcesController.GetMaterial( directoryPath, "drunkSprite.png" );
 
@@ -189,10 +188,6 @@ namespace Drunken_Broster
             soccerBallProjectile = CustomGrenade.CreatePrefab<SoccerBallProjectile>();
             alienEggProjectile = CustomProjectile.CreatePrefab<AlienEggProjectile>();
             skullProjectile = SkullProjectile.CreatePrefab();
-
-            // Load sounds
-            directoryPath = Path.Combine( directoryPath, "sounds" );
-            slurp = ResourcesController.GetAudioClip( directoryPath, "slurp.wav" );
 
             // TODO: remove this
             DrunkenBroster.currentBroster = this;
@@ -459,6 +454,8 @@ namespace Drunken_Broster
             {
                 this.soundHolder.attack4Sounds[i] = ResourcesController.GetAudioClip( soundPath, "slide_" + i + ".wav" );
             }
+
+            this.slurp = ResourcesController.GetAudioClip( soundPath, "slurp.wav" );
         }
         #endregion
 
