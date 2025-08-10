@@ -53,9 +53,9 @@ namespace Drunken_Broster
         protected bool hasHitWithFists = false;
         protected bool hasMadeEffects = false;
         protected bool attackStationary = false;
-        protected bool attackUpwards = false;
-        protected bool attackDownwards = false;
-        protected bool attackForwards = false;
+        public bool attackUpwards = false;
+        public bool attackDownwards = false;
+        public bool attackForwards = false;
         protected int stationaryAttackCounter = -1;
         protected int attackDirection = 0;
         protected bool hasAttackedUpwards = false;
@@ -128,6 +128,11 @@ namespace Drunken_Broster
         public float drunkCounter = 0f;
         protected int usingSpecialFrame = 0; // Used to avoid problems with jumping / wall climbing resetting special animation
         protected float originalSpeed = 0;
+        [SaveableSetting]
+        public static bool enableCameraTilt = true;
+        [SaveableSetting]
+        public static bool lowIntensityMode = false;
+        public bool IsDoingMelee { get { return this.doingMelee; } }
 
         // Roll
         protected bool isSlidingFromLanding = false;
@@ -249,6 +254,8 @@ namespace Drunken_Broster
                 }
             }
 
+            DrunkenCameraManager.UpdateCameraTilt();
+
             this.postAttackHitPauseTime -= this.t;
             if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.xIAttackExtra != 0f )
             {
@@ -261,7 +268,7 @@ namespace Drunken_Broster
             }
 
             // TODO: remove this
-            if ( DrunkenBroster.switchItemKey.PressedDown(this.playerNum) )
+            if ( DrunkenBroster.switchItemKey.PressedDown( this.playerNum ) )
             {
                 ++DrunkenBroster.currentItem;
                 if ( DrunkenBroster.currentItem > 9 )
@@ -343,19 +350,42 @@ namespace Drunken_Broster
         }
 
 
-        // TODO: remove this
         public override void UIOptions()
         {
+            // Camera tilt settings
+            GUILayout.Space( 5 );
+            
+            bool previousEnableState = enableCameraTilt;
+            enableCameraTilt = GUILayout.Toggle( enableCameraTilt, "Enable Camera Tilt" );
+
+            GUILayout.Space( 5 );
+
+            bool previousLowIntensityState = lowIntensityMode;
+            if ( enableCameraTilt )
+            {
+                lowIntensityMode = GUILayout.Toggle( lowIntensityMode, "Low Intensity Mode" );
+            }
+            
+            // Handle settings changes
+            if (previousEnableState != enableCameraTilt || previousLowIntensityState != lowIntensityMode)
+            {
+                DrunkenCameraManager.OnSettingsChanged();
+            }
+
+            GUILayout.Space( 25 );
+
+            // TODO: remove this debugging
+            GUILayout.Space( 20 );
             GUILayout.BeginHorizontal();
 
-            if ( GUILayout.Button( "-", GUILayout.Width(50) ) )
+            if ( GUILayout.Button( "-", GUILayout.Width( 50 ) ) )
             {
                 if ( DrunkenBroster.currentItem > 0 )
                 {
                     --DrunkenBroster.currentItem;
                 }
             }
-            if ( GUILayout.Button("+", GUILayout.Width(50) ) )
+            if ( GUILayout.Button( "+", GUILayout.Width( 50 ) ) )
             {
                 if ( DrunkenBroster.currentItem < 9 )
                 {
@@ -892,7 +922,7 @@ namespace Drunken_Broster
             if ( !this.drunk )
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 250f + this.xI, 200f, 6f, base.playerNum, out _, this );
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * (3f + this.attackSpriteRow == 0 ? 1f : 0f), base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * ( 3f + this.attackSpriteRow == 0 ? 1f : 0f ), base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -2079,7 +2109,7 @@ namespace Drunken_Broster
             if ( Time.time - this.lastSoundTime > 0.3f )
             {
                 this.lastSoundTime = Time.time;
-                Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.attack3Sounds, 0.6f, base.transform.position, this.drunk ? 0.85f : 1f, true, false, false, 0f);
+                Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.attack3Sounds, 0.6f, base.transform.position, this.drunk ? 0.85f : 1f, true, false, false, 0f );
             }
         }
 
@@ -2098,7 +2128,7 @@ namespace Drunken_Broster
             }
             if ( this.sound != null )
             {
-                this.sound.PlaySoundEffectAt(this.soundHolder.special2Sounds, 0.7f, base.transform.position, 1f, true, false, false, 0f);
+                this.sound.PlaySoundEffectAt( this.soundHolder.special2Sounds, 0.7f, base.transform.position, 1f, true, false, false, 0f );
             }
         }
 
@@ -2117,13 +2147,13 @@ namespace Drunken_Broster
             }
             if ( this.sound != null )
             {
-                this.sound.PlaySoundEffectAt(this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f);
+                this.sound.PlaySoundEffectAt( this.soundHolder.attack2Sounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f );
             }
         }
 
         protected override void PlayAidDashSound()
         {
-            this.PlaySpecialAttackSound(0.5f);
+            this.PlaySpecialAttackSound( 0.5f );
         }
         #endregion
 
@@ -2527,38 +2557,38 @@ namespace Drunken_Broster
             switch ( this.heldItem )
             {
                 case MeleeItem.Tire:
-                    this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 150f : 275f), angleDownwards ? 25f : 50f, base.playerNum, 0 );
+                    this.tireProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 150f : 275f ), angleDownwards ? 25f : 50f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AcidEgg:
-                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Beehive:
-                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Bottle:
-                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 225f : 400f), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 225f : 400f ), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Crate:
-                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * (angleDownwards ? 150f : 225f), angleDownwards ? 75f : 125f, base.playerNum );
+                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * ( angleDownwards ? 150f : 225f ), angleDownwards ? 75f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 40f : 100f, base.playerNum );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 100f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 150f : 275f), angleDownwards ? 25f : 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
+                    ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 150f : 275f ), angleDownwards ? 25f : 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
                     explosiveBarrel.explosionCounter = Mathf.Max( 4 - Mathf.Abs( 5 - this.explosionCounter ), 1 );
                     break;
                 case MeleeItem.SoccerBall:
-                    this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 60f : 150f, base.playerNum, 0 );
+                    this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 60f : 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:
-                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Skull:
-                    this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * (angleDownwards ? 200f : 350f), angleDownwards ? 40f : 100f, base.playerNum );
+                    this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 100f, base.playerNum );
                     break;
                 default:
-                    
+
                     break;
             }
 
@@ -2832,6 +2862,8 @@ namespace Drunken_Broster
             this.enemyFistDamage = 11;
             this.groundFistDamage = 10;
             this.attackDownwardsStrikeFrame = 2;
+
+            DrunkenCameraManager.RegisterDrunk(this);
         }
 
         protected bool TryToBecomeSober()
@@ -2856,6 +2888,27 @@ namespace Drunken_Broster
             this.enemyFistDamage = 5;
             this.groundFistDamage = 5;
             this.attackDownwardsStrikeFrame = 3;
+
+            DrunkenCameraManager.UnregisterDrunk(this);
+        }
+
+        protected void ResetCameraTilt()
+        {
+            if (this.drunk)
+            {
+                DrunkenCameraManager.UnregisterDrunk(this);
+            }
+        }
+
+        public override void Death( float xI, float yI, DamageObject damage )
+        {
+            DrunkenCameraManager.UnregisterDrunk(this);
+            base.Death( xI, yI, damage );
+        }
+
+        protected override void OnDestroy()
+        {
+            DrunkenCameraManager.UnregisterDrunk(this);
         }
         #endregion
 
@@ -3085,7 +3138,7 @@ namespace Drunken_Broster
             this.frameRate = 0.075f;
             int lastFrame = 17;
             // Laying on ground
-            if ( this.rollingFrames <= (lastFrame - 5) && this.rollingFrames >= 8 )
+            if ( this.rollingFrames <= ( lastFrame - 5 ) && this.rollingFrames >= 8 )
             {
                 this.frameRate = 0.065f;
             }
@@ -3095,7 +3148,7 @@ namespace Drunken_Broster
                 this.frameRate = 0.07f;
             }
 
-            if ( this.rollingFrames > 4 && this.rollingFrames < (lastFrame - 2) && Mathf.Abs(this.xI) > 30f )
+            if ( this.rollingFrames > 4 && this.rollingFrames < ( lastFrame - 2 ) && Mathf.Abs( this.xI ) > 30f )
             {
                 EffectsController.CreateFootPoofEffect( base.X - base.transform.localScale.x * 6f, base.Y + 1.5f, 0f, new Vector3( base.transform.localScale.x * -20f, 0f ), BloodColor.None );
             }

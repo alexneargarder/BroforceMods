@@ -69,9 +69,21 @@ all-projects:
 		if [ -d "$$dir" ] || [ -d "../$$dir" ]; then \
 			printf "%-30s ... " "$$dir"; \
 			if [ -d "$$dir" ]; then \
-				(cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
+				if cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1; then \
+					echo "✓"; \
+				else \
+					echo "✗"; \
+					echo "  Errors:"; \
+					cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch 2>&1 | grep -E "error CS|warning CS" | sed 's/^/    /'; \
+				fi; \
 			else \
-				(cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
+				if cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1; then \
+					echo "✓"; \
+				else \
+					echo "✗"; \
+					echo "  Errors:"; \
+					cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch 2>&1 | grep -E "error CS|warning CS" | sed 's/^/    /'; \
+				fi; \
 			fi; \
 		fi; \
 	done
@@ -82,9 +94,21 @@ all-projects:
 		if [ -d "$$dir" ] || [ -d "../$$dir" ]; then \
 			printf "%-30s ... " "$$dir"; \
 			if [ -d "$$dir" ]; then \
-				(cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
+				if cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1; then \
+					echo "✓"; \
+				else \
+					echo "✗"; \
+					echo "  Errors:"; \
+					cd "$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch 2>&1 | grep -E "error CS|warning CS" | sed 's/^/    /'; \
+				fi; \
 			else \
-				(cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1 && echo "✓" || echo "✗"); \
+				if cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch >/dev/null 2>&1; then \
+					echo "✓"; \
+				else \
+					echo "✗"; \
+					echo "  Errors:"; \
+					cd "../$$dir" && $(MAKE) -s -f ../Scripts/Makefile build-no-launch 2>&1 | grep -E "error CS|warning CS" | sed 's/^/    /'; \
+				fi; \
 			fi; \
 		fi; \
 	done
@@ -108,7 +132,8 @@ ifeq ($(IS_ROOT),true)
 else
 	@$(MAKE) -s -f $(MAKEFILE_LIST) pre-build
 	@echo "Building $(PROJECT_NAME)..."
-	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog
+	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog || \
+		("$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:minimal && false)
 	@$(MAKE) -s -f $(MAKEFILE_LIST) post-build
 endif
 
@@ -123,7 +148,8 @@ ifeq ($(IS_ROOT),true)
 else
 	@$(MAKE) -s -f $(MAKEFILE_LIST) pre-build
 	@echo "Building $(PROJECT_NAME)..."
-	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog
+	@"$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:quiet /noconlog || \
+		("$(MSBUILD)" "$(PROJECT_FILE_WIN)" /p:Configuration=Debug /p:PreBuildEvent="" /p:PostBuildEvent="" /nologo /verbosity:minimal && false)
 	@$(MAKE) -s -f $(MAKEFILE_LIST) post-build-no-launch
 endif
 
