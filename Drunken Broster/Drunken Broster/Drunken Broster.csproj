@@ -84,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DrunkenBroster.cs" />
+    <Compile Include="DrunkenCameraManager.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="MeleeItems\AcidEggProjectile.cs" />
     <Compile Include="MeleeItems\AlienEggProjectile.cs" />
