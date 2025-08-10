@@ -51,7 +51,7 @@ namespace Drunken_Broster
         protected float hitClearCounter = 0f;
         protected bool hasHitWithWall = false;
         protected bool hasHitWithFists = false;
-        protected bool hasPlayedAttackHitSound = false;
+        protected bool hasMadeEffects = false;
         protected bool attackStationary = false;
         protected bool attackUpwards = false;
         protected bool attackDownwards = false;
@@ -531,9 +531,9 @@ namespace Drunken_Broster
             }
 
             this.startNewAttack = false;
-            this.hasPlayedAttackHitSound = false;
             this.hasHitWithWall = false;
             this.hasHitWithFists = false;
+            this.hasMadeEffects = false;
             // Buffering attack
             if ( this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary )
             {
@@ -1141,14 +1141,46 @@ namespace Drunken_Broster
             }
         }
 
-        // Unused
         protected override void UseFire()
         {
         }
 
-        // Unused
         protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
+        }
+
+        protected void DownwardHitGround()
+        {
+            if ( !this.attackHasHit && this.attackFrames < 7 )
+            {
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+            }
+            if ( !this.attackHasHit && this.attackFrames < 7 )
+            {
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
+            }
+            this.attackDownwards = false;
+            this.attackFrames = 0;
+        }
+
+        protected void DownwardHitGroundDrunk()
+        {
+            // Fast forward frames if landed early
+            if ( this.attackFrames < 5 )
+            {
+                this.attackFrames = 5;
+                this.ChangeFrame();
+            }
+            this.attackHasHit = true;
+            this.hasHitThisAttack = true;
+            this.canWallClimb = true;
+            ExplosionGroundWave explosionGroundWave = EffectsController.CreateShockWave( base.X, base.Y + 4f, 50f );
+            explosionGroundWave.playerNum = this.playerNum;
+            explosionGroundWave.avoidObject = this;
+            explosionGroundWave.origins = this;
+            Map.HitUnits( this, this, this.playerNum, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false, true, false );
+            MapController.DamageGround( this, 35, DamageType.Crush, 50f, base.X, base.Y + 8f, null, false );
+            this.xI = ( this.xIBlast = 0f );
         }
 
         protected void FireWeaponGround( float x, float y, Vector3 raycastDirection, float distance, float xSpeed, float ySpeed )
@@ -1179,12 +1211,22 @@ namespace Drunken_Broster
 
         protected virtual void MakeEffects( float x, float y, float xI, float yI )
         {
+            if ( this.hasMadeEffects )
+            {
+                return;
+            }
+            this.hasMadeEffects = true;
             EffectsController.CreateShrapnel( this.shrapnelSpark, x, y, 4f, 30f, 3f, xI, yI );
             EffectsController.CreateEffect( this.hitPuff, x, y, 0f );
         }
 
         protected virtual void MakeEffects()
         {
+            if ( this.hasMadeEffects )
+            {
+                return;
+            }
+            this.hasMadeEffects = true;
             EffectsController.CreateShrapnel( this.shrapnelSpark, this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f, 4f, 30f, 3f, this.raycastHit.normal.x * 60f, this.raycastHit.normal.y * 30f );
             EffectsController.CreateEffect( this.hitPuff, this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f );
         }
@@ -1445,6 +1487,7 @@ namespace Drunken_Broster
             this.hasHitThisAttack = false;
             this.attackStationary = ( this.attackUpwards = ( this.attackDownwards = ( this.attackForwards = false ) ) );
             this.playedWallHit = false;
+            this.hasMadeEffects = false;
             this.attackFrames = 0;
             base.frame = 0;
             this.xIAttackExtra = 0f;
@@ -2968,40 +3011,12 @@ namespace Drunken_Broster
             {
                 if ( !this.drunk )
                 {
-                    if ( !this.attackHasHit && this.attackFrames < 7 )
-                    {
-                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
-                    }
-                    if ( !this.attackHasHit && this.attackFrames < 7 )
-                    {
-                        this.FireWeaponGround( base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ), base.transform.localScale.x * 80f, 100f );
-                    }
-                    this.attackDownwards = false;
-                    this.attackFrames = 0;
+                    this.DownwardHitGround();
                     base.Land();
                 }
                 else if ( !this.hasHitThisAttack )
                 {
-                    // Fast forward frames if landed early
-                    if ( this.attackFrames < 5 )
-                    {
-                        this.attackFrames = 5;
-                        this.ChangeFrame();
-                    }
-                    this.attackHasHit = true;
-                    this.hasHitThisAttack = true;
-                    this.canWallClimb = true;
-                    ExplosionGroundWave explosionGroundWave = EffectsController.CreateShockWave( base.X, base.Y + 4f, 50f );
-                    explosionGroundWave.playerNum = 15;
-                    explosionGroundWave.avoidObject = this;
-                    explosionGroundWave.origins = this;
-                    this.invulnerable = true;
-                    if ( Map.HitUnits( this, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false ) )
-                    {
-                    }
-                    MapController.DamageGround( this, 25, DamageType.Crush, 40f, base.X, base.Y + 8f, null, false );
-                    this.invulnerable = false;
-                    this.xI = ( this.xIBlast = 0f );
+                    this.DownwardHitGroundDrunk();
                 }
                 else
                 {
