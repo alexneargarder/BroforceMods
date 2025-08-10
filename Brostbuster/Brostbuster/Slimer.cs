@@ -134,6 +134,13 @@ namespace Brostbuster
 				
 			}
 
+
+			// Don't perform hit detection when out of bounds 
+			if ( base.X < 0 || base.Y < 0 )
+			{
+				return false;
+			}
+
 			int column = (int)((base.X + 8f) / 16f);
 			int row = (int)((base.Y + 8f) / 16f);
 
