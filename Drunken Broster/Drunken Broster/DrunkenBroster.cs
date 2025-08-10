@@ -190,6 +190,9 @@ namespace Drunken_Broster
 
             // TODO: remove this
             DrunkenBroster.currentBroster = this;
+
+            // TODO: remove this
+            this.doRollOnLand = false;
         }
 
         protected override void Update()
@@ -2994,15 +2997,16 @@ namespace Drunken_Broster
 
         protected override void StartDashing()
         {
-            bool dashing = this.dashing;
+            // TODO: implement dive roll
+            //bool dashing = this.dashing;
             base.StartDashing();
-            if ( this.dashSlideCooldown <= 0f && !dashing && this.rollingFrames <= 0 )
-            {
-                this.isSlidingFromLanding = false;
-                this.slideExtraSpeed = this.originalSpeed * 0.75f;
-                this.RollOnLand();
-                this.dashSlideCooldown = 0.6f;
-            }
+            //if ( this.dashSlideCooldown <= 0f && !dashing && this.rollingFrames <= 0 )
+            //{
+            //    this.isSlidingFromLanding = false;
+            //    this.slideExtraSpeed = this.originalSpeed * 0.75f;
+            //    this.RollOnLand();
+            //    this.dashSlideCooldown = 0.6f;
+            //}
         }
 
         protected override void Land()
