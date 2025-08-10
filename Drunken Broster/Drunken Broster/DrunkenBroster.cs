@@ -126,6 +126,7 @@ namespace Drunken_Broster
         public bool drunk = false;
         protected const float maxDrunkTime = 12f;
         public float drunkCounter = 0f;
+        protected int usingSpecialFrame = 0; // Used to avoid problems with jumping / wall climbing resetting special animation
         protected float originalSpeed = 0;
 
         // Roll
@@ -1947,7 +1948,11 @@ namespace Drunken_Broster
             base.IncreaseFrame();
             if ( this.attackStationary || this.attackUpwards || this.attackDownwards || this.attackForwards )
             {
-                this.attackFrames++;
+                ++this.attackFrames;
+            }
+            else if ( this.usingSpecial )
+            {
+                ++this.usingSpecialFrame;
             }
         }
 
@@ -2702,6 +2707,7 @@ namespace Drunken_Broster
 
                     this.usingSpecial = true;
                     base.frame = 0;
+                    this.usingSpecialFrame = 0;
                     this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
                     this.ChangeFrame();
                 }
@@ -2727,8 +2733,8 @@ namespace Drunken_Broster
             if ( !this.wasDrunk )
             {
                 this.frameRate = 0.1f;
-                this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
-                if ( base.frame < 10 && this.IsWalking() )
+                this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
+                if ( this.usingSpecialFrame < 10 && this.IsWalking() )
                 {
                     this.speed = 0f;
                 }
@@ -2736,17 +2742,17 @@ namespace Drunken_Broster
                 {
                     this.speed = this.originalSpeed;
                 }
-                if ( base.frame == 4 )
+                if ( this.usingSpecialFrame == 4 )
                 {
                     this.frameRate = 0.35f;
                     this.PlayDrinkingSound();
                 }
-                else if ( base.frame == 6 )
+                else if ( this.usingSpecialFrame == 6 )
                 {
                     this.frameRate = 0.15f;
                     this.UseSpecial();
                 }
-                else if ( base.frame >= 7 )
+                else if ( this.usingSpecialFrame >= 7 )
                 {
                     this.frameRate = 0.2f;
                     this.StopUsingSpecial();
@@ -2757,8 +2763,8 @@ namespace Drunken_Broster
             else
             {
                 this.frameRate = 0.11f;
-                this.sprite.SetLowerLeftPixel( (float)( base.frame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
-                if ( base.frame < 11 && this.IsWalking() )
+                this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
+                if ( this.usingSpecialFrame < 11 && this.IsWalking() )
                 {
                     this.speed = 0f;
                 }
@@ -2767,16 +2773,15 @@ namespace Drunken_Broster
                     this.speed = this.originalSpeed;
                 }
 
-                if ( base.frame == 1 )
+                if ( this.usingSpecialFrame == 1 )
                 {
                     this.frameRate = 0.2f;
-                    this.PlayBecomeSoberSound();
                 }
-                else if ( base.frame == 6 )
+                else if ( this.usingSpecialFrame == 6 )
                 {
                     this.UseSpecial();
                 }
-                else if ( base.frame >= 10 )
+                else if ( this.usingSpecialFrame >= 10 )
                 {
                     this.StopUsingSpecial();
                     return;
@@ -2810,6 +2815,7 @@ namespace Drunken_Broster
         protected void StopUsingSpecial()
         {
             base.frame = 0;
+            this.usingSpecialFrame = 0;
             this.usingSpecial = false;
             this.ActivateGun();
             this.ChangeFrame();
