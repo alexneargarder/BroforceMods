@@ -40,7 +40,7 @@ namespace Brostbuster
         public AudioClip protonBeamStartup;
         public AudioClip protonLoop;
         public AudioClip protonEnd;
-        protected AudioSource protonAudio;
+        public AudioSource protonAudio;
         protected bool playedBeamStartup = false;
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
@@ -105,12 +105,28 @@ namespace Brostbuster
             this.SoundHolderVoiceType = SoundHolderVoiceTypes.MaleLight;
         }
 
+        public override void AfterPrefabSetup()
+        {
+            string soundPath = Path.Combine( directoryPath, "sounds" );
+
+            protonStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup.wav" );
+            protonBeamStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup2.wav" );
+            protonLoop = ResourcesController.GetAudioClip( soundPath, "protonLoop.wav" );
+            protonEnd = ResourcesController.GetAudioClip( soundPath, "protonEnd.wav" );
+            slimerTrapOpen = ResourcesController.GetAudioClip( soundPath, "slimerTrapOpen.wav" );
+
+            this.protonAudio = base.gameObject.AddComponent<AudioSource>();
+            this.protonAudio.rolloffMode = AudioRolloffMode.Linear;
+            this.protonAudio.minDistance = 200f;
+            this.protonAudio.dopplerLevel = 0.1f;
+            this.protonAudio.maxDistance = 500f;
+            this.protonAudio.spatialBlend = 1f;
+            this.protonAudio.volume = 0.33f;
+        }
+
         protected override void Awake()
         {
             base.Awake();
-
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            string soundPath = Path.Combine( directoryPath, "sounds" );
 
             protonLine1 = new GameObject( "ProtonLine1", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine1.transform.parent = this.transform;
@@ -140,30 +156,6 @@ namespace Brostbuster
 
             this.currentMeleeType = BroBase.MeleeType.Disembowel;
             this.meleeType = BroBase.MeleeType.Disembowel;
-
-            if ( this.protonAudio == null )
-            {
-                if ( base.gameObject.GetComponent<AudioSource>() == null )
-                {
-                    this.protonAudio = base.gameObject.AddComponent<AudioSource>();
-                    this.protonAudio.rolloffMode = AudioRolloffMode.Linear;
-                    this.protonAudio.minDistance = 200f;
-                    this.protonAudio.dopplerLevel = 0.1f;
-                    this.protonAudio.maxDistance = 500f;
-                    this.protonAudio.spatialBlend = 1f;
-                    this.protonAudio.volume = 0.33f;
-                }
-                else
-                {
-                    this.protonAudio = this.GetComponent<AudioSource>();
-                }
-            }
-
-            protonStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup.wav" );
-            protonBeamStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup2.wav" );
-            protonLoop = ResourcesController.GetAudioClip( soundPath, "protonLoop.wav" );
-            protonEnd = ResourcesController.GetAudioClip( soundPath, "protonEnd.wav" );
-            slimerTrapOpen = ResourcesController.GetAudioClip( soundPath, "slimerTrapOpen.wav" );
         }
 
         protected override void Start()
