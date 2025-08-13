@@ -18,6 +18,7 @@ namespace Drunken_Broster.MeleeItems
         protected LayerMask groundAndLadderLayer;
         protected int bounceGroundDamage = 10;
         protected float hitUnitForce = 1.0f;
+        public AudioClip[] bounceSounds;
 
         protected override void Awake()
         {
@@ -46,7 +47,7 @@ namespace Drunken_Broster.MeleeItems
             doodad.owner = this;
 
             // Make tire roll over ladders
-            this.groundAndLadderLayer = ( 1 << LayerMask.NameToLayer( "Ground" ) | 1 << LayerMask.NameToLayer( "IndestructibleGround" ) | 1 << LayerMask.NameToLayer( "LargeObjects" ) | 1 << LayerMask.NameToLayer( "Ladders" ) );
+            this.groundAndLadderLayer = ( 1 << LayerMask.NameToLayer( "Ground" ) | 1 << LayerMask.NameToLayer( "IndestructibleGround" ) | 1 << LayerMask.NameToLayer( "LargeObjects" ) );
 
             base.Awake();
         }
