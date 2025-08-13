@@ -38,6 +38,11 @@ namespace Drunken_Broster.MeleeItems
             // Load death sound
             this.soundHolder.deathSounds = new AudioClip[1];
             this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
+
+            this.bounceSounds = new AudioClip[3];
+            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce1.wav" );
+            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
+            this.bounceSounds[2] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
         }
 
         protected void CreateGib( string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
@@ -86,6 +91,29 @@ namespace Drunken_Broster.MeleeItems
                     EffectsController.CreateGib( child.GetComponent<Gib>(), base.GetComponent<Renderer>().sharedMaterial, base.X, base.Y, xForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), yForce * ( 0.8f + UnityEngine.Random.value * 0.4f ), xI, yI, 1 );
                 }
             }
+        }
+
+        protected override void PlayBounceSound( bool bounceX, bool bounceY )
+        {
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+
+            float volume = 0.9f;
+            if ( bounceX && bounceY )
+            {
+                volume *= Mathf.Max( Mathf.Abs( xI ), Mathf.Abs( yI ) ) / 150f;
+            }
+            else if ( bounceX )
+            {
+                volume *= Mathf.Abs( xI ) / 150f;
+            }
+            else
+            {
+                volume *= Mathf.Abs( yI ) / 150f;
+            }
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
         }
 
         public override void Death()
