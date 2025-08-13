@@ -743,5 +743,40 @@ namespace Utility_Mod
                 return true;
             }
         }
+        
+        // Disable checkpoint flag audio
+        [HarmonyPatch( typeof( CheckPoint ), "ActivateInternal" )]
+        static class CheckPoint_ActivateInternal_Patch
+        {
+            static void Postfix( CheckPoint __instance )
+            {
+                if ( !Main.enabled || !Main.settings.disableFlagNoise )
+                    return;
+                
+                // Stop and disable the AudioSource after activation
+                AudioSource audioSource = __instance.GetComponent<AudioSource>();
+                if ( audioSource != null )
+                {
+                    audioSource.Stop();
+                    audioSource.enabled = false;
+                }
+            }
+        }
+        
+        // Disable helicopter audio
+        [HarmonyPatch( typeof( Helicopter ), "Start" )]
+        static class Helicopter_Start_Patch
+        {
+            static void Postfix( Helicopter __instance )
+            {
+                if ( !Main.enabled || !Main.settings.disableHelicopterNoise )
+                    return;
+                
+                // Disable the helicopter's AudioSource
+                AudioSource audioSource = __instance.GetComponent<AudioSource>();
+                if ( audioSource != null )
+                    audioSource.enabled = false;
+            }
+        }
     }
 }
