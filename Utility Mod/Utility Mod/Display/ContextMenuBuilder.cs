@@ -1007,6 +1007,28 @@ namespace Utility_Mod
                 }
             });
             
+            // Disable Flag Noise
+            parentMenu.AddSubItem(new MenuItem("Disable Flag Noise", (Action)null)
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.disableFlagNoise,
+                OnToggle = (isChecked) => {
+                    Main.settings.disableFlagNoise = isChecked;
+                }
+            });
+            
+            // Disable Helicopter Noise
+            parentMenu.AddSubItem(new MenuItem("Disable Helicopter Noise", (Action)null)
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.disableHelicopterNoise,
+                OnToggle = (isChecked) => {
+                    Main.settings.disableHelicopterNoise = isChecked;
+                }
+            });
+            
             // Max Cage Spawns
             parentMenu.AddSubItem(new MenuItem("Max Cage Spawns", (Action)null)
             {

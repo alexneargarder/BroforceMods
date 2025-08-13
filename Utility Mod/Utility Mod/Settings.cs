@@ -39,6 +39,8 @@ namespace Utility_Mod
         public bool helicopterWait = false;
         public bool skipBreakingCutscenes = true;
         public bool skipAllCutscenes = false;
+        public bool disableFlagNoise = false;
+        public bool disableHelicopterNoise = false;
 
         // Level Controls
         public bool loopCurrent = false;
