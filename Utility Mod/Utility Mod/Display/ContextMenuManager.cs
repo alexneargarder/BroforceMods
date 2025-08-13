@@ -112,7 +112,7 @@ namespace Utility_Mod
             // Update feedback timer
             if ( quickActionFeedbackTimer > 0 )
             {
-                quickActionFeedbackTimer -= Time.deltaTime;
+                quickActionFeedbackTimer -= Time.unscaledDeltaTime;
             }
 
             // Skip processing if help dialog is showing
@@ -439,7 +439,7 @@ namespace Utility_Mod
             }
             else if ( held && isHoldingRightClick )
             {
-                rightClickHoldTime += Time.deltaTime;
+                rightClickHoldTime += Time.unscaledDeltaTime;
 
                 // Open menu if held long enough
                 if ( rightClickHoldTime >= Main.settings.contextMenuHoldDuration && !isMenuOpen )
