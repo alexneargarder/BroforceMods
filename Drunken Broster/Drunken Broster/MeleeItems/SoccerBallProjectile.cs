@@ -13,8 +13,6 @@ namespace Drunken_Broster.MeleeItems
 {
     public class SoccerBallProjectile : CircularProjectile
     {
-        public AudioClip[] bounceSounds;
-
         protected override void Awake()
         {
             if ( this.sprite == null )
@@ -41,17 +39,10 @@ namespace Drunken_Broster.MeleeItems
             this.soundHolder.deathSounds = new AudioClip[1];
             this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
 
-            try
-            {
-                this.bounceSounds = new AudioClip[3];
-                this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce1.wav" );
-                this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
-                this.bounceSounds[2] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
-            }
-            catch ( Exception e )
-            {
-                BMLogger.ExceptionLog( e );
-            }
+            this.bounceSounds = new AudioClip[3];
+            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce1.wav" );
+            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
+            this.bounceSounds[2] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
         }
 
         protected override void HitUnits()
