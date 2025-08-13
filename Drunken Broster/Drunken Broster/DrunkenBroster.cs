@@ -38,6 +38,7 @@ namespace Drunken_Broster
         // General
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
+        private Traverse setRumbleTraverse;
         protected Material normalSprite;
         protected Material drunkSprite;
 
@@ -67,8 +68,12 @@ namespace Drunken_Broster
         protected int attackDownwardsStrikeFrame = 3;
         protected int attackForwardsStrikeFrame = 2;
         protected bool attackHasHit = false;
-        protected int enemyFistDamage = 5;
-        protected int groundFistDamage = 5;
+        protected const int soberEnemyFistDamage = 6;
+        protected const int soberGroundFistDamage = 6;
+        protected const int drunkEnemyFistDamage = 11;
+        protected const int drunkGroundFistDamage = 11;
+        protected int enemyFistDamage = soberEnemyFistDamage;
+        protected int groundFistDamage = soberGroundFistDamage;
         public Shrapnel shrapnelSpark;
         public FlickerFader hitPuff;
         protected float lastAttackingTime = 0;
@@ -133,11 +138,17 @@ namespace Drunken_Broster
         [SaveableSetting]
         public static bool lowIntensityMode = false;
         public bool IsDoingMelee { get { return this.doingMelee; } }
+        protected bool usedSpecial = false;
+        protected bool playedSpecialSound = false;
 
         // Roll
-        protected bool isSlidingFromLanding = false;
         protected float slideExtraSpeed = 0f;
+        protected bool isSlideRoll = false;
         protected float dashSlideCooldown = 0f;
+        protected float lastDashTime = -1f;
+        protected float doubleTapWindow = 0.3f;
+        protected bool bufferedSlideRoll = false;
+        protected float bufferedSlideRollTime = 0f;
         protected AudioSource rollSound;
 
         #region General
@@ -194,11 +205,17 @@ namespace Drunken_Broster
             alienEggProjectile = CustomProjectile.CreatePrefab<AlienEggProjectile>();
             skullProjectile = SkullProjectile.CreatePrefab();
 
+            // Cache Traverse for SetRumble method
+            if ( this.player != null )
+            {
+                this.setRumbleTraverse = Traverse.Create( this.player ).Method( "SetRumble", new Type[] { typeof( float ) } );
+            }
+
             // TODO: remove this
             DrunkenBroster.currentBroster = this;
 
             // TODO: remove this
-            this.doRollOnLand = false;
+            this.doRollOnLand = true;
         }
 
         protected override void Update()
@@ -299,39 +316,71 @@ namespace Drunken_Broster
 
             if ( rollingFrames > 0 )
             {
-                // Return to normal speed as animation ends
-                if ( this.rollingFrames <= 6 )
+                if ( this.isSlideRoll )
                 {
-                    this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, 10f, this.t * 5f );
-                }
-                else
-                {
-                    this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, -80f, this.t * 3f );
+                    if ( this.rollingFrames <= 12 )
+                    {
+                        if ( this.rollingFrames >= 7 )
+                        {
+                            float boostSpeed = 20f + ( this.drunk ? 10f : 0f );
+                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
+                        }
+                        else
+                        {
+
+                            float boostSpeed = 30f + ( this.drunk ? 10f : 0f );
+                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
+                        }
+                    }
+                    else
+                    {
+                        float decelerationSpeed = this.drunk ? -80f * 0.8f : -80f; // Drunk mode: +20% slide distance
+                        this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, decelerationSpeed, this.t * 3f );
+                    }
+
+                    // Handle invulnerability during slide roll
+                    if ( this.drunk && this.rollingFrames <= 26 && this.rollingFrames >= 13 )
+                    {
+                        this.invulnerable = true;
+                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
+                    }
+                    else if ( !this.drunk && this.rollingFrames <= 24 && this.rollingFrames >= 15 )
+                    {
+                        this.invulnerable = true;
+                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
+                    }
+
+                    // Deflect projectiles only during attack frames
+                    if ( this.rollingFrames <= 10 && this.rollingFrames >= 1 )
+                    {
+                        Map.DeflectProjectiles( this, this.playerNum, 8f,
+                            base.X + base.transform.localScale.x * 2f, base.Y + 6f,
+                            base.transform.localScale.x * 200f, true );
+                    }
                 }
             }
             else
             {
                 this.slideExtraSpeed = 0f;
             }
+
             if ( !this.doingMelee )
             {
                 this.speed = this.originalSpeed + this.slideExtraSpeed;
             }
-            bool flag = false;
-            if ( base.actionState == ActionState.Jumping && Mathf.Sign( this.yI ) < 0f && base.IsGroundBelow( 16f ) && this.health > 0 && ( this.left || this.right ) && ( !this.left || !this.right ) && this.doRollOnLand && this.yI < -350f && this.skinnedMookOnMyBack == null )
-            {
-                flag = true;
-            }
-            if ( ( flag || this.rollingFrames > 0 ) && Map.DeflectProjectiles( this, base.playerNum, 8f, base.X + (float)( base.Direction * 6 ), base.Y + 6f, (float)( base.Direction * 200 ), true ) )
-            {
-                EffectsController.CreateMeleeStrikeLargeEffect( base.X + (float)( base.Direction * 6 ), base.Y + 6f, 0f, 0f );
-            }
-            if ( this.rollingFrames == 0 && this.dashSlideCooldown <= 0f && this.dashing && this.down )
-            {
-                this.RollOnLand();
-                this.dashSlideCooldown = 0.7f;
-            }
+
+
             this.dashSlideCooldown -= this.t;
+
+            if ( this.bufferedSlideRoll )
+            {
+                this.bufferedSlideRollTime -= this.t;
+                if ( this.bufferedSlideRollTime <= 0f )
+                {
+                    this.bufferedSlideRoll = false;
+                }
+            }
+
             if ( base.actionState == ActionState.Jumping )
             {
                 this.StopRolling();
@@ -354,7 +403,7 @@ namespace Drunken_Broster
         {
             // Camera tilt settings
             GUILayout.Space( 5 );
-            
+
             bool previousEnableState = enableCameraTilt;
             enableCameraTilt = GUILayout.Toggle( enableCameraTilt, "Enable Camera Tilt" );
 
@@ -365,9 +414,9 @@ namespace Drunken_Broster
             {
                 lowIntensityMode = GUILayout.Toggle( lowIntensityMode, "Low Intensity Mode" );
             }
-            
+
             // Handle settings changes
-            if (previousEnableState != enableCameraTilt || previousLowIntensityState != lowIntensityMode)
+            if ( previousEnableState != enableCameraTilt || previousLowIntensityState != lowIntensityMode )
             {
                 DrunkenCameraManager.OnSettingsChanged();
             }
@@ -543,6 +592,12 @@ namespace Drunken_Broster
 
         protected override void StartFiring()
         {
+            if ( this.rollingFrames > 11 )
+            {
+                this.fire = this.wasFire = false;
+                return;
+            }
+
             // Don't allow attacking while drinking / becoming sober
             if ( this.usingSpecial )
             {
@@ -979,7 +1034,6 @@ namespace Drunken_Broster
                         this.hasAttackedUpwards = false;
                         this.hasAttackedForwards = false;
                         this.hasHitThisAttack = true;
-                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
                         for ( int i = 0; i < this.alreadyHit.Count; i++ )
                         {
                             this.alreadyHit[i].BackSomersault( false );
@@ -1000,7 +1054,7 @@ namespace Drunken_Broster
                 else
                 {
                     DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 520f, 200f, 6f, base.playerNum, out _, this );
-                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 4, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 520f, 200f, true, true, false, this.alreadyHit ) )
+                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 8, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 650f, 250f, true, true, false, this.alreadyHit ) )
                     {
                         if ( !this.hasHitWithFists )
                         {
@@ -1012,10 +1066,9 @@ namespace Drunken_Broster
                         this.hasAttackedUpwards = false;
                         this.hasAttackedForwards = false;
                         this.hasHitThisAttack = true;
-                        this.TimeBump();
+                        this.TimeBump( 0.5f );
                         this.xIAttackExtra = 0f;
-                        this.postAttackHitPauseTime = 0.2f;
-                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                        this.postAttackHitPauseTime = 0.25f;
                         this.xI = 0f;
                         this.yI = 0f;
                         for ( int i = 0; i < this.alreadyHit.Count; i++ )
@@ -1035,7 +1088,6 @@ namespace Drunken_Broster
                         this.TimeBump();
                         this.xIAttackExtra = 0f;
                         this.postAttackHitPauseTime = 0.1f;
-                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
                         this.xI = 0f;
                         this.yI = 0f;
                     }
@@ -1072,10 +1124,13 @@ namespace Drunken_Broster
                 this.hasAttackedDownwards = false;
                 this.hasAttackedForwards = false;
                 this.hasHitThisAttack = true;
-                this.TimeBump();
                 if ( this.drunk )
                 {
-                    HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
+                    this.TimeBump( 0.1f );
+                }
+                else
+                {
+                    this.TimeBump();
                 }
             }
             // Pause if we hit one of drunken master's doodads
@@ -1087,10 +1142,6 @@ namespace Drunken_Broster
                 this.hasAttackedForwards = false;
                 this.hasHitThisAttack = true;
                 this.TimeBump();
-                if ( this.drunk )
-                {
-                    HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
-                }
             }
             if ( !this.attackHasHit )
             {
@@ -1130,10 +1181,6 @@ namespace Drunken_Broster
                     this.postAttackHitPauseTime = 0.08f;
                     this.xI = 0f;
                     this.yI = 0f;
-                    if ( this.drunk )
-                    {
-                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
-                    }
                 }
                 // Pause if we hit one of drunken master's doodads
                 else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
@@ -1148,10 +1195,6 @@ namespace Drunken_Broster
                     this.postAttackHitPauseTime = 0.1f;
                     this.xI = 0f;
                     this.yI = 0f;
-                    if ( this.drunk )
-                    {
-                        HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
-                    }
                 }
                 if ( !this.attackHasHit )
                 {
@@ -1212,7 +1255,10 @@ namespace Drunken_Broster
             explosionGroundWave.playerNum = this.playerNum;
             explosionGroundWave.avoidObject = this;
             explosionGroundWave.origins = this;
-            Map.HitUnits( this, this, this.playerNum, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false, true, false );
+            if ( Map.HitUnits( this, this, this.playerNum, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false, true, false ) )
+            {
+                this.TimeBump( 0.3f );
+            }
             MapController.DamageGround( this, 35, DamageType.Crush, 50f, base.X, base.Y + 8f, null, false );
             this.xI = ( this.xIBlast = 0f );
         }
@@ -2036,10 +2082,15 @@ namespace Drunken_Broster
 
         protected override void FireFlashAvatar()
         {
-            // Call base FlashAvatar to cause rumble
-            base.FireFlashAvatar();
-            this.avatarGunFireTime = 0.1f;
-            HeroController.SetAvatarFireFrame( base.playerNum, UnityEngine.Random.Range( 5, 8 ) );
+            if ( this.drunk )
+            {
+                this.avatarGunFireTime = 0.25f;
+                HeroController.SetAvatarFireFrame( base.playerNum, UnityEngine.Random.Range( 5, 8 ) );
+            }
+            if ( this.player != null && this.setRumbleTraverse != null )
+            {
+                this.setRumbleTraverse.GetValue( new object[] { this.rumbleAmountPerShot } );
+            }
         }
 
         protected override void RunAvatarFiring()
@@ -2061,23 +2112,22 @@ namespace Drunken_Broster
                         }
                     }
                 }
-                if ( this.fire )
+
+                if ( this.fire && !this.drunk )
                 {
                     if ( !this.wasFire && this.avatarGunFireTime <= 0f )
                     {
                         HeroController.SetAvatarAngry( base.playerNum, this.usePrimaryAvatar );
                     }
-                    if ( this.fire )
+
+                    if ( this.attackStationary || this.attackForwards || this.attackUpwards || this.attackDownwards )
                     {
-                        if ( this.gunFrame > 0 || this.attackFrames > 0 )
-                        {
-                            this.avatarAngryTime = 0.1f;
-                        }
-                        else
-                        {
-                            this.avatarAngryTime = 0f;
-                            HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
-                        }
+                        this.avatarAngryTime = 0.15f;
+                    }
+                    else
+                    {
+                        this.avatarAngryTime = 0f;
+                        HeroController.SetAvatarCalm( base.playerNum, this.usePrimaryAvatar );
                     }
                 }
                 else if ( this.avatarAngryTime > 0f )
@@ -2099,9 +2149,9 @@ namespace Drunken_Broster
             this.hasHitWithWall = false;
         }
 
-        private void TimeBump()
+        private void TimeBump( float timeStop = 0.025f )
         {
-            TimeController.StopTime( 0.025f, 0.1f, 0f, false, false, false );
+            TimeController.StopTime( timeStop, 0.1f, 0f, false, false, false );
         }
 
         private void MakeKungfuSound()
@@ -2120,7 +2170,7 @@ namespace Drunken_Broster
         }
 
         // Sound played when hitting an enemy with your primary attack
-        public void PlayHitSound()
+        protected override void PlayHitSound( float volume = 0.6f )
         {
             if ( this.sound == null )
             {
@@ -2128,7 +2178,7 @@ namespace Drunken_Broster
             }
             if ( this.sound != null )
             {
-                this.sound.PlaySoundEffectAt( this.soundHolder.special2Sounds, 0.7f, base.transform.position, 1f, true, false, false, 0f );
+                this.sound.PlaySoundEffectAt( this.soundHolder.special2Sounds, volume, base.transform.position, 1f, true, false, false, 0f );
             }
         }
 
@@ -2154,6 +2204,20 @@ namespace Drunken_Broster
         protected override void PlayAidDashSound()
         {
             this.PlaySpecialAttackSound( 0.5f );
+        }
+
+        protected bool IsAttacking()
+        {
+            return ( this.fire && this.gunFrame > 1 ) || Time.time - this.lastAttackingTime < 0.0445f || ( ( this.attackDownwards || this.attackForwards || this.attackUpwards ) && this.attackFrames > 1 && this.attackFrames < this.attackForwardsStrikeFrame + 2 );
+        }
+
+        // Prevent damage from melee attacks when attacking
+        public override void Damage( int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY )
+        {
+            if ( ( damageType != DamageType.Drill && damageType != DamageType.Melee && damageType != DamageType.Knifed ) || !this.IsAttacking() || ( Mathf.Sign( base.transform.localScale.x ) == Mathf.Sign( xI ) && damageType != DamageType.Drill ) )
+            {
+                base.Damage( damage, damageType, xI, yI, direction, damageSender, hitX, hitY );
+            }
         }
         #endregion
 
@@ -2721,6 +2785,10 @@ namespace Drunken_Broster
 
         protected override void PressSpecial()
         {
+            if ( this.usingSpecial )
+            {
+                return;
+            }
             // Make sure we aren't holding anything before drinking
             if ( this.heldItem == MeleeItem.None )
             {
@@ -2734,11 +2802,12 @@ namespace Drunken_Broster
                 {
                     this.wasDrunk = false;
                     this.canChimneyFlip = false;
-
                     this.usingSpecial = true;
                     base.frame = 0;
                     this.usingSpecialFrame = 0;
                     this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                    this.usedSpecial = false;
+                    this.playedSpecialSound = false;
                     this.ChangeFrame();
                 }
                 else
@@ -2805,6 +2874,8 @@ namespace Drunken_Broster
 
                 if ( this.usingSpecialFrame == 1 )
                 {
+                    this.PlayBecomeSoberSound();
+                    
                     this.frameRate = 0.2f;
                 }
                 else if ( this.usingSpecialFrame == 6 )
@@ -2821,16 +2892,31 @@ namespace Drunken_Broster
 
         protected void PlayDrinkingSound()
         {
+            if ( this.playedSpecialSound )
+            {
+                return;
+            }
+            this.playedSpecialSound = true;
             this.sound.PlaySoundEffectAt( this.slurp, 1f, base.transform.position, 0.9f, true, false, true, 0f );
         }
 
         protected void PlayBecomeSoberSound()
         {
+            if ( this.playedSpecialSound )
+            {
+                return;
+            }
+            this.playedSpecialSound = true;
             this.sound.PlaySoundEffectAt( this.soundHolderVoice.effortGrunt, 0.45f, base.transform.position, 0.9f, true, false, true, 0f );
         }
 
         protected override void UseSpecial()
         {
+            if ( this.usedSpecial )
+            {
+                return;
+            }
+            this.usedSpecial = true;
             if ( !this.wasDrunk )
             {
                 this.BecomeDrunk();
@@ -2851,6 +2937,8 @@ namespace Drunken_Broster
             this.ChangeFrame();
             this.speed = this.originalSpeed;
             this.canChimneyFlip = true;
+            this.usedSpecial = false;
+            this.playedSpecialSound = false;
         }
 
         protected void BecomeDrunk()
@@ -2859,21 +2947,23 @@ namespace Drunken_Broster
             this.drunkCounter = maxDrunkTime;
             this.drunk = true;
             this.speed = this.originalSpeed = 110;
-            this.enemyFistDamage = 11;
-            this.groundFistDamage = 10;
+            this.enemyFistDamage = drunkEnemyFistDamage;
+            this.groundFistDamage = drunkGroundFistDamage;
             this.attackDownwardsStrikeFrame = 2;
-
-            DrunkenCameraManager.RegisterDrunk(this);
+            DrunkenCameraManager.RegisterDrunk( this );
         }
 
         protected bool TryToBecomeSober()
         {
             if ( !hasBeenCoverInAcid && !doingMelee && !usingSpecial )
             {
+                this.canChimneyFlip = false;
                 this.wasDrunk = true;
                 this.usingSpecial = true;
                 base.frame = 0;
                 this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                this.usedSpecial = false;
+                this.playedSpecialSound = false;
                 return true;
             }
             return false;
@@ -2885,30 +2975,35 @@ namespace Drunken_Broster
             this.drunkCounter = 0;
             this.drunk = false;
             this.speed = this.originalSpeed = 130;
-            this.enemyFistDamage = 5;
-            this.groundFistDamage = 5;
+            this.enemyFistDamage = soberEnemyFistDamage;
+            this.groundFistDamage = soberGroundFistDamage;
             this.attackDownwardsStrikeFrame = 3;
 
-            DrunkenCameraManager.UnregisterDrunk(this);
+            if ( this.rollingFrames > 0 )
+            {
+                this.StopRolling();
+            }
+
+            DrunkenCameraManager.UnregisterDrunk( this );
         }
 
         protected void ResetCameraTilt()
         {
-            if (this.drunk)
+            if ( this.drunk )
             {
-                DrunkenCameraManager.UnregisterDrunk(this);
+                DrunkenCameraManager.UnregisterDrunk( this );
             }
         }
 
         public override void Death( float xI, float yI, DamageObject damage )
         {
-            DrunkenCameraManager.UnregisterDrunk(this);
+            DrunkenCameraManager.UnregisterDrunk( this );
             base.Death( xI, yI, damage );
         }
 
         protected override void OnDestroy()
         {
-            DrunkenCameraManager.UnregisterDrunk(this);
+            DrunkenCameraManager.UnregisterDrunk( this );
         }
         #endregion
 
@@ -3056,16 +3151,35 @@ namespace Drunken_Broster
 
         protected override void StartDashing()
         {
-            // TODO: implement dive roll
-            //bool dashing = this.dashing;
+            bool dashing = this.dashing;
+            bool isDoubleTap = false;
+
+            if ( !dashing && Time.time - this.lastDashTime <= this.doubleTapWindow )
+            {
+                isDoubleTap = true;
+            }
+
             base.StartDashing();
-            //if ( this.dashSlideCooldown <= 0f && !dashing && this.rollingFrames <= 0 )
-            //{
-            //    this.isSlidingFromLanding = false;
-            //    this.slideExtraSpeed = this.originalSpeed * 0.75f;
-            //    this.RollOnLand();
-            //    this.dashSlideCooldown = 0.6f;
-            //}
+
+            if ( isDoubleTap && this.dashSlideCooldown <= 0f && this.rollingFrames <= 0 )
+            {
+                if ( this.actionState == ActionState.Running )
+                {
+                    this.slideExtraSpeed = this.originalSpeed * 0.75f;
+                    this.RollOnLand( true );
+                    this.dashSlideCooldown = this.drunk ? 0.5f : 0.6f;
+                }
+                else
+                {
+                    this.bufferedSlideRoll = true;
+                    this.bufferedSlideRollTime = 0.5f;
+                }
+            }
+
+            if ( !dashing )
+            {
+                this.lastDashTime = Time.time;
+            }
         }
 
         protected override void Land()
@@ -3092,6 +3206,14 @@ namespace Drunken_Broster
 
                 base.Land();
 
+                if ( this.bufferedSlideRoll && this.dashSlideCooldown <= 0f && this.rollingFrames <= 0 )
+                {
+                    this.bufferedSlideRoll = false;
+                    this.slideExtraSpeed = this.originalSpeed * 0.75f;
+                    this.RollOnLand( true );
+                    this.dashSlideCooldown = this.drunk ? 0.5f : 0.6f;
+                }
+
                 // Switch to dashing melee
                 if ( this.doingMelee )
                 {
@@ -3099,10 +3221,8 @@ namespace Drunken_Broster
                     this.jumpingMelee = false;
                 }
 
-                // Gain slide speed
-                if ( this.rollingFrames > 0 )
+                if ( this.rollingFrames > 0 && this.isSlideRoll )
                 {
-                    this.isSlidingFromLanding = true;
                     this.slideExtraSpeed = Mathf.Abs( yI ) * 0.3f;
 
                     // Shorten animation to make it look more natural
@@ -3115,12 +3235,48 @@ namespace Drunken_Broster
 
         protected override bool CanDoRollOnLand()
         {
-            return this.doRollOnLand && this.yI < -180f && this.skinnedMookOnMyBack == null;
+            if ( this.bufferedSlideRoll )
+            {
+                return false;
+            }
+
+            return this.doRollOnLand && this.yI < -350f && this.skinnedMookOnMyBack == null;
         }
 
         protected override void RollOnLand()
         {
-            this.rollingFrames = 17;
+            RollOnLand( false );
+        }
+
+        protected void RollOnLand( bool forceSlideRoll )
+        {
+            // Force slide roll when requested (double-tap dash) or when drunk
+            if ( forceSlideRoll || this.drunk )
+            {
+                this.rollingFrames = 27;
+                this.isSlideRoll = true;
+            }
+            else
+            {
+                this.isSlideRoll = false;
+                base.RollOnLand();
+            }
+
+            // Disable invulnerability flash during roll
+            InvulnerabilityFlash flash = base.GetComponent<InvulnerabilityFlash>();
+            if ( flash != null )
+            {
+                flash.enabled = false;
+            }
+        }
+
+        // Don't stop rolling when slide rolling into wall
+        protected override void AssignPushingTime()
+        {
+            if ( !( this.isSlideRoll && this.rollingFrames > 0 ) )
+            {
+                base.AssignPushingTime();
+            }
         }
 
         protected override void StopRolling()
@@ -3130,35 +3286,100 @@ namespace Drunken_Broster
                 this.rollSound.Stop();
                 this.rollSound = null;
             }
+            this.isSlideRoll = false;
+            InvulnerabilityFlash flash = base.GetComponent<InvulnerabilityFlash>();
+            if ( flash != null )
+            {
+                flash.enabled = true;
+            }
             base.StopRolling();
         }
 
         protected override void AnimateRolling()
         {
+            if ( !this.isSlideRoll )
+            {
+                base.AnimateRolling();
+                return;
+            }
+
+            // Frame 27 - 23 = falling onto ground
+            // Frame 22 - 18 = lying on ground
+            // Frame 17 - 11 = getting up
+            // Frame 10 - 6  = first attack
+            // Frame 5 - 1   = second attack
             this.frameRate = 0.075f;
-            int lastFrame = 17;
+            int lastFrame = 27;
             // Laying on ground
-            if ( this.rollingFrames <= ( lastFrame - 5 ) && this.rollingFrames >= 8 )
+            if ( this.rollingFrames <= ( lastFrame - 5 ) && this.rollingFrames >= ( lastFrame - 10 ) )
             {
                 this.frameRate = 0.065f;
             }
             // Get up attack
-            else if ( this.rollingFrames < 8 )
+            else if ( this.rollingFrames < 12 )
             {
-                this.frameRate = 0.07f;
+                this.frameRate = 0.05f;
             }
 
-            if ( this.rollingFrames > 4 && this.rollingFrames < ( lastFrame - 2 ) && Mathf.Abs( this.xI ) > 30f )
+            if ( this.rollingFrames > 10 && this.rollingFrames < ( lastFrame - 2 ) && Mathf.Abs( this.xI ) > 30f )
             {
                 EffectsController.CreateFootPoofEffect( base.X - base.transform.localScale.x * 6f, base.Y + 1.5f, 0f, new Vector3( base.transform.localScale.x * -20f, 0f ), BloodColor.None );
             }
             if ( this.rollingFrames == ( lastFrame - 4 ) )
             {
-                //this.sound.PlaySoundEffectAt( this.soundHolder.special4Sounds, 0.17f, base.transform.position, 1f, true, false, false, 0f );
                 this.rollSound = this.sound.PlaySoundEffectAt( this.soundHolder.attack4Sounds, 0.25f, base.transform.position, 1f, true, false, false, 0f );
             }
+
+            if ( this.rollingFrames <= 10 && this.rollingFrames >= 6 )
+            {
+                if ( this.rollingFrames == 10 )
+                {
+                    this.PlayAttackSound();
+                    this.MakeKungfuSound();
+
+                    int damage = this.drunk ? 12 : 8;
+                    float knockbackX = base.transform.localScale.x * 250f;
+                    float knockbackY = 350f;
+
+                    if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, false, false ) )
+                    {
+                        this.PlayHitSound( 0.5f );
+                        SortOfFollow.Shake( this.drunk ? 0.5f : 0.3f );
+                    }
+
+                    this.KickDoors( 24f );
+                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f, base.transform.localScale.x * 180f, 80f );
+                }
+            }
+            else if ( this.rollingFrames <= 5 && this.rollingFrames >= 1 )
+            {
+                if ( this.rollingFrames == 5 )
+                {
+                    this.PlayAttackSound();
+
+                    int damage = this.drunk ? 12 : 8;
+                    float knockbackX = base.transform.localScale.x * 300f;
+                    float knockbackY = 400f;
+
+                    if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, this.drunk, false ) )
+                    {
+                        this.PlayHitSound( 0.5f );
+                        SortOfFollow.Shake( this.drunk ? 0.5f : 0.3f );
+
+                        if ( this.drunk )
+                        {
+                            Map.ExplodeUnits( this, 3, DamageType.Knock, 10f, 10f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX * 1.5f, knockbackY * 1.2f, this.playerNum, false, false, false );
+                        }
+                    }
+
+                    this.KickDoors( 24f );
+                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f, base.transform.localScale.x * 180f, 80f );
+                }
+            }
+
             this.sprite.SetLowerLeftPixel( (float)( ( lastFrame - this.rollingFrames ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 16 ) );
-            //this.sprite.SetLowerLeftPixel( (float)( ( 19 + ( 13 - this.rollingFrames ) ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 2 ) );
             this.DeactivateGun();
         }
         #endregion
