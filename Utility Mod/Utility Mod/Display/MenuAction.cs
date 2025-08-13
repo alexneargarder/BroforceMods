@@ -67,7 +67,10 @@ namespace Utility_Mod
         
         // Special Actions
         ZiplinePlacement,
-        MassDelete
+        MassDelete,
+        
+        // Debug Actions
+        CopyMousePosition
     }
     
 
@@ -324,6 +327,16 @@ namespace Utility_Mod
                 Id = "action_mass_delete",
                 DisplayName = "Mass Delete Tool",
                 Type = MenuActionType.MassDelete
+            };
+        }
+        
+        public static MenuAction CreateCopyMousePosition()
+        {
+            return new MenuAction
+            {
+                Id = "action_copy_mouse_position",
+                DisplayName = "Copy Mouse Position",
+                Type = MenuActionType.CopyMousePosition
             };
         }
         
@@ -809,6 +822,13 @@ namespace Utility_Mod
                 case MenuActionType.MassDelete:
                     // This is handled specially in ContextMenuManager
                     // Enters mass delete mode
+                    break;
+                    
+                case MenuActionType.CopyMousePosition:
+                    // Copy the position to clipboard (format: "number, number")
+                    string positionText = $"{position.x:F2}, {position.y:F2}";
+                    GUIUtility.systemCopyBuffer = positionText;
+                    Main.mod.Logger.Log($"Copied position to clipboard: {positionText}");
                     break;
             }
         }

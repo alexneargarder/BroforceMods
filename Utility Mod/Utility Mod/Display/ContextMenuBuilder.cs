@@ -1053,6 +1053,16 @@ namespace Utility_Mod
             
             parentMenu.AddSeparator();
             
+            // Copy Mouse Position to Clipboard
+            var copyPositionAction = MenuAction.CreateCopyMousePosition();
+            parentMenu.AddSubItem(new MenuItem("Copy Mouse Position", () => {
+                manager.ExecuteAction(copyPositionAction);
+            })
+            {
+                ActionId = copyPositionAction.Id,
+                MenuAction = copyPositionAction
+            });
+            
             // Save Unity Mod Manager Settings
             parentMenu.AddSubItem(new MenuItem("Save All Mod Settings", () => {
                 UnityModManagerNet.UnityModManager.SaveSettingsAndParams();
