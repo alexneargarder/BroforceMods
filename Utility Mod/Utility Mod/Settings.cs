@@ -56,7 +56,7 @@ namespace Utility_Mod
         public bool quickLoadScene = false;
         public bool oneHitEnemies = false;
         public bool slowTime = false;
-        public float timeSlowFactor = 0.35f;
+        public float slowTimeFactor = 0.35f;
         public string sceneToLoad;
         public bool infiniteLives = false;
         public bool disableGravity = false;

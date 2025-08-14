@@ -388,7 +388,7 @@ namespace Utility_Mod
             }
 
             // Handle instant scene loading
-            if ( !loadedScene && settings.quickLoadScene )
+            if ( settings.quickLoadScene && !loadedScene )
             {
                 waitForLoad -= dt;
                 if ( waitForLoad < 0 )
@@ -423,7 +423,7 @@ namespace Utility_Mod
             }
 
             // Suppress announcer
-            if ( Map.MapData != null && settings.suppressAnnouncer )
+            if ( settings.suppressAnnouncer && Map.MapData != null )
             {
                 Map.MapData.suppressAnnouncer = true;
             }
@@ -998,9 +998,9 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal( ScaledWidth( 400 ) );
 
-                GUILayout.Label( "Time Slow Factor: " + settings.timeSlowFactor );
+                GUILayout.Label( "Time Slow Factor: " + settings.slowTimeFactor );
 
-                if ( settings.timeSlowFactor != ( settings.timeSlowFactor = GUILayout.HorizontalSlider( settings.timeSlowFactor, 0, 5, ScaledWidth( 200 ) ) ) )
+                if ( settings.slowTimeFactor != ( settings.slowTimeFactor = GUILayout.HorizontalSlider( settings.slowTimeFactor, 0, 5, ScaledWidth( 200 ) ) ) )
                 {
                     Main.StartTimeSlow();
                 }
@@ -2693,7 +2693,7 @@ namespace Utility_Mod
         public static void StartTimeSlow()
         {
             HeroController.TimeBroBoost( float.MaxValue );
-            Time.timeScale = settings.timeSlowFactor;
+            Time.timeScale = settings.slowTimeFactor;
             HeroController.TimeBroBoostHeroes( float.MaxValue );
         }
 
