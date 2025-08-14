@@ -86,11 +86,6 @@ namespace Utility_Mod
             BuildLevelControlSubmenu(levelControlMenu);
             manager.CurrentMenu.AddItem(levelControlMenu);
 
-            // Add Game Modifiers submenu
-            MenuItem gameModifiersMenu = new MenuItem("Game Modifiers");
-            BuildGameModifiersSubmenu(gameModifiersMenu);
-            manager.CurrentMenu.AddItem(gameModifiersMenu);
-
             // Add Debug Options submenu
             MenuItem debugOptionsMenu = new MenuItem("Debug Options");
             BuildDebugOptionsSubmenu(debugOptionsMenu);
@@ -919,71 +914,45 @@ namespace Utility_Mod
             });
         }
 
-        public void BuildGameModifiersSubmenu(MenuItem parentMenu)
+        public void BuildDebugOptionsSubmenu(MenuItem parentMenu)
         {
-            // Slow Time
-            parentMenu.AddSubItem(new MenuItem("Slow Time", (Action)null)
-            {
-                ShowCheckbox = true,
-                IsToggleAction = true,
-                IsChecked = Main.settings.slowTime,
-                OnToggle = (isChecked) => {
-                    Main.settings.slowTime = isChecked;
-                    if (isChecked)
-                        Main.StartTimeSlow();
-                    else
-                        Main.StopTimeSlow();
-                }
-            });
+            // Audio submenu
+            MenuItem audioMenu = new MenuItem("Audio");
+            BuildAudioSubmenu(audioMenu);
+            parentMenu.AddSubItem(audioMenu);
             
-            // One Hit Enemies
-            parentMenu.AddSubItem(new MenuItem("One Hit Enemies", (Action)null)
-            {
-                ShowCheckbox = true,
-                IsToggleAction = true,
-                IsChecked = Main.settings.oneHitEnemies,
-                OnToggle = (isChecked) => {
-                    Main.settings.oneHitEnemies = isChecked;
-                }
-            });
+            // Mouse submenu
+            MenuItem mouseMenu = new MenuItem("Mouse");
+            BuildMouseSubmenu(mouseMenu);
+            parentMenu.AddSubItem(mouseMenu);
             
-            // Disable Enemy Spawns
-            parentMenu.AddSubItem(new MenuItem("Disable Enemy Spawns", (Action)null)
-            {
-                ShowCheckbox = true,
-                IsToggleAction = true,
-                IsChecked = Main.settings.disableEnemySpawn,
-                OnToggle = (isChecked) => {
-                    Main.settings.disableEnemySpawn = isChecked;
-                }
-            });
+            parentMenu.AddSeparator();
+            
+            // Game Modifiers submenu
+            MenuItem gameModifiersMenu = new MenuItem("Game Modifiers");
+            BuildGameModifiersSubmenu(gameModifiersMenu);
+            parentMenu.AddSubItem(gameModifiersMenu);
+            
+            // Slow Time submenu
+            MenuItem slowTimeMenu = new MenuItem("Slow Time");
+            BuildSlowTimeSubmenu(slowTimeMenu);
+            parentMenu.AddSubItem(slowTimeMenu);
             
             // Set Zoom submenu
             MenuItem setZoomMenu = new MenuItem("Set Zoom");
-            setZoomMenu.AddSubItem(new MenuItem("0.5x", () => {
-                SortOfFollow.zoomLevel = 0.5f;
-                Main.settings.zoomLevel = 0.5f;
-                Main.settings.setZoom = true;
-            }));
-            setZoomMenu.AddSubItem(new MenuItem("1.0x (Default)", () => {
-                SortOfFollow.zoomLevel = 1.0f;
-                Main.settings.zoomLevel = 1.0f;
-                Main.settings.setZoom = false;
-            }));
-            setZoomMenu.AddSubItem(new MenuItem("1.5x", () => {
-                SortOfFollow.zoomLevel = 1.5f;
-                Main.settings.zoomLevel = 1.5f;
-                Main.settings.setZoom = true;
-            }));
-            setZoomMenu.AddSubItem(new MenuItem("2.0x", () => {
-                SortOfFollow.zoomLevel = 2.0f;
-                Main.settings.zoomLevel = 2.0f;
-                Main.settings.setZoom = true;
-            }));
+            BuildSetZoomSubmenu(setZoomMenu);
             parentMenu.AddSubItem(setZoomMenu);
+            
+            parentMenu.AddSeparator();
+            
+            // Save Unity Mod Manager Settings
+            parentMenu.AddSubItem(new MenuItem("Save All Mod Settings", () => {
+                UnityModManagerNet.UnityModManager.SaveSettingsAndParams();
+                manager.CloseMenu();
+            }));
         }
 
-        public void BuildDebugOptionsSubmenu(MenuItem parentMenu)
+        public void BuildAudioSubmenu(MenuItem parentMenu)
         {
             // Print Audio Played
             parentMenu.AddSubItem(new MenuItem("Print Audio Played", (Action)null)
@@ -1028,18 +997,10 @@ namespace Utility_Mod
                     Main.settings.disableHelicopterNoise = isChecked;
                 }
             });
-            
-            // Max Cage Spawns
-            parentMenu.AddSubItem(new MenuItem("Max Cage Spawns", (Action)null)
-            {
-                ShowCheckbox = true,
-                IsToggleAction = true,
-                IsChecked = Main.settings.maxCageSpawns,
-                OnToggle = (isChecked) => {
-                    Main.settings.maxCageSpawns = isChecked;
-                }
-            });
-            
+        }
+        
+        public void BuildMouseSubmenu(MenuItem parentMenu)
+        {
             // Show Mouse Position
             parentMenu.AddSubItem(new MenuItem("Show Mouse Position", (Action)null)
             {
@@ -1051,8 +1012,6 @@ namespace Utility_Mod
                 }
             });
             
-            parentMenu.AddSeparator();
-            
             // Copy Mouse Position to Clipboard
             var copyPositionAction = MenuAction.CreateCopyMousePosition();
             parentMenu.AddSubItem(new MenuItem("Copy Mouse Position", () => {
@@ -1062,13 +1021,188 @@ namespace Utility_Mod
                 ActionId = copyPositionAction.Id,
                 MenuAction = copyPositionAction
             });
+        }
+
+        public void BuildGameModifiersSubmenu( MenuItem parentMenu )
+        {
+            // One Hit Enemies
+            parentMenu.AddSubItem( new MenuItem( "One Hit Enemies", (Action)null )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.oneHitEnemies,
+                OnToggle = ( isChecked ) => {
+                    Main.settings.oneHitEnemies = isChecked;
+                }
+            } );
+
+            // Disable Enemy Spawns
+            parentMenu.AddSubItem( new MenuItem( "Disable Enemy Spawns", (Action)null )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.disableEnemySpawn,
+                OnToggle = ( isChecked ) => {
+                    Main.settings.disableEnemySpawn = isChecked;
+                }
+            } );
+
+            // Max Cage Spawns
+            parentMenu.AddSubItem( new MenuItem( "Max Cage Spawns", (Action)null )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.maxCageSpawns,
+                OnToggle = ( isChecked ) => {
+                    Main.settings.maxCageSpawns = isChecked;
+                }
+            } );
+        }
+
+        public void BuildSlowTimeSubmenu(MenuItem parentMenu)
+        {
+            // Enable Slow Time toggle
+            parentMenu.AddSubItem(new MenuItem("Enable Slow Time", (Action)null)
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.slowTime,
+                OnToggle = (isChecked) => {
+                    Main.settings.slowTime = isChecked;
+                    if (isChecked)
+                        Main.StartTimeSlow();
+                    else
+                        Main.StopTimeSlow();
+                }
+            });
             
-            // Save Unity Mod Manager Settings
-            parentMenu.AddSubItem(new MenuItem("Save All Mod Settings", () => {
-                UnityModManagerNet.UnityModManager.SaveSettingsAndParams();
+            parentMenu.AddSeparator();
+            
+            // Get current slow time factor for checkmarks
+            float currentSlowTimeFactor = Main.settings.slowTimeFactor;
+            
+            // 0.25x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentSlowTimeFactor, 0.25f) ? "✓ " : "") + "0.25x", () => {
+                Main.settings.slowTimeFactor = 0.25f;
+                Main.settings.slowTime = true;
+                Main.StartTimeSlow();
                 manager.CloseMenu();
             }));
             
+            // 0.5x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentSlowTimeFactor, 0.5f) ? "✓ " : "") + "0.5x", () => {
+                Main.settings.slowTimeFactor = 0.5f;
+                Main.settings.slowTime = true;
+                Main.StartTimeSlow();
+                manager.CloseMenu();
+            }));
+            
+            // 0.75x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentSlowTimeFactor, 0.75f) ? "✓ " : "") + "0.75x", () => {
+                Main.settings.slowTimeFactor = 0.75f;
+                Main.settings.slowTime = true;
+                Main.StartTimeSlow();
+                manager.CloseMenu();
+            }));
+            
+            // 1.0x (Default) - selecting this disables slow time
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentSlowTimeFactor, 1.0f) ? "✓ " : "") + "1.0x (Default)", () => {
+                Main.settings.slowTimeFactor = 1.0f;
+                Main.settings.slowTime = false;
+                Main.StopTimeSlow();
+                manager.CloseMenu();
+            }));
+        }
+        
+        public void BuildSetZoomSubmenu(MenuItem parentMenu)
+        {
+            // Enable Zoom toggle
+            parentMenu.AddSubItem(new MenuItem("Enable Zoom", (Action)null)
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.setZoom,
+                OnToggle = (isChecked) => {
+                    Main.settings.setZoom = isChecked;
+                    if (isChecked)
+                    {
+                        SortOfFollow.zoomLevel = Main.settings.zoomLevel;
+                    }
+                    else
+                    {
+                        SortOfFollow.zoomLevel = 1.0f;
+                    }
+                }
+            });
+            
+            parentMenu.AddSeparator();
+            
+            // Get current zoom level for checkmarks
+            float currentZoomLevel = Main.settings.zoomLevel;
+            
+            // 0.25x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 0.25f) ? "✓ " : "") + "0.25x", () => {
+                SortOfFollow.zoomLevel = 0.25f;
+                Main.settings.zoomLevel = 0.25f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 0.5x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 0.5f) ? "✓ " : "") + "0.5x", () => {
+                SortOfFollow.zoomLevel = 0.5f;
+                Main.settings.zoomLevel = 0.5f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 0.75x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 0.75f) ? "✓ " : "") + "0.75x", () => {
+                SortOfFollow.zoomLevel = 0.75f;
+                Main.settings.zoomLevel = 0.75f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 1.0x (Default) - selecting this disables zoom
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 1.0f) ? "✓ " : "") + "1.0x (Default)", () => {
+                SortOfFollow.zoomLevel = 1.0f;
+                Main.settings.zoomLevel = 1.0f;
+                Main.settings.setZoom = false;
+                manager.CloseMenu();
+            }));
+            
+            // 1.25x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 1.25f) ? "✓ " : "") + "1.25x", () => {
+                SortOfFollow.zoomLevel = 1.25f;
+                Main.settings.zoomLevel = 1.25f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 1.5x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 1.5f) ? "✓ " : "") + "1.5x", () => {
+                SortOfFollow.zoomLevel = 1.5f;
+                Main.settings.zoomLevel = 1.5f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 1.75x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 1.75f) ? "✓ " : "") + "1.75x", () => {
+                SortOfFollow.zoomLevel = 1.75f;
+                Main.settings.zoomLevel = 1.75f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
+            
+            // 2.0x
+            parentMenu.AddSubItem(new MenuItem((Mathf.Approximately(currentZoomLevel, 2.0f) ? "✓ " : "") + "2.0x", () => {
+                SortOfFollow.zoomLevel = 2.0f;
+                Main.settings.zoomLevel = 2.0f;
+                Main.settings.setZoom = true;
+                manager.CloseMenu();
+            }));
         }
 
         public void BuildTeleportSubmenu(MenuItem parentMenu)
