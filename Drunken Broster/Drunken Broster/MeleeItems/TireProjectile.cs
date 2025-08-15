@@ -113,7 +113,9 @@ namespace Drunken_Broster.MeleeItems
             {
                 volume *= Mathf.Abs( yI ) / 150f;
             }
-            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
+            //sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
+            //sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.35f );
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.15f );
         }
 
         public override void Death()
