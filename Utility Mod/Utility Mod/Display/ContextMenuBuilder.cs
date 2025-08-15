@@ -1319,6 +1319,12 @@ namespace Utility_Mod
             
             parentMenu.AddSeparator();
             
+            // Manage Level Edits
+            parentMenu.AddSubItem(new MenuItem("Manage Level Edits...", () => {
+                LevelEditManagerUI.Show();
+                manager.CloseMenu();
+            }));
+            
             // Mass Delete Tool
             var massDeleteAction = MenuAction.CreateMassDelete();
             parentMenu.AddSubItem(new MenuItem(massDeleteAction.DisplayName, () => {
