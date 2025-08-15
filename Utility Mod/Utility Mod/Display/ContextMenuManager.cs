@@ -366,16 +366,23 @@ namespace Utility_Mod
 
         private bool ShouldProcessInput()
         {
-            // Don't process input if game is paused or in menus
-            if ( Map.isEditing || GameModeController.IsLevelFinished() || GameModeController.LevelFinished )
-            {
-                return false;
-            }
-
             // Check if context menu is enabled
             if ( !Main.settings.contextMenuEnabled )
             {
                 return false;
+            }
+
+            // Allow menu to work anywhere, but still check for editor mode if Map exists
+            try
+            {
+                if ( Map.isEditing )
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                // Map might not exist in menus, that's ok
             }
 
             return true;
@@ -864,11 +871,10 @@ namespace Utility_Mod
             int row = (int)Mathf.Round(position.y / 16f);
             
             // Bounds checking
-            if (column < 0 || column >= Map.MapData.Width || row < 0 || row >= Map.MapData.Height)
+            if (Map.MapData == null || column < 0 || column >= Map.MapData.Width || row < 0 || row >= Map.MapData.Height)
                 return false;
                 
-            // Check if position is occupied
-            if (Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed)
+            if (Map.blocks != null && Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed)
             {
                 return false;
             }
@@ -1524,8 +1530,12 @@ namespace Utility_Mod
         {
             Vector3 worldPos = GetMouseWorldPosition();
 
+            Camera camera = Camera.main ?? Camera.current;
+            if (camera == null)
+                return null;
+
             // Use sphere cast for more generous hit detection
-            Ray ray = Camera.main.ScreenPointToRay( Input.mousePosition );
+            Ray ray = camera.ScreenPointToRay( Input.mousePosition );
             RaycastHit[] hits = Physics.SphereCastAll( ray, 8f, 100f ); // 8 unit radius for generous detection
 
             // Find the closest unit or block
@@ -1599,7 +1609,7 @@ namespace Utility_Mod
             int column = (int)Mathf.Round( worldPos.x / 16f );
             int row = (int)Mathf.Round( worldPos.y / 16f );
 
-            if ( column >= 0 && column < Map.MapData.Width && row >= 0 && row < Map.MapData.Height )
+            if ( Map.MapData != null && Map.blocks != null && column >= 0 && column < Map.MapData.Width && row >= 0 && row < Map.MapData.Height )
             {
                 if ( Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed )
                 {
