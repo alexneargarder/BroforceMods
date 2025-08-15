@@ -3151,10 +3151,10 @@ namespace Drunken_Broster
 
         protected override void StartDashing()
         {
-            bool dashing = this.dashing;
+            bool isNewDashPress = this.dashButton && !this.wasdashButton;
             bool isDoubleTap = false;
-
-            if ( !dashing && Time.time - this.lastDashTime <= this.doubleTapWindow )
+            
+            if ( isNewDashPress && this.lastDashTime > 0 && Time.time - this.lastDashTime <= this.doubleTapWindow )
             {
                 isDoubleTap = true;
             }
@@ -3176,7 +3176,7 @@ namespace Drunken_Broster
                 }
             }
 
-            if ( !dashing )
+            if ( isNewDashPress )
             {
                 this.lastDashTime = Time.time;
             }
@@ -3204,7 +3204,13 @@ namespace Drunken_Broster
             {
                 float yI = this.yI;
 
+                // Clear slide roll flag before landing (base.Land might trigger a normal roll)
+                this.isSlideRoll = false;
+
                 base.Land();
+                
+                // Reset dash time when landing to prevent false double-tap detection across jumps
+                this.lastDashTime = -1f;
 
                 if ( this.bufferedSlideRoll && this.dashSlideCooldown <= 0f && this.rollingFrames <= 0 )
                 {
@@ -3221,7 +3227,7 @@ namespace Drunken_Broster
                     this.jumpingMelee = false;
                 }
 
-                if ( this.rollingFrames > 0 && this.isSlideRoll )
+                if ( this.rollingFrames > 0 && this.isSlideRoll && this.rollingFrames >= 26 )
                 {
                     this.slideExtraSpeed = Mathf.Abs( yI ) * 0.3f;
 
@@ -3235,7 +3241,7 @@ namespace Drunken_Broster
 
         protected override bool CanDoRollOnLand()
         {
-            if ( this.bufferedSlideRoll )
+            if ( this.bufferedSlideRoll || this.dashSlideCooldown > 0.55f )
             {
                 return false;
             }
