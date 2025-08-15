@@ -58,6 +58,9 @@
     <Compile Include="Display\ContextMenuModes.cs" />
     <Compile Include="Display\ContextMenuUI.cs" />
     <Compile Include="Display\LevelEditRecord.cs" />
+    <Compile Include="Display\LevelEditManagerUI.cs" />
+    <Compile Include="Display\LevelEditExporter.cs" />
+    <Compile Include="Display\LevelEditSlots.cs" />
     <Compile Include="Display\MenuAction.cs" />
     <Compile Include="Display\MenuItem.cs" />
     <Compile Include="Display\MousePositionDisplay.cs" />

@@ -825,8 +825,8 @@ namespace Utility_Mod
                     break;
                     
                 case MenuActionType.CopyMousePosition:
-                    // Copy the position to clipboard (format: "number, number")
-                    string positionText = $"{position.x:F2}, {position.y:F2}";
+                    // Copy the position to clipboard (format: "numberf, numberf")
+                    string positionText = $"{position.x:F2}f, {position.y:F2}f";
                     GUIUtility.systemCopyBuffer = positionText;
                     Main.mod.Logger.Log($"Copied position to clipboard: {positionText}");
                     break;

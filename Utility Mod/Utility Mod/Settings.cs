@@ -74,7 +74,7 @@ namespace Utility_Mod
         public Dictionary<string, Vector2> levelSpawnPositions = new Dictionary<string, Vector2>();
 
         [XmlArray("LevelSpawnPositions")]
-        public SerializableKeyValuePair<string, Vector2>[] SerializedSpawnPositions
+        public RocketLib.SerializableKeyValuePair<string, Vector2>[] SerializedSpawnPositions
         {
             get => levelSpawnPositions.ToSerializableArray();
             set => levelSpawnPositions = value.ToDictionary();
@@ -126,11 +126,26 @@ namespace Utility_Mod
         [XmlIgnore]
         public Dictionary<string, LevelEditRecord> levelEditRecords = new Dictionary<string, LevelEditRecord>();
         
+        [XmlIgnore]
+        public Dictionary<string, LevelEditSlots> levelEditSlots = new Dictionary<string, LevelEditSlots>();
+
+        
+        // Level Edit Manager window position
+        public float levelEditManagerWindowX = 0;
+        public float levelEditManagerWindowY = 0;
+        
         [XmlArray("LevelEditRecords")]
-        public SerializableKeyValuePair<string, LevelEditRecord>[] SerializedEditRecords
+        public RocketLib.SerializableKeyValuePair<string, LevelEditRecord>[] SerializedEditRecords
         {
             get => levelEditRecords.ToSerializableArray();
             set => levelEditRecords = value.ToDictionary();
+        }
+        
+        [XmlArray("LevelEditSlots")]
+        public RocketLib.SerializableKeyValuePair<string, LevelEditSlots>[] SerializedEditSlots
+        {
+            get => levelEditSlots.ToSerializableArray();
+            set => levelEditSlots = value.ToDictionary();
         }
 
         public override void Save(UnityModManager.ModEntry modEntry)
@@ -138,8 +153,26 @@ namespace Utility_Mod
             // Always ensure version is saved as non-zero
             if (SettingsVersion == 0)
                 SettingsVersion = 1;
-                
-            Save(this, modEntry);
+            
+            // Test serialization first to avoid data loss
+            try
+            {
+                var serializer = new System.Xml.Serialization.XmlSerializer(typeof(Settings));
+                using (var stringWriter = new System.IO.StringWriter())
+                {
+                    serializer.Serialize(stringWriter, this);
+                    // If we got here, serialization succeeded
+                    Save(this, modEntry);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                modEntry.Logger.Error($"Failed to serialize settings - not saving to prevent data loss: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    modEntry.Logger.Error($"Inner exception: {ex.InnerException.Message}");
+                }
+            }
         }
 
     }
