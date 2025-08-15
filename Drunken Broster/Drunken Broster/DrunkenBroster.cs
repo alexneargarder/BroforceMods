@@ -496,6 +496,9 @@ namespace Drunken_Broster
             //this.tireProjectile.SpawnGrenadeLocally( this, 863 + currentYOffset, 440, 0, 0, 0, -10, base.playerNum, 0 );
             // Above hole
             //this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
+
+            // To the right of spawn
+            this.tireProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -641,12 +644,12 @@ namespace Drunken_Broster
             // Forward Attack Left Start
             else if ( this.left && !this.hasAttackedForwards )
             {
-                this.StartAttackForwardsLeft();
+                this.StartAttackForwards( false );
             }
             // Forward Attack Right Start
             else if ( this.right && !this.hasAttackedForwards )
             {
-                this.StartAttackForwardsRight();
+                this.StartAttackForwards( true );
             }
             // Stationary Attack Start
             else if ( !this.up && !this.down && !this.left && !this.right )
@@ -703,7 +706,7 @@ namespace Drunken_Broster
             this.ClearCurrentAttackVariables();
         }
 
-        protected void StartAttackForwardsLeft()
+        protected void StartAttackForwards( bool right )
         {
             this.FireFlashAvatar();
             this.attackSpriteRow = ( this.attackSpriteRow + 1 ) % 2;
@@ -716,7 +719,7 @@ namespace Drunken_Broster
                 this.StopAttack();
                 if ( !this.drunk )
                 {
-                    this.xIAttackExtra = 20f;
+                    this.xIAttackExtra = this.right ? -20f : 20f;
                 }
             }
             else if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.hasHitThisAttack )
@@ -724,7 +727,7 @@ namespace Drunken_Broster
                 this.StopAttack();
                 if ( !this.drunk )
                 {
-                    this.xIAttackExtra = -300f;
+                    this.xIAttackExtra = this.right ? 300f : -300f;
                 }
                 this.MakeKungfuSound();
             }
@@ -733,7 +736,7 @@ namespace Drunken_Broster
                 this.StopAttack();
                 if ( !this.drunk )
                 {
-                    this.xIAttackExtra = -200f;
+                    this.xIAttackExtra = this.right? 200f : -200f;
                 }
                 this.MakeKungfuSound();
             }
@@ -742,58 +745,11 @@ namespace Drunken_Broster
             this.attackFrames = 0;
             this.yI = 0f;
             this.attackForwards = true;
-            this.attackDirection = -1;
+            this.attackDirection = this.right ? 1 : -1;
             this.jumpTime = 0f;
             this.ChangeFrame();
             this.CreateFaderTrailInstance();
-            this.airdashDirection = DirectionEnum.Left;
-            this.ClearCurrentAttackVariables();
-        }
-
-        protected void StartAttackForwardsRight()
-        {
-            this.attackSpriteRow = ( this.attackSpriteRow + 1 ) % 2;
-            this.FireFlashAvatar();
-            if ( base.actionState == ActionState.ClimbingLadder )
-            {
-                base.actionState = ActionState.Jumping;
-            }
-            if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && !this.hasHitThisAttack )
-            {
-                this.StopAttack();
-                if ( !this.drunk )
-                {
-                    this.xIAttackExtra = -20f;
-                }
-            }
-            else if ( ( this.attackForwards || this.attackUpwards || this.attackDownwards ) && this.hasHitThisAttack )
-            {
-                this.StopAttack();
-                if ( !this.drunk )
-                {
-                    this.xIAttackExtra = 300f;
-                }
-                this.MakeKungfuSound();
-            }
-            else
-            {
-                this.StopAttack();
-                if ( !this.drunk )
-                {
-                    this.xIAttackExtra = 200f;
-                }
-                this.MakeKungfuSound();
-            }
-            this.hasAttackedForwards = true;
-            this.postAttackHitPauseTime = 0f;
-            this.attackFrames = 0;
-            this.yI = 0f;
-            this.attackForwards = true;
-            this.attackDirection = 1;
-            this.jumpTime = 0f;
-            this.ChangeFrame();
-            this.CreateFaderTrailInstance();
-            this.airdashDirection = DirectionEnum.Right;
+            this.airdashDirection = this.right ? DirectionEnum.Right : DirectionEnum.Left;
             this.ClearCurrentAttackVariables();
         }
 
@@ -977,7 +933,7 @@ namespace Drunken_Broster
             if ( !this.drunk )
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 250f + this.xI, 200f, 6f, base.playerNum, out _, this );
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * ( 3f + this.attackSpriteRow == 0 ? 1f : 0f ), base.Y + 7f, base.transform.localScale.x * 420f, 200f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 7f, 13f, base.X + base.transform.localScale.x * ( 3f + this.attackSpriteRow == 0 ? 1f : 0f ), base.Y + 7f, base.transform.localScale.x * 520f, 225f, true, true, true, this.alreadyHit, false ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -1022,7 +978,7 @@ namespace Drunken_Broster
                 if ( this.attackSpriteRow == 0 )
                 {
                     DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 220f, 450f, 6f, base.playerNum, out _, this );
-                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 4f, 10f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 220f, 450f, true, true, false, this.alreadyHit ) )
+                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 4f, 10f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 220f, 450f, true, true, false, this.alreadyHit, true ) )
                     {
                         if ( !this.hasHitWithFists )
                         {
@@ -1054,7 +1010,7 @@ namespace Drunken_Broster
                 else
                 {
                     DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, base.transform.localScale.x * 520f, 200f, 6f, base.playerNum, out _, this );
-                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 8, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 650f, 250f, true, true, false, this.alreadyHit ) )
+                    if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 8, 3, DamageType.Blade, 5f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, base.transform.localScale.x * 700f, 250f, true, true, false, this.alreadyHit, false ) )
                     {
                         if ( !this.hasHitWithFists )
                         {
@@ -1113,7 +1069,7 @@ namespace Drunken_Broster
             }
             DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 6f ), base.Y + 12f, base.transform.localScale.x * 80f, 1100f, 7f, base.playerNum, out _, this );
             this.lastAttackingTime = Time.time;
-            if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit ) )
+            if ( HitUnits( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 6f, base.Y + 12f, base.transform.localScale.x * 80f, 1100f, true, true, true, this.alreadyHit, true ) )
             {
                 if ( !this.hasHitWithFists )
                 {
@@ -1165,7 +1121,7 @@ namespace Drunken_Broster
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 2f, base.transform.localScale.x * 120f, 100f, 6f, base.playerNum, out _, this );
                 this.lastAttackingTime = Time.time;
-                if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 9f, 4f, base.X + base.transform.localScale.x * 7f, base.Y + 3f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit ) )
+                if ( HitUnits( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 9f, 4f, base.X + base.transform.localScale.x * 7f, base.Y + 3f, base.transform.localScale.x * 120f, 100f, true, true, true, this.alreadyHit, true ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -1377,7 +1333,7 @@ namespace Drunken_Broster
             return result;
         }
 
-        public bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits )
+        public bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, List<Unit> alreadyHitUnits, bool hitDead )
         {
             if ( Map.units == null )
             {
@@ -1389,7 +1345,7 @@ namespace Drunken_Broster
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
                 Unit unit = Map.units[i];
-                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num )
+                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num && ( hitDead || unit.health > 0 ) )
                 {
                     float f = unit.X - x;
                     if ( Mathf.Abs( f ) - xRange < unit.width )
