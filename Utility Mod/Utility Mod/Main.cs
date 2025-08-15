@@ -177,6 +177,10 @@ namespace Utility_Mod
             "Max Cage Spawns",
             "Set Zoom Level",
             "Make Cursor Always Visible",
+            "Pause/Unpause Game",
+            "Increase Game Speed",
+            "Decrease Game Speed",
+            "Reset Game Speed",
             
             // General Options
             "Camera Shake",
@@ -379,11 +383,12 @@ namespace Utility_Mod
             }
 
             // Check active keybindings
+            bool shiftHeld = Input.GetKey( KeyCode.LeftShift ) || Input.GetKey( KeyCode.RightShift );
             foreach ( string action in activeKeybindings )
             {
                 if ( keybindings[action].PressedDown( 0 ) )
                 {
-                    ExecuteAction( action );
+                    ExecuteAction( action, shiftHeld );
                 }
             }
 
@@ -1418,6 +1423,70 @@ namespace Utility_Mod
 
                 GUILayout.Space( 35 );
             }
+
+            GUI.tooltip = string.Empty;
+
+
+            GUILayout.Space( 10 );
+            GUILayout.Label( "===== Time Control =====" );
+            GUILayout.Space( 10 );
+
+            GUILayout.BeginHorizontal();
+            string speedText = settings.isGamePaused ? "Game Speed: PAUSED" : $"Game Speed: {settings.gameSpeedMultiplier:F2}x";
+            GUILayout.Label( speedText, ScaledWidth( 200 ) );
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space( 10 );
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label( $"Step Size: {settings.gameSpeedStep:F2}", ScaledWidth( 150 ) );
+            float newStep = GUILayout.HorizontalSlider( settings.gameSpeedStep, 0.01f, 0.50f, ScaledWidth( 200 ) );
+            // Round to nearest 0.01
+            settings.gameSpeedStep = Mathf.Round( newStep * 100f ) / 100f;
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space( 10 );
+
+            GUILayout.Label( "Time Control Keybindings:" );
+            GUILayout.Space( 5 );
+            
+            string nothing = "";
+            
+            GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
+            if ( keybindings["Pause/Unpause Game"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
+            {
+                keybindingsBeingAssigned["Pause/Unpause Game"] = true;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space( 20 );
+            
+            GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
+            if ( keybindings["Decrease Game Speed"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
+            {
+                keybindingsBeingAssigned["Decrease Game Speed"] = true;
+            }
+            GUILayout.Space( 10 );
+            if ( keybindings["Increase Game Speed"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
+            {
+                keybindingsBeingAssigned["Increase Game Speed"] = true;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space( 20 );
+            
+            GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
+            if ( keybindings["Reset Game Speed"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
+            {
+                keybindingsBeingAssigned["Reset Game Speed"] = true;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space( 25 );
+            GUILayout.Label( "Hold Shift while pressing Increase/Decrease for 5x step size" );
         }
 
         static void ShowRightClickOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
@@ -1735,7 +1804,7 @@ namespace Utility_Mod
             }
         }
 
-        static void ExecuteAction( string actionName )
+        static void ExecuteAction( string actionName, bool shiftHeld = false )
         {
             if ( HeroController.Instance != null && HeroController.players != null && HeroController.players[0] != null )
             {
@@ -1995,6 +2064,49 @@ namespace Utility_Mod
 
                 case "Make Cursor Always Visible":
                     settings.showCursor = !settings.showCursor;
+                    break;
+
+                case "Pause/Unpause Game":
+                    settings.isGamePaused = !settings.isGamePaused;
+                    if ( settings.isGamePaused )
+                    {
+                        Time.timeScale = 0f;
+                    }
+                    else
+                    {
+                        Time.timeScale = settings.gameSpeedMultiplier;
+                    }
+                    break;
+
+                case "Increase Game Speed":
+                    float increaseAmount = shiftHeld ? settings.gameSpeedStep * 5f : settings.gameSpeedStep;
+                    if ( settings.isGamePaused )
+                    {
+                        settings.isGamePaused = false;
+                        settings.gameSpeedMultiplier = increaseAmount;
+                    }
+                    else
+                    {
+                        settings.gameSpeedMultiplier += increaseAmount;
+                    }
+                    settings.gameSpeedMultiplier = Mathf.Min( settings.gameSpeedMultiplier, 2.0f );
+                    Time.timeScale = settings.gameSpeedMultiplier;
+                    break;
+
+                case "Decrease Game Speed":
+                    if ( !settings.isGamePaused )
+                    {
+                        float decreaseAmount = shiftHeld ? settings.gameSpeedStep * 5f : settings.gameSpeedStep;
+                        settings.gameSpeedMultiplier -= decreaseAmount;
+                        settings.gameSpeedMultiplier = Mathf.Max( settings.gameSpeedMultiplier, 0.01f );
+                        Time.timeScale = settings.gameSpeedMultiplier;
+                    }
+                    break;
+
+                case "Reset Game Speed":
+                    settings.gameSpeedMultiplier = 1.0f;
+                    settings.isGamePaused = false;
+                    Time.timeScale = 1.0f;
                     break;
 
                 // General Options
