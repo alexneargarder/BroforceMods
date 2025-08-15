@@ -22,6 +22,7 @@ namespace Utility_Mod
             // Replay the edits
             ContextMenuManager.ReplayLevelEdits();
         }
+
         [HarmonyPatch( typeof( WorldMapController ), "ProcessNextAction" )]
         static class WorldMapController_ProcessNextAction_Patch
         {
@@ -356,10 +357,20 @@ namespace Utility_Mod
                     if (lastReplayedLevelKey != currentLevelKey)
                     {
                         lastReplayedLevelKey = currentLevelKey;
-                        // Trigger replay with a small delay
-                        if (ContextMenuManager.Instance != null)
+                        
+                        // If we have a custom spawn, apply edits immediately without delay
+                        if (Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel())
                         {
-                            ContextMenuManager.Instance.StartCoroutine(ReplayLevelEditsDelayed());
+                            // Apply level edits synchronously to ensure blocks are in place before spawn
+                            ContextMenuManager.ReplayLevelEdits();
+                        }
+                        else
+                        {
+                            // Otherwise use the delayed replay for normal spawns
+                            if (ContextMenuManager.Instance != null)
+                            {
+                                ContextMenuManager.Instance.StartCoroutine(ReplayLevelEditsDelayed());
+                            }
                         }
                     }
                 }
