@@ -90,8 +90,8 @@ namespace Drunken_Broster
             // Clean up any null references (destroyed bros)
             drunkBros.RemoveAll(b => b == null);
             
-            // Check if any drunk bro is on helicopter - if so, reset immediately
-            if (drunkBros.Any(b => b.isOnHelicopter))
+            // Check if level is finished or any drunk bro is on helicopter, if so reset camera
+            if ( GameModeController.LevelFinished || drunkBros.Any(b => b.isOnHelicopter))
             {
                 ResetCamera();
                 return;
