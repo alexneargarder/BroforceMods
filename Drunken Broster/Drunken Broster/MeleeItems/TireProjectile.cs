@@ -39,10 +39,9 @@ namespace Drunken_Broster.MeleeItems
             this.soundHolder.deathSounds = new AudioClip[1];
             this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
 
-            this.bounceSounds = new AudioClip[3];
-            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce1.wav" );
-            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
-            this.bounceSounds[2] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
+            this.bounceSounds = new AudioClip[2];
+            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
+            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
         }
 
         protected void CreateGib( string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
@@ -103,19 +102,17 @@ namespace Drunken_Broster.MeleeItems
             float volume = 0.9f;
             if ( bounceX && bounceY )
             {
-                volume *= Mathf.Max( Mathf.Abs( xI ), Mathf.Abs( yI ) ) / 150f;
+                volume *= Mathf.Max( Mathf.Abs( xI ), Mathf.Abs( yI ) ) / 250f;
             }
             else if ( bounceX )
             {
-                volume *= Mathf.Abs( xI ) / 150f;
+                volume *= Mathf.Abs( xI ) / 250f;
             }
             else
             {
-                volume *= Mathf.Abs( yI ) / 150f;
+                volume *= Mathf.Abs( yI ) / 250f;
             }
-            //sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
-            //sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.35f );
-            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.15f );
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
         }
 
         public override void Death()
