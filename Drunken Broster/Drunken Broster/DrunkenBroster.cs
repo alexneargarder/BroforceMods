@@ -314,77 +314,7 @@ namespace Drunken_Broster
                 this.RunBarrelEffects();
             }
 
-            if ( rollingFrames > 0 )
-            {
-                if ( this.isSlideRoll )
-                {
-                    if ( this.rollingFrames <= 12 )
-                    {
-                        if ( this.rollingFrames >= 7 )
-                        {
-                            float boostSpeed = 20f + ( this.drunk ? 10f : 0f );
-                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
-                        }
-                        else
-                        {
-
-                            float boostSpeed = 30f + ( this.drunk ? 10f : 0f );
-                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
-                        }
-                    }
-                    else
-                    {
-                        float decelerationSpeed = this.drunk ? -80f * 0.8f : -80f; // Drunk mode: +20% slide distance
-                        this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, decelerationSpeed, this.t * 3f );
-                    }
-
-                    // Handle invulnerability during slide roll
-                    if ( this.drunk && this.rollingFrames <= 26 && this.rollingFrames >= 13 )
-                    {
-                        this.invulnerable = true;
-                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
-                    }
-                    else if ( !this.drunk && this.rollingFrames <= 24 && this.rollingFrames >= 15 )
-                    {
-                        this.invulnerable = true;
-                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
-                    }
-
-                    // Deflect projectiles only during attack frames
-                    if ( this.rollingFrames <= 10 && this.rollingFrames >= 1 )
-                    {
-                        Map.DeflectProjectiles( this, this.playerNum, 8f,
-                            base.X + base.transform.localScale.x * 2f, base.Y + 6f,
-                            base.transform.localScale.x * 200f, true );
-                    }
-                }
-            }
-            else
-            {
-                this.slideExtraSpeed = 0f;
-            }
-
-            if ( !this.doingMelee )
-            {
-                this.speed = this.originalSpeed + this.slideExtraSpeed;
-            }
-
-
-            this.dashSlideCooldown -= this.t;
-
-            if ( this.bufferedSlideRoll )
-            {
-                this.bufferedSlideRollTime -= this.t;
-                if ( this.bufferedSlideRollTime <= 0f )
-                {
-                    this.bufferedSlideRoll = false;
-                }
-            }
-
-            if ( base.actionState == ActionState.Jumping )
-            {
-                this.StopRolling();
-            }
+            this.RunRolling();
         }
 
         // TODO: remove this
@@ -785,7 +715,7 @@ namespace Drunken_Broster
             }
             if ( this.attackStationary || this.attackUpwards || this.attackForwards || this.attackDownwards )
             {
-                if ( !this.attackHasHit )
+                if ( !this.attackHasHit || this.drunk )
                 {
                     if ( this.attackStationary && this.attackFrames >= this.attackStationaryStrikeFrame - 1 )
                     {
@@ -915,7 +845,7 @@ namespace Drunken_Broster
                 }
             }
 
-            if ( !this.attackHasHit )
+            if ( !this.attackHasHit || this.drunk )
             {
                 this.DeflectProjectiles();
             }
@@ -1022,7 +952,7 @@ namespace Drunken_Broster
                         this.hasAttackedUpwards = false;
                         this.hasAttackedForwards = false;
                         this.hasHitThisAttack = true;
-                        this.TimeBump( 0.5f );
+                        this.TimeBump( 0.4f );
                         this.xIAttackExtra = 0f;
                         this.postAttackHitPauseTime = 0.25f;
                         this.xI = 0f;
@@ -1050,7 +980,7 @@ namespace Drunken_Broster
                 }
 
             }
-            if ( !this.attackHasHit )
+            if ( !this.attackHasHit || this.drunk )
             {
                 this.DeflectProjectiles();
             }
@@ -1099,7 +1029,7 @@ namespace Drunken_Broster
                 this.hasHitThisAttack = true;
                 this.TimeBump();
             }
-            if ( !this.attackHasHit )
+            if ( !this.attackHasHit || this.drunk )
             {
                 this.DeflectProjectiles();
             }
@@ -1167,10 +1097,7 @@ namespace Drunken_Broster
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y, base.transform.localScale.x * 120f, 100f, 6f, base.playerNum, out _, this );
                 this.lastAttackingTime = Time.time;
-                if ( !this.attackHasHit )
-                {
-                    this.DeflectProjectiles();
-                }
+                this.DeflectProjectiles();
             }
         }
 
@@ -1213,6 +1140,7 @@ namespace Drunken_Broster
             explosionGroundWave.origins = this;
             if ( Map.HitUnits( this, this, this.playerNum, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false, true, false ) )
             {
+                this.PlayHitSound();
                 this.TimeBump( 0.3f );
             }
             MapController.DamageGround( this, 35, DamageType.Crush, 50f, base.X, base.Y + 8f, null, false );
@@ -3078,6 +3006,81 @@ namespace Drunken_Broster
         }
 
         #region Roll
+        protected void RunRolling()
+        {
+            if ( rollingFrames > 0 )
+            {
+                if ( this.isSlideRoll )
+                {
+                    if ( this.rollingFrames <= 12 )
+                    {
+                        if ( this.rollingFrames >= 7 )
+                        {
+                            float boostSpeed = 20f + ( this.drunk ? 10f : 0f );
+                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
+                        }
+                        else
+                        {
+
+                            float boostSpeed = 30f + ( this.drunk ? 10f : 0f );
+                            this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, boostSpeed, this.t * 5f );
+                        }
+                    }
+                    else
+                    {
+                        float decelerationSpeed = this.drunk ? -80f * 0.8f : -80f; // Drunk mode: +20% slide distance
+                        this.slideExtraSpeed = Mathf.Lerp( this.slideExtraSpeed, decelerationSpeed, this.t * 3f );
+                    }
+
+                    // Handle invulnerability during slide roll
+                    if ( this.drunk && this.rollingFrames <= 26 && this.rollingFrames >= 13 )
+                    {
+                        this.invulnerable = true;
+                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
+                    }
+                    else if ( !this.drunk && this.rollingFrames <= 24 && this.rollingFrames >= 15 )
+                    {
+                        this.invulnerable = true;
+                        this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
+                    }
+
+                    // Deflect projectiles only during attack frames
+                    if ( this.rollingFrames <= 10 && this.rollingFrames >= 1 )
+                    {
+                        Map.DeflectProjectiles( this, this.playerNum, 8f,
+                            base.X + base.transform.localScale.x * 2f, base.Y + 6f,
+                            base.transform.localScale.x * 200f, true );
+                    }
+                }
+            }
+            else
+            {
+                this.slideExtraSpeed = 0f;
+            }
+
+            if ( !this.doingMelee )
+            {
+                this.speed = this.originalSpeed + this.slideExtraSpeed;
+            }
+
+
+            this.dashSlideCooldown -= this.t;
+
+            if ( this.bufferedSlideRoll )
+            {
+                this.bufferedSlideRollTime -= this.t;
+                if ( this.bufferedSlideRollTime <= 0f )
+                {
+                    this.bufferedSlideRoll = false;
+                }
+            }
+
+            if ( base.actionState == ActionState.Jumping )
+            {
+                this.StopRolling();
+            }
+        }
+
         protected override void Jump( bool wallJump )
         {
             // Don't allow wall jumping while doing melee
