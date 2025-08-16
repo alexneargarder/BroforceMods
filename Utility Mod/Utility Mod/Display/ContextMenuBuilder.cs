@@ -745,6 +745,28 @@ namespace Utility_Mod
 
         public void BuildLevelControlSubmenu(MenuItem parentMenu)
         {
+            // Add current level display at the top
+            string currentCampaignDisplay = "Unknown";
+            int currentLevelNum = LevelSelectionController.CurrentLevelNum + 1; // Convert to 1-based
+            
+            // Find the matching campaign display name
+            if (GameState.Instance != null && !string.IsNullOrEmpty(GameState.Instance.campaignName))
+            {
+                // Look for matching campaign in actualCampaignNames
+                for (int i = 0; i < Main.actualCampaignNames.Length && i < Main.campaignDisplayNames.Length; i++)
+                {
+                    if (Main.actualCampaignNames[i] == GameState.Instance.campaignName)
+                    {
+                        currentCampaignDisplay = Main.campaignDisplayNames[i];
+                        break;
+                    }
+                }
+            }
+            
+            // Add header showing current level
+            parentMenu.AddSubItem(MenuItem.CreateHeader($"Current: {currentCampaignDisplay} - Level {currentLevelNum}"));
+            parentMenu.AddSeparator();
+            
             // Go to Level submenu
             MenuItem goToLevelMenu = new MenuItem("Go to Level");
             BuildGoToLevelSubmenu(goToLevelMenu);
