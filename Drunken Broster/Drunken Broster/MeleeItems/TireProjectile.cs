@@ -35,6 +35,7 @@ namespace Drunken_Broster.MeleeItems
 
         public override void PrefabSetup()
         {
+            base.PrefabSetup();
             // Load death sound
             this.soundHolder.deathSounds = new AudioClip[1];
             this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
@@ -112,7 +113,7 @@ namespace Drunken_Broster.MeleeItems
             {
                 volume *= Mathf.Abs( yI ) / 250f;
             }
-            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.25f );
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position, 0.35f );
         }
 
         public override void Death()

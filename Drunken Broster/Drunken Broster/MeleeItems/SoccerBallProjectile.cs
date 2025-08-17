@@ -51,6 +51,7 @@ namespace Drunken_Broster.MeleeItems
             {
                 //EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, base.X + base.transform.localScale.x * 2f, base.Y + UnityEngine.Random.Range( -1, 1 ), 0f, 0f, Vector3.zero, null );
                 //EffectsController.CreateProjectilePopWhiteEffect( base.X + base.transform.localScale.x * 3f, base.Y + UnityEngine.Random.Range( -1, 1 ) );
+                this.PlayHitSound();
                 this.hitDelay = 0.1f;
                 if ( this.bounceOffEnemies )
                 {

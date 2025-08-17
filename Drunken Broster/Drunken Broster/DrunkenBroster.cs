@@ -471,6 +471,12 @@ namespace Drunken_Broster
             }
 
             this.slurp = ResourcesController.GetAudioClip( soundPath, "slurp.wav" );
+
+            this.soundHolder.meleeHitSound = new AudioClip[2];
+            for ( int i = 0; i < this.soundHolder.meleeHitSound.Length; ++i )
+            {
+                this.soundHolder.meleeHitSound[i] = ResourcesController.GetAudioClip( soundPath, "meleeHitBlunt" + i + ".wav" );
+            }
         }
         #endregion
 
@@ -676,6 +682,7 @@ namespace Drunken_Broster
             this.yI = 0f;
             this.attackForwards = true;
             this.attackDirection = this.right ? 1 : -1;
+            base.transform.localScale = new Vector3( this.right ? 1f : -1f, this.yScale, 1f );
             this.jumpTime = 0f;
             this.ChangeFrame();
             this.CreateFaderTrailInstance();
@@ -768,7 +775,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayHitSound();
+                        this.PlayPrimaryHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -810,7 +817,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayHitSound();
+                        this.PlayPrimaryHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -867,7 +874,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayHitSound();
+                        this.PlayPrimaryHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -912,7 +919,7 @@ namespace Drunken_Broster
                     {
                         if ( !this.hasHitWithFists )
                         {
-                            this.PlayHitSound();
+                            this.PlayPrimaryHitSound();
                         }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
@@ -944,7 +951,7 @@ namespace Drunken_Broster
                     {
                         if ( !this.hasHitWithFists )
                         {
-                            this.PlayHitSound();
+                            this.PlayPrimaryHitSound();
                         }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
@@ -1003,7 +1010,7 @@ namespace Drunken_Broster
             {
                 if ( !this.hasHitWithFists )
                 {
-                    this.PlayHitSound();
+                    this.PlayPrimaryHitSound();
                 }
                 this.hasHitWithFists = true;
                 this.attackHasHit = true;
@@ -1055,7 +1062,7 @@ namespace Drunken_Broster
                 {
                     if ( !this.hasHitWithFists )
                     {
-                        this.PlayHitSound();
+                        this.PlayPrimaryHitSound();
                     }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
@@ -1140,7 +1147,7 @@ namespace Drunken_Broster
             explosionGroundWave.origins = this;
             if ( Map.HitUnits( this, this, this.playerNum, 20, DamageType.Crush, 30f, 10f, base.X, base.Y - 4f, 0f, this.yI, true, false, true, false ) )
             {
-                this.PlayHitSound();
+                this.PlayPrimaryHitSound();
                 this.TimeBump( 0.3f );
             }
             MapController.DamageGround( this, 35, DamageType.Crush, 50f, base.X, base.Y + 8f, null, false );
@@ -2054,7 +2061,7 @@ namespace Drunken_Broster
         }
 
         // Sound played when hitting an enemy with your primary attack
-        protected override void PlayHitSound( float volume = 0.6f )
+        protected void PlayPrimaryHitSound( float volume = 0.6f )
         {
             if ( this.sound == null )
             {
@@ -2098,7 +2105,7 @@ namespace Drunken_Broster
         // Prevent damage from melee attacks when attacking
         public override void Damage( int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY )
         {
-            if ( ( damageType != DamageType.Drill && damageType != DamageType.Melee && damageType != DamageType.Knifed ) || !this.IsAttacking() || ( Mathf.Sign( base.transform.localScale.x ) == Mathf.Sign( xI ) && damageType != DamageType.Drill ) )
+            if ( ( damageType != DamageType.Drill && damageType != DamageType.Melee && damageType != DamageType.Knifed && damageType != DamageType.Explosion && damageType != DamageType.Fire ) || !this.IsAttacking() || ( Mathf.Sign( base.transform.localScale.x ) == Mathf.Sign( xI ) && damageType != DamageType.Drill ) )
             {
                 base.Damage( damage, damageType, xI, yI, direction, damageSender, hitX, hitY );
             }
@@ -2192,7 +2199,7 @@ namespace Drunken_Broster
             }
             else if ( base.frame == 4 && !this.meleeHasHit )
             {
-                this.PerformMeleeAttack( true, true );
+                this.PerformMeleeAttack( true, false );
             }
 
             if ( base.frame >= 3 )
@@ -2355,67 +2362,105 @@ namespace Drunken_Broster
             this.KickDoors( 24f );
             this.meleeChosenUnit = null;
 
+            int meleeDamage = 7;
+            DamageType meleeDamageType = DamageType.Melee;
+            float xI = 200f;
+            float yI = 350f;
+
             // Perform attack based on item type
             switch ( this.chosenItem )
             {
                 // Blunt hit
                 case MeleeItem.Tire:
+                    break;
                 case MeleeItem.Bottle:
+                    meleeDamage = 4;
+                    xI = 125f;
+                    yI = 400f;
+                    break;
                 case MeleeItem.Crate:
+                    meleeDamage = 9;
+                    break;
                 case MeleeItem.Coconut:
+                    meleeDamage = 4;
+                    xI = 150f;
+                    yI = 400f;
+                    break;
                 case MeleeItem.ExplosiveBarrel:
+                    meleeDamage = 8;
+                    break;
                 case MeleeItem.SoccerBall:
-                    if ( Map.HitClosestUnit( this, base.playerNum, 1, DamageType.Knock, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * 200f, 350f, true, false, base.IsMine, false, true ) )
-                    {
-                        this.PlayMeleeHitSound();
-                        this.meleeHasHit = true;
-                    }
-                    else if ( playMissSound )
-                    {
-                        this.PlayMeleeMissSound();
-                    }
+                    meleeDamage = 6;
+                    xI = 125f;
+                    yI = 400f;
                     break;
 
                 // Acid hit
                 case MeleeItem.AcidEgg:
                 case MeleeItem.AlienEgg:
-                    if ( Map.HitClosestUnit( this, base.playerNum, 1, DamageType.Acid, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * 200f, 350f, true, false, base.IsMine, false, true ) )
-                    {
-                        this.PlayMeleeHitSound();
-                        this.meleeHasHit = true;
-                    }
-                    else if ( playMissSound )
-                    {
-                        this.PlayMeleeMissSound();
-                    }
+                    meleeDamageType = DamageType.Acid;
+                    meleeDamage = 1;
                     break;
 
                 // Fire hit
                 case MeleeItem.Skull:
+                    meleeDamageType = DamageType.Fire;
+                    meleeDamage = 3;
                     break;
 
-                // Bee hit (panics units)
+                // Bee hit
                 case MeleeItem.Beehive:
+                    meleeDamage = 6;
                     break;
             }
 
-            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, 2 ) )
+            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage, meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
+            {
+                this.PlayMeleeHitSound();
+                this.meleeHasHit = true;
+            }
+            else if ( playMissSound )
+            {
+                this.PlayMeleeMissSound();
+            }
+
+            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 1, meleeDamage + 3 ) )
             {
                 this.meleeHasHit = true;
             }
             this.TriggerBroMeleeEvent();
         }
 
+        protected override bool TryMeleeTerrain( int offset = 0, int meleeDamage = 2 )
+        {
+            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 16 + offset ), this.groundLayer ) )
+            {
+                return false;
+            }
+            Cage cage = this.raycastHit.collider.GetComponent<Cage>();
+            if ( cage == null && this.raycastHit.collider.transform.parent != null )
+            {
+                cage = this.raycastHit.collider.transform.parent.GetComponent<Cage>();
+            }
+            if ( cage != null )
+            {
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, cage.health, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+                return true;
+            }
+            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+            this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.4f, base.transform.position, 1f, true, false, false, 0f );
+            EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
+            return true;
+        }
+
         protected void PlayMeleeHitSound()
         {
-            // TODO: add melee sound effects
-            //this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitSound, 1f, base.transform.position, 1f, true, false, false, 0f );
+            this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitSound, 0.6f, base.transform.position, 1f, true, false, false, 0f );
         }
 
         protected void PlayMeleeMissSound()
         {
-            // TODO: add melee sound effects
-            //this.sound.PlaySoundEffectAt( this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f );
+            this.sound.PlaySoundEffectAt( this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f );
         }
 
         protected override void CancelMelee()
@@ -3308,7 +3353,7 @@ namespace Drunken_Broster
 
                     if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, false, false ) )
                     {
-                        this.PlayHitSound( 0.5f );
+                        this.PlayPrimaryHitSound( 0.5f );
                         SortOfFollow.Shake( this.drunk ? 0.5f : 0.3f );
                     }
 
@@ -3329,7 +3374,7 @@ namespace Drunken_Broster
 
                     if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, this.drunk, false ) )
                     {
-                        this.PlayHitSound( 0.5f );
+                        this.PlayPrimaryHitSound( 0.5f );
                         SortOfFollow.Shake( this.drunk ? 0.5f : 0.3f );
 
                         if ( this.drunk )
