@@ -19,6 +19,7 @@ namespace Drunken_Broster.MeleeItems
         protected int bounceGroundDamage = 10;
         protected float hitUnitForce = 1.0f;
         public AudioClip[] bounceSounds;
+        public AudioClip[] hitSounds;
 
         protected override void Awake()
         {
@@ -50,6 +51,17 @@ namespace Drunken_Broster.MeleeItems
             this.groundAndLadderLayer = ( 1 << LayerMask.NameToLayer( "Ground" ) | 1 << LayerMask.NameToLayer( "IndestructibleGround" ) | 1 << LayerMask.NameToLayer( "LargeObjects" ) );
 
             base.Awake();
+        }
+
+        public override void PrefabSetup()
+        {
+            base.PrefabSetup();
+
+            this.hitSounds = new AudioClip[2];
+            for ( int i = 0; i < this.hitSounds.Length; ++i )
+            {
+                this.hitSounds[i] = ResourcesController.GetAudioClip( soundPath, "meleeHitBlunt" + i + ".wav" );
+            }
         }
 
         public override void Launch( float newX, float newY, float xI, float yI )
@@ -98,7 +110,7 @@ namespace Drunken_Broster.MeleeItems
             {
                 this.Bounce( bounceX, bounceY );
             }
-            
+
             // Parent to moving platforms
             this.parentedCollider = null;
             if ( this.moveWithRestingTransform && Physics.Raycast( base.transform.position + Vector3.up * 2f, Vector3.down, out RaycastHit raycastHit, this.size + 2f, Map.groundLayer ) && raycastHit.distance - 2f <= this.size )
@@ -112,24 +124,24 @@ namespace Drunken_Broster.MeleeItems
                 }
             }
         }
-        
+
         private bool ConstrainToBlocksWithSphere( MonoBehaviour obj, float x, float y, float size, ref float xIT, ref float yIT, ref bool bounceX, ref bool bounceY, LayerMask floorLayer )
         {
             bool hitSomething = false;
-            
+
             // Skip if no movement
             if ( xIT == 0f && yIT == 0f )
             {
                 return false;
             }
-            
+
             // Calculate desired position after movement
             float newX = x + xIT;
             float newY = y + yIT;
-            
+
             // Check if the new position would overlap with anything
             Collider[] overlaps = Physics.OverlapSphere( new Vector3( newX, newY, 0f ), size, floorLayer );
-            
+
             foreach ( Collider hit in overlaps )
             {
                 // Handle ladder collisions specially
@@ -147,19 +159,19 @@ namespace Drunken_Broster.MeleeItems
                 {
                     // Regular collision - need to figure out which direction to bounce
                     Bounds bounds = hit.bounds;
-                    
+
                     // Calculate how much we're overlapping in each direction
-                    float leftOverlap = (newX + size) - (bounds.min.x);
-                    float rightOverlap = (bounds.max.x) - (newX - size);
-                    float bottomOverlap = (newY + size) - (bounds.min.y);
-                    float topOverlap = (bounds.max.y) - (newY - size);
-                    
+                    float leftOverlap = ( newX + size ) - ( bounds.min.x );
+                    float rightOverlap = ( bounds.max.x ) - ( newX - size );
+                    float bottomOverlap = ( newY + size ) - ( bounds.min.y );
+                    float topOverlap = ( bounds.max.y ) - ( newY - size );
+
                     // Only process if we're actually overlapping
                     if ( leftOverlap > 0 && rightOverlap > 0 && bottomOverlap > 0 && topOverlap > 0 )
                     {
                         // Find the smallest overlap to determine bounce direction
-                        float minOverlap = Mathf.Min( Mathf.Min(leftOverlap, rightOverlap), Mathf.Min(bottomOverlap, topOverlap) );
-                        
+                        float minOverlap = Mathf.Min( Mathf.Min( leftOverlap, rightOverlap ), Mathf.Min( bottomOverlap, topOverlap ) );
+
                         if ( minOverlap == leftOverlap && xIT > 0 )
                         {
                             xIT = -leftOverlap;
@@ -180,12 +192,12 @@ namespace Drunken_Broster.MeleeItems
                             yIT = topOverlap;
                             bounceY = true;
                         }
-                        
+
                         hitSomething = true;
                     }
                 }
             }
-            
+
             return hitSomething;
         }
 
@@ -193,6 +205,7 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( Mathf.Abs( this.xI ) > 80f && Map.HitUnits( this, this.playerNum, this.damage, this.damage, this.damageType, this.size, this.size + 4f, this.X, this.Y, this.xI * 2f * this.hitUnitForce, Mathf.Abs( this.xI * 2.5f ) * this.hitUnitForce, true, true, false, this.alreadyHitUnits, false, false ) )
             {
+                this.PlayHitSound();
                 this.hitDelay = 0.1f;
                 if ( this.bounceOffEnemies )
                 {
@@ -202,6 +215,18 @@ namespace Drunken_Broster.MeleeItems
                     this.bounceM = previousBounceM;
                 }
             }
+        }
+
+        protected virtual void PlayHitSound()
+        {
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+
+            float volume = Mathf.Max( 0.5f * ( ( Mathf.Abs( this.xI ) + Mathf.Abs( this.yI ) ) / 250f ), 0.2f );
+
+            sound?.PlaySoundEffectAt( this.hitSounds, volume, base.transform.position );
         }
 
         protected override void HitFragile()
@@ -265,9 +290,9 @@ namespace Drunken_Broster.MeleeItems
                     this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, this.bounceGroundDamage, this.damageType, this.xI, this.yI );
                 }
 
-                if ( Mathf.Abs(this.xI) > 50 )
+                if ( Mathf.Abs( this.xI ) > 50 )
                 {
-                    this.PlayBounceSound(bounceX, bounceY);
+                    this.PlayBounceSound( bounceX, bounceY );
                 }
 
                 this.xI *= -0.8f * this.bounceM;
@@ -278,7 +303,7 @@ namespace Drunken_Broster.MeleeItems
             {
                 if ( Mathf.Abs( this.yI ) > 50 )
                 {
-                    this.PlayBounceSound(bounceX, bounceY);
+                    this.PlayBounceSound( bounceX, bounceY );
                 }
                 this.yI *= -0.6f * this.bounceM;
             }
