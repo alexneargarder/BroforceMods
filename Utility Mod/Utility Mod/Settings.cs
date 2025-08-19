@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Serialization;
+using System.IO;
+using System.Text;
+using System.Reflection;
 using UnityEngine;
 using UnityModManagerNet;
 using RocketLib;
@@ -28,6 +31,7 @@ namespace Utility_Mod
         public bool showDebugOptions = false;
         public bool showRightClickOptions = false;
         public bool showKeybindingOptions = false;
+        public bool showSettingsProfilesOptions = false;
 
         // General Options
         public bool cameraShake = false;
@@ -146,6 +150,141 @@ namespace Utility_Mod
         {
             get => levelEditSlots.ToSerializableArray();
             set => levelEditSlots = value.ToDictionary();
+        }
+
+        // Settings Profile System
+        public string lastLoadedProfileName = null;
+
+        private string GetProfilePath(string profileName)
+        {
+            string profilesDir = Path.Combine(Main.mod.Path, "Profiles");
+            return Path.Combine(profilesDir, profileName + ".xml");
+        }
+
+        public void SaveToProfile(string profileName)
+        {
+            try
+            {
+                string profilesDir = Path.Combine(Main.mod.Path, "Profiles");
+                if (!Directory.Exists(profilesDir))
+                {
+                    Directory.CreateDirectory(profilesDir);
+                }
+
+                string profilePath = GetProfilePath(profileName);
+                
+                var serializer = new XmlSerializer(typeof(Settings));
+                using (var fileStream = new FileStream(profilePath, FileMode.Create))
+                {
+                    serializer.Serialize(fileStream, this);
+                }
+                
+                lastLoadedProfileName = profileName;
+                Save(Main.mod);
+            }
+            catch (Exception ex)
+            {
+                Main.mod.Logger.Error($"Failed to save profile {profileName}: {ex.Message}");
+            }
+        }
+
+        public bool LoadFromProfile(string profileName)
+        {
+            try
+            {
+                string profilePath = GetProfilePath(profileName);
+                if (!File.Exists(profilePath))
+                {
+                    Main.mod.Logger.Error($"Profile file not found: {profileName}");
+                    return false;
+                }
+
+                Settings loadedSettings;
+                var serializer = new XmlSerializer(typeof(Settings));
+                using (var fileStream = new FileStream(profilePath, FileMode.Open))
+                {
+                    loadedSettings = (Settings)serializer.Deserialize(fileStream);
+                }
+
+                // Copy all fields from loaded settings to this instance
+                // We need to be careful not to overwrite certain runtime-only fields
+                var fields = typeof(Settings).GetFields();
+                foreach (var field in fields)
+                {
+                    // Skip lastLoadedProfileName - we want to set it to the profile we're loading, not copy it
+                    if (field.Name == "lastLoadedProfileName")
+                        continue;
+                        
+                    if (field.GetCustomAttributes(typeof(XmlIgnoreAttribute), false).Length == 0)
+                    {
+                        field.SetValue(this, field.GetValue(loadedSettings));
+                    }
+                }
+                
+                levelEditRecords = loadedSettings.levelEditRecords ?? new Dictionary<string, LevelEditRecord>();
+                levelEditSlots = loadedSettings.levelEditSlots ?? new Dictionary<string, LevelEditSlots>();
+                levelSpawnPositions = loadedSettings.levelSpawnPositions ?? new Dictionary<string, Vector2>();
+                
+                lastLoadedProfileName = profileName;
+                Save(Main.mod);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Main.mod.Logger.Error($"Failed to load profile {profileName}: {ex.Message}");
+                return false;
+            }
+        }
+
+        public List<string> GetAvailableProfiles()
+        {
+            var profiles = new List<string>();
+            try
+            {
+                string profilesDir = Path.Combine(Main.mod.Path, "Profiles");
+                if (Directory.Exists(profilesDir))
+                {
+                    var files = Directory.GetFiles(profilesDir, "*.xml");
+                    foreach (var file in files)
+                    {
+                        profiles.Add(Path.GetFileNameWithoutExtension(file));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Main.mod.Logger.Error($"Failed to get available profiles: {ex.Message}");
+            }
+            return profiles;
+        }
+
+        public bool DeleteProfile(string profileName)
+        {
+            try
+            {
+                string profilePath = GetProfilePath(profileName);
+                if (File.Exists(profilePath))
+                {
+                    File.Delete(profilePath);
+                    
+                    if (lastLoadedProfileName == profileName)
+                    {
+                        lastLoadedProfileName = null;
+                        Save(Main.mod);
+                    }
+                    
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Main.mod.Logger.Error($"Failed to delete profile {profileName}: {ex.Message}");
+                return false;
+            }
         }
 
         public override void Save(UnityModManager.ModEntry modEntry)

@@ -362,6 +362,8 @@ namespace Utility_Mod
             {
                 DrawQuickActionFeedback();
             }
+            
+            ContextMenuBuilder.DrawProfileNameDialog();
         }
 
         private bool ShouldProcessInput()
