@@ -22,6 +22,12 @@ namespace Utility_Mod
         public static int lastCampaignNum;
         public static Dropdown levelNum;
         public static int lastCampaignCompleted = -1;
+        
+        // Settings Profiles UI variables
+        public static int selectedProfileIndex = -1;
+        public static string newProfileName = "";
+        public static bool isRenamingProfile = false;
+        
         public static string[] levelList = new string[] { "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10",
             "Level 11", "Level 12", "Level 13", "Level 14", "Level 15"};
 
@@ -613,6 +619,16 @@ namespace Utility_Mod
             {
                 ShowKeybindingOptions( modEntry, ref previousToolTip );
             } // End Keybinding Options
+            
+            if (GUILayout.Button("Settings Profiles", headerStyle))
+            {
+                settings.showSettingsProfilesOptions = !settings.showSettingsProfilesOptions;
+            }
+            
+            if (settings.showSettingsProfilesOptions)
+            {
+                ShowSettingsProfilesOptions(modEntry, ref previousToolTip);
+            } // End Settings Profiles
 
             // Check for completed keybinding assignments
             List<string> completedAssignments = new List<string>();
@@ -1428,8 +1444,6 @@ namespace Utility_Mod
 
 
             GUILayout.Space( 10 );
-            GUILayout.Label( "===== Time Control =====" );
-            GUILayout.Space( 10 );
 
             GUILayout.BeginHorizontal();
             string speedText = settings.isGamePaused ? "Game Speed: PAUSED" : $"Game Speed: {settings.gameSpeedMultiplier:F2}x";
@@ -1767,6 +1781,284 @@ namespace Utility_Mod
             }
             GUILayout.EndVertical();
             GUILayout.Space( 10 );
+        }
+
+        static void ShowSettingsProfilesOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
+        {
+            GUILayout.BeginHorizontal();
+            string currentProfile = string.IsNullOrEmpty(settings.lastLoadedProfileName) 
+                ? "None" 
+                : settings.lastLoadedProfileName;
+            GUILayout.Label(new GUIContent($"Current Profile: {currentProfile}", 
+                "The last profile that was loaded. Settings may have been modified since."));
+            
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 400;
+            
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+            
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(25);
+            
+            var profiles = settings.GetAvailableProfiles();
+            if (profiles.Count > 0)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Saved Profiles:");
+                GUILayout.EndHorizontal();
+                
+                GUILayout.BeginHorizontal();
+                selectedProfileIndex = GUILayout.SelectionGrid(
+                    selectedProfileIndex, 
+                    profiles.ToArray(), 
+                    1, 
+                    GUILayout.Width(300)
+                );
+                GUILayout.EndHorizontal();
+                
+                GUILayout.Space(10);
+                
+                GUILayout.BeginHorizontal();
+                
+                if (GUILayout.Button(new GUIContent("Load Selected", "Replace current settings with the selected profile"), GUILayout.Width(140)))
+                {
+                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    {
+                        settings.LoadFromProfile(profiles[selectedProfileIndex]);
+                    }
+                }
+                
+                lastRect = GUILayoutUtility.GetLastRect();
+                lastRect.y += 20;
+                lastRect.width += 400;
+                
+                if (GUILayout.Button(new GUIContent("Save Current", "Overwrite the selected profile with current settings"), GUILayout.Width(140)))
+                {
+                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    {
+                        settings.SaveToProfile(profiles[selectedProfileIndex]);
+                    }
+                }
+                
+                if (GUILayout.Button(new GUIContent("Rename", "Rename the selected profile"), GUILayout.Width(110)))
+                {
+                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    {
+                        newProfileName = profiles[selectedProfileIndex];
+                        isRenamingProfile = true;
+                    }
+                }
+                
+                if (GUILayout.Button(new GUIContent("Delete", "Delete the selected profile"), GUILayout.Width(100)))
+                {
+                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    {
+                        settings.DeleteProfile(profiles[selectedProfileIndex]);
+                        selectedProfileIndex = -1;
+                    }
+                }
+                
+                if (GUI.tooltip != previousToolTip)
+                {
+                    GUI.Label(lastRect, GUI.tooltip);
+                    previousToolTip = GUI.tooltip;
+                }
+                
+                GUILayout.EndHorizontal();
+                
+                GUILayout.Space(25);
+            }
+            else
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("No saved profiles yet.");
+                GUILayout.EndHorizontal();
+                GUILayout.Space(10);
+            }
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("New Profile Name:", GUILayout.Width(140));
+            
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 400;
+            
+            newProfileName = GUILayout.TextField(newProfileName, GUILayout.Width(200));
+            
+            bool validName = !string.IsNullOrEmpty(newProfileName) && 
+                             ValidateProfileName(newProfileName);
+            
+            GUI.enabled = validName;
+            
+            if (isRenamingProfile)
+            {
+                if (GUILayout.Button(new GUIContent("Apply Rename", "Rename the selected profile"), GUILayout.Width(150)))
+                {
+                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    {
+                        string oldName = profiles[selectedProfileIndex];
+                        string oldPath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), oldName + ".xml");
+                        string newPath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), newProfileName + ".xml");
+                        
+                        if (System.IO.File.Exists(oldPath) && !System.IO.File.Exists(newPath))
+                        {
+                            System.IO.File.Move(oldPath, newPath);
+                            if (settings.lastLoadedProfileName == oldName)
+                            {
+                                settings.lastLoadedProfileName = newProfileName;
+                                settings.Save(mod);
+                            }
+                        }
+                    }
+                    newProfileName = "";
+                    isRenamingProfile = false;  // Exit rename mode
+                }
+                
+                GUI.enabled = true;
+                
+                if (GUILayout.Button(new GUIContent("Cancel", "Cancel rename"), GUILayout.Width(80)))
+                {
+                    newProfileName = "";
+                    isRenamingProfile = false;  // Exit rename mode
+                }
+            }
+            else
+            {
+                if (GUILayout.Button(new GUIContent("Save As New", "Create a new profile with the current settings"), GUILayout.Width(150)))
+                {
+                    settings.SaveToProfile(newProfileName);
+                    selectedProfileIndex = profiles.Count;
+                    newProfileName = "";
+                }
+            }
+            
+            GUI.enabled = true;
+            
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+            
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(25);
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(new GUIContent("Import/Export:", "Share profiles via clipboard"));
+            GUILayout.EndHorizontal();
+            
+            GUILayout.BeginHorizontal();
+            
+            GUI.enabled = selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count;
+            if (GUILayout.Button(new GUIContent("Export to Clipboard", "Copy selected profile to clipboard as Base64"), GUILayout.Width(220)))
+            {
+                ExportProfileToClipboard(profiles[selectedProfileIndex]);
+            }
+            
+            lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.y += 20;
+            lastRect.width += 400;
+            
+            GUI.enabled = true;
+            
+            if (GUILayout.Button(new GUIContent("Import from Clipboard", "Import a profile from Base64 in clipboard"), GUILayout.Width(220)))
+            {
+                ImportProfileFromClipboard();
+            }
+            
+            if (GUI.tooltip != previousToolTip)
+            {
+                GUI.Label(lastRect, GUI.tooltip);
+                previousToolTip = GUI.tooltip;
+            }
+            
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(30);
+        }
+        
+        static bool ValidateProfileName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            
+            foreach (char c in name)
+            {
+                if (!char.IsLetterOrDigit(c) && c != ' ' && c != '-' && c != '_')
+                {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
+        static void ExportProfileToClipboard(string profileName)
+        {
+            try
+            {
+                string profilePath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), profileName + ".xml");
+                if (System.IO.File.Exists(profilePath))
+                {
+                    string xmlContent = System.IO.File.ReadAllText(profilePath);
+                    byte[] bytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
+                    string base64 = System.Convert.ToBase64String(bytes);
+                    GUIUtility.systemCopyBuffer = base64;
+                }
+            }
+            catch (Exception ex)
+            {
+                mod.Logger.Error($"Failed to export profile: {ex.Message}");
+            }
+        }
+        
+        static void ImportProfileFromClipboard()
+        {
+            try
+            {
+                string clipboard = GUIUtility.systemCopyBuffer;
+                if (!string.IsNullOrEmpty(clipboard))
+                {
+                    byte[] bytes = System.Convert.FromBase64String(clipboard);
+                    string xmlContent = System.Text.Encoding.UTF8.GetString(bytes);
+                    
+                    var serializer = new System.Xml.Serialization.XmlSerializer(typeof(Settings));
+                    using (var reader = new System.IO.StringReader(xmlContent))
+                    {
+                        Settings testSettings = (Settings)serializer.Deserialize(reader);
+                        
+                        string profileName = "Imported";
+                        int counter = 1;
+                        var existingProfiles = settings.GetAvailableProfiles();
+                        while (existingProfiles.Contains(profileName))
+                        {
+                            profileName = $"Imported_{counter}";
+                            counter++;
+                        }
+                        
+                        string profilesDir = System.IO.Path.Combine(mod.Path, "Profiles");
+                        if (!System.IO.Directory.Exists(profilesDir))
+                        {
+                            System.IO.Directory.CreateDirectory(profilesDir);
+                        }
+                        
+                        string profilePath = System.IO.Path.Combine(profilesDir, profileName + ".xml");
+                        System.IO.File.WriteAllText(profilePath, xmlContent);
+                        
+                        selectedProfileIndex = existingProfiles.Count;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                mod.Logger.Error($"Failed to import profile: {ex.Message}");
+            }
         }
 
         static void ShowKeybindingButton( string actionName )

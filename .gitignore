@@ -380,3 +380,6 @@ Settings.xml*
 
 # Toggle file for disabling game launch after builds
 Scripts/no-launch.toggle
+
+# Settings Profiles
+**/Profiles/

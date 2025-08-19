@@ -15,6 +15,12 @@ namespace Utility_Mod
         
         private ContextMenuManager manager;
         
+        private static bool showProfileNameDialog = false;
+        private static string profileNameInput = "";
+        private static bool isOverwriteMode = false;
+        private static string profileToOverwrite = "";
+        private static System.Action<string> profileNameCallback = null;
+        
         #endregion
         
         #region Constructor
@@ -86,11 +92,6 @@ namespace Utility_Mod
             BuildLevelControlSubmenu(levelControlMenu);
             manager.CurrentMenu.AddItem(levelControlMenu);
 
-            // Add Debug Options submenu
-            MenuItem debugOptionsMenu = new MenuItem("Debug Options");
-            BuildDebugOptionsSubmenu(debugOptionsMenu);
-            manager.CurrentMenu.AddItem(debugOptionsMenu);
-
             // Add Teleport submenu
             MenuItem teleportMenu = new MenuItem("Teleport");
             BuildTeleportSubmenu(teleportMenu);
@@ -100,6 +101,11 @@ namespace Utility_Mod
             MenuItem levelEditMenu = new MenuItem("Level Edit Recording");
             BuildLevelEditRecordingSubmenu(levelEditMenu);
             manager.CurrentMenu.AddItem(levelEditMenu);
+
+            // Add Debug Options submenu
+            MenuItem debugOptionsMenu = new MenuItem("Debug Options");
+            BuildDebugOptionsSubmenu(debugOptionsMenu);
+            manager.CurrentMenu.AddItem(debugOptionsMenu);
 
             manager.CurrentMenu.AddSeparator();
             
@@ -967,6 +973,10 @@ namespace Utility_Mod
             
             parentMenu.AddSeparator();
             
+            MenuItem settingsProfilesMenu = new MenuItem("Settings Profiles");
+            BuildSettingsProfilesSubmenu(settingsProfilesMenu);
+            parentMenu.AddSubItem(settingsProfilesMenu);
+            
             // Save Unity Mod Manager Settings
             parentMenu.AddSubItem(new MenuItem("Save All Mod Settings", () => {
                 UnityModManagerNet.UnityModManager.SaveSettingsAndParams();
@@ -1225,6 +1235,79 @@ namespace Utility_Mod
                 Main.settings.setZoom = true;
                 manager.CloseMenu();
             }));
+        }
+
+        public void BuildSettingsProfilesSubmenu(MenuItem parentMenu)
+        {
+            if (!string.IsNullOrEmpty(Main.settings.lastLoadedProfileName))
+            {
+                var currentItem = new MenuItem($"Current: {Main.settings.lastLoadedProfileName}");
+                currentItem.Enabled = false;
+                parentMenu.AddSubItem(currentItem);
+                parentMenu.AddSeparator();
+            }
+            
+            MenuItem loadMenu = new MenuItem("Load Profile");
+            var profiles = Main.settings.GetAvailableProfiles();
+            if (profiles.Count > 0)
+            {
+                foreach (var profile in profiles)
+                {
+                    string profileName = profile;
+                    loadMenu.AddSubItem(new MenuItem(profileName, () => {
+                        Main.settings.LoadFromProfile(profileName);
+                        manager.CloseMenu();
+                    }));
+                }
+            }
+            else
+            {
+                var noProfilesItem = new MenuItem("(No saved profiles)");
+                noProfilesItem.Enabled = false;
+                loadMenu.AddSubItem(noProfilesItem);
+            }
+            parentMenu.AddSubItem(loadMenu);
+            
+            MenuItem saveMenu = new MenuItem("Save Current As");
+            
+            saveMenu.AddSubItem(new MenuItem("New Profile...", () => {
+                manager.CloseMenu();
+                ShowProfileNameDialog(false, "", (profileName) => {
+                    Main.settings.SaveToProfile(profileName);
+                });
+            }));
+            
+            if (profiles.Count > 0)
+            {
+                saveMenu.AddSeparator();
+            }
+            
+            foreach (var profile in profiles)
+            {
+                string profileName = profile;
+                saveMenu.AddSubItem(new MenuItem($"{profileName} (Overwrite)", () => {
+                    Main.settings.SaveToProfile(profileName);
+                    manager.CloseMenu();
+                }));
+            }
+            
+
+            
+            parentMenu.AddSubItem(saveMenu);
+            
+            if (profiles.Count > 0)
+            {
+                MenuItem deleteMenu = new MenuItem("Delete Profile");
+                foreach (var profile in profiles)
+                {
+                    string profileName = profile;
+                    deleteMenu.AddSubItem(new MenuItem(profileName, () => {
+                        Main.settings.DeleteProfile(profileName);
+                        manager.CloseMenu();
+                    }));
+                }
+                parentMenu.AddSubItem(deleteMenu);
+            }
         }
 
         public void BuildTeleportSubmenu(MenuItem parentMenu)
@@ -1852,6 +1935,83 @@ namespace Utility_Mod
                 ActionId = action.Id,
                 MenuAction = action
             });
+        }
+
+        
+        public static void ShowProfileNameDialog(bool overwrite, string existingName, System.Action<string> callback)
+        {
+            showProfileNameDialog = true;
+            profileNameInput = overwrite ? existingName : "";
+            isOverwriteMode = overwrite;
+            profileToOverwrite = existingName;
+            profileNameCallback = callback;
+        }
+        
+        public static void DrawProfileNameDialog()
+        {
+            if (!showProfileNameDialog) return;
+            
+            GUI.color = new Color(0, 0, 0, 0.7f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            
+            Rect dialogRect = new Rect(
+                (Screen.width - 400) / 2,
+                (Screen.height - 150) / 2,
+                400, 150
+            );
+            
+            GUI.Window(99998, dialogRect, DrawProfileDialogContents, 
+                isOverwriteMode ? $"Overwrite Profile: {profileToOverwrite}" : "New Profile");
+        }
+        
+        private static void DrawProfileDialogContents(int windowID)
+        {
+            GUILayout.Space(10);
+            
+            GUILayout.Label("Profile Name:");
+            profileNameInput = GUILayout.TextField(profileNameInput, 30);
+            
+            GUILayout.Space(20);
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            
+            if (GUILayout.Button("Save", GUILayout.Width(100)))
+            {
+                if (!string.IsNullOrEmpty(profileNameInput) && ValidateProfileName(profileNameInput))
+                {
+                    profileNameCallback?.Invoke(profileNameInput);
+                    showProfileNameDialog = false;
+                    profileNameInput = "";
+                }
+            }
+            
+            GUILayout.Space(10);
+            
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                showProfileNameDialog = false;
+                profileNameInput = "";
+            }
+            
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+        
+        private static bool ValidateProfileName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            
+            foreach (char c in name)
+            {
+                if (!char.IsLetterOrDigit(c) && c != ' ' && c != '-' && c != '_')
+                {
+                    return false;
+                }
+            }
+            
+            return true;
         }
         #endregion
     }
