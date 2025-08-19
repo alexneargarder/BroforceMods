@@ -281,7 +281,6 @@ namespace Utility_Mod
         #endregion
 
         #region Input Handling
-
         void LateUpdate()
         {
             if ( CurrentMode == ContextMenuMode.Grab && modes.grabbedUnit != null && !modes.grabbedUnit.destroyed && modes.grabbedUnit.health > 0 )

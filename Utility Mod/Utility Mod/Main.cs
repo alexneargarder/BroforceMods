@@ -1586,7 +1586,7 @@ namespace Utility_Mod
 
             // Quick Clone keybinding
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Quick Clone:", "Press this key to instantly enter clone mode for the object under your cursor. Press again to exit."), ScaledWidth( 100 ) );
+            GUILayout.Label( new GUIContent("Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit."), ScaledWidth( 100 ) );
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
             lastRect.width += 700;
@@ -2224,8 +2224,6 @@ namespace Utility_Mod
                         TeleportToCoords( xCoord, yCoord );
                     }
                     break;
-
-                // "Teleport to Cursor on Right Click" removed - handled by context menu now
 
                 case "Spawn at Custom Waypoint":
                     settings.changeSpawn = !settings.changeSpawn;

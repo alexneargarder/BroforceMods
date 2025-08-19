@@ -154,7 +154,7 @@ namespace Utility_Mod
                 }
             }
             
-            string instruction = $"Grab Mode Active - Moving {unitType}\nRight-click to release • Left-click or ESC to cancel";
+            string instruction = $"Grab Mode Active - Moving {unitType}\nRight-click, Left-click, or ESC to release";
             
             Rect textRect = new Rect(Screen.width / 2 - 300, 50, 600, 70);
             GUI.Box(textRect, "", bgStyle);

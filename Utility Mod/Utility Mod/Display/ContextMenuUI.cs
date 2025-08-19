@@ -123,18 +123,6 @@ namespace Utility_Mod
             
             GUILayout.Space(20);
             
-            // Action descriptions section
-            GUILayout.Label("Action Types", helpHeaderStyle);
-            GUILayout.Space(10);
-            DrawHelpLine("Teleport Here", "Instantly teleport the player to the clicked location");
-            DrawHelpLine("Spawn Enemy", "Create enemy units at the clicked location");
-            DrawHelpLine("Spawn Object", "Place blocks, explosives, crates, or doodads in the world");
-            DrawHelpLine("Level Control", "Navigate levels, set starting level, go to specific level");
-            DrawHelpLine("Waypoints", "Set teleport waypoints for quick navigation");
-            DrawHelpLine("Zipline Placement", "Click twice to create a zipline between two points");
-            
-            GUILayout.Space(20);
-            
             // Context actions section
             GUILayout.Label("Context Actions", helpHeaderStyle);
             GUILayout.Space(10);
@@ -153,7 +141,7 @@ namespace Utility_Mod
             DrawHelpLine("Clone Mode", "After selecting clone, Right-click to place copies. Click to exit" );
             DrawHelpLine("Grab Mode", "Move units with cursor. Right-click to release, ESC to cancel");
             DrawHelpLine("Paint Mode", "Hold Shift + Right-click to continuously spawn while dragging");
-            
+            DrawHelpLine("Quick Clone Under Cursor", "Keybind that clones the enemy or block under your cursor. Can be assigned in the settings. Right-click to place copies. Click to exit");
             GUILayout.Space(20);
             
             // Recently used section
