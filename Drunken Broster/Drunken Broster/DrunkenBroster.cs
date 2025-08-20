@@ -796,6 +796,10 @@ namespace Drunken_Broster
                 // Pause if we hit one of drunken master's doodads
                 else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                 {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayWallSound();
+                    }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
                     this.hasAttackedDownwards = false;
@@ -838,6 +842,10 @@ namespace Drunken_Broster
                 // Pause if we hit one of drunken master's doodads
                 else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                 {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayWallSound();
+                    }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
                     this.hasAttackedDownwards = false;
@@ -895,6 +903,10 @@ namespace Drunken_Broster
                 // Pause if we hit one of drunken master's doodads
                 else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                 {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayWallSound();
+                    }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
                     this.hasAttackedDownwards = false;
@@ -932,9 +944,12 @@ namespace Drunken_Broster
                             this.alreadyHit[i].BackSomersault( false );
                         }
                     }
-                    // Pause if we hit one of drunken master's doodads
                     else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                     {
+                        if ( !this.hasHitWithFists )
+                        {
+                            this.PlayWallSound();
+                        }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
                         this.hasAttackedDownwards = false;
@@ -972,6 +987,10 @@ namespace Drunken_Broster
                     // Pause if we hit one of drunken master's doodads
                     else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                     {
+                        if ( !this.hasHitWithFists )
+                        {
+                            this.PlayWallSound();
+                        }
                         this.hasHitWithFists = true;
                         this.attackHasHit = true;
                         this.hasAttackedDownwards = false;
@@ -1029,6 +1048,10 @@ namespace Drunken_Broster
             // Pause if we hit one of drunken master's doodads
             else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
             {
+                if ( !this.hasHitWithFists )
+                {
+                    this.PlayWallSound();
+                }
                 this.hasHitWithFists = true;
                 this.attackHasHit = true;
                 this.hasAttackedDownwards = false;
@@ -1078,6 +1101,10 @@ namespace Drunken_Broster
                 // Pause if we hit one of drunken master's doodads
                 else if ( this.hitSpecialDoodad && !this.hasHitThisAttack )
                 {
+                    if ( !this.hasHitWithFists )
+                    {
+                        this.PlayWallSound();
+                    }
                     this.hasHitWithFists = true;
                     this.attackHasHit = true;
                     this.hasAttackedForwards = false;
@@ -3351,14 +3378,23 @@ namespace Drunken_Broster
                     float knockbackX = base.transform.localScale.x * 250f;
                     float knockbackY = 350f;
 
+                    this.hasHitThisAttack = false;
+                    this.hasMadeEffects = false;
+                    DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
+                    this.hasMadeEffects = false;
+
                     if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, false, false ) )
                     {
                         this.PlayPrimaryHitSound( 0.5f );
                         SortOfFollow.Shake( this.drunk ? 0.5f : 0.3f );
                     }
+                    else if ( this.hitSpecialDoodad )
+                    {
+                        this.playedWallHit = false;
+                        this.PlayWallSound();
+                    }
 
                     this.KickDoors( 24f );
-                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
                     this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f, base.transform.localScale.x * 180f, 80f );
                 }
             }
@@ -3372,6 +3408,11 @@ namespace Drunken_Broster
                     float knockbackX = base.transform.localScale.x * 300f;
                     float knockbackY = 400f;
 
+                    this.hasHitThisAttack = false;
+                    this.hasMadeEffects = false;
+                    DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
+                    this.hasMadeEffects = false;
+
                     if ( Map.HitUnits( this, this, this.playerNum, damage, DamageType.Crush, 12f, 12f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX, knockbackY, true, false, this.drunk, false ) )
                     {
                         this.PlayPrimaryHitSound( 0.5f );
@@ -3382,9 +3423,13 @@ namespace Drunken_Broster
                             Map.ExplodeUnits( this, 3, DamageType.Knock, 10f, 10f, base.X + base.transform.localScale.x * 6f, base.Y + 6f, knockbackX * 1.5f, knockbackY * 1.2f, this.playerNum, false, false, false );
                         }
                     }
+                    else if ( this.hitSpecialDoodad )
+                    {
+                        this.playedWallHit = false;
+                        this.PlayWallSound();
+                    }
 
                     this.KickDoors( 24f );
-                    Map.DamageDoodads( 3, DamageType.Knifed, base.X + base.transform.localScale.x * 6f, base.Y + 6f, 0f, 0f, 8f, base.playerNum, out _, null );
                     this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f, base.transform.localScale.x * 180f, 80f );
                 }
             }
