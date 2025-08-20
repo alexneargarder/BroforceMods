@@ -75,7 +75,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected virtual void CreateGibs( float xI, float yI )
         {
-            xI = xI * 0.25f;
+            xI *= 0.25f;
             yI = yI * 0.25f + 80f;
             float xForce = 200f;
             float yForce = 300f;
