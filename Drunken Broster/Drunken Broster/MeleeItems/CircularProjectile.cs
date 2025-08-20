@@ -106,7 +106,7 @@ namespace Drunken_Broster.MeleeItems
         protected override void CheckWallCollisions( ref bool bounceY, ref bool bounceX, ref float yIT, ref float xIT )
         {
             // Use sphere-based collision instead of point-based
-            if ( ConstrainToBlocksWithSphere( this, base.X, base.Y, this.size, ref xIT, ref yIT, ref bounceX, ref bounceY, this.groundAndLadderLayer ) )
+            if ( ConstrainToBlocksWithSphere( base.X, base.Y, this.size, ref xIT, ref yIT, ref bounceX, ref bounceY, this.groundAndLadderLayer ) )
             {
                 this.Bounce( bounceX, bounceY );
             }
@@ -125,7 +125,7 @@ namespace Drunken_Broster.MeleeItems
             }
         }
 
-        private bool ConstrainToBlocksWithSphere( MonoBehaviour obj, float x, float y, float size, ref float xIT, ref float yIT, ref bool bounceX, ref bool bounceY, LayerMask floorLayer )
+        private bool ConstrainToBlocksWithSphere( float x, float y, float size, ref float xIT, ref float yIT, ref bool bounceX, ref bool bounceY, LayerMask floorLayer )
         {
             bool hitSomething = false;
 
