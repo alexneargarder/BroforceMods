@@ -1901,7 +1901,7 @@ namespace Randomizer_Mod
     [HarmonyPatch(typeof(MinibossEndCheck), "Update")]
     static class MinibossEndCheck_Update
     {
-        public static void Prefix(MinibossEndCheck __instance, Unit ___miniBossUnit, float ___explosionDeathCount, ref float ___finishedCounter)
+        public static void Prefix(MinibossEndCheck __instance, Unit ___miniBossUnit, int ___explosionDeathCount, ref float ___explosionDeathCounter )
         {
             if (!Main.enabled || Main.settings.enableInstantWin)
             {
@@ -1920,7 +1920,7 @@ namespace Randomizer_Mod
                 if ( ___explosionDeathCount > 0 )
                 {
 
-                    if (___finishedCounter + Time.deltaTime > 0.33f)
+                    if ( ___explosionDeathCounter + Time.deltaTime > 0.33f)
                     {
 
                         if ((___explosionDeathCount - 1) <= 0)
