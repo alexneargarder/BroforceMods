@@ -73,6 +73,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - randomizer\*.cache"</PostBuildEvent>
+    <PostBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-post-build.bat" "$(ProjectName)" "$(TargetPath)" "$(TargetDir)" "$(TargetFileName)" "$(TargetName)" "$(ConfigurationName)" "$(PlatformName)" "$(ProjectDir)" "$(SolutionDir)" "$(OutDir)"</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
   </PropertyGroup>
 </Project>
