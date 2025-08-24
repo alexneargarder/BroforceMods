@@ -2371,7 +2371,7 @@ namespace Drunken_Broster
             this.KickDoors( 24f );
             this.meleeChosenUnit = null;
 
-            int meleeDamage = 7;
+            int meleeDamage = 9;
             DamageType meleeDamageType = DamageType.Melee;
             float xI = 200f;
             float yI = 350f;
@@ -2383,23 +2383,23 @@ namespace Drunken_Broster
                 case MeleeItem.Tire:
                     break;
                 case MeleeItem.Bottle:
-                    meleeDamage = 4;
+                    meleeDamage = 8;
                     xI = 125f;
                     yI = 400f;
                     break;
                 case MeleeItem.Crate:
-                    meleeDamage = 9;
+                    meleeDamage = 11;
                     break;
                 case MeleeItem.Coconut:
-                    meleeDamage = 4;
+                    meleeDamage = 9;
                     xI = 150f;
                     yI = 400f;
                     break;
                 case MeleeItem.ExplosiveBarrel:
-                    meleeDamage = 8;
+                    meleeDamage = 11;
                     break;
                 case MeleeItem.SoccerBall:
-                    meleeDamage = 6;
+                    meleeDamage = 10;
                     xI = 125f;
                     yI = 400f;
                     break;
@@ -2419,11 +2419,11 @@ namespace Drunken_Broster
 
                 // Bee hit
                 case MeleeItem.Beehive:
-                    meleeDamage = 6;
+                    meleeDamage = 8;
                     break;
             }
 
-            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage, meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
+            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage + ( this.drunk ? 4 : 0), meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
             {
                 this.PlayMeleeHitSound();
                 this.meleeHasHit = true;
@@ -2499,7 +2499,7 @@ namespace Drunken_Broster
                 MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, cage.health, DamageType.Acid, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
                 return true;
             }
-            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Acid, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
             this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.4f, base.transform.position, 1f, true, false, false, 0f );
             EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
             // Create acid spray
@@ -2613,16 +2613,16 @@ namespace Drunken_Broster
                     this.acidEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
                     break;
                 case MeleeItem.Beehive:
-                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.beehiveProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * ( angleDownwards ? 200f : 400f ), angleDownwards ? 50f : 85f, base.playerNum );
                     break;
                 case MeleeItem.Bottle:
-                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 225f : 400f ), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.bottleProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 225f : 450f ), angleDownwards ? 50f : 75f, base.playerNum );
                     break;
                 case MeleeItem.Crate:
-                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * ( angleDownwards ? 150f : 225f ), angleDownwards ? 75f : 125f, base.playerNum );
+                    this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * ( angleDownwards ? 150f : 225f ), angleDownwards ? 75f : 100f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 100f, base.playerNum );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 75f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
                     ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 150f : 275f ), angleDownwards ? 25f : 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;

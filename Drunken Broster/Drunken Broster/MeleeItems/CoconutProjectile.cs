@@ -20,7 +20,7 @@ namespace Drunken_Broster.MeleeItems
         {
             base.Awake();
 
-            this.damage = 25;
+            this.damage = 8;
             this.useAngularFriction = true;
             this.angularFrictionM = 5;
             this.bounceOffEnemies = true;
@@ -73,7 +73,7 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( this.bounceOffEnemiesMultiple )
             {
-                if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, 4, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true ) )
+                if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, this.damage, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true ) )
                 {
                     this.Bounce( false, false );
                     this.yI = 50f + 90f / this.weight;
@@ -81,7 +81,7 @@ namespace Drunken_Broster.MeleeItems
                     EffectsController.CreateBulletPoofEffect( base.X, base.Y - this.size * 0.5f );
                 }
             }
-            else if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, 4, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true, this.alreadyBouncedOffUnits ) )
+            else if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, this.damage, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true, this.alreadyBouncedOffUnits ) )
             {
                 this.Bounce( false, false );
                 if ( this.alreadyBouncedOffUnits.Count > 0 )

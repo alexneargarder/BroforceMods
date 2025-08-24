@@ -3,6 +3,7 @@ using BroMakerLib.CustomObjects.Projectiles;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using Utility;
 
 namespace Drunken_Broster.MeleeItems
 {
@@ -97,6 +98,33 @@ namespace Drunken_Broster.MeleeItems
         protected virtual void ApplyGravity()
         {
             this.yI -= 500f * this.t;
+        }
+
+        protected override void HitUnits()
+        {
+            if ( this.reversing )
+            {
+                if ( Map.HitLivingUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 2f, this.projectileSize + 1f, base.X, base.Y, this.xI, this.yI, false, false, true, false ) )
+                {
+                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                    global::UnityEngine.Object.Destroy( base.gameObject );
+                    this.hasHit = true;
+                    if ( this.giveDeflectAchievementOnMookKill )
+                    {
+                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                    }
+                }
+            }
+            else if ( Map.HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 2f, this.projectileSize + 1f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+            {
+                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                global::UnityEngine.Object.Destroy( base.gameObject );
+                this.hasHit = true;
+                if ( this.giveDeflectAchievementOnMookKill )
+                {
+                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                }
+            }
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
