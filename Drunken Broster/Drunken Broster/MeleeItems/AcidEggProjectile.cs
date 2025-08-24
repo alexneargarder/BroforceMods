@@ -9,7 +9,8 @@ namespace Drunken_Broster.MeleeItems
 {
     public class AcidEggProjectile : CustomProjectile
     {
-        protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
+        public AudioClip[] pulseSounds;
+        public AudioClip[] burstSounds;
         protected int frame = 0;
         protected float counter = 0;
         protected float frameRate = 0.07f;
@@ -41,6 +42,15 @@ namespace Drunken_Broster.MeleeItems
             this.fullDamage = this.damage;
 
             base.Awake();
+        }
+
+        public override void PrefabSetup()
+        {
+            base.PrefabSetup();
+
+            this.pulseSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_pulse", 2 );
+
+            this.burstSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_burst", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
@@ -92,6 +102,15 @@ namespace Drunken_Broster.MeleeItems
 
         protected void ChangeFrame()
         {
+            if ( this.frame == 1 )
+            {
+                if ( sound == null )
+                {
+                    sound = Sound.GetInstance();
+                }
+
+                sound?.PlaySoundEffectAt( this.pulseSounds, 0.4f, base.transform.position );
+            }
             if ( this.frame >= 6 )
             {
                 this.frame = 0;
@@ -107,6 +126,13 @@ namespace Drunken_Broster.MeleeItems
                 return;
             }
             this.exploded = true;
+
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+            sound?.PlaySoundEffectAt( this.burstSounds, 0.65f, base.transform.position );
+
             MapController.DamageGround( this, 15, DamageType.Explosion, this.explodeRange, base.X, base.Y, null, false );
             Map.ExplodeUnits( this, 9, DamageType.Acid, this.explodeRange * 2.3f, this.explodeRange * 1.5f, base.X, base.Y + 3f, 500f, 300f, base.playerNum, false, false, true );
             Map.ShakeTrees( base.X, base.Y, 128f, 48f, 80f );

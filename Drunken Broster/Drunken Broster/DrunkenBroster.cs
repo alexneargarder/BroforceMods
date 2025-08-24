@@ -458,25 +458,13 @@ namespace Drunken_Broster
 
             string soundPath = Path.Combine( this.directoryPath, "sounds" );
 
-            this.soundHolder.attack3Sounds = new AudioClip[13];
-            for ( int i = 0; i < this.soundHolder.attack3Sounds.Length; ++i )
-            {
-                this.soundHolder.attack3Sounds[i] = ResourcesController.GetAudioClip( soundPath, "kungFu" + i + ".wav" );
-            }
+            this.soundHolder.attack3Sounds = ResourcesController.GetAudioClipArray( soundPath, "kungFu", 13 );
 
-            this.soundHolder.attack4Sounds = new AudioClip[2];
-            for ( int i = 0; i < this.soundHolder.attack4Sounds.Length; ++i )
-            {
-                this.soundHolder.attack4Sounds[i] = ResourcesController.GetAudioClip( soundPath, "slide_" + i + ".wav" );
-            }
+            this.soundHolder.attack4Sounds = ResourcesController.GetAudioClipArray( soundPath, "slide_", 2 );
 
             this.slurp = ResourcesController.GetAudioClip( soundPath, "slurp.wav" );
 
-            this.soundHolder.meleeHitSound = new AudioClip[2];
-            for ( int i = 0; i < this.soundHolder.meleeHitSound.Length; ++i )
-            {
-                this.soundHolder.meleeHitSound[i] = ResourcesController.GetAudioClip( soundPath, "meleeHitBlunt" + i + ".wav" );
-            }
+            this.soundHolder.meleeHitSound = ResourcesController.GetAudioClipArray( soundPath, "meleeHitBlunt", 2 );
         }
         #endregion
 
@@ -2439,15 +2427,36 @@ namespace Drunken_Broster
             {
                 this.PlayMeleeHitSound();
                 this.meleeHasHit = true;
+                // Create acid spray
+                if ( meleeDamageType == DamageType.Acid )
+                {
+                    EffectsController.CreateSlimeParticlesSpray( BloodColor.Green, base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f, 1f, 34, 6f, 5f, 300f, this.xI * 0.6f, this.yI * 0.2f + 150f, 0.6f );
+                    EffectsController.CreateSlimeCover( 15, base.X, base.Y + this.height + 5f, 15f, false );
+                }
             }
             else if ( playMissSound )
             {
                 this.PlayMeleeMissSound();
             }
 
-            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 1, meleeDamage + 3 ) )
+            if ( shouldTryHitTerrain )
             {
-                this.meleeHasHit = true;
+                bool hitTerrain = false;
+                switch ( meleeDamageType )
+                {
+                    case DamageType.Acid:
+                        hitTerrain = this.TryMeleeTerrainAcid( 1, meleeDamage );
+                        break;
+                    case DamageType.Fire:
+                        break;
+                    default:
+                        hitTerrain = this.TryMeleeTerrain( 1, meleeDamage + 3 );
+                        break;
+                }
+                if ( hitTerrain )
+                {
+                    this.meleeHasHit = true;
+                }
             }
             this.TriggerBroMeleeEvent();
         }
@@ -2471,6 +2480,31 @@ namespace Drunken_Broster
             MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
             this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.4f, base.transform.position, 1f, true, false, false, 0f );
             EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
+            return true;
+        }
+
+        protected bool TryMeleeTerrainAcid( int offset = 0, int meleeDamage = 2 )
+        {
+            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 16 + offset ), this.groundLayer ) )
+            {
+                return false;
+            }
+            Cage cage = this.raycastHit.collider.GetComponent<Cage>();
+            if ( cage == null && this.raycastHit.collider.transform.parent != null )
+            {
+                cage = this.raycastHit.collider.transform.parent.GetComponent<Cage>();
+            }
+            if ( cage != null )
+            {
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, cage.health, DamageType.Acid, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+                return true;
+            }
+            MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, meleeDamage, DamageType.Melee, 0f, 40f, this.raycastHit.point.x, this.raycastHit.point.y );
+            this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.4f, base.transform.position, 1f, true, false, false, 0f );
+            EffectsController.CreateProjectilePopWhiteEffect( base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f );
+            // Create acid spray
+            EffectsController.CreateSlimeParticlesSpray( BloodColor.Green, base.X + this.width * base.transform.localScale.x, base.Y + this.height + 4f, 1f, 34, 6f, 5f, 300f, this.xI * 0.6f, this.yI * 0.2f + 150f, 0.6f );
+            EffectsController.CreateSlimeCover( 15, base.X, base.Y + this.height + 5f, 15f, false );
             return true;
         }
 
@@ -2505,6 +2539,8 @@ namespace Drunken_Broster
             }
 
             this.canWallClimb = true;
+            this.jumpTime = 0f;
+
             base.CancelMelee();
         }
 
@@ -2660,6 +2696,10 @@ namespace Drunken_Broster
                     this.ApplyFallingGravity();
                 }
             }
+            else
+            {
+                this.ApplyFallingGravity();
+            }
         }
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
@@ -2680,6 +2720,26 @@ namespace Drunken_Broster
         // Don't cancel melee when hitting wall
         protected override void HitRightWall()
         {
+        }
+
+        // Don't allow ledge grapple to reset melee
+        protected override void LedgeGrapple( bool left, bool right, float radius, float heightOpenOffset )
+        {
+            if ( !left || !right )
+            {
+                this.yI = 150f;
+                RaycastHit raycastHit;
+                if ( Physics.Raycast( new Vector3( base.X + ( ( !right ) ? 0f : ( radius + 3f ) ) + ( ( !left ) ? 0f : ( -radius - 3f ) ), base.Y + heightOpenOffset, 0f ), Vector3.down, out raycastHit, 23f, this.groundLayer ) )
+                {
+                    this.ledgeGrapple = true;
+                    if ( !this.wasLedgeGrapple && !this.fire && !this.usingSpecial && !this.doingMelee && !( this.attackStationary || this.attackUpwards || this.attackForwards || this.attackDownwards ) )
+                    {
+                        base.frame = 0;
+                        this.ChangeFrame();
+                    }
+                    this.ledgeOffsetY = raycastHit.point.y - base.Y;
+                }
+            }
         }
         #endregion
 
@@ -2953,7 +3013,7 @@ namespace Drunken_Broster
 
         protected override void OnDestroy()
         {
-            DrunkenCameraManager.UnregisterDrunk( this );
+            DrunkenCameraManager.UnregisterDrunk( this, true );
         }
         #endregion
 
