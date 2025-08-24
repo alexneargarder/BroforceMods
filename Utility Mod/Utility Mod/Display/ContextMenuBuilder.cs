@@ -1089,6 +1089,17 @@ namespace Utility_Mod
                     Main.settings.maxCageSpawns = isChecked;
                 }
             } );
+
+            // On-Screen Log
+            parentMenu.AddSubItem( new MenuItem( "On-Screen Log", (Action)null )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = RocketLib.Main.showLogOnScreen,
+                OnToggle = ( isChecked ) => {
+                    RocketLib.Main.showLogOnScreen = isChecked;
+                }
+            } );
         }
 
         public void BuildSlowTimeSubmenu(MenuItem parentMenu)
