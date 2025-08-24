@@ -57,11 +57,7 @@ namespace Drunken_Broster.MeleeItems
         {
             base.PrefabSetup();
 
-            this.hitSounds = new AudioClip[2];
-            for ( int i = 0; i < this.hitSounds.Length; ++i )
-            {
-                this.hitSounds[i] = ResourcesController.GetAudioClip( soundPath, "meleeHitBlunt" + i + ".wav" );
-            }
+            this.hitSounds = ResourcesController.GetAudioClipArray( soundPath, "meleeHitBlunt", 2 );
         }
 
         public override void Launch( float newX, float newY, float xI, float yI )

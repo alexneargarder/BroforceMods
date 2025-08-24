@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Drunken_Broster
 {
@@ -51,16 +52,24 @@ namespace Drunken_Broster
             }
         }
         
-        public static void UnregisterDrunk(DrunkenBroster bro)
+        public static void UnregisterDrunk(DrunkenBroster bro, bool immediateReset = false )
         {
             if (drunkBros.Contains(bro))
             {
                 drunkBros.Remove(bro);
-                
+
                 // If no drunk bros remain, start sobering animation
-                if (drunkBros.Count == 0)
+                if ( drunkBros.Count == 0)
                 {
-                    isSoberingUp = true;
+                    // If immediate reset is true then it indicates we should immediately reset the camera tilt if no drunken bros are left
+                    if ( immediateReset )
+                    {
+                        ResetCamera();
+                    }
+                    else
+                    {
+                        isSoberingUp = true;
+                    }
                 }
             }
         }
