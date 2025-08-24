@@ -118,7 +118,7 @@ namespace Drunken_Broster
         protected bool thrownItem = false;
         protected bool hitSpecialDoodad = false;
         protected bool progressedFarEnough = false;
-        protected float explosionCounter = 0f;
+        protected float explosionCounter = -1f;
         protected float flameCounter = 0f;
         protected float warningCounter = 0f;
         protected bool warningOn = false;
@@ -140,6 +140,7 @@ namespace Drunken_Broster
         public bool IsDoingMelee { get { return this.doingMelee; } }
         protected bool usedSpecial = false;
         protected bool playedSpecialSound = false;
+        protected bool bufferedSpecial = false;
 
         // Roll
         protected float slideExtraSpeed = 0f;
@@ -282,6 +283,12 @@ namespace Drunken_Broster
                     this.CreateFaderTrailInstance();
                     this.faderTrailDelay = 0.034f;
                 }
+            }
+
+            // Ensure we're never left holding a grenade if we somehow set throwingHeldObject
+            if ( this.heldGrenade != null && !this.throwingHeldObject )
+            {
+                this.ReleaseHeldObject( false );
             }
 
             // TODO: remove this
@@ -525,8 +532,8 @@ namespace Drunken_Broster
                 return;
             }
 
-            // Don't allow attacking while drinking / becoming sober
-            if ( this.usingSpecial )
+            // Don't allow attacking while drinking / becoming sober / using melee
+            if ( this.usingSpecial || this.doingMelee )
             {
                 this.fire = this.wasFire = false;
                 return;
@@ -539,11 +546,11 @@ namespace Drunken_Broster
                 return;
             }
 
-            // Don't allow attacking while using melele
-            if ( this.doingMelee )
+            // Release any grenades / coconuts we are holding
+            if ( this.throwingHeldObject )
             {
-                this.fire = this.wasFire = false;
-                return;
+                this.ReleaseHeldObject( false );
+                this.throwingHeldObject = false;
             }
 
             this.startNewAttack = false;
@@ -1468,7 +1475,7 @@ namespace Drunken_Broster
             }
         }
 
-        protected void StopAttack()
+        protected void StopAttack( bool allowBuffering = true )
         {
             this.hasHitThisAttack = false;
             this.attackStationary = ( this.attackUpwards = ( this.attackDownwards = ( this.attackForwards = false ) ) );
@@ -1492,11 +1499,23 @@ namespace Drunken_Broster
             {
                 base.actionState = ActionState.Idle;
             }
-            if ( this.startNewAttack )
+
+            if ( allowBuffering )
             {
-                this.startNewAttack = false;
-                this.StartFiring();
+                // Use special if it was buffered during attack
+                if ( this.bufferedSpecial )
+                {
+                    this.bufferedSpecial = false;
+                    this.PressSpecial();
+                }
+                // Start a new attack if it was buffered during attack
+                else if ( this.startNewAttack )
+                {
+                    this.startNewAttack = false;
+                    this.StartFiring();
+                }
             }
+
             if ( base.Y < this.groundHeight + 1f )
             {
                 this.StopAirDashing();
@@ -2122,6 +2141,130 @@ namespace Drunken_Broster
         #endregion
 
         #region Melee
+        // Handle grenade throwing better
+        protected override void PressHighFiveMelee( bool forceHighFive = false )
+        {
+            if ( this.health <= 0 )
+            {
+                return;
+            }
+            if ( this.MustIgnoreHighFiveMeleePress() )
+            {
+                return;
+            }
+            this.SetGestureAnimation( GestureElement.Gestures.None );
+            Grenade nearbyGrenade = Map.GetNearbyGrenade( 20f, base.X, base.Y + this.waistHeight );
+            this.FindNearbyMook();
+            TeleportDoor nearbyTeleportDoor = Map.GetNearbyTeleportDoor( base.X, base.Y );
+            if ( nearbyTeleportDoor != null && this.CanUseSwitch() && nearbyTeleportDoor.Activate( this ) )
+            {
+                return;
+            }
+            Switch nearbySwitch = Map.GetNearbySwitch( base.X, base.Y );
+            if ( GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.BroDown )
+            {
+                if ( nearbySwitch != null && this.CanUseSwitch() )
+                {
+                    nearbySwitch.Activate( this );
+                }
+                else
+                {
+                    bool flag = false;
+                    for ( int i = -1; i < 4; i++ )
+                    {
+                        if ( i != base.playerNum && Map.IsUnitNearby( i, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, true, out this.meleeChosenUnit ) )
+                        {
+                            this.StartMelee();
+                            flag = true;
+                        }
+                    }
+                    if ( !flag && nearbySwitch != null && this.CanUseSwitch() )
+                    {
+                        nearbySwitch.Activate( this );
+                    }
+                }
+            }
+            // Don't allow throwing items during melee, attacks, or rolls
+            if ( nearbyGrenade != null && !(this.doingMelee || this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary || this.rollingFrames > 0) )
+            {
+                this.ThrowBackGrenade( nearbyGrenade );
+            }
+            else if ( !GameModeController.IsDeathMatchMode || !this.doingMelee )
+            {
+                if ( Map.IsCitizenNearby( base.X, base.Y, 32, 32 ) )
+                {
+                    if ( !this.doingMelee )
+                    {
+                        this.StartHighFive();
+                    }
+                }
+                else if ( forceHighFive && !this.doingMelee )
+                {
+                    this.StartHighFive();
+                }
+                else if ( nearbySwitch != null && this.CanUseSwitch() )
+                {
+                    nearbySwitch.Activate( this );
+                }
+                else if ( this.meleeChosenUnit == null && Map.IsUnitNearby( -1, base.X + base.transform.localScale.x * 16f, base.Y + 8f, 28f, 14f, false, out this.meleeChosenUnit ) )
+                {
+                    this.StartMelee();
+                }
+                else if ( this.CheckBustCage() )
+                {
+                    this.StartMelee();
+                }
+                else if ( HeroController.IsAnotherPlayerNearby( base.playerNum, base.X, base.Y, 32f, 32f ) )
+                {
+                    if ( !this.doingMelee )
+                    {
+                        this.StartHighFive();
+                    }
+                }
+                else
+                {
+                    this.StartMelee();
+                }
+            }
+        }
+
+        // Don't reset base.counter on every melee press
+        protected override void StartMelee()
+        {
+            this.currentMeleeType = this.meleeType;
+            RaycastHit raycastHit;
+            if ( ( Physics.Raycast( new Vector3( base.X, base.Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, this.platformLayer ) || Physics.Raycast( new Vector3( base.X + 4f, base.Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, this.platformLayer ) || Physics.Raycast( new Vector3( base.X - 4f, base.Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, this.platformLayer ) ) && raycastHit.collider.GetComponentInParent<Animal>() != null )
+            {
+                this.currentMeleeType = BroBase.MeleeType.Knife;
+            }
+            switch ( this.currentMeleeType )
+            {
+                case BroBase.MeleeType.Knife:
+                    base.counter = 0f;
+                    this.StartKnifeMelee();
+                    break;
+                case BroBase.MeleeType.Punch:
+                case BroBase.MeleeType.JetpackPunch:
+                    this.StartPunch();
+                    break;
+                case BroBase.MeleeType.Disembowel:
+                case BroBase.MeleeType.FlipKick:
+                case BroBase.MeleeType.Tazer:
+                case BroBase.MeleeType.Custom:
+                case BroBase.MeleeType.ChuckKick:
+                case BroBase.MeleeType.VanDammeKick:
+                case BroBase.MeleeType.ChainSaw:
+                case BroBase.MeleeType.ThrowingKnife:
+                case BroBase.MeleeType.Smash:
+                case BroBase.MeleeType.BrobocopPunch:
+                case BroBase.MeleeType.PistolWhip:
+                case BroBase.MeleeType.HeadButt:
+                case BroBase.MeleeType.TeleportStab:
+                    this.StartCustomMelee();
+                    break;
+            }
+        }
+
         protected override void StartCustomMelee()
         {
             // Don't allow melees to start while doing a melee
@@ -2137,7 +2280,13 @@ namespace Drunken_Broster
                 return;
             }
 
-            this.StopAttack();
+            // If we're throwing back a grenade, and the grenade has already left our hands, turn off the throwingHeldObject flag
+            if ( this.throwingHeldObject && this.heldGrenade == null && this.heldMook == null )
+            {
+                this.throwingHeldObject = false;
+            }
+
+            this.StopAttack( false );
             base.frame = 0;
             base.counter = -0.05f;
             ResetMeleeValues();
@@ -2248,8 +2397,6 @@ namespace Drunken_Broster
 
         protected void RunBarrelEffects()
         {
-            // TODO: remove this
-            //RocketLib.Utils.DrawDebug.DrawCrosshair( "barrel crosshair", new Vector3( base.X, base.Y + 8f, 0f ), 5f, Color.red );
             if ( !this.doingMelee && this.explosionCounter > 0f )
             {
                 this.explosionCounter -= this.t;
@@ -2537,9 +2684,16 @@ namespace Drunken_Broster
             {
                 this.ClearHeldItem();
             }
+            else
+            {
+                this.throwingHeldItem = false;
+            }
 
             this.canWallClimb = true;
             this.jumpTime = 0f;
+            this.progressedFarEnough = false;
+            this.throwingHeldItem = false;
+            this.thrownItem = false;
 
             base.CancelMelee();
         }
@@ -2580,6 +2734,14 @@ namespace Drunken_Broster
             {
                 return;
             }
+
+            // Release any grenades / coconuts we are holding
+            if ( this.throwingHeldObject )
+            {
+                this.ReleaseHeldObject( false );
+                this.throwingHeldObject = false;
+            }
+
             this.throwingHeldItem = true;
             this.usingSpecial = this.fire = this.wasFire = false;
 
@@ -2598,7 +2760,7 @@ namespace Drunken_Broster
             // Switch to melee sprite
             base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
 
-            AnimateMelee();
+            base.ChangeFrame();
         }
 
         protected void ThrowHeldItem()
@@ -2741,6 +2903,22 @@ namespace Drunken_Broster
                 }
             }
         }
+
+        // Properly cancel melee when being stopped
+        public override void Stop()
+        {
+            this.CancelMelee();
+            this.startNewAttack = false;
+            this.StopAttack( false );
+            base.Stop();
+        }
+
+        // Properly cancel melee when being covered in acid
+        protected override void CoverInAcidRPC()
+        {
+            this.CancelMelee();
+            base.CoverInAcidRPC();
+        }
         #endregion
 
         #region Special
@@ -2795,8 +2973,14 @@ namespace Drunken_Broster
 
         protected override void PressSpecial()
         {
-            if ( this.usingSpecial )
+            if ( this.usingSpecial || this.doingMelee || this.hasBeenCoverInAcid || this.throwingHeldObject )
             {
+                return;
+            }
+            // Buffer special use if currently attacking
+            if ( this.attackForwards || this.attackUpwards || this.attackDownwards || this.attackStationary )
+            {
+                this.bufferedSpecial = true;
                 return;
             }
             // Make sure we aren't holding anything before drinking
@@ -2808,8 +2992,13 @@ namespace Drunken_Broster
                     return;
                 }
 
-                if ( this.SpecialAmmo > 0 && !this.hasBeenCoverInAcid && !this.doingMelee )
+                if ( this.SpecialAmmo > 0 )
                 {
+                    // Cancel rolling
+                    if ( this.rollingFrames > 0 )
+                    {
+                        this.StopRolling();
+                    }
                     this.wasDrunk = false;
                     this.canChimneyFlip = false;
                     this.usingSpecial = true;
@@ -2940,6 +3129,7 @@ namespace Drunken_Broster
 
         protected void StopUsingSpecial()
         {
+            this.StopRolling();
             base.frame = 0;
             this.usingSpecialFrame = 0;
             this.usingSpecial = false;
