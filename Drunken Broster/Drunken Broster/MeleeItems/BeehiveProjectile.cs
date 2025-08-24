@@ -14,6 +14,8 @@ namespace Drunken_Broster.MeleeItems
         protected float r = 90f;
         protected float rI = 0f;
         protected float rotationSpeedMultiplier = 1.25f;
+        protected bool madeEffects = false;
+        public AudioClip[] beeHiveSmashSounds;
 
         protected override void Awake()
         {
@@ -50,6 +52,13 @@ namespace Drunken_Broster.MeleeItems
             }
             
             base.Awake();
+        }
+
+        public override void PrefabSetup()
+        {
+            base.PrefabSetup();
+
+            this.beeHiveSmashSounds = ResourcesController.GetAudioClipArray( soundPath, "beeHiveSmash", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
@@ -92,6 +101,18 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
         {
+            if ( this.madeEffects )
+            {
+                return;
+            }
+            this.madeEffects = true;
+            
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            this.sound?.PlaySoundEffectAt( this.beeHiveSmashSounds, 0.4f, base.transform.position );
+
             EffectsController.CreateGibs( this.gibHolder, base.transform.position.x, base.transform.position.y, 140f, 170f, 0f, 140f );
             EffectsController.CreateDustParticles( base.transform.position.x, base.transform.position.y, 140, 6f, 130f, 0f, 100f, new Color( 0.854901969f, 0.65882355f, 0.172549024f, 0.9f ) );
             this.beeSimulator.Restart();
