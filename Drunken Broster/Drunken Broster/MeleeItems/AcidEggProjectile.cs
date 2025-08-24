@@ -26,7 +26,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Awake()
         {
-            if ( this.sprite == null )
+            if ( !this.RanSetup )
             {
                 this.spriteLowerLeftPixel = new Vector2( 0, 32 );
                 this.spritePixelDimensions = new Vector2( 32, 32 );
