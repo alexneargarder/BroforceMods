@@ -96,7 +96,6 @@ namespace Drunken_Broster.MeleeItems
             return base.Update();
         }
 
-        // Override check wall collisions
         protected override void CheckWallCollisions( ref bool bounceY, ref bool bounceX, ref float yIT, ref float xIT )
         {
             // Use sphere-based collision instead of point-based
@@ -264,7 +263,6 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Bounce( bool bounceX, bool bounceY )
         {
-            //BMLogger.Log( "bouncex: " + bounceX + " bounceY: " + bounceY );
             if ( bounceX )
             {
                 // Try to hit ground if moving fast enough
@@ -284,10 +282,7 @@ namespace Drunken_Broster.MeleeItems
                     this.ProjectileApplyDamageToBlock( this.raycastHit.collider.gameObject, this.bounceGroundDamage, this.damageType, this.xI, this.yI );
                 }
 
-                if ( Mathf.Abs( this.xI ) > 50 )
-                {
-                    this.PlayBounceSound( bounceX, bounceY );
-                }
+                this.PlayBounceSound( bounceX, bounceY );
 
                 this.xI *= -0.8f * this.bounceM;
                 this.rI *= -1f;
@@ -295,17 +290,42 @@ namespace Drunken_Broster.MeleeItems
             }
             if ( bounceY )
             {
-                if ( Mathf.Abs( this.yI ) > 50 )
-                {
-                    this.PlayBounceSound( bounceX, bounceY );
-                }
+                this.PlayBounceSound( bounceX, bounceY );
                 this.yI *= -0.6f * this.bounceM;
             }
         }
 
         protected virtual void PlayBounceSound( bool bounceX, bool bounceY )
         {
+            if ( bounceX && Mathf.Abs( this.xI ) < 50 )
+            {
+                return;
+            }
 
+            if ( bounceY && Mathf.Abs( this.yI ) < 50 )
+            {
+                return;
+            }
+
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+
+            float volume = 0.4f;
+            if ( bounceX && bounceY )
+            {
+                volume *= Mathf.Max( Mathf.Abs( xI ), Mathf.Abs( yI ) ) / 150f;
+            }
+            else if ( bounceX )
+            {
+                volume *= Mathf.Abs( xI ) / 150f;
+            }
+            else
+            {
+                volume *= Mathf.Abs( yI ) / 150f;
+            }
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position );
         }
 
         protected virtual void ProjectileApplyDamageToBlock( GameObject blockObject, int damage, DamageType type, float forceX, float forceY )

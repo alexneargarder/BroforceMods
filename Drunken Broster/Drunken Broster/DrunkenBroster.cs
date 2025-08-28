@@ -430,7 +430,10 @@ namespace Drunken_Broster
             //this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
 
             // To the right of spawn
-            this.tireProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
+            //this.tireProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
+
+            // To the right of spawn
+            this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
         }
 
         public override void HarmonyPatches( Harmony harmony )

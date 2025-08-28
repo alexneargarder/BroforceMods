@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using BroMakerLib;
+using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
 {
@@ -33,6 +34,8 @@ namespace Drunken_Broster.MeleeItems
             this.fire2 = explosiveBarrel.fire2;
             this.fire3 = explosiveBarrel.fire3;
             this.soundHolder.deathSounds = explosiveBarrel.soundHolder.deathSounds;
+
+            this.bounceSounds = ResourcesController.GetAudioClipArray( soundPath, "barrelBounce", 1 );
         }
 
         protected override bool Update()
@@ -122,6 +125,39 @@ namespace Drunken_Broster.MeleeItems
         {
             this.Death();
             return true;
+        }
+
+        protected override void PlayBounceSound( bool bounceX, bool bounceY )
+        {
+            if ( bounceX && Mathf.Abs( this.xI ) < 25 )
+            {
+                return;
+            }
+
+            if ( bounceY && Mathf.Abs( this.yI ) < 25 )
+            {
+                return;
+            }
+
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+
+            float volume = 0.4f;
+            if ( bounceX && bounceY )
+            {
+                volume *= Mathf.Max( Mathf.Abs( xI ), Mathf.Abs( yI ) ) / 150f;
+            }
+            else if ( bounceX )
+            {
+                volume *= Mathf.Abs( xI ) / 150f;
+            }
+            else
+            {
+                volume *= Mathf.Abs( yI ) / 150f;
+            }
+            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position );
         }
 
         public override void Death()
