@@ -2779,7 +2779,7 @@ namespace Drunken_Broster
                     this.crateProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, base.transform.localScale.x * ( angleDownwards ? 150f : 225f ), angleDownwards ? 75f : 100f, base.playerNum );
                     break;
                 case MeleeItem.Coconut:
-                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 75f, base.playerNum );
+                    this.coconutProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 375f ), angleDownwards ? 40f : 60f, base.playerNum );
                     break;
                 case MeleeItem.ExplosiveBarrel:
                     ExplosiveBarrelProjectile explosiveBarrel = this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 8f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 150f : 275f ), angleDownwards ? 25f : 50f, base.playerNum, 0 ) as ExplosiveBarrelProjectile;
