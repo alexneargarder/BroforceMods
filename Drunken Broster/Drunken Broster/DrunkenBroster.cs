@@ -1,19 +1,14 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
-using BroMakerLib.Loggers;
 using Drunken_Broster.MeleeItems;
 using HarmonyLib;
 using RocketLib;
-using RocketLib.Extensions;
-using RocketLib.Utils;
 using Rogueforce;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Resources;
-using TFBGames.Systems;
 using UnityEngine;
 using ResourcesController = BroMakerLib.ResourcesController;
 
@@ -667,7 +662,7 @@ namespace Drunken_Broster
                 this.StopAttack();
                 if ( !this.drunk )
                 {
-                    this.xIAttackExtra = right? 200f : -200f;
+                    this.xIAttackExtra = right ? 200f : -200f;
                 }
                 this.MakeKungfuSound();
             }
@@ -862,7 +857,7 @@ namespace Drunken_Broster
             if ( !this.attackHasHit )
             {
                 this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
             }
         }
 
@@ -1007,8 +1002,8 @@ namespace Drunken_Broster
             }
             if ( !this.attackHasHit )
             {
-                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f  );
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 12f, new Vector3( base.transform.localScale.x, 0f, 0f ), 9f );
             }
         }
 
@@ -1060,8 +1055,8 @@ namespace Drunken_Broster
             }
             if ( !this.attackHasHit )
             {
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.5f, 1f, 0f ), 12f );
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0.5f, 0f ), 12f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.5f, 1f, 0f ), 12f );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0.5f, 0f ), 12f );
             }
         }
 
@@ -1117,8 +1112,8 @@ namespace Drunken_Broster
                 }
                 if ( !this.attackHasHit )
                 {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.4f, -1f, 0f ), 14f );
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.8f, -0.2f, 0f ), 12f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.4f, -1f, 0f ), 14f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 3f, base.Y + 6f, new Vector3( base.transform.localScale.x * 0.8f, -0.2f, 0f ), 12f );
                 }
             }
             // Drunk Attack
@@ -1142,11 +1137,11 @@ namespace Drunken_Broster
         {
             if ( !this.attackHasHit && this.attackFrames < 7 )
             {
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ) );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ) );
             }
             if ( !this.attackHasHit && this.attackFrames < 7 )
             {
-                this.FireWeaponGround(base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ) );
+                this.FireWeaponGround( base.X + base.transform.localScale.x * 5.5f, base.Y + 16.5f, Vector3.down, 18f + Mathf.Abs( this.yI * this.t ) );
             }
             this.attackDownwards = false;
             this.attackFrames = 0;
@@ -1421,11 +1416,11 @@ namespace Drunken_Broster
                 {
                     if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
                     }
                     if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
                     }
                     this.attackUpwards = false;
                     this.attackFrames = 0;
@@ -1437,11 +1432,11 @@ namespace Drunken_Broster
                 {
                     if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 16.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
                     }
                     if ( !this.attackHasHit && this.attackFrames < 7 )
                     {
-                        this.FireWeaponGround(base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
+                        this.FireWeaponGround( base.X + base.transform.localScale.x * 4.5f, base.Y + 2f, Vector3.up, this.headHeight + Mathf.Abs( this.yI * this.t ) );
                     }
                 }
                 this.HitCeilingDrunk( ceilingHit );
@@ -1551,7 +1546,7 @@ namespace Drunken_Broster
                 }
                 if ( this.attackFrames == this.attackStationaryStrikeFrame )
                 {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
                     this.PlayAttackSound();
                 }
                 if ( this.attackFrames == this.attackStationaryStrikeFrame + 1 )
@@ -1594,7 +1589,7 @@ namespace Drunken_Broster
                 }
                 if ( this.attackFrames == this.attackStationaryStrikeFrame )
                 {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
                     this.PlayAttackSound();
                 }
                 if ( this.attackFrames == this.attackStationaryStrikeFrame + 1 )
@@ -1647,7 +1642,7 @@ namespace Drunken_Broster
 
                 if ( this.attackFrames == this.attackForwardsStrikeFrame )
                 {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 8f );
                     this.PlayAttackSound();
                 }
                 else if ( this.attackFrames == this.attackForwardsStrikeFrame + 1 )
@@ -1722,7 +1717,7 @@ namespace Drunken_Broster
 
                 if ( this.attackFrames == this.attackForwardsStrikeFrame )
                 {
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 3f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 9f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 3f );
                     this.PlayAttackSound();
                 }
                 if ( this.attackFrames >= 8 )
@@ -2185,7 +2180,7 @@ namespace Drunken_Broster
                 }
             }
             // Don't allow throwing items during melee, attacks, or rolls
-            if ( nearbyGrenade != null && !(this.doingMelee || this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary || this.rollingFrames > 0) )
+            if ( nearbyGrenade != null && !( this.doingMelee || this.attackForwards || this.attackDownwards || this.attackUpwards || this.attackStationary || this.rollingFrames > 0 ) )
             {
                 this.ThrowBackGrenade( nearbyGrenade );
             }
@@ -2504,7 +2499,7 @@ namespace Drunken_Broster
             }
             this.xI = Mathf.Clamp( this.xI + xI / 2f, -1200f, 1200f );
             this.xIBlast = Mathf.Clamp( this.xIBlast + xI / 2f, -1200f, 1200f );
-            this.yI += + yI;
+            this.yI += +yI;
             if ( this.IsParachuteActive && yI > 0f )
             {
                 this.IsParachuteActive = false;
@@ -2570,7 +2565,7 @@ namespace Drunken_Broster
                     break;
             }
 
-            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage + ( this.drunk ? 4 : 0), meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
+            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage + ( this.drunk ? 4 : 0 ), meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
             {
                 this.PlayMeleeHitSound();
                 this.meleeHasHit = true;
@@ -3074,7 +3069,7 @@ namespace Drunken_Broster
                 if ( this.usingSpecialFrame == 1 )
                 {
                     this.PlayBecomeSoberSound();
-                    
+
                     this.frameRate = 0.2f;
                 }
                 else if ( this.usingSpecialFrame == 6 )
@@ -3428,7 +3423,7 @@ namespace Drunken_Broster
         {
             bool isNewDashPress = this.dashButton && !this.wasdashButton;
             bool isDoubleTap = false;
-            
+
             if ( isNewDashPress && this.lastDashTime > 0 && Time.time - this.lastDashTime <= this.doubleTapWindow )
             {
                 isDoubleTap = true;
@@ -3483,7 +3478,7 @@ namespace Drunken_Broster
                 this.isSlideRoll = false;
 
                 base.Land();
-                
+
                 // Reset dash time when landing to prevent false double-tap detection across jumps
                 this.lastDashTime = -1f;
 
@@ -3639,7 +3634,7 @@ namespace Drunken_Broster
                     }
 
                     this.KickDoors( 24f );
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f );
                 }
             }
             else if ( this.rollingFrames <= 5 && this.rollingFrames >= 1 )
@@ -3674,7 +3669,7 @@ namespace Drunken_Broster
                     }
 
                     this.KickDoors( 24f );
-                    this.FireWeaponGround(base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f );
+                    this.FireWeaponGround( base.X + base.transform.localScale.x * 4f, base.Y + 6f, new Vector3( base.transform.localScale.x, 0f, 0f ), 10f );
                 }
             }
 

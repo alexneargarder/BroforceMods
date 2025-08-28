@@ -1,5 +1,4 @@
 ﻿using BroMakerLib.CustomObjects.Projectiles;
-using System.IO;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
@@ -38,7 +37,7 @@ namespace Drunken_Broster.MeleeItems
             this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 175f ) * this.rotationSpeedMultiplier;
             this.r = -45f;
             this.SetPosition();
-            
+
         }
 
         protected override void Bounce( bool bounceX, bool bounceY )
@@ -48,7 +47,7 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void BounceOffEnemies()
         {
-            if ( Map.HitLivingUnits( this, this.playerNum, this.damage, this.damageType, this.size - 2f, this.size + 4f, this.X - Mathf.Sign(xI) * 2f, this.Y, this.xI / 3f, 50f, false, true, false, false ) )
+            if ( Map.HitLivingUnits( this, this.playerNum, this.damage, this.damageType, this.size - 2f, this.size + 4f, this.X - Mathf.Sign( xI ) * 2f, this.Y, this.xI / 3f, 50f, false, true, false, false ) )
             {
                 this.Bounce( false, false );
             }

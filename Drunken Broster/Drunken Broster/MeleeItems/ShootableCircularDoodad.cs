@@ -28,9 +28,9 @@ namespace Drunken_Broster.MeleeItems
         {
         }
 
-        new public bool IsPointInRange( float x, float y, float range )
+        public new bool IsPointInRange( float x, float y, float range )
         {
-            return Vector2.Distance( new Vector2( x, y ), base.transform.position ) < (range + radius);
+            return Vector2.Distance( new Vector2( x, y ), base.transform.position ) < ( range + radius );
         }
 
         public override bool Damage( DamageObject damageObject )

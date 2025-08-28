@@ -1,5 +1,4 @@
-﻿using BroMakerLib.Loggers;
-using Drunken_Broster.MeleeItems;
+﻿using Drunken_Broster.MeleeItems;
 using HarmonyLib;
 
 namespace Drunken_Broster
@@ -11,7 +10,7 @@ namespace Drunken_Broster
         {
             public static void Postfix( Doodad __instance, ref float x, ref float y, ref float range, ref bool __result )
             {
-                if ( !(__instance is ShootableCircularDoodad shootable) )
+                if ( !( __instance is ShootableCircularDoodad shootable ) )
                 {
                     return;
                 }
