@@ -1,7 +1,5 @@
 ﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 using Utility;
 
@@ -51,7 +49,7 @@ namespace Drunken_Broster.MeleeItems
 
                 this.beeSimulator.flies = this.flies;
             }
-            
+
             base.Awake();
         }
 
@@ -134,7 +132,7 @@ namespace Drunken_Broster.MeleeItems
                 return;
             }
             this.madeEffects = true;
-            
+
             if ( this.sound == null )
             {
                 this.sound = Sound.GetInstance();

@@ -16,7 +16,7 @@ namespace Drunken_Broster.MeleeItems
 
         public static SkullProjectile CreatePrefab()
         {
-            if ( cachedPrefab == null)
+            if ( cachedPrefab == null )
             {
                 HellLostSoul attachedUnitPrefab = UnityEngine.Object.Instantiate( InstantiationController.GetPrefabFromResourceName( "networkobjects:ZHellLostSoul" ) ).GetComponent<HellLostSoul>();
                 attachedUnitPrefab.gameObject.SetActive( false );
@@ -48,14 +48,14 @@ namespace Drunken_Broster.MeleeItems
             this.playerNum = playerNum;
             this.attachedUnit.SetFriendlyExplosion();
             this.firedBy = FiredBy;
-            
+
             // Delay fire animation
             this.attachedUnitTraverse.Field( "fireAnimDelay" ).SetValue( 0.3f );
 
             // Fix exclamation mark bubble appearing on top of enemy
             for ( int i = 0; i < this.attachedUnit.transform.childCount; ++i )
             {
-                if ( this.attachedUnit.transform.GetChild(i).name == "ExclamationMark" )
+                if ( this.attachedUnit.transform.GetChild( i ).name == "ExclamationMark" )
                 {
                     ReactionBubble reaction = this.attachedUnit.transform.GetChild( i ).GetComponent<ReactionBubble>();
                     reaction.SetPosition( reaction.transform.localPosition );
@@ -68,7 +68,7 @@ namespace Drunken_Broster.MeleeItems
 
         public void Update()
         {
-            if( diveCountdown > 0 )
+            if ( diveCountdown > 0 )
             {
                 diveCountdown -= Time.deltaTime;
                 if ( diveCountdown <= 0 )
@@ -101,14 +101,14 @@ namespace Drunken_Broster.MeleeItems
             // If no unit is found, fly in a random direction towards the ground
             else
             {
-                float randomAngle = UnityEngine.Random.Range(-65f, -15f) * Mathf.Deg2Rad;
+                float randomAngle = UnityEngine.Random.Range( -65f, -15f ) * Mathf.Deg2Rad;
                 float distance = 500;
-                
+
                 // Adjust angle based on facing direction
-                float targetX = this.attachedUnit.X + Mathf.Cos(randomAngle) * distance * this.attachedUnit.transform.localScale.x;
-                float targetY = this.attachedUnit.Y + Mathf.Sin(randomAngle) * distance;
-                
-                target = new Vector3(targetX, targetY, 0f);
+                float targetX = this.attachedUnit.X + Mathf.Cos( randomAngle ) * distance * this.attachedUnit.transform.localScale.x;
+                float targetY = this.attachedUnit.Y + Mathf.Sin( randomAngle ) * distance;
+
+                target = new Vector3( targetX, targetY, 0f );
             }
 
             if ( this.attachedUnit.enemyAI.mentalState != MentalState.Alerted )
@@ -118,4 +118,3 @@ namespace Drunken_Broster.MeleeItems
         }
     }
 }
- 

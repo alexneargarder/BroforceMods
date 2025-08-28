@@ -1,12 +1,4 @@
 ﻿using BroMakerLib;
-using BroMakerLib.CustomObjects.Projectiles;
-using BroMakerLib.Loggers;
-using RocketLib;
-using Rogueforce;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
@@ -63,7 +55,7 @@ namespace Drunken_Broster.MeleeItems
             }
         }
 
-        protected override void PlayBounceSound(bool bounceX, bool bounceY)
+        protected override void PlayBounceSound( bool bounceX, bool bounceY )
         {
             if ( sound == null )
             {

@@ -1,11 +1,5 @@
 ﻿using BroMakerLib;
-using BroMakerLib.CustomObjects.Projectiles;
-using RocketLib;
-using Rogueforce;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
