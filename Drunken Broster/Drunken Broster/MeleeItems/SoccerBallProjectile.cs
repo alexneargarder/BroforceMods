@@ -57,6 +57,16 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void PlayBounceSound( bool bounceX, bool bounceY )
         {
+            if ( bounceX && Mathf.Abs( this.xI ) < 50 )
+            {
+                return;
+            }
+
+            if ( bounceY && Mathf.Abs( this.yI ) < 50 )
+            {
+                return;
+            }
+
             if ( sound == null )
             {
                 sound = Sound.GetInstance();
