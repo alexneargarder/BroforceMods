@@ -32,5 +32,36 @@ namespace Drunken_Broster
                 return false;
             }
         }
+
+        // Check if friendly facehugger has completed insemination
+        [HarmonyPatch( typeof( AlienFaceHugger ), "DisconnectFaceHugger" )]
+        static class AlienFaceHugger_DisconnectFaceHugger_Patch
+        {
+            public static void Postfix( AlienFaceHugger __instance )
+            {
+                if ( __instance.insemenationCompleted && __instance.layEggsInsideBros )
+                {
+                    AlienXenomorph_Start_Patch.nextAlienFriendly = true;
+                }
+            }
+        }
+
+        // Make xenomorphs spawned from thrown facehugger eggs friendly
+        [HarmonyPatch( typeof( AlienXenomorph ), "Start" )]
+        public static class AlienXenomorph_Start_Patch
+        {
+            public static bool nextAlienFriendly = false;
+
+            public static void Postfix( AlienXenomorph __instance )
+            {
+                if ( nextAlienFriendly )
+                {
+                    __instance.playerNum = 5;
+                    __instance.firingPlayerNum = 5;
+
+                    nextAlienFriendly = false;
+                }
+            }
+        }
     }
 }

@@ -2796,7 +2796,7 @@ namespace Drunken_Broster
                     this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 60f : 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:
-                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 50f : 125f, base.playerNum );
+                    this.alienEggProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 7.5f, base.Y + 14f, base.transform.localScale.x * ( angleDownwards ? 200f : 375f ), angleDownwards ? 50f : 65f, base.playerNum );
                     break;
                 case MeleeItem.Skull:
                     this.skullProjectile.SpawnProjectileLocally( this, base.X + base.transform.localScale.x * 8f, base.Y + 15f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 40f : 100f, base.playerNum );

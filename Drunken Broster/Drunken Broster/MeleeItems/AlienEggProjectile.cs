@@ -1,13 +1,17 @@
 ﻿using System;
+using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using UnityEngine;
+using Utility;
 
 namespace Drunken_Broster.MeleeItems
 {
     public class AlienEggProjectile : CustomProjectile
     {
+        public AudioClip[] pulseSounds;
+        public AudioClip[] burstSounds;
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
         protected int frame = 0;
         protected float counter = 0;
@@ -21,6 +25,7 @@ namespace Drunken_Broster.MeleeItems
         protected float explodeRange = 40f;
         public GibHolder openedEggGibHolder;
         protected AlienClimber faceHugger;
+        protected bool createdFaceHugger = false;
         protected float spawnFacehuggerTimer = 0.2f;
 
         protected override void Awake()
@@ -49,6 +54,10 @@ namespace Drunken_Broster.MeleeItems
 
             AlienEggBlock prefab = Map.Instance.activeTheme.blockAlienEgg as AlienEggBlock;
             this.openedEggGibHolder = prefab.openedEggGibHolder;
+
+            this.pulseSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_pulse", 2 );
+
+            this.burstSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_burst", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
@@ -57,7 +66,19 @@ namespace Drunken_Broster.MeleeItems
 
             base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
 
-            this.faceHugger = Map.SpawnFaceHugger( newX, newY, 0f, 0f );
+            this.CreateFaceHugger();
+        }
+
+        protected void CreateFaceHugger()
+        {
+            if ( this.createdFaceHugger )
+            {
+                return;
+            }
+
+            this.createdFaceHugger = true;
+
+            this.faceHugger = Map.SpawnFaceHugger( this.X, this.Y, 0f, 0f );
             this.faceHugger.RegisterUnit();
             Registry.RegisterDeterminsiticGameObject( this.faceHugger.gameObject );
             this.faceHugger.transform.parent = base.transform;
@@ -126,6 +147,15 @@ namespace Drunken_Broster.MeleeItems
 
         protected void ChangeFrame()
         {
+            if ( this.frame == 1 )
+            {
+                if ( sound == null )
+                {
+                    sound = Sound.GetInstance();
+                }
+
+                sound?.PlaySoundEffectAt( this.pulseSounds, 0.4f, base.transform.position );
+            }
             if ( this.frame >= 5 )
             {
                 this.frame = 0;
@@ -134,8 +164,38 @@ namespace Drunken_Broster.MeleeItems
             this.sprite.SetLowerLeftPixel_X( 32f * this.frame );
         }
 
+        protected override void HitUnits()
+        {
+            if ( this.reversing )
+            {
+                if ( Map.HitLivingUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+                {
+                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                    global::UnityEngine.Object.Destroy( base.gameObject );
+                    this.hasHit = true;
+                    if ( this.giveDeflectAchievementOnMookKill )
+                    {
+                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                    }
+                }
+            }
+            else if ( Map.HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+            {
+                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                global::UnityEngine.Object.Destroy( base.gameObject );
+                this.hasHit = true;
+                if ( this.giveDeflectAchievementOnMookKill )
+                {
+                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                }
+            }
+        }
+
         protected void LaunchFaceHugger()
         {
+            // Ensure facehugger has been created
+            this.CreateFaceHugger();
+
             this.faceHugger.SetXY( base.X, base.Y );
             this.faceHugger.transform.parent = null;
             this.faceHugger.gameObject.SetActive( true );
@@ -146,7 +206,7 @@ namespace Drunken_Broster.MeleeItems
             trav.Field( "usingSpecial" ).SetValue( true );
             trav.Method( "UseSpecial" ).GetValue();
             this.faceHugger.xI = this.xI;
-            this.faceHugger.yI = this.yI + 50;
+            this.faceHugger.yI = this.yI + 80;
             EffectsController.CreateSlimeParticles( BloodColor.Green, base.X, base.Y, 45, 8f, 8f, 140f, this.faceHugger.xI * 0.5f, this.faceHugger.yI * 0.5f );
         }
 
@@ -157,6 +217,13 @@ namespace Drunken_Broster.MeleeItems
                 return;
             }
             this.exploded = true;
+
+            if ( sound == null )
+            {
+                sound = Sound.GetInstance();
+            }
+            sound?.PlaySoundEffectAt( this.burstSounds, 0.55f, base.transform.position );
+
             this.LaunchFaceHugger();
             EffectsController.CreateGibs( this.openedEggGibHolder, base.X, base.Y, 10f, 10f, 0f, 0f );
             Block.MakeAlienBlockCollapseEffects( base.X, base.Y, xI, yI, true );
