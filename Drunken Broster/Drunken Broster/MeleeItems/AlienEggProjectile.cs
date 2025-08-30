@@ -1,7 +1,7 @@
-﻿using BroMakerLib.CustomObjects.Projectiles;
+﻿using System;
+using BroMakerLib.CustomObjects.Projectiles;
 using BroMakerLib.Loggers;
 using HarmonyLib;
-using System;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems
