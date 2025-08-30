@@ -92,6 +92,7 @@ namespace Drunken_Broster
             Skull = 9,
             None = 10,
         }
+        protected MeleeItem lastThrownItem = MeleeItem.None;
         protected MeleeItem chosenItem = MeleeItem.None;
         protected MeleeItem heldItem = MeleeItem.None;
         protected bool holdingItem = false;
@@ -2311,7 +2312,92 @@ namespace Drunken_Broster
 
         protected MeleeItem ChooseItem()
         {
-            return (MeleeItem)( DrunkenBroster.currentItem );
+            // return (MeleeItem)(DrunkenBroster.currentItem);
+
+            LevelTheme theme = Map.MapData.theme;
+            bool hasAliens = Map.hasAliens;
+            int rareItemBoost = 0;
+
+            // Map similar themes to base themes
+            if ( theme == LevelTheme.BurningJungle || theme == LevelTheme.Forest || theme == LevelTheme.Desert )
+            {
+                theme = LevelTheme.Jungle;
+                rareItemBoost += 5;
+            }
+            else if ( theme == LevelTheme.America )
+            {
+                theme = LevelTheme.City;
+                rareItemBoost += 5;
+            }
+
+            if ( lastThrownItem == MeleeItem.Crate || lastThrownItem == MeleeItem.Bottle )
+            {
+                rareItemBoost += 5;
+            }
+
+            var itemPool = new List<KeyValuePair<MeleeItem, int>>
+            {
+                // General pool (all themes)
+                new KeyValuePair<MeleeItem, int>( MeleeItem.Crate, 120 ),
+                new KeyValuePair<MeleeItem, int>( MeleeItem.Bottle, 100 )
+            };
+
+            switch ( theme )
+            {
+                case LevelTheme.Jungle:
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Coconut, 25 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Beehive, 20 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 10 + rareItemBoost ) );
+                    break;
+
+                case LevelTheme.City:
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.SoccerBall, 25 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Tire, 10 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 10 + rareItemBoost ) );
+                    break;
+
+                case LevelTheme.Hell:
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 15 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Skull, 10 + rareItemBoost ) );
+                    break;
+            }
+
+            if ( hasAliens )
+            {
+                itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.AlienEgg, 10 + rareItemBoost ) );
+                itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.AcidEgg, 20 + rareItemBoost ) );
+            }
+
+            // Reduce weight of last thrown item
+            for ( int i = 0; i < itemPool.Count; i++ )
+            {
+                if ( itemPool[i].Key == lastThrownItem )
+                {
+                    itemPool[i] = new KeyValuePair<MeleeItem, int>( itemPool[i].Key, itemPool[i].Value / 8 );
+                    break;
+                }
+            }
+
+            // Weighted random selection - higher weight = more common
+            int totalWeight = 0;
+            foreach ( var item in itemPool )
+            {
+                totalWeight += item.Value;
+            }
+
+            int randomValue = UnityEngine.Random.Range( 0, totalWeight );
+            int currentWeight = 0;
+
+            foreach ( var item in itemPool )
+            {
+                currentWeight += item.Value;
+                if ( randomValue < currentWeight )
+                {
+                    return item.Key;
+                }
+            }
+
+            return MeleeItem.Crate;
         }
 
         protected override void AnimateCustomMelee()
@@ -2806,6 +2892,7 @@ namespace Drunken_Broster
                     break;
             }
 
+            lastThrownItem = this.heldItem;
             thrownItem = true;
         }
 
