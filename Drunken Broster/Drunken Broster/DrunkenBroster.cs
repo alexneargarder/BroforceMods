@@ -1,14 +1,14 @@
-﻿using BroMakerLib;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
 using Drunken_Broster.MeleeItems;
 using HarmonyLib;
 using RocketLib;
 using Rogueforce;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 using ResourcesController = BroMakerLib.ResourcesController;
 
@@ -119,6 +119,7 @@ namespace Drunken_Broster
         protected bool warningOn = false;
         public FlickerFader fire1, fire2, fire3;
         public AudioClip[] barrelExplodeSounds;
+        public AudioClip[] soccerKickSounds;
 
         // Special
         public AudioClip slurp;
@@ -470,6 +471,8 @@ namespace Drunken_Broster
             this.slurp = ResourcesController.GetAudioClip( soundPath, "slurp.wav" );
 
             this.soundHolder.meleeHitSound = ResourcesController.GetAudioClipArray( soundPath, "meleeHitBlunt", 2 );
+
+            this.soccerKickSounds = ResourcesController.GetAudioClipArray( soundPath, "soccerBounce", 2, 2 );
         }
         #endregion
 
@@ -2789,6 +2792,7 @@ namespace Drunken_Broster
                     explosiveBarrel.explosionCounter = Mathf.Max( 4 - Mathf.Abs( 5 - this.explosionCounter ), 1 );
                     break;
                 case MeleeItem.SoccerBall:
+                    this.sound.PlaySoundEffectAt( this.soccerKickSounds, 1f, base.transform.position );
                     this.soccerBallProjectile.SpawnGrenadeLocally( this, base.X + base.transform.localScale.x * 10f, base.Y + 3f, 0f, 0f, base.transform.localScale.x * ( angleDownwards ? 200f : 350f ), angleDownwards ? 60f : 150f, base.playerNum, 0 );
                     break;
                 case MeleeItem.AlienEgg:

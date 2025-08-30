@@ -1,5 +1,5 @@
-﻿using BroMakerLib;
-using System;
+﻿using System;
+using BroMakerLib;
 using UnityEngine;
 
 namespace Drunken_Broster.MeleeItems

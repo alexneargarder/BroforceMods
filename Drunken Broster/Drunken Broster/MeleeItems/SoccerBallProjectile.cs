@@ -27,22 +27,20 @@ namespace Drunken_Broster.MeleeItems
 
         public override void PrefabSetup()
         {
+            base.PrefabSetup();
+
             // Load death sound
             this.soundHolder.deathSounds = new AudioClip[1];
             this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
 
-            this.bounceSounds = new AudioClip[3];
-            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce1.wav" );
-            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
-            this.bounceSounds[2] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
+            this.bounceSounds = ResourcesController.GetAudioClipArray( soundPath, "soccerBounce", 3, 1 );
         }
 
         protected override void HitUnits()
         {
             if ( Mathf.Abs( this.xI ) > 80f && Map.HitUnits( this, this.playerNum, this.damage, this.damage, this.damageType, this.size + 1f, this.size + 4f, this.X, this.Y, this.xI * this.hitUnitForce, this.yI * this.hitUnitForce, true, true, false, this.alreadyHitUnits, false, false ) )
             {
-                //EffectsController.CreateEffect( EffectsController.instance.whiteFlashPopSmallPrefab, base.X + base.transform.localScale.x * 2f, base.Y + UnityEngine.Random.Range( -1, 1 ), 0f, 0f, Vector3.zero, null );
-                //EffectsController.CreateProjectilePopWhiteEffect( base.X + base.transform.localScale.x * 3f, base.Y + UnityEngine.Random.Range( -1, 1 ) );
+                EffectsController.CreateProjectilePopWhiteEffect( base.X, base.Y - this.size * 0.5f );
                 this.PlayHitSound();
                 this.hitDelay = 0.1f;
                 if ( this.bounceOffEnemies )
