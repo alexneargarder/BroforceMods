@@ -2312,7 +2312,8 @@ namespace Drunken_Broster
 
         protected MeleeItem ChooseItem()
         {
-            // return (MeleeItem)(DrunkenBroster.currentItem);
+            // TODO: remove this
+            return (MeleeItem)( DrunkenBroster.currentItem );
 
             LevelTheme theme = Map.MapData.theme;
             bool hasAliens = Map.hasAliens;

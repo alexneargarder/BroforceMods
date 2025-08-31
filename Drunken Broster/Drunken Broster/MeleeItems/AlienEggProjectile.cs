@@ -3,6 +3,7 @@ using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
 using BroMakerLib.Loggers;
 using HarmonyLib;
+using Rogueforce;
 using UnityEngine;
 using Utility;
 
@@ -24,7 +25,7 @@ namespace Drunken_Broster.MeleeItems
         protected BloodColor bloodColor = BloodColor.Green;
         protected float explodeRange = 40f;
         public GibHolder openedEggGibHolder;
-        protected AlienClimber faceHugger;
+        protected AlienFaceHugger faceHugger;
         protected bool createdFaceHugger = false;
         protected float spawnFacehuggerTimer = 0.2f;
 
@@ -78,7 +79,7 @@ namespace Drunken_Broster.MeleeItems
 
             this.createdFaceHugger = true;
 
-            this.faceHugger = Map.SpawnFaceHugger( this.X, this.Y, 0f, 0f );
+            this.faceHugger = Map.SpawnFaceHugger( this.X, this.Y, 0f, 0f ) as AlienFaceHugger;
             this.faceHugger.RegisterUnit();
             Registry.RegisterDeterminsiticGameObject( this.faceHugger.gameObject );
             this.faceHugger.transform.parent = base.transform;
@@ -164,22 +165,28 @@ namespace Drunken_Broster.MeleeItems
             this.sprite.SetLowerLeftPixel_X( 32f * this.frame );
         }
 
-        protected override void HitUnits()
+        protected override void TryHitUnitsAtSpawn()
         {
-            if ( this.reversing )
+            if ( this.firedBy != null && this.firedBy.GetComponent<TestVanDammeAnim>() != null && this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
             {
-                if ( Map.HitLivingUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+                if ( HitUnits( this.firedBy, this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit, this.playerNum, this.damageInternal * 2, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI ) )
                 {
                     this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
                     global::UnityEngine.Object.Destroy( base.gameObject );
                     this.hasHit = true;
-                    if ( this.giveDeflectAchievementOnMookKill )
-                    {
-                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
-                    }
                 }
             }
-            else if ( Map.HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+            else if ( HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal * 2, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI ) )
+            {
+                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                global::UnityEngine.Object.Destroy( base.gameObject );
+                this.hasHit = true;
+            }
+        }
+
+        protected override void HitUnits()
+        {
+            if ( HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI ) )
             {
                 this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
                 global::UnityEngine.Object.Destroy( base.gameObject );
@@ -189,6 +196,63 @@ namespace Drunken_Broster.MeleeItems
                     AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
                 }
             }
+        }
+
+        protected bool HitUnits( MonoBehaviour damageSender, MonoBehaviour avoidID, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI )
+        {
+            if ( Map.units == null )
+            {
+                return false;
+            }
+            bool flag = false;
+            int num = 999999;
+            bool flag2 = false;
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
+            {
+                Unit unit = Map.units[i];
+                if ( unit != null && ( GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) || ( unit.playerNum < 0 && unit.CatchFriendlyBullets() ) ) && !unit.invulnerable && unit.health <= num )
+                {
+                    float num2 = unit.X - x;
+                    if ( Mathf.Abs( num2 ) - xRange < unit.width )
+                    {
+                        float num3 = unit.Y + unit.height / 2f + 4f - y;
+                        if ( Mathf.Abs( num3 ) - yRange < unit.height && ( avoidID == null || avoidID != unit || unit.CatchFriendlyBullets() ) )
+                        {
+                            if ( unit.health > 0 )
+                            {
+                                num = 0;
+                                flag2 = true;
+                            }
+                            if ( unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y, false );
+                            }
+                            else
+                            {
+                                // Check if can inseminate
+                                if ( unit.IsNotReplicantHero && unit.CanInseminate( xI, yI ) )
+                                {
+                                    this.Death();
+                                    // Directly inseminate rather than damaging unit
+                                    unit.Inseminate( this.faceHugger, xI, yI );
+                                    return false;
+                                }
+                                else
+                                {
+                                    Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y, false );
+                                }
+                            }
+                            bloodColor = unit.bloodColor;
+                            flag = true;
+                            if ( flag2 )
+                            {
+                                return flag;
+                            }
+                        }
+                    }
+                }
+            }
+            return flag;
         }
 
         protected void LaunchFaceHugger()
@@ -206,7 +270,7 @@ namespace Drunken_Broster.MeleeItems
             trav.Field( "usingSpecial" ).SetValue( true );
             trav.Method( "UseSpecial" ).GetValue();
             this.faceHugger.xI = this.xI;
-            this.faceHugger.yI = this.yI + 80;
+            this.faceHugger.yI = this.yI + 65;
             EffectsController.CreateSlimeParticles( BloodColor.Green, base.X, base.Y, 45, 8f, 8f, 140f, this.faceHugger.xI * 0.5f, this.faceHugger.yI * 0.5f );
         }
 
