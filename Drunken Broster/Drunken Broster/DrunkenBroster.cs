@@ -2658,8 +2658,14 @@ namespace Drunken_Broster
                     break;
             }
 
-            if ( Map.HitClosestUnit( this, base.playerNum, meleeDamage + ( this.drunk ? 4 : 0 ), meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true ) )
+            Unit hitUnit = Map.HitClosestUnit( this, base.playerNum, meleeDamage + ( this.drunk ? 4 : 0 ), meleeDamageType, 8f, 24f, base.X + base.transform.localScale.x * 6f, base.Y + 7f, base.transform.localScale.x * xI, yI, true, false, base.IsMine, false, true );
+            if ( hitUnit != null )
             {
+                if ( meleeDamageType == DamageType.Fire )
+                {
+                    hitUnit.burnTime = 1f + UnityEngine.Random.Range( 0.2f, 0.6f );
+                    hitUnit.enemyAI.Panic( (int)base.transform.localScale.x, false );
+                }
                 this.PlayMeleeHitSound();
                 this.meleeHasHit = true;
                 // Create acid spray
