@@ -140,6 +140,11 @@ namespace Drunken_Broster
         protected bool bufferedSpecial = false;
 
         // Roll
+        [SaveableSetting]
+        public static bool doubleTapDashToRoll = true;
+        [SaveableSetting]
+        public static bool pressKeybindToRoll = false;
+        public static KeyBindingForPlayers rollKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Roll Key" );
         protected float slideExtraSpeed = 0f;
         protected bool isSlideRoll = false;
         protected float dashSlideCooldown = 0f;
@@ -356,9 +361,26 @@ namespace Drunken_Broster
             }
 
             GUILayout.Space( 25 );
+            // Only display tooltip if it's currently unset (otherwise we'll display BroMaker's tooltips
+            if ( rollKey.OnGUI( out _, ( GUI.tooltip == string.Empty ) ) )
+            {
+                pressKeybindToRoll = true;
+            }
+            GUILayout.Space( 10 );
+
+            if ( doubleTapDashToRoll != ( doubleTapDashToRoll = GUILayout.Toggle( doubleTapDashToRoll, "Double tap dash to perform slide roll" ) ) )
+            {
+                this.SaveSettings();
+            }
+
+            if ( pressKeybindToRoll != ( pressKeybindToRoll = GUILayout.Toggle( pressKeybindToRoll, "Press custom keybinding to perform slide roll" ) ) )
+            {
+                this.SaveSettings();
+            }
+
 
             // TODO: remove this debugging
-            GUILayout.Space( 20 );
+            GUILayout.Space( 40 );
             GUILayout.BeginHorizontal();
 
             if ( GUILayout.Button( "-", GUILayout.Width( 50 ) ) )
@@ -3416,10 +3438,27 @@ namespace Drunken_Broster
         {
             return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
         }
+        #endregion
 
         #region Roll
         protected void RunRolling()
         {
+            // Check if custom keybind is enabled and was pressed
+            if ( pressKeybindToRoll && rollKey[this.playerNum].PressedDown() && this.CanStartSlideRoll() )
+            {
+                if ( this.actionState != ActionState.Jumping )
+                {
+                    this.slideExtraSpeed = this.originalSpeed * 0.75f;
+                    this.RollOnLand( true );
+                    this.dashSlideCooldown = this.drunk ? 0.5f : 0.6f;
+                }
+                else
+                {
+                    this.bufferedSlideRoll = true;
+                    this.bufferedSlideRollTime = 0.5f;
+                }
+            }
+
             if ( rollingFrames > 0 )
             {
                 if ( this.isSlideRoll )
@@ -3459,6 +3498,16 @@ namespace Drunken_Broster
                     // Deflect projectiles only during attack frames
                     if ( this.rollingFrames <= 10 && this.rollingFrames >= 1 )
                     {
+                        if ( this.rollingFrames > 2 )
+                        {
+                            this.faderTrailDelay -= this.t / Time.timeScale;
+                            if ( this.faderTrailDelay < 0f )
+                            {
+                                this.CreateFaderTrailInstance();
+                                this.faderTrailDelay = 0.034f;
+                            }
+                        }
+
                         Map.DeflectProjectiles( this, this.playerNum, 8f,
                             base.X + base.transform.localScale.x * 2f, base.Y + 6f,
                             base.transform.localScale.x * 200f, true );
@@ -3532,9 +3581,9 @@ namespace Drunken_Broster
 
             base.StartDashing();
 
-            if ( isDoubleTap && this.dashSlideCooldown <= 0f && this.rollingFrames <= 0 )
+            if ( doubleTapDashToRoll && isDoubleTap && this.dashSlideCooldown <= 0f && this.rollingFrames <= 0 )
             {
-                if ( this.actionState == ActionState.Running )
+                if ( this.actionState != ActionState.Jumping )
                 {
                     this.slideExtraSpeed = this.originalSpeed * 0.75f;
                     this.RollOnLand( true );
@@ -3608,6 +3657,11 @@ namespace Drunken_Broster
                 }
 
             }
+        }
+
+        protected bool CanStartSlideRoll()
+        {
+            return !this.doingMelee && !this.usingSpecial && !this.IsFlexing() && this.rollingFrames <= 0 && this.dashSlideCooldown <= 0f && ( this.right || this.left );
         }
 
         protected override bool CanDoRollOnLand()
@@ -3777,7 +3831,6 @@ namespace Drunken_Broster
             this.sprite.SetLowerLeftPixel( (float)( ( lastFrame - this.rollingFrames ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 16 ) );
             this.DeactivateGun();
         }
-        #endregion
         #endregion
     }
 }
