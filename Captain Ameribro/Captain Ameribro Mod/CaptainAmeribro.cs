@@ -81,10 +81,9 @@ namespace Captain_Ameribro_Mod
 
         public override void PreloadAssets()
         {
-            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "captainAmeribroMainNoShield.png", "captainAmeribroArmless.png", "captainAmeribroGunNoShield.png" } );
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "captainAmeribroArmless.png", "captainAmeribroGunNoShield.png", "captainAmeribroMainNoShield.png" } );
             CustomHero.PreloadSprites( ProjectilePath, new List<string> { "Shield.png" } );
-
-            CustomHero.PreloadSounds( SoundPath, new List<string> { "special1.wav", "special2.wav", "special3.wav", "ShieldShing.wav", "melee1part1.wav", "melee3part2.wav", "meleeterrainhit1.wav", "meleeterrainhit2.wav", "swish.wav", "grunt1.wav", "grunt2.wav", "grunt3.wav", "grunt4.wav", "grunt5.wav", "ricochet1.wav", "ricochet2.wav", "ricochet3.wav", "ricochet4.wav", "pistol1.wav", "pistol2.wav", "pistol3.wav", "pistol4.wav" } );
+            CustomHero.PreloadSounds( SoundPath, new List<string>() { "grunt1.wav", "grunt2.wav", "grunt3.wav", "grunt4.wav", "grunt5.wav", "melee1part1.wav", "melee1part2.wav", "melee3part1.wav", "melee3part2.wav", "meleeterrainhit1.wav", "meleeterrainhit2.wav", "pistol1.wav", "pistol2.wav", "pistol3.wav", "pistol4.wav", "ricochet1.wav", "ricochet2.wav", "ricochet3.wav", "ricochet4.wav", "ShieldShing.wav", "special1.wav", "special2.wav", "special3.wav", "swish.wav" } );
         }
 
         public override void BeforePrefabSetup()
@@ -94,69 +93,40 @@ namespace Captain_Ameribro_Mod
 
         public override void AfterPrefabSetup()
         {
-            this.SetupSounds();
-        }
+            shieldChargeShing = ResourcesController.GetAudioClip( SoundPath, "ShieldShing.wav" );
 
-        protected void SetupSounds()
-        {
-            if ( shieldChargeShing == null )
-            {
-                shieldChargeShing = ResourcesController.GetAudioClip( SoundPath, "ShieldShing.wav" );
-            }
+            shieldMeleeSwing = new AudioClip[2];
+            shieldMeleeSwing[0] = ResourcesController.GetAudioClip( SoundPath, "melee1part1.wav" );
+            shieldMeleeSwing[1] = ResourcesController.GetAudioClip( SoundPath, "melee3part1.wav" );
 
-            if ( shieldMeleeSwing == null )
-            {
-                shieldMeleeSwing = new AudioClip[2];
-                shieldMeleeSwing[0] = ResourcesController.GetAudioClip( SoundPath, "melee1part1.wav" );
-                shieldMeleeSwing[1] = ResourcesController.GetAudioClip( SoundPath, "melee3part1.wav" );
-            }
+            shieldMeleeHit = new AudioClip[2];
+            shieldMeleeHit[0] = ResourcesController.GetAudioClip( SoundPath, "melee1part2.wav" );
+            shieldMeleeHit[1] = ResourcesController.GetAudioClip( SoundPath, "melee3part2.wav" );
 
-            if ( shieldMeleeHit == null )
-            {
-                shieldMeleeHit = new AudioClip[2];
-                shieldMeleeHit[0] = ResourcesController.GetAudioClip( SoundPath, "melee1part2.wav" );
-                shieldMeleeHit[1] = ResourcesController.GetAudioClip( SoundPath, "melee3part2.wav" );
-            }
+            shieldMeleeTerrain = new AudioClip[2];
+            shieldMeleeTerrain[0] = ResourcesController.GetAudioClip( SoundPath, "meleeterrainhit1.wav" );
+            shieldMeleeTerrain[1] = ResourcesController.GetAudioClip( SoundPath, "meleeterrainhit2.wav" );
 
-            if ( shieldMeleeTerrain == null )
-            {
-                shieldMeleeTerrain = new AudioClip[2];
-                shieldMeleeTerrain[0] = ResourcesController.GetAudioClip( SoundPath, "meleeterrainhit1.wav" );
-                shieldMeleeTerrain[1] = ResourcesController.GetAudioClip( SoundPath, "meleeterrainhit2.wav" );
-            }
+            airDashSound = ResourcesController.GetAudioClip( SoundPath, "swish.wav" );
 
-            if ( airDashSound == null )
-            {
-                airDashSound = ResourcesController.GetAudioClip( SoundPath, "swish.wav" );
-            }
+            effortSounds = new AudioClip[5];
+            effortSounds[0] = ResourcesController.GetAudioClip( SoundPath, "grunt1.wav" );
+            effortSounds[1] = ResourcesController.GetAudioClip( SoundPath, "grunt2.wav" );
+            effortSounds[2] = ResourcesController.GetAudioClip( SoundPath, "grunt3.wav" );
+            effortSounds[3] = ResourcesController.GetAudioClip( SoundPath, "grunt4.wav" );
+            effortSounds[4] = ResourcesController.GetAudioClip( SoundPath, "grunt5.wav" );
 
-            if ( effortSounds == null )
-            {
-                effortSounds = new AudioClip[5];
-                effortSounds[0] = ResourcesController.GetAudioClip( SoundPath, "grunt1.wav" );
-                effortSounds[1] = ResourcesController.GetAudioClip( SoundPath, "grunt2.wav" );
-                effortSounds[2] = ResourcesController.GetAudioClip( SoundPath, "grunt3.wav" );
-                effortSounds[3] = ResourcesController.GetAudioClip( SoundPath, "grunt4.wav" );
-                effortSounds[4] = ResourcesController.GetAudioClip( SoundPath, "grunt5.wav" );
-            }
+            ricochetSounds = new AudioClip[4];
+            ricochetSounds[0] = ResourcesController.GetAudioClip( SoundPath, "ricochet1.wav" );
+            ricochetSounds[1] = ResourcesController.GetAudioClip( SoundPath, "ricochet2.wav" );
+            ricochetSounds[2] = ResourcesController.GetAudioClip( SoundPath, "ricochet3.wav" );
+            ricochetSounds[3] = ResourcesController.GetAudioClip( SoundPath, "ricochet4.wav" );
 
-            if ( ricochetSounds == null )
-            {
-                ricochetSounds = new AudioClip[4];
-                ricochetSounds[0] = ResourcesController.GetAudioClip( SoundPath, "ricochet1.wav" );
-                ricochetSounds[1] = ResourcesController.GetAudioClip( SoundPath, "ricochet2.wav" );
-                ricochetSounds[2] = ResourcesController.GetAudioClip( SoundPath, "ricochet3.wav" );
-                ricochetSounds[3] = ResourcesController.GetAudioClip( SoundPath, "ricochet4.wav" );
-            }
-
-            if ( pistolSounds == null )
-            {
-                pistolSounds = new AudioClip[4];
-                pistolSounds[0] = ResourcesController.GetAudioClip( SoundPath, "pistol1.wav" );
-                pistolSounds[1] = ResourcesController.GetAudioClip( SoundPath, "pistol2.wav" );
-                pistolSounds[2] = ResourcesController.GetAudioClip( SoundPath, "pistol3.wav" );
-                pistolSounds[3] = ResourcesController.GetAudioClip( SoundPath, "pistol4.wav" );
-            }
+            pistolSounds = new AudioClip[4];
+            pistolSounds[0] = ResourcesController.GetAudioClip( SoundPath, "pistol1.wav" );
+            pistolSounds[1] = ResourcesController.GetAudioClip( SoundPath, "pistol2.wav" );
+            pistolSounds[2] = ResourcesController.GetAudioClip( SoundPath, "pistol3.wav" );
+            pistolSounds[3] = ResourcesController.GetAudioClip( SoundPath, "pistol4.wav" );
         }
 
         protected override void Start()
@@ -172,11 +142,6 @@ namespace Captain_Ameribro_Mod
 
             gunMaterialNormal = this.gunMaterial;
             gunMaterialNoShield = ResourcesController.GetMaterial( DirectoryPath, "captainAmeribroGunNoShield.png" );
-
-            if ( this.shieldChargeShing == null )
-            {
-                this.SetupSounds();
-            }
 
             this.finishedStartup = true;
 
