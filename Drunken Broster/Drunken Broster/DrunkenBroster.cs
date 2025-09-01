@@ -16,19 +16,6 @@ namespace Drunken_Broster
     [HeroPreset( "Drunken Broster", HeroType.Rambro )]
     public class DrunkenBroster : CustomHero
     {
-        // TODO: remove all of these
-        [SaveableSetting]
-        public static int currentItem;
-        public static KeyBindingForPlayers switchItemKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item" );
-        public static KeyBindingForPlayers switchItemBackKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Switch Item Back" );
-        public static KeyBindingForPlayers debugKey = AllModKeyBindings.LoadKeyBinding( "Drunken Broster", "Debug Key" );
-        public static DrunkenBroster currentBroster;
-        [SaveableSetting]
-        public static float currentYOffset = 0f;
-        [SaveableSetting]
-        public static string currentYOffsetString = "0";
-        public float spawnCountdown = 0.25f;
-
         // General
         protected bool acceptedDeath = false;
         bool wasInvulnerable = false;
@@ -212,9 +199,6 @@ namespace Drunken_Broster
             {
                 this.setRumbleTraverse = Traverse.Create( this.player ).Method( "SetRumble", new Type[] { typeof( float ) } );
             }
-
-            // TODO: remove this
-            DrunkenBroster.currentBroster = this;
         }
 
         protected override void Update()
@@ -289,30 +273,6 @@ namespace Drunken_Broster
                 this.ReleaseHeldObject( false );
             }
 
-            // TODO: remove this
-            if ( DrunkenBroster.switchItemKey.PressedDown( this.playerNum ) )
-            {
-                ++DrunkenBroster.currentItem;
-                if ( DrunkenBroster.currentItem > 9 )
-                {
-                    DrunkenBroster.currentItem = 0;
-                }
-            }
-            else if ( DrunkenBroster.switchItemBackKey.PressedDown( this.playerNum ) )
-            {
-                --DrunkenBroster.currentItem;
-                if ( DrunkenBroster.currentItem < 0 )
-                {
-                    DrunkenBroster.currentItem = 9;
-                }
-            }
-
-            // TODO: remove this
-            if ( DrunkenBroster.debugKey.PressedDown( this.playerNum ) )
-            {
-                this.Debug();
-            }
-
             // Run flame / warning effect if holding explosive barrel
             if ( this.holdingItem && this.heldItem == MeleeItem.ExplosiveBarrel )
             {
@@ -361,77 +321,6 @@ namespace Drunken_Broster
             {
                 this.SaveSettings();
             }
-
-
-            // TODO: remove this debugging
-            GUILayout.Space( 40 );
-            GUILayout.BeginHorizontal();
-
-            if ( GUILayout.Button( "-", GUILayout.Width( 50 ) ) )
-            {
-                if ( DrunkenBroster.currentItem > 0 )
-                {
-                    --DrunkenBroster.currentItem;
-                }
-            }
-            if ( GUILayout.Button( "+", GUILayout.Width( 50 ) ) )
-            {
-                if ( DrunkenBroster.currentItem < 9 )
-                {
-                    ++DrunkenBroster.currentItem;
-                }
-            }
-
-            GUILayout.Label( "Current Item: " + DrunkenBroster.currentItem );
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space( 10 );
-            switchItemKey.OnGUI( out _, true );
-            GUILayout.Space( 10 );
-            switchItemBackKey.OnGUI( out _, true );
-            GUILayout.Space( 10 );
-            debugKey.OnGUI( out _, true );
-            GUILayout.Space( 10 );
-
-            if ( GUILayout.Button( "Print Debug" ) )
-            {
-                PrintDebug();
-            }
-        }
-
-        // TODO: remove this
-        public static void PrintDebug()
-        {
-            //Grenade coconut = null;
-            //for ( int i = 0; i < Map.damageableScenery.Count; ++i )
-            //{
-            //    if ( Map.damageableScenery[i].GetComponent<CoconutSpawner>() != null )
-            //    {
-            //        coconut = Map.damageableScenery[i].GetComponent<CoconutSpawner>().coconutPrefab;
-            //    }    
-            //}
-
-            //currentBroster.coconutProjectile.GenerateMatchingCode( coconut );
-        }
-
-        // TODO: remove this
-        public void Debug()
-        {
-            // Towards corner
-            //this.tireProjectile.SpawnGrenadeLocally( this, 464, 445 + currentYOffset, 0, 0, 350, -350, base.playerNum, 0 );
-            // Above corner
-            //this.tireProjectile.SpawnGrenadeLocally( this, 485 + currentYOffset, 445, 0, 0, 0, -10, base.playerNum, 0 );
-            // Above ladder
-            //this.tireProjectile.SpawnGrenadeLocally( this, 863 + currentYOffset, 440, 0, 0, 0, -10, base.playerNum, 0 );
-            // Above hole
-            //this.tireProjectile.SpawnGrenadeLocally( this, 832 + currentYOffset, 410, 0, 0, 0, -10, base.playerNum, 0 );
-
-            // To the right of spawn
-            //this.tireProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
-
-            // To the right of spawn
-            this.explosiveBarrelProjectile.SpawnGrenadeLocally( this, 826.53f + currentYOffset, 504.32f, 0, 0, 0, -10, base.playerNum, 0 );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2308,9 +2197,6 @@ namespace Drunken_Broster
 
         protected MeleeItem ChooseItem()
         {
-            // TODO: remove this
-            return (MeleeItem)( DrunkenBroster.currentItem );
-
             LevelTheme theme = Map.MapData.theme;
             bool hasAliens = Map.hasAliens;
             int rareItemBoost = 0;
