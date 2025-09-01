@@ -370,7 +370,7 @@ Releases/Alex's Bros/Brocready
 Releases/**/*.dll
 CLAUDE.md
 CLAUDE*.md
-.claude/
+.claude
 .serena
 **/.serena
 settings.local.json
