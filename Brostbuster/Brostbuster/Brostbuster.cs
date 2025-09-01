@@ -1,11 +1,10 @@
-﻿using BroMakerLib;
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
+using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
 using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 
 namespace Brostbuster
@@ -67,10 +66,10 @@ namespace Brostbuster
         #region General
         public override void PreloadAssets()
         {
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            CustomHero.PreloadSprites( directoryPath, new List<string> { "protonLine1.png", "protonLine1End.png", "protonLine21.png", "protonLine22.png", "protonLine23.png", "protonLine24.png" } );
-            CustomHero.PreloadSprites( Path.Combine( directoryPath, "projectiles" ), new List<string> { "ghostTrap.png", "slimer.png" } );
-            CustomHero.PreloadSounds( Path.Combine( directoryPath, "sounds" ), new List<string> { "protonStartup.wav", "protonStartup2.wav", "protonLoop.wav", "protonEnd.wav", "slimerTrapOpen.wav", "freeze1.wav", "freeze2.wav", "freeze3.wav", "freeze4.wav", "freeze5.wav", "freeze6.wav", "freeze7.wav", "freeze8.wav", "slimer1.wav", "slimer2.wav", "slimer3.wav", "slimer4.wav", "trapOpen.wav", "trapMain.wav", "trapClosing.wav", "trapClosed.wav" } );
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "protonLine1.png", "protonLine1End.png", "protonLine21.png", "protonLine22.png", "protonLine23.png", "protonLine24.png" } );
+            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "ghostTrap.png", "slimer.png" } );
+
+            CustomHero.PreloadSounds( SoundPath, new List<string> { "protonStartup.wav", "protonStartup2.wav", "protonLoop.wav", "protonEnd.wav", "slimerTrapOpen.wav", "freeze1.wav", "freeze2.wav", "freeze3.wav", "freeze4.wav", "freeze5.wav", "freeze6.wav", "freeze7.wav", "freeze8.wav", "slimer1.wav", "slimer2.wav", "slimer3.wav", "slimer4.wav", "trapOpen.wav", "trapMain.wav", "trapClosing.wav", "trapClosed.wav" } );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -107,13 +106,11 @@ namespace Brostbuster
 
         public override void AfterPrefabSetup()
         {
-            string soundPath = Path.Combine( directoryPath, "sounds" );
-
-            protonStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup.wav" );
-            protonBeamStartup = ResourcesController.GetAudioClip( soundPath, "protonStartup2.wav" );
-            protonLoop = ResourcesController.GetAudioClip( soundPath, "protonLoop.wav" );
-            protonEnd = ResourcesController.GetAudioClip( soundPath, "protonEnd.wav" );
-            slimerTrapOpen = ResourcesController.GetAudioClip( soundPath, "slimerTrapOpen.wav" );
+            protonStartup = ResourcesController.GetAudioClip( SoundPath, "protonStartup.wav" );
+            protonBeamStartup = ResourcesController.GetAudioClip( SoundPath, "protonStartup2.wav" );
+            protonLoop = ResourcesController.GetAudioClip( SoundPath, "protonLoop.wav" );
+            protonEnd = ResourcesController.GetAudioClip( SoundPath, "protonEnd.wav" );
+            slimerTrapOpen = ResourcesController.GetAudioClip( SoundPath, "slimerTrapOpen.wav" );
 
             this.protonAudio = base.gameObject.AddComponent<AudioSource>();
             this.protonAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -130,12 +127,12 @@ namespace Brostbuster
 
             protonLine1 = new GameObject( "ProtonLine1", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine1.transform.parent = this.transform;
-            protonLine1.material = ResourcesController.GetMaterial( directoryPath, "protonLine1.png" );
+            protonLine1.material = ResourcesController.GetMaterial( DirectoryPath, "protonLine1.png" );
             protonLine1.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             protonLine1Cap = new GameObject( "ProtonLine1End", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             protonLine1Cap.transform.parent = this.transform;
-            protonLine1Cap.material = ResourcesController.GetMaterial( directoryPath, "protonLine1End.png" );
+            protonLine1Cap.material = ResourcesController.GetMaterial( DirectoryPath, "protonLine1End.png" );
             protonLine1Cap.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             protonLine2 = new GameObject( "ProtonLine2", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
@@ -143,7 +140,7 @@ namespace Brostbuster
             protonLine2Mats = new Material[4];
             for ( int i = 0; i < 4; ++i )
             {
-                protonLine2Mats[i] = ResourcesController.GetMaterial( directoryPath, "protonLine2" + ( i + 1 ) + ".png" );
+                protonLine2Mats[i] = ResourcesController.GetMaterial( DirectoryPath, "protonLine2" + ( i + 1 ) + ".png" );
                 protonLine2Mats[i].mainTexture.wrapMode = TextureWrapMode.Repeat;
             }
             protonLine2.material = protonLine2Mats[0];
@@ -193,7 +190,7 @@ namespace Brostbuster
             {
                 this.StopProtonGun();
                 this.protonAudio.enabled = false;
-                
+
                 if ( !this.WillReviveAlready )
                 {
                     Brostbuster.currentBros.Remove( this );
@@ -681,7 +678,7 @@ namespace Brostbuster
             MakeHitEffect( new Vector3( hit.point.x + base.transform.localScale.x * 4, hit.point.y ) );
         }
 
-        protected void MakeHitEffect(Vector3 hitPoint)
+        protected void MakeHitEffect( Vector3 hitPoint )
         {
             if ( this.effectCooldown <= 0 )
             {

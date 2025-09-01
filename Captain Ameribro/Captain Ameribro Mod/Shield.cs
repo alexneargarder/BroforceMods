@@ -69,16 +69,16 @@ namespace Captain_Ameribro_Mod
 
         protected override void Awake()
         {
-            this.spriteWidth = 16;
-            this.spriteHeight = 16;
+            this.SpriteWidth = 16;
+            this.SpriteHeight = 16;
 
             this.ladderLayer = 1 << LayerMask.NameToLayer( "Ladders" );
 
             this.shieldCollider = this.GetComponent<SphereCollider>();
 
-            if ( this.defaultSoundHolder == null )
+            if ( this.DefaultSoundHolder == null )
             {
-                this.defaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.BroMax ) as BroMax ).boomerang.soundHolder;
+                this.DefaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.BroMax ) as BroMax ).boomerang.soundHolder;
             }
 
             this.soundVolume = 0.09f;
@@ -91,9 +91,9 @@ namespace Captain_Ameribro_Mod
             if ( shieldUnitBounce == null )
             {
                 shieldUnitBounce = new AudioClip[3];
-                shieldUnitBounce[0] = ResourcesController.GetAudioClip( soundPath, "special1.wav" );
-                shieldUnitBounce[1] = ResourcesController.GetAudioClip( soundPath, "special2.wav" );
-                shieldUnitBounce[2] = ResourcesController.GetAudioClip( soundPath, "special3.wav" );
+                shieldUnitBounce[0] = ResourcesController.GetAudioClip( SoundPath, "special1.wav" );
+                shieldUnitBounce[1] = ResourcesController.GetAudioClip( SoundPath, "special2.wav" );
+                shieldUnitBounce[2] = ResourcesController.GetAudioClip( SoundPath, "special3.wav" );
             }
         }
 

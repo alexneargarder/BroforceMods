@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.Loggers;
-using System.IO;
-using System.Reflection;
-using UnityEngine;
-using RocketLib;
 using HarmonyLib;
+using RocketLib;
+using UnityEngine;
 
 namespace Furibrosa
 {
@@ -69,7 +69,7 @@ namespace Furibrosa
         protected bool isInterpolating = false;
 
         // Special
-        static protected WarRig warRigPrefab;
+        protected static WarRig warRigPrefab;
         protected WarRig currentWarRig;
         public bool holdingSpecial = false;
         public float holdingSpecialTime = 0f;
@@ -83,9 +83,9 @@ namespace Furibrosa
 
         public override void PreloadAssets()
         {
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            CustomHero.PreloadSprites( directoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" } );
-            CustomHero.PreloadSounds( Path.Combine( directoryPath, "sounds" ), new List<string> { "crossbowShot1.wav", "crossbowShot2.wav", "crossbowShot3.wav", "crossbowShot4.wav", "flareShot1.wav", "flareShot2.wav", "flareShot3.wav", "flareShot4.wav", "charged.wav", "weaponSwap.wav", "meleeSwing1.wav", "meleeSwing2.wav", "meleeSwing3.wav", "vehicleIdleLoop.wav", "vehicleBoost.wav", "vehicleHornMedium.wav", "vehicleHornLong.wav", "vehicleHit1.wav", "vehicleHit2.wav", "vehicleHit3.wav", "harpoon.wav" } );
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" } );
+
+            CustomHero.PreloadSounds( SoundPath, new List<string> { "crossbowShot1.wav", "crossbowShot2.wav", "crossbowShot3.wav", "crossbowShot4.wav", "flareShot1.wav", "flareShot2.wav", "flareShot3.wav", "flareShot4.wav", "charged.wav", "weaponSwap.wav", "meleeSwing1.wav", "meleeSwing2.wav", "meleeSwing3.wav", "vehicleIdleLoop.wav", "vehicleBoost.wav", "vehicleHornMedium.wav", "vehicleHornLong.wav", "vehicleHit1.wav", "vehicleHit2.wav", "vehicleHit3.wav", "harpoon.wav" } );
         }
 
         protected override void Start()
@@ -94,18 +94,18 @@ namespace Furibrosa
 
             this.meleeType = MeleeType.Disembowel;
 
-            this.crossbowMat = ResourcesController.GetMaterial( Path.Combine( directoryPath, "gunSpriteCrossbow.png" ) );
+            this.crossbowMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbow.png" ) );
             this.crossbowNormalMat = this.crossbowMat;
-            this.crossbowHoldingMat = ResourcesController.GetMaterial( Path.Combine( directoryPath, "gunSpriteCrossbowHolding.png" ) );
+            this.crossbowHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbowHolding.png" ) );
 
-            this.flareGunMat = ResourcesController.GetMaterial( Path.Combine( directoryPath, "gunSpriteFlareGun.png" ) );
+            this.flareGunMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGun.png" ) );
             this.flareGunNormalMat = this.flareGunMat;
-            this.flareGunHoldingMat = ResourcesController.GetMaterial( Path.Combine( directoryPath, "gunSpriteFlareGunHolding.png" ) );
+            this.flareGunHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGunHolding.png" ) );
 
             this.gunSprite.gameObject.layer = 19;
             this.gunSprite.meshRender.material = this.crossbowMat;
 
-            this.originalSpecialMat = ResourcesController.GetMaterial( directoryPath, "special.png" );
+            this.originalSpecialMat = ResourcesController.GetMaterial( DirectoryPath, "special.png" );
 
             if ( boltPrefab == null )
             {
@@ -144,7 +144,7 @@ namespace Furibrosa
             holdingArm = new GameObject( "FuribrosaArm", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
             holdingArm.transform.parent = this.transform;
             holdingArm.gameObject.SetActive( false );
-            holdingArm.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteHolding.png" );
+            holdingArm.material = ResourcesController.GetMaterial( DirectoryPath, "gunSpriteHolding.png" );
             SpriteSM holdingArmSprite = holdingArm.gameObject.GetComponent<SpriteSM>();
             holdingArmSprite.RecalcTexture();
             holdingArmSprite.SetTextureDefaults();
@@ -209,27 +209,26 @@ namespace Furibrosa
         public override void AfterPrefabSetup()
         {
             // Load Audio
-            string soundPath = Path.Combine( directoryPath, "sounds" );
             this.crossbowSounds = new AudioClip[4];
-            this.crossbowSounds[0] = ResourcesController.GetAudioClip( soundPath, "crossbowShot1.wav" );
-            this.crossbowSounds[1] = ResourcesController.GetAudioClip( soundPath, "crossbowShot2.wav" );
-            this.crossbowSounds[2] = ResourcesController.GetAudioClip( soundPath, "crossbowShot3.wav" );
-            this.crossbowSounds[3] = ResourcesController.GetAudioClip( soundPath, "crossbowShot4.wav" );
+            this.crossbowSounds[0] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot1.wav" );
+            this.crossbowSounds[1] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot2.wav" );
+            this.crossbowSounds[2] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot3.wav" );
+            this.crossbowSounds[3] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot4.wav" );
 
             this.flareSounds = new AudioClip[4];
-            this.flareSounds[0] = ResourcesController.GetAudioClip( soundPath, "flareShot1.wav" );
-            this.flareSounds[1] = ResourcesController.GetAudioClip( soundPath, "flareShot2.wav" );
-            this.flareSounds[2] = ResourcesController.GetAudioClip( soundPath, "flareShot3.wav" );
-            this.flareSounds[3] = ResourcesController.GetAudioClip( soundPath, "flareShot4.wav" );
+            this.flareSounds[0] = ResourcesController.GetAudioClip( SoundPath, "flareShot1.wav" );
+            this.flareSounds[1] = ResourcesController.GetAudioClip( SoundPath, "flareShot2.wav" );
+            this.flareSounds[2] = ResourcesController.GetAudioClip( SoundPath, "flareShot3.wav" );
+            this.flareSounds[3] = ResourcesController.GetAudioClip( SoundPath, "flareShot4.wav" );
 
-            this.chargeSound = ResourcesController.GetAudioClip( soundPath, "charged.wav" );
+            this.chargeSound = ResourcesController.GetAudioClip( SoundPath, "charged.wav" );
 
-            this.swapSound = ResourcesController.GetAudioClip( soundPath, "weaponSwap.wav" );
+            this.swapSound = ResourcesController.GetAudioClip( SoundPath, "weaponSwap.wav" );
 
             this.meleeSwingSounds = new AudioClip[3];
-            this.meleeSwingSounds[0] = ResourcesController.GetAudioClip( soundPath, "meleeSwing1.wav" );
-            this.meleeSwingSounds[1] = ResourcesController.GetAudioClip( soundPath, "meleeSwing2.wav" );
-            this.meleeSwingSounds[2] = ResourcesController.GetAudioClip( soundPath, "meleeSwing3.wav" );
+            this.meleeSwingSounds[0] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing1.wav" );
+            this.meleeSwingSounds[1] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing2.wav" );
+            this.meleeSwingSounds[2] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing3.wav" );
         }
 
         protected override void Update()
@@ -308,9 +307,9 @@ namespace Furibrosa
             {
                 this.holdingXOffset = Mathf.Lerp( this.holdingXOffset, this.targetHoldingXOffset, Time.deltaTime * this.interpolationSpeed );
                 this.holdingYOffset = Mathf.Lerp( this.holdingYOffset, this.targetHoldingYOffset, Time.deltaTime * this.interpolationSpeed );
-                
+
                 // Check if we're close enough to stop interpolating
-                if ( Mathf.Abs( this.holdingXOffset - this.targetHoldingXOffset ) < 0.01f && 
+                if ( Mathf.Abs( this.holdingXOffset - this.targetHoldingXOffset ) < 0.01f &&
                      Mathf.Abs( this.holdingYOffset - this.targetHoldingYOffset ) < 0.01f )
                 {
                     this.holdingXOffset = this.targetHoldingXOffset;
@@ -367,7 +366,7 @@ namespace Furibrosa
         {
             GUILayout.Space( 10 );
             // Only display tooltip if it's currently unset (otherwise we'll display BroMaker's tooltips
-            switchWeaponKey.OnGUI( out _, (GUI.tooltip == string.Empty) );
+            switchWeaponKey.OnGUI( out _, ( GUI.tooltip == string.Empty ) );
             GUILayout.Space( 10 );
 
             if ( doubleTapSwitch != ( doubleTapSwitch = GUILayout.Toggle( doubleTapSwitch, "Double Tap Down to Switch Weapons" ) ) )

@@ -25,11 +25,11 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( !this.RanSetup )
             {
-                this.spriteLowerLeftPixel = new Vector2( 0, 32 );
-                this.spritePixelDimensions = new Vector2( 32, 32 );
-                this.spriteWidth = 22;
-                this.spriteHeight = 22;
-                this.spriteOffset = new Vector3( 0, 5, 0 );
+                this.SpriteLowerLeftPixel = new Vector2( 0, 32 );
+                this.SpritePixelDimensions = new Vector2( 32, 32 );
+                this.SpriteWidth = 22;
+                this.SpriteHeight = 22;
+                this.SpriteOffset = new Vector3( 0, 5, 0 );
             }
 
             this.projectileSize = 8f;
@@ -45,9 +45,9 @@ namespace Drunken_Broster.MeleeItems
         {
             base.PrefabSetup();
 
-            this.pulseSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_pulse", 2 );
+            this.pulseSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_pulse", 2 );
 
-            this.burstSounds = ResourcesController.GetAudioClipArray( soundPath, "egg_burst", 3 );
+            this.burstSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_burst", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
@@ -113,7 +113,7 @@ namespace Drunken_Broster.MeleeItems
                 this.frame = 0;
                 ++this.cycle;
             }
-            this.sprite.SetLowerLeftPixel_X( 32f * this.frame );
+            this.Sprite.SetLowerLeftPixel_X( 32f * this.frame );
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )

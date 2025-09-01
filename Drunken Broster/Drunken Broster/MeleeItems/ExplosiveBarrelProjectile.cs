@@ -15,8 +15,8 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( this.sprite == null )
             {
-                this.spriteLowerLeftPixel = new Vector2( 0, 16 );
-                this.spritePixelDimensions = new Vector2( 16, 16 );
+                this.SpriteLowerLeftPixel = new Vector2( 0, 16 );
+                this.SpritePixelDimensions = new Vector2( 16, 16 );
                 this.spriteWidth = 16f;
                 this.spriteHeight = 16f;
             }
@@ -35,7 +35,7 @@ namespace Drunken_Broster.MeleeItems
             this.fire3 = explosiveBarrel.fire3;
             this.soundHolder.deathSounds = explosiveBarrel.soundHolder.deathSounds;
 
-            this.bounceSounds = ResourcesController.GetAudioClipArray( soundPath, "barrelBounce", 1 );
+            this.bounceSounds = ResourcesController.GetAudioClipArray( SoundPath, "barrelBounce", 1 );
         }
 
         protected override bool Update()

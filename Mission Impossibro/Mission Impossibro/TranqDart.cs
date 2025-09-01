@@ -8,8 +8,8 @@ namespace Mission_Impossibro
     {
         protected override void Awake()
         {
-            this.spriteWidth = 10;
-            this.spriteHeight = 10;
+            this.SpriteWidth = 10;
+            this.SpriteHeight = 10;
 
             base.Awake();
 

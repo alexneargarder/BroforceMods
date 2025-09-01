@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using BroMakerLib;
-using BroMakerLib.CustomObjects.Bros;
-using BroMakerLib.Loggers;
 using System.IO;
 using System.Reflection;
-using UnityEngine;
-using System.Net;
+using BroMakerLib;
+using BroMakerLib.CustomObjects.Bros;
+using BroMakerLib.CustomObjects.Projectiles;
 using HarmonyLib;
 using Rogueforce;
-using Newtonsoft.Json;
-using BroMakerLib.CustomObjects.Projectiles;
+using UnityEngine;
 
 namespace RJBrocready
 {
@@ -57,8 +54,8 @@ namespace RJBrocready
         protected float MonsterFormCounter = 0f;
         protected const float MaxMonsterFormTime = 3f;
         protected const float MaxMonsterFormTimeReduced = 0.2f;
-        protected float spriteOffsetX = 0f;
-        protected float spriteOffsetY = 0f;
+        protected float SpriteOffsetX = 0f;
+        protected float SpriteOffsetY = 0f;
         protected bool wasAnticipatingWallClimb = false;
         protected bool currentlyAnticipatingWallClimb = false;
         public AudioClip[] thingTransformSounds;
@@ -130,17 +127,15 @@ namespace RJBrocready
         #region General
         public override void PreloadAssets()
         {
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            CustomHero.PreloadSprites( directoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png" } );
-            CustomHero.PreloadSprites( Path.Combine( directoryPath, "projectiles" ), new List<string> { "Dynamite.png" } );
-            CustomHero.PreloadSounds( Path.Combine( directoryPath, "sounds" ), new List<string>() { "dynamiteExplosion.wav", "flameStart.wav", "flameLoop.wav", "fireAxe1.wav", "fireAxe2.wav", "fireAxe3.wav", "axeHit1.wav", "axeHit2.wav", "axeHit3.wav" } );
-            CustomHero.PreloadSounds( Path.Combine( Path.Combine( directoryPath, "sounds" ), "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "whipStart3.wav", "KnifeStab2.wav", "tentacleHit1.wav", "tentacleHit2.wav", "tentacleHit3.wav", "tentacleHitTerrain1.wav", "tentacleHitTerrain2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "bite2.wav", "bite3.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "tentacle.png", "tentacleLine.png", "thingSprite.png", "thingGunSprite.png", "thingSpecial.png", "armlessSprite.png", "thingAvatar.png", "thingMonsterSprite.png" } );
+            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "Dynamite.png" } );
+            CustomHero.PreloadSounds( SoundPath, new List<string>() { "dynamiteExplosion.wav", "flameStart.wav", "flameLoop.wav", "fireAxe1.wav", "fireAxe2.wav", "fireAxe3.wav", "axeHit1.wav", "axeHit2.wav", "axeHit3.wav" } );
+            CustomHero.PreloadSounds( Path.Combine( SoundPath, "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "whipStart3.wav", "KnifeStab2.wav", "tentacleHit1.wav", "tentacleHit2.wav", "tentacleHit3.wav", "tentacleHitTerrain1.wav", "tentacleHitTerrain2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "bite2.wav", "bite3.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
         }
 
         protected override void Start()
         {
             base.Start();
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
 
             BaBroracus bro = HeroController.GetHeroPrefab( HeroType.BaBroracus ) as BaBroracus;
             projectiles = new Projectile[] { bro.projectile, bro.projectile2, bro.projectile3 };
@@ -150,7 +145,7 @@ namespace RJBrocready
 
             tentacleWhipSprite = new GameObject( "TentacleWhip", new Type[] { typeof( MeshRenderer ), typeof( MeshFilter ), typeof( SpriteSM ) } ).GetComponent<SpriteSM>();
             MeshRenderer renderer = tentacleWhipSprite.GetComponent<MeshRenderer>();
-            renderer.material = ResourcesController.GetMaterial( directoryPath, "tentacle.png" );
+            renderer.material = ResourcesController.GetMaterial( DirectoryPath, "tentacle.png" );
             renderer.material.mainTexture.wrapMode = TextureWrapMode.Clamp;
             tentacleWhipSprite.transform.parent = this.transform;
             tentacleWhipSprite.lowerLeftPixel = new Vector2( 0, 16 );
@@ -164,7 +159,7 @@ namespace RJBrocready
 
             tentacleLine = new GameObject( "TentacleLine", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             tentacleLine.transform.parent = this.transform;
-            tentacleLine.material = ResourcesController.GetMaterial( directoryPath, "tentacleLine.png" );
+            tentacleLine.material = ResourcesController.GetMaterial( DirectoryPath, "tentacleLine.png" );
             tentacleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             this.tentacleImpaler = new GameObject( "TentacleImpaler" ).transform;
@@ -174,12 +169,12 @@ namespace RJBrocready
             this.currentMeleeType = MeleeType.Disembowel;
             this.meleeType = MeleeType.Disembowel;
 
-            this.thingMaterial = ResourcesController.GetMaterial( directoryPath, "thingSprite.png" );
-            this.thingGunMaterial = ResourcesController.GetMaterial( directoryPath, "thingGunSprite.png" );
-            this.thingSpecialIconMaterial = ResourcesController.GetMaterial( directoryPath, "thingSpecial.png" );
-            this.thingArmlessMaterial = ResourcesController.GetMaterial( directoryPath, "armlessSprite.png" );
-            this.thingAvatarMaterial = ResourcesController.GetMaterial( directoryPath, "thingAvatar.png" );
-            this.thingMonsterFormMaterial = ResourcesController.GetMaterial( directoryPath, "thingMonsterSprite.png" );
+            this.thingMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingSprite.png" );
+            this.thingGunMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingGunSprite.png" );
+            this.thingSpecialIconMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingSpecial.png" );
+            this.thingArmlessMaterial = ResourcesController.GetMaterial( DirectoryPath, "armlessSprite.png" );
+            this.thingAvatarMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingAvatar.png" );
+            this.thingMonsterFormMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingMonsterSprite.png" );
 
             this.flameSource = base.gameObject.AddComponent<AudioSource>();
             this.flameSource.rolloffMode = AudioRolloffMode.Linear;
@@ -203,21 +198,20 @@ namespace RJBrocready
 
         public override void AfterPrefabSetup()
         {
-            string soundPath = Path.Combine( directoryPath, "sounds" );
-            string thingSoundPath = Path.Combine( soundPath, "ThingSounds" );
+            string thingSoundPath = Path.Combine( SoundPath, "ThingSounds" );
 
-            this.flameStart = ResourcesController.GetAudioClip( soundPath, "flameStart.wav" );
-            this.flameLoop = ResourcesController.GetAudioClip( soundPath, "flameLoop.wav" );
+            this.flameStart = ResourcesController.GetAudioClip( SoundPath, "flameStart.wav" );
+            this.flameLoop = ResourcesController.GetAudioClip( SoundPath, "flameLoop.wav" );
 
             this.fireAxeSound = new AudioClip[3];
-            this.fireAxeSound[0] = ResourcesController.GetAudioClip( soundPath, "fireAxe1.wav" );
-            this.fireAxeSound[1] = ResourcesController.GetAudioClip( soundPath, "fireAxe2.wav" );
-            this.fireAxeSound[2] = ResourcesController.GetAudioClip( soundPath, "fireAxe3.wav" );
+            this.fireAxeSound[0] = ResourcesController.GetAudioClip( SoundPath, "fireAxe1.wav" );
+            this.fireAxeSound[1] = ResourcesController.GetAudioClip( SoundPath, "fireAxe2.wav" );
+            this.fireAxeSound[2] = ResourcesController.GetAudioClip( SoundPath, "fireAxe3.wav" );
 
             this.axeHitSound = new AudioClip[3];
-            this.axeHitSound[0] = ResourcesController.GetAudioClip( soundPath, "axeHit1.wav" );
-            this.axeHitSound[1] = ResourcesController.GetAudioClip( soundPath, "axeHit2.wav" );
-            this.axeHitSound[2] = ResourcesController.GetAudioClip( soundPath, "axeHit3.wav" );
+            this.axeHitSound[0] = ResourcesController.GetAudioClip( SoundPath, "axeHit1.wav" );
+            this.axeHitSound[1] = ResourcesController.GetAudioClip( SoundPath, "axeHit2.wav" );
+            this.axeHitSound[2] = ResourcesController.GetAudioClip( SoundPath, "axeHit3.wav" );
 
             this.thingTransformSounds = new AudioClip[3];
             this.thingTransformSounds[0] = ResourcesController.GetAudioClip( thingSoundPath, "transform1.wav" );
@@ -373,8 +367,8 @@ namespace RJBrocready
                     this.sprite.RecalcTexture();
                     this.spritePixelHeight = 32;
                     this.spritePixelWidth = 32;
-                    this.spriteOffsetX = 0f;
-                    this.spriteOffsetY = 0f;
+                    this.SpriteOffsetX = 0f;
+                    this.SpriteOffsetY = 0f;
                     this.sprite.SetLowerLeftPixel( 0f, 32f );
                     this.ActivateGun();
                     this.gunSprite.SetLowerLeftPixel( ( this.gunFrame + 12 ) * 64f, 64f );
@@ -743,7 +737,7 @@ namespace RJBrocready
 
         protected override bool TryMeleeTerrain( int offset = 0, int meleeDamage = 2 )
         {
-            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 22 + offset ), this.groundLayer ) 
+            if ( !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 4f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 22 + offset ), this.groundLayer )
                 && !Physics.Raycast( new Vector3( base.X - base.transform.localScale.x * 4f, base.Y + 12f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, (float)( 22 + offset ), this.groundLayer ) )
             {
                 return false;
@@ -919,7 +913,7 @@ namespace RJBrocready
                 }
                 else if ( base.frame > 3 && base.frame < 6 )
                 {
-                    if ( !this.meleeHasHit  )
+                    if ( !this.meleeHasHit )
                     {
                         this.MeleeAttack( false, false );
                     }
@@ -1275,8 +1269,8 @@ namespace RJBrocready
                 this.sprite.RecalcTexture();
                 this.spritePixelHeight = 32;
                 this.spritePixelWidth = 32;
-                this.spriteOffsetX = 0f;
-                this.spriteOffsetY = 0f;
+                this.SpriteOffsetX = 0f;
+                this.SpriteOffsetY = 0f;
             }
             this.sprite.SetLowerLeftPixel( 0f, 32f );
             this.ChangeFrame();
@@ -1318,8 +1312,8 @@ namespace RJBrocready
                 this.sprite.RecalcTexture();
                 this.spritePixelHeight = 64;
                 this.spritePixelWidth = 64;
-                this.spriteOffsetX = 16f;
-                this.spriteOffsetY = 16f;
+                this.SpriteOffsetX = 16f;
+                this.SpriteOffsetY = 16f;
             }
             this.ChangeFrame();
         }
@@ -1344,8 +1338,8 @@ namespace RJBrocready
             this.sprite.RecalcTexture();
             this.spritePixelHeight = 32;
             this.spritePixelWidth = 32;
-            this.spriteOffsetX = 0f;
-            this.spriteOffsetY = 0f;
+            this.SpriteOffsetX = 0f;
+            this.SpriteOffsetY = 0f;
             this.ChangeFrame();
         }
 
@@ -1379,7 +1373,7 @@ namespace RJBrocready
 
         protected override void SetSpriteOffset( float xOffset, float yOffset )
         {
-            base.SetSpriteOffset( this.spriteOffsetX + xOffset, this.spriteOffsetY + yOffset );
+            base.SetSpriteOffset( this.SpriteOffsetX + xOffset, this.SpriteOffsetY + yOffset );
         }
 
         protected override void AnimateWallAnticipation()

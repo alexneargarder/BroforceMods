@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
@@ -170,13 +169,13 @@ namespace Drunken_Broster
 
             // Load sprites
             this.normalSprite = base.GetComponent<Renderer>().material;
-            this.drunkSprite = ResourcesController.GetMaterial( directoryPath, "drunkSprite.png" );
+            this.drunkSprite = ResourcesController.GetMaterial( DirectoryPath, "drunkSprite.png" );
 
             // Setup melee gunsprite
             gunSpriteMelee = new GameObject( "GunSpriteMelee", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
             gunSpriteMelee.transform.parent = this.transform;
             gunSpriteMelee.gameObject.SetActive( false );
-            gunSpriteMelee.material = ResourcesController.GetMaterial( directoryPath, "gunSpriteMelee.png" );
+            gunSpriteMelee.material = ResourcesController.GetMaterial( DirectoryPath, "gunSpriteMelee.png" );
             gunSpriteMeleeSprite = gunSpriteMelee.gameObject.GetComponent<SpriteSM>();
             gunSpriteMeleeSprite.RecalcTexture();
             gunSpriteMeleeSprite.SetTextureDefaults();
@@ -194,7 +193,7 @@ namespace Drunken_Broster
             this.originalGunSprite = this.gunSprite;
 
             // Load melee sprite for grabbing and throwing animations
-            this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( directoryPath, "meleeSpriteGrabThrowing.png" );
+            this.meleeSpriteGrabThrowing = ResourcesController.GetMaterial( DirectoryPath, "meleeSpriteGrabThrowing.png" );
 
             // Setup throwables
             tireProjectile = CustomGrenade.CreatePrefab<TireProjectile>();
@@ -460,17 +459,15 @@ namespace Drunken_Broster
             this.fire3 = explosiveBarrel.fire3;
             this.barrelExplodeSounds = explosiveBarrel.soundHolder.deathSounds;
 
-            string soundPath = Path.Combine( this.directoryPath, "sounds" );
+            this.soundHolder.attack3Sounds = ResourcesController.GetAudioClipArray( SoundPath, "kungFu", 13 );
 
-            this.soundHolder.attack3Sounds = ResourcesController.GetAudioClipArray( soundPath, "kungFu", 13 );
+            this.soundHolder.attack4Sounds = ResourcesController.GetAudioClipArray( SoundPath, "slide_", 2 );
 
-            this.soundHolder.attack4Sounds = ResourcesController.GetAudioClipArray( soundPath, "slide_", 2 );
+            this.slurp = ResourcesController.GetAudioClip( SoundPath, "slurp.wav" );
 
-            this.slurp = ResourcesController.GetAudioClip( soundPath, "slurp.wav" );
+            this.soundHolder.meleeHitSound = ResourcesController.GetAudioClipArray( SoundPath, "meleeHitBlunt", 2 );
 
-            this.soundHolder.meleeHitSound = ResourcesController.GetAudioClipArray( soundPath, "meleeHitBlunt", 2 );
-
-            this.soccerKickSounds = ResourcesController.GetAudioClipArray( soundPath, "soccerBounce", 2, 2 );
+            this.soccerKickSounds = ResourcesController.GetAudioClipArray( SoundPath, "soccerBounce", 2, 2 );
         }
         #endregion
 
