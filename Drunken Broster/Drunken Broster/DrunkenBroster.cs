@@ -216,9 +216,6 @@ namespace Drunken_Broster
 
             // TODO: remove this
             DrunkenBroster.currentBroster = this;
-
-            // TODO: remove this
-            this.doRollOnLand = true;
         }
 
         protected override void Update()
@@ -326,18 +323,6 @@ namespace Drunken_Broster
             this.RunRolling();
         }
 
-        // TODO: remove this
-        public static void makeTextBox( string label, ref string text, ref float val )
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label( label );
-            text = GUILayout.TextField( text );
-            GUILayout.EndHorizontal();
-
-            float.TryParse( text, out val );
-        }
-
-
         public override void UIOptions()
         {
             // Camera tilt settings
@@ -410,20 +395,10 @@ namespace Drunken_Broster
             debugKey.OnGUI( out _, true );
             GUILayout.Space( 10 );
 
-            makeTextBox( "offset", ref currentYOffsetString, ref currentYOffset );
-
-            //DrunkenBroster.freezeProjectile = GUILayout.Toggle( DrunkenBroster.freezeProjectile, "Freeze projectile" );
-            //if ( GUILayout.Button( "Spawn Gibs", GUILayout.Width( 100 ) ) )
-            //{
-            //    DrunkenBroster.spawnGibs = true;
-            //}
-
             if ( GUILayout.Button( "Print Debug" ) )
             {
                 PrintDebug();
             }
-
-
         }
 
         // TODO: remove this

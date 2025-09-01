@@ -47,8 +47,6 @@ namespace Drunken_Broster.MeleeItems
 
         protected void RunBarrelEffects()
         {
-            // TODO: remove this
-            //RocketLib.Utils.DrawDebug.DrawCrosshair( "barrel crosshair", new Vector3( base.X, base.Y + 8f, 0f ), 5f, Color.red );
             if ( this.explosionCounter > 0f )
             {
                 this.explosionCounter -= this.t;
