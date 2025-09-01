@@ -33,16 +33,16 @@ namespace Drunken_Broster.MeleeItems
         {
             // Load death sounds
             this.soundHolder.deathSounds = new AudioClip[2];
-            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "coconutDeath1.wav" );
-            this.soundHolder.deathSounds[1] = ResourcesController.GetAudioClip( soundPath, "coconutDeath2.wav" );
+            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( SoundPath, "coconutDeath1.wav" );
+            this.soundHolder.deathSounds[1] = ResourcesController.GetAudioClip( SoundPath, "coconutDeath2.wav" );
 
             // Load hit sounds
             this.soundHolder.hitSounds = new AudioClip[5];
-            this.soundHolder.hitSounds[0] = ResourcesController.GetAudioClip( soundPath, "coconutHit1.wav" );
-            this.soundHolder.hitSounds[1] = ResourcesController.GetAudioClip( soundPath, "coconutHit2.wav" );
-            this.soundHolder.hitSounds[2] = ResourcesController.GetAudioClip( soundPath, "coconutHit3.wav" );
-            this.soundHolder.hitSounds[3] = ResourcesController.GetAudioClip( soundPath, "coconutHit4.wav" );
-            this.soundHolder.hitSounds[4] = ResourcesController.GetAudioClip( soundPath, "coconutHit5.wav" );
+            this.soundHolder.hitSounds[0] = ResourcesController.GetAudioClip( SoundPath, "coconutHit1.wav" );
+            this.soundHolder.hitSounds[1] = ResourcesController.GetAudioClip( SoundPath, "coconutHit2.wav" );
+            this.soundHolder.hitSounds[2] = ResourcesController.GetAudioClip( SoundPath, "coconutHit3.wav" );
+            this.soundHolder.hitSounds[3] = ResourcesController.GetAudioClip( SoundPath, "coconutHit4.wav" );
+            this.soundHolder.hitSounds[4] = ResourcesController.GetAudioClip( SoundPath, "coconutHit5.wav" );
         }
 
         protected override void Bounce( bool bounceX, bool bounceY )

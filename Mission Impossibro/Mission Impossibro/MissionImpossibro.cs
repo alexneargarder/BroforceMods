@@ -1,15 +1,10 @@
-﻿using BroMakerLib;
+﻿using System;
+using System.Collections.Generic;
+using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
-using BroMakerLib.Loggers;
 using HarmonyLib;
-using Newtonsoft.Json;
 using RocketLib;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.IO;
-using System.Reflection;
 using UnityEngine;
 using ResourcesController = BroMakerLib.ResourcesController;
 
@@ -78,8 +73,6 @@ namespace Mission_Impossibro
         {
             base.Awake();
 
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-
             projectile = CustomProjectile.CreatePrefab<TranqDart>();
 
             explosivePrefab = CustomSachelPack.CreatePrefab<Explosive>();
@@ -88,7 +81,7 @@ namespace Mission_Impossibro
 
             grappleLine = new GameObject( "GrappleLine", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
             grappleLine.transform.parent = this.transform;
-            grappleLine.material = ResourcesController.GetMaterial( directoryPath, "line.png" );
+            grappleLine.material = ResourcesController.GetMaterial( DirectoryPath, "line.png" );
             grappleLine.material.mainTexture.wrapMode = TextureWrapMode.Repeat;
 
             this.meleeType = MeleeType.Punch;
@@ -101,39 +94,35 @@ namespace Mission_Impossibro
 
         public override void PreloadAssets()
         {
-            string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
-            CustomHero.PreloadSprites( directoryPath, new List<string> { "spriteStealth.png", "gunSpriteStealth.png", "avatar.png", "avatarStealth.png" } );
-            CustomHero.PreloadSprites( Path.Combine( directoryPath, "projectiles" ), new List<string> { "TranqDart.png", "Explosive.png", "ExplosiveGum.png" } );
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "spriteStealth.png", "gunSpriteStealth.png", "avatar.png", "avatarStealth.png" } );
+            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "TranqDart.png", "Explosive.png", "ExplosiveGum.png" } );
 
-            directoryPath = Path.Combine( directoryPath, "sounds" );
-            CustomHero.PreloadSounds( directoryPath, new List<string> { "gun1.wav", "gun2.wav", "gun3.wav", "gun4.wav", "gun5.wav", "gun6.wav", "gun7.wav", "Click_Metal1.wav", "Click_Metal2.wav", "Click_Metal3.wav", "Click_Metal5.wav", "Click_Metal6.wav" } );
+            CustomHero.PreloadSounds( SoundPath, new List<string> { "gun1.wav", "gun2.wav", "gun3.wav", "gun4.wav", "gun5.wav", "gun6.wav", "gun7.wav", "Click_Metal1.wav", "Click_Metal2.wav", "Click_Metal3.wav", "Click_Metal5.wav", "Click_Metal6.wav" } );
         }
 
         public override void AfterPrefabSetup()
         {
-            string soundPath = Path.Combine( Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location ), "sounds" );
-
             // Load sounds
             if ( tranqGunSounds == null )
             {
                 tranqGunSounds = new AudioClip[7];
-                tranqGunSounds[0] = ResourcesController.GetAudioClip( soundPath, "gun1.wav" );
-                tranqGunSounds[1] = ResourcesController.GetAudioClip( soundPath, "gun2.wav" );
-                tranqGunSounds[2] = ResourcesController.GetAudioClip( soundPath, "gun3.wav" );
-                tranqGunSounds[3] = ResourcesController.GetAudioClip( soundPath, "gun4.wav" );
-                tranqGunSounds[4] = ResourcesController.GetAudioClip( soundPath, "gun5.wav" );
-                tranqGunSounds[5] = ResourcesController.GetAudioClip( soundPath, "gun6.wav" );
-                tranqGunSounds[6] = ResourcesController.GetAudioClip( soundPath, "gun7.wav" );
+                tranqGunSounds[0] = ResourcesController.GetAudioClip( SoundPath, "gun1.wav" );
+                tranqGunSounds[1] = ResourcesController.GetAudioClip( SoundPath, "gun2.wav" );
+                tranqGunSounds[2] = ResourcesController.GetAudioClip( SoundPath, "gun3.wav" );
+                tranqGunSounds[3] = ResourcesController.GetAudioClip( SoundPath, "gun4.wav" );
+                tranqGunSounds[4] = ResourcesController.GetAudioClip( SoundPath, "gun5.wav" );
+                tranqGunSounds[5] = ResourcesController.GetAudioClip( SoundPath, "gun6.wav" );
+                tranqGunSounds[6] = ResourcesController.GetAudioClip( SoundPath, "gun7.wav" );
             }
 
             if ( detonatorSound == null )
             {
                 detonatorSound = new AudioClip[5];
-                detonatorSound[0] = ResourcesController.GetAudioClip( soundPath, "Click_Metal1.wav" );
-                detonatorSound[1] = ResourcesController.GetAudioClip( soundPath, "Click_Metal2.wav" );
-                detonatorSound[2] = ResourcesController.GetAudioClip( soundPath, "Click_Metal3.wav" );
-                detonatorSound[3] = ResourcesController.GetAudioClip( soundPath, "Click_Metal5.wav" );
-                detonatorSound[4] = ResourcesController.GetAudioClip( soundPath, "Click_Metal6.wav" );
+                detonatorSound[0] = ResourcesController.GetAudioClip( SoundPath, "Click_Metal1.wav" );
+                detonatorSound[1] = ResourcesController.GetAudioClip( SoundPath, "Click_Metal2.wav" );
+                detonatorSound[2] = ResourcesController.GetAudioClip( SoundPath, "Click_Metal3.wav" );
+                detonatorSound[3] = ResourcesController.GetAudioClip( SoundPath, "Click_Metal5.wav" );
+                detonatorSound[4] = ResourcesController.GetAudioClip( SoundPath, "Click_Metal6.wav" );
             }
         }
 
@@ -151,7 +140,7 @@ namespace Mission_Impossibro
             {
                 this.SaveSettings();
             }
-            
+
             if ( MissionImpossibro.PressKeyToToggleGrapple != ( MissionImpossibro.PressKeyToToggleGrapple = GUILayout.Toggle( MissionImpossibro.PressKeyToToggleGrapple, "Toggle grapple with custom keybinding" ) ) )
             {
                 this.SaveSettings();
@@ -163,13 +152,13 @@ namespace Mission_Impossibro
             base.Start();
 
             this.normalMaterial = this.material;
-            this.stealthMaterial = ResourcesController.GetMaterial( directoryPath, "spriteStealth.png" );
+            this.stealthMaterial = ResourcesController.GetMaterial( DirectoryPath, "spriteStealth.png" );
 
             this.normalGunMaterial = this.gunSprite.meshRender.material;
-            this.stealthGunMaterial = ResourcesController.GetMaterial( directoryPath, "gunSpriteStealth.png" );
+            this.stealthGunMaterial = ResourcesController.GetMaterial( DirectoryPath, "gunSpriteStealth.png" );
 
-            this.normalAvatarMaterial = ResourcesController.GetMaterial( directoryPath, "avatar.png" );
-            this.stealthAvatarMaterial = ResourcesController.GetMaterial( directoryPath, "avatarStealth.png" );
+            this.normalAvatarMaterial = ResourcesController.GetMaterial( DirectoryPath, "avatar.png" );
+            this.stealthAvatarMaterial = ResourcesController.GetMaterial( DirectoryPath, "avatarStealth.png" );
         }
 
         protected override void Update()
@@ -241,7 +230,7 @@ namespace Mission_Impossibro
                     DetachGrapple();
                 }
                 // Switch to climbing along ceiling if close enough and holding left or right
-                else if ( (this.right || this.left) && this.CloseEnoughToClimbAlongCeiling() )
+                else if ( ( this.right || this.left ) && this.CloseEnoughToClimbAlongCeiling() )
                 {
                     this.DetachGrapple();
                     this.StartHanging();
@@ -405,7 +394,7 @@ namespace Mission_Impossibro
 
         protected override void ChangeFrame()
         {
-            if ( !( this.grappleAttached || this.exitingGrapple) && !( this.IsHangingOneArmed() && this.usingSpecial ) )
+            if ( !( this.grappleAttached || this.exitingGrapple ) && !( this.IsHangingOneArmed() && this.usingSpecial ) )
             {
                 base.ChangeFrame();
             }

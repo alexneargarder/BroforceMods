@@ -10,9 +10,9 @@ namespace Mission_Impossibro
 
         protected override void Awake()
         {
-            if ( defaultSoundHolder == null )
+            if ( DefaultSoundHolder == null )
             {
-                this.defaultSoundHolder = HeroController.GetHeroPrefab( HeroType.McBrover ).projectile.soundHolder;
+                this.DefaultSoundHolder = HeroController.GetHeroPrefab( HeroType.McBrover ).projectile.soundHolder;
             }
 
             base.Awake();

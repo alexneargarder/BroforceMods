@@ -13,8 +13,8 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( !this.RanSetup )
             {
-                this.spriteWidth = 12f;
-                this.spriteHeight = 12f;
+                this.SpriteWidth = 12f;
+                this.SpriteHeight = 12f;
             }
 
             this.projectileSize = 12f;

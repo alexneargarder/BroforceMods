@@ -1,8 +1,6 @@
-﻿using UnityEngine;
-using BroMakerLib;
-using System.Reflection;
-using System.IO;
+﻿using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
+using UnityEngine;
 
 namespace RJBrocready
 {
@@ -17,10 +15,10 @@ namespace RJBrocready
 
         protected override void Awake()
         {
-            if ( this.defaultSoundHolder == null )
+            if ( this.DefaultSoundHolder == null )
             {
-                this.defaultSoundHolder = HeroController.GetHeroPrefab( HeroType.McBrover ).projectile.soundHolder;
-                this.spritePixelDimensions = new Vector2( 16f, 16f );
+                this.DefaultSoundHolder = HeroController.GetHeroPrefab( HeroType.McBrover ).projectile.soundHolder;
+                this.SpritePixelDimensions = new Vector2( 16f, 16f );
                 this.spriteWidth = 18;
                 this.spriteHeight = 22;
             }
@@ -44,7 +42,7 @@ namespace RJBrocready
 
         public override void PrefabSetup()
         {
-            this.explosionSound = ResourcesController.GetAudioClip( soundPath, "dynamiteExplosion.wav" );
+            this.explosionSound = ResourcesController.GetAudioClip( SoundPath, "dynamiteExplosion.wav" );
         }
 
         public override void ThrowGrenade( float XI, float YI, float newX, float newY, int _playerNum )

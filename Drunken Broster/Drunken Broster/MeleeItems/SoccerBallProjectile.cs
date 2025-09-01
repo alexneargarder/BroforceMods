@@ -9,8 +9,8 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( this.sprite == null )
             {
-                this.spriteLowerLeftPixel = new Vector2( 0, 10 );
-                this.spritePixelDimensions = new Vector2( 10, 10 );
+                this.SpriteLowerLeftPixel = new Vector2( 0, 10 );
+                this.SpritePixelDimensions = new Vector2( 10, 10 );
                 this.spriteWidth = 10f;
                 this.spriteHeight = 10f;
             }
@@ -31,9 +31,9 @@ namespace Drunken_Broster.MeleeItems
 
             // Load death sound
             this.soundHolder.deathSounds = new AudioClip[1];
-            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
+            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( SoundPath, "tireDeath.wav" );
 
-            this.bounceSounds = ResourcesController.GetAudioClipArray( soundPath, "soccerBounce", 3, 1 );
+            this.bounceSounds = ResourcesController.GetAudioClipArray( SoundPath, "soccerBounce", 3, 1 );
         }
 
         protected override void HitUnits()

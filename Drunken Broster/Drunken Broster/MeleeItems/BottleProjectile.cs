@@ -11,7 +11,7 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( !this.RanSetup )
             {
-                this.defaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
+                this.DefaultSoundHolder = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).martiniGlass.soundHolder;
             }
 
             base.Awake();

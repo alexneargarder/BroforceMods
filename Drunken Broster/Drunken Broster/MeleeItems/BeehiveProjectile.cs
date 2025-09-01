@@ -18,8 +18,8 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void Awake()
         {
-            this.spriteHeight = 14f;
-            this.spriteWidth = 14f;
+            this.SpriteHeight = 14f;
+            this.SpriteWidth = 14f;
 
             this.damage = 5;
             this.damageInternal = this.damage;
@@ -57,7 +57,7 @@ namespace Drunken_Broster.MeleeItems
         {
             base.PrefabSetup();
 
-            this.deathSounds = ResourcesController.GetAudioClipArray( soundPath, "beeHiveSmash", 3 );
+            this.deathSounds = ResourcesController.GetAudioClipArray( SoundPath, "beeHiveSmash", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )

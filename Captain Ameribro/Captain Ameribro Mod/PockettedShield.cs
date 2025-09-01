@@ -1,9 +1,9 @@
-﻿using BroMakerLib;
-using BroMakerLib.CustomObjects.Projectiles;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using BroMakerLib;
+using BroMakerLib.CustomObjects.Projectiles;
 using UnityEngine;
 
 namespace Captain_Ameribro_Mod
@@ -35,7 +35,7 @@ namespace Captain_Ameribro_Mod
             thrownShield.Setup( bro );
         }
 
-        
+
         public override void SetSpecialMaterials( BroBase bro )
         {
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );

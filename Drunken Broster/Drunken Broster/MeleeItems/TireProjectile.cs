@@ -12,8 +12,8 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( this.sprite == null )
             {
-                this.spriteLowerLeftPixel = new Vector2( 0, 16 );
-                this.spritePixelDimensions = new Vector2( 16, 16 );
+                this.SpriteLowerLeftPixel = new Vector2( 0, 16 );
+                this.SpritePixelDimensions = new Vector2( 16, 16 );
                 this.spriteWidth = 16f;
                 this.spriteHeight = 16f;
             }
@@ -32,11 +32,11 @@ namespace Drunken_Broster.MeleeItems
             base.PrefabSetup();
             // Load death sound
             this.soundHolder.deathSounds = new AudioClip[1];
-            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( soundPath, "tireDeath.wav" );
+            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( SoundPath, "tireDeath.wav" );
 
             this.bounceSounds = new AudioClip[2];
-            this.bounceSounds[0] = ResourcesController.GetAudioClip( soundPath, "soccerBounce2.wav" );
-            this.bounceSounds[1] = ResourcesController.GetAudioClip( soundPath, "soccerBounce3.wav" );
+            this.bounceSounds[0] = ResourcesController.GetAudioClip( SoundPath, "soccerBounce2.wav" );
+            this.bounceSounds[1] = ResourcesController.GetAudioClip( SoundPath, "soccerBounce3.wav" );
         }
 
         protected void CreateGib( string name, Vector2 lowerLeftPixel, Vector2 pixelDimensions, float width, float height, Vector3 localPositionOffset )
