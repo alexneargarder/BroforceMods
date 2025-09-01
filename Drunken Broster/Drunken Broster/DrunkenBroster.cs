@@ -442,7 +442,9 @@ namespace Drunken_Broster
 
         public override void PreloadAssets()
         {
-            // TODO: setup preloading assets
+            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "drunkSprite.png", "gunSpriteMelee.png", "meleeSpriteGrabThrowing.png" } );
+            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "AcidEggProjectile.png", "AlienEggProjectile.png", "BeehiveProjectile.png", "BottleProjectile.png", "CoconutProjectile.png", "CrateProjectile.png", "ExplosiveBarrelProjectile.png", "ExplosiveBarrelProjectileWarning.png", "SoccerBallProjectile.png", "TireProjectile.png" } );
+            CustomHero.PreloadSounds( SoundPath, new List<string>() { "barrelBounce0.wav", "beeHiveSmash0.wav", "beeHiveSmash1.wav", "beeHiveSmash2.wav", "coconutDeath1.wav", "coconutDeath2.wav", "coconutHit1.wav", "coconutHit2.wav", "coconutHit3.wav", "coconutHit4.wav", "coconutHit5.wav", "egg_burst0.wav", "egg_burst1.wav", "egg_burst2.wav", "egg_pulse0.wav", "egg_pulse1.wav", "kungFu0.wav", "kungFu1.wav", "kungFu10.wav", "kungFu11.wav", "kungFu12.wav", "kungFu2.wav", "kungFu3.wav", "kungFu4.wav", "kungFu5.wav", "kungFu6.wav", "kungFu7.wav", "kungFu8.wav", "kungFu9.wav", "meleeHitBlunt0.wav", "meleeHitBlunt1.wav", "slide_0.wav", "slide_1.wav", "slurp.wav", "soccerBounce1.wav", "soccerBounce2.wav", "soccerBounce3.wav", "tireDeath.wav" } );
         }
 
         public override void BeforePrefabSetup()
