@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using HarmonyLib;
-using UnityEngine;
-using UnityModManagerNet;
 using System.Reflection;
-using UnityEngine.SceneManagement;
+using HarmonyLib;
 using RocketLib;
 using RocketLib.Utils;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityModManagerNet;
 
 
 namespace Utility_Mod
@@ -22,12 +21,12 @@ namespace Utility_Mod
         public static int lastCampaignNum;
         public static Dropdown levelNum;
         public static int lastCampaignCompleted = -1;
-        
+
         // Settings Profiles UI variables
         public static int selectedProfileIndex = -1;
         public static string newProfileName = "";
         public static bool isRenamingProfile = false;
-        
+
         public static string[] levelList = new string[] { "Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6", "Level 7", "Level 8", "Level 9", "Level 10",
             "Level 11", "Level 12", "Level 13", "Level 14", "Level 15"};
 
@@ -132,7 +131,7 @@ namespace Utility_Mod
 
         #region Keybinds
         // Dictionary to store all keybindings
-        private static Dictionary<string, KeyBindingForPlayers> keybindings = new Dictionary<string, KeyBindingForPlayers>();
+        private static readonly Dictionary<string, KeyBindingForPlayers> keybindings = new Dictionary<string, KeyBindingForPlayers>();
 
         // List of all keybinding action names
         private static readonly List<string> keybindingActions = new List<string>
@@ -203,10 +202,10 @@ namespace Utility_Mod
         };
 
         // List to track which keybindings have keys assigned
-        private static List<string> activeKeybindings = new List<string>();
+        private static readonly List<string> activeKeybindings = new List<string>();
 
         // Dictionary to track which keybindings are currently being assigned
-        private static Dictionary<string, bool> keybindingsBeingAssigned = new Dictionary<string, bool>();
+        private static readonly Dictionary<string, bool> keybindingsBeingAssigned = new Dictionary<string, bool>();
         #endregion
 
         #region UMM
@@ -223,10 +222,10 @@ namespace Utility_Mod
             try
             {
                 settings = Settings.Load<Settings>( modEntry );
-                
+
                 // Check if settings were actually loaded from file
                 // If SettingsVersion is still 0, we got a fresh object (not loaded from file)
-                if (settings.SettingsVersion == 0)
+                if ( settings.SettingsVersion == 0 )
                 {
                     var settingsPath = System.IO.Path.Combine( modEntry.Path, "Settings.xml" );
                     // Settings file exists but couldn't be loaded - attempt recovery
@@ -234,7 +233,7 @@ namespace Utility_Mod
                 }
 
                 // Always ensure version is set to non-zero so it saves properly
-                if (settings.SettingsVersion == 0)
+                if ( settings.SettingsVersion == 0 )
                     settings.SettingsVersion = 1;
             }
             catch
@@ -242,9 +241,9 @@ namespace Utility_Mod
                 // Settings format changed - use recovery
                 var settingsPath = System.IO.Path.Combine( modEntry.Path, "Settings.xml" );
                 settings = RocketLib.Utils.SettingsRecovery.TryRecoverSettings<Settings>( settingsPath );
-                
+
                 // Always ensure version is set to non-zero
-                if (settings.SettingsVersion == 0)
+                if ( settings.SettingsVersion == 0 )
                     settings.SettingsVersion = 1;
             }
 
@@ -313,22 +312,22 @@ namespace Utility_Mod
         static bool OnToggle( UnityModManager.ModEntry modEntry, bool value )
         {
             enabled = value;
-            
+
             // Clean up Unity log capture when mod is disabled
             if ( !value && settings != null && settings.captureUnityLogs )
             {
                 Application.logMessageReceived -= OnUnityLogMessageReceived;
                 Log( "Unity log capture disabled (mod toggled off)" );
             }
-            
+
             return true;
         }
 
         public static void Log( String str )
         {
-            if (mod != null)
+            if ( mod != null )
             {
-                mod.Logger.Log(str);
+                mod.Logger.Log( str );
             }
         }
 
@@ -336,11 +335,11 @@ namespace Utility_Mod
         {
             // Check if we should capture this log type
             if ( !settings.captureUnityLogs ) return;
-            
+
             bool shouldCapture = false;
             string colorTag = "";
             string colorCloseTag = "";
-            
+
             switch ( type )
             {
                 case LogType.Error:
@@ -366,7 +365,7 @@ namespace Utility_Mod
 
             // Format and log the message with color
             Log( $"[Unity] {colorTag}{condition}{colorCloseTag}" );
-            
+
             // Include stack trace for errors and exceptions (also colored)
             if ( !string.IsNullOrEmpty( stackTrace ) && ( type == LogType.Error || type == LogType.Exception ) )
             {
@@ -619,15 +618,15 @@ namespace Utility_Mod
             {
                 ShowKeybindingOptions( modEntry, ref previousToolTip );
             } // End Keybinding Options
-            
-            if (GUILayout.Button("Settings Profiles", headerStyle))
+
+            if ( GUILayout.Button( "Settings Profiles", headerStyle ) )
             {
                 settings.showSettingsProfilesOptions = !settings.showSettingsProfilesOptions;
             }
-            
-            if (settings.showSettingsProfilesOptions)
+
+            if ( settings.showSettingsProfilesOptions )
             {
-                ShowSettingsProfilesOptions(modEntry, ref previousToolTip);
+                ShowSettingsProfilesOptions( modEntry, ref previousToolTip );
             } // End Settings Profiles
 
             // Check for completed keybinding assignments
@@ -1394,7 +1393,7 @@ namespace Utility_Mod
 
                 // Unity Log Capture Options
                 bool previousCaptureState = settings.captureUnityLogs;
-                settings.captureUnityLogs = GUILayout.Toggle( settings.captureUnityLogs, 
+                settings.captureUnityLogs = GUILayout.Toggle( settings.captureUnityLogs,
                     new GUIContent( "Capture Unity Logs", "Captures Unity's Debug.Log output, warnings, and errors to UnityModManager's log file. Logs are color-coded: red for errors, yellow for warnings, blue for info." ) );
 
                 lastRect = GUILayoutUtility.GetLastRect();
@@ -1419,7 +1418,7 @@ namespace Utility_Mod
                     GUILayout.BeginHorizontal();
                     GUILayout.Space( 20 );
                     GUILayout.BeginVertical();
-                    
+
                     settings.captureUnityErrors = GUILayout.Toggle( settings.captureUnityErrors, "Capture Errors" );
                     settings.captureUnityWarnings = GUILayout.Toggle( settings.captureUnityWarnings, "Capture Warnings" );
                     settings.captureUnityInfo = GUILayout.Toggle( settings.captureUnityInfo, "Capture Info/Log Messages" );
@@ -1463,9 +1462,9 @@ namespace Utility_Mod
 
             GUILayout.Label( "Time Control Keybindings:" );
             GUILayout.Space( 5 );
-            
+
             string nothing = "";
-            
+
             GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
             if ( keybindings["Pause/Unpause Game"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
             {
@@ -1473,9 +1472,9 @@ namespace Utility_Mod
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
-            
+
             GUILayout.Space( 20 );
-            
+
             GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
             if ( keybindings["Decrease Game Speed"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
             {
@@ -1488,9 +1487,9 @@ namespace Utility_Mod
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
-            
+
             GUILayout.Space( 20 );
-            
+
             GUILayout.BeginHorizontal( GUILayout.ExpandWidth( false ) );
             if ( keybindings["Reset Game Speed"].OnGUI( out _, true, true, ref nothing, 0, true, false, false ) )
             {
@@ -1513,8 +1512,8 @@ namespace Utility_Mod
 
             GUILayout.Space( 10 );
 
-            settings.contextMenuEnabled = GUILayout.Toggle( settings.contextMenuEnabled, 
-                new GUIContent("Enable Right Click Menu", "Enables the context menu system. Right-click in-game to open menus with various actions."), 
+            settings.contextMenuEnabled = GUILayout.Toggle( settings.contextMenuEnabled,
+                new GUIContent( "Enable Right Click Menu", "Enables the context menu system. Right-click in-game to open menus with various actions." ),
                 ScaledWidth( 200 ) );
 
             // Tooltip for context menu mode
@@ -1535,7 +1534,7 @@ namespace Utility_Mod
             }
 
             GUILayout.Label( "General Options", headerStyle );
-            
+
             // Add Help button
             GUILayout.BeginHorizontal();
             if ( GUILayout.Button( new GUIContent( "Show Help", "View keyboard shortcuts and usage instructions" ), ScaledWidth( 100 ) ) )
@@ -1547,11 +1546,11 @@ namespace Utility_Mod
                 }
             }
             GUILayout.EndHorizontal();
-            
+
             GUILayout.Space( 10 );
-            
+
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Hold Duration:", "How long to hold right-click before the menu opens (when no quick action is set)"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Hold Duration:", "How long to hold right-click before the menu opens (when no quick action is set)" ), ScaledWidth( 150 ) );
             GUILayout.Label( settings.contextMenuHoldDuration.ToString( "0.00" ) + "s", ScaledWidth( 50 ) );
             settings.contextMenuHoldDuration = GUILayout.HorizontalSlider( settings.contextMenuHoldDuration, 0.1f, 1.0f, ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
@@ -1576,7 +1575,7 @@ namespace Utility_Mod
             if ( settings.enableRecentItems )
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent("Max Recent Items:", "Number of recently used actions to show at the top of context menus"), ScaledWidth( 150 ) );
+                GUILayout.Label( new GUIContent( "Max Recent Items:", "Number of recently used actions to show at the top of context menus" ), ScaledWidth( 150 ) );
                 GUILayout.Label( settings.maxRecentItems.ToString(), ScaledWidth( 30 ) );
                 settings.maxRecentItems = (int)GUILayout.HorizontalSlider( settings.maxRecentItems, 1, 10, ScaledWidth( 150 ) );
                 GUILayout.EndHorizontal();
@@ -1586,7 +1585,7 @@ namespace Utility_Mod
 
             // Quick Clone keybinding
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit."), ScaledWidth( 100 ) );
+            GUILayout.Label( new GUIContent( "Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit." ), ScaledWidth( 100 ) );
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
             lastRect.width += 700;
@@ -1605,18 +1604,18 @@ namespace Utility_Mod
             GUILayout.Label( "Paint Mode Options", headerStyle );
             GUILayout.Space( 10 );
 
-            GUILayout.Label(new GUIContent("Paint Mode Type:", "Hold Shift+Right-click and drag to continuously spawn enemies"), GUI.skin.label);
+            GUILayout.Label( new GUIContent( "Paint Mode Type:", "Hold Shift+Right-click and drag to continuously spawn enemies" ), GUI.skin.label );
             settings.enemyPaintMode = (EnemyPaintMode)GUILayout.SelectionGrid(
                 (int)settings.enemyPaintMode,
-                new GUIContent[] { new GUIContent("Time-based", "Spawns enemies at regular time intervals while dragging"), new GUIContent( "Distance-based", "Spawns enemies only when you've moved a certain distance" ) },
+                new GUIContent[] { new GUIContent( "Time-based", "Spawns enemies at regular time intervals while dragging" ), new GUIContent( "Distance-based", "Spawns enemies only when you've moved a certain distance" ) },
                 2,
                 ScaledWidth( 300 ) );
-            GUILayout.Space(5);
+            GUILayout.Space( 5 );
 
             if ( settings.enemyPaintMode == EnemyPaintMode.TimeBased )
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent("Enemy Spawn Delay:", "Time between enemy spawns in paint mode"), ScaledWidth( 150 ) );
+                GUILayout.Label( new GUIContent( "Enemy Spawn Delay:", "Time between enemy spawns in paint mode" ), ScaledWidth( 150 ) );
                 GUILayout.Label( settings.enemyPaintDelay.ToString( "0.0" ) + "s", ScaledWidth( 50 ) );
                 settings.enemyPaintDelay = GUILayout.HorizontalSlider( settings.enemyPaintDelay, 0.1f, 2.0f, ScaledWidth( 200 ) );
                 GUILayout.EndHorizontal();
@@ -1624,7 +1623,7 @@ namespace Utility_Mod
             else
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent("Enemy Spawn Distance:", "Distance in blocks you must move before spawning another enemy"), ScaledWidth( 150 ) );
+                GUILayout.Label( new GUIContent( "Enemy Spawn Distance:", "Distance in blocks you must move before spawning another enemy" ), ScaledWidth( 150 ) );
                 GUILayout.Label( settings.enemyPaintDistance.ToString( "0" ) + " blocks", ScaledWidth( 80 ) );
                 settings.enemyPaintDistance = Mathf.Round( GUILayout.HorizontalSlider( settings.enemyPaintDistance, 1f, 5f, ScaledWidth( 200 ) ) );
                 GUILayout.EndHorizontal();
@@ -1632,7 +1631,7 @@ namespace Utility_Mod
 
             // Block/Doodad spawn distance
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Block/Doodad Spawn Distance:", "Distance in blocks you must move before placing another block or doodad in paint mode"), ScaledWidth( 200 ) );
+            GUILayout.Label( new GUIContent( "Block/Doodad Spawn Distance:", "Distance in blocks you must move before placing another block or doodad in paint mode" ), ScaledWidth( 200 ) );
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
             lastRect.width += 500;
@@ -1654,7 +1653,7 @@ namespace Utility_Mod
 
             // Background Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Background Color:", "RGB color of the context menu background"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Background Color:", "RGB color of the context menu background" ), ScaledWidth( 150 ) );
             GUILayout.Label( "R:", ScaledWidth( 20 ) );
             settings.menuBackgroundR = GUILayout.HorizontalSlider( settings.menuBackgroundR, 0f, 1f, ScaledWidth( 80 ) );
             GUILayout.Label( "G:", ScaledWidth( 20 ) );
@@ -1665,7 +1664,7 @@ namespace Utility_Mod
 
             // Background Alpha
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Background Transparency:", "How opaque the menu background is (100% = fully opaque)"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Background Transparency:", "How opaque the menu background is (100% = fully opaque)" ), ScaledWidth( 150 ) );
             GUILayout.Label( ( settings.menuBackgroundAlpha * 100 ).ToString( "0" ) + "%", ScaledWidth( 50 ) );
             settings.menuBackgroundAlpha = GUILayout.HorizontalSlider( settings.menuBackgroundAlpha, 0f, 1f, ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
@@ -1674,7 +1673,7 @@ namespace Utility_Mod
 
             // Text Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Text Color:", "RGB color of the menu text"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Text Color:", "RGB color of the menu text" ), ScaledWidth( 150 ) );
             GUILayout.Label( "R:", ScaledWidth( 20 ) );
             settings.menuTextR = GUILayout.HorizontalSlider( settings.menuTextR, 0f, 1f, ScaledWidth( 80 ) );
             GUILayout.Label( "G:", ScaledWidth( 20 ) );
@@ -1687,7 +1686,7 @@ namespace Utility_Mod
 
             // Highlight Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Highlight Color:", "RGB color when hovering over menu items"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Highlight Color:", "RGB color when hovering over menu items" ), ScaledWidth( 150 ) );
             GUILayout.Label( "R:", ScaledWidth( 20 ) );
             settings.menuHighlightR = GUILayout.HorizontalSlider( settings.menuHighlightR, 0f, 1f, ScaledWidth( 80 ) );
             GUILayout.Label( "G:", ScaledWidth( 20 ) );
@@ -1698,7 +1697,7 @@ namespace Utility_Mod
 
             // Highlight Alpha
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Highlight Transparency:", "How opaque the hover highlight is (100% = fully opaque)"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Highlight Transparency:", "How opaque the hover highlight is (100% = fully opaque)" ), ScaledWidth( 150 ) );
             GUILayout.Label( ( settings.menuHighlightAlpha * 100 ).ToString( "0" ) + "%", ScaledWidth( 50 ) );
             settings.menuHighlightAlpha = GUILayout.HorizontalSlider( settings.menuHighlightAlpha, 0f, 1f, ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
@@ -1707,7 +1706,7 @@ namespace Utility_Mod
 
             // Font Size
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent("Font Size:", "Size of text in context menus"), ScaledWidth( 150 ) );
+            GUILayout.Label( new GUIContent( "Font Size:", "Size of text in context menus" ), ScaledWidth( 150 ) );
             GUILayout.Label( settings.menuFontSize.ToString(), ScaledWidth( 30 ) );
             settings.menuFontSize = (int)GUILayout.HorizontalSlider( settings.menuFontSize, 12, 24, ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
@@ -1715,7 +1714,7 @@ namespace Utility_Mod
             GUILayout.Space( 10 );
 
             // Reset to Default Button
-            if ( GUILayout.Button( new GUIContent("Reset to Default Style", "Restore all style settings to their default values"), ScaledWidth( 200 ) ) )
+            if ( GUILayout.Button( new GUIContent( "Reset to Default Style", "Restore all style settings to their default values" ), ScaledWidth( 200 ) ) )
             {
                 settings.menuBackgroundR = 0.1f;
                 settings.menuBackgroundG = 0.1f;
@@ -1742,18 +1741,18 @@ namespace Utility_Mod
             }
 
             GUILayout.Space( 35 );
-            
+
             // Level Edit Recording Section
             GUILayout.Label( "Level Edit Recording", headerStyle );
             GUILayout.Space( 10 );
-            
+
             // Auto-replay toggle
-            settings.enableLevelEditReplay = GUILayout.Toggle( settings.enableLevelEditReplay, 
-                new GUIContent("Enable Auto-Replay", "Automatically replay saved level edits when levels load") );
+            settings.enableLevelEditReplay = GUILayout.Toggle( settings.enableLevelEditReplay,
+                new GUIContent( "Enable Auto-Replay", "Automatically replay saved level edits when levels load" ) );
 
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
-            lastRect.width += 700;            
+            lastRect.width += 700;
 
             if ( GUI.tooltip != previousToolTip )
             {
@@ -1783,146 +1782,146 @@ namespace Utility_Mod
             GUILayout.Space( 10 );
         }
 
-        static void ShowSettingsProfilesOptions(UnityModManager.ModEntry modEntry, ref string previousToolTip)
+        static void ShowSettingsProfilesOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
-            string currentProfile = string.IsNullOrEmpty(settings.lastLoadedProfileName) 
-                ? "None" 
+            string currentProfile = string.IsNullOrEmpty( settings.lastLoadedProfileName )
+                ? "None"
                 : settings.lastLoadedProfileName;
-            GUILayout.Label(new GUIContent($"Current Profile: {currentProfile}", 
-                "The last profile that was loaded. Settings may have been modified since."));
-            
+            GUILayout.Label( new GUIContent( $"Current Profile: {currentProfile}",
+                "The last profile that was loaded. Settings may have been modified since." ) );
+
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 400;
-            
-            if (GUI.tooltip != previousToolTip)
+
+            if ( GUI.tooltip != previousToolTip )
             {
-                GUI.Label(lastRect, GUI.tooltip);
+                GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
-            
+
             GUILayout.EndHorizontal();
-            
-            GUILayout.Space(25);
-            
+
+            GUILayout.Space( 25 );
+
             var profiles = settings.GetAvailableProfiles();
-            if (profiles.Count > 0)
+            if ( profiles.Count > 0 )
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("Saved Profiles:");
+                GUILayout.Label( "Saved Profiles:" );
                 GUILayout.EndHorizontal();
-                
+
                 GUILayout.BeginHorizontal();
                 selectedProfileIndex = GUILayout.SelectionGrid(
-                    selectedProfileIndex, 
-                    profiles.ToArray(), 
-                    1, 
-                    GUILayout.Width(300)
+                    selectedProfileIndex,
+                    profiles.ToArray(),
+                    1,
+                    GUILayout.Width( 300 )
                 );
                 GUILayout.EndHorizontal();
-                
-                GUILayout.Space(10);
-                
+
+                GUILayout.Space( 10 );
+
                 GUILayout.BeginHorizontal();
-                
-                if (GUILayout.Button(new GUIContent("Load Selected", "Replace current settings with the selected profile"), GUILayout.Width(140)))
+
+                if ( GUILayout.Button( new GUIContent( "Load Selected", "Replace current settings with the selected profile" ), GUILayout.Width( 140 ) ) )
                 {
-                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    if ( selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count )
                     {
-                        settings.LoadFromProfile(profiles[selectedProfileIndex]);
+                        settings.LoadFromProfile( profiles[selectedProfileIndex] );
                     }
                 }
-                
+
                 lastRect = GUILayoutUtility.GetLastRect();
                 lastRect.y += 20;
                 lastRect.width += 400;
-                
-                if (GUILayout.Button(new GUIContent("Save Current", "Overwrite the selected profile with current settings"), GUILayout.Width(140)))
+
+                if ( GUILayout.Button( new GUIContent( "Save Current", "Overwrite the selected profile with current settings" ), GUILayout.Width( 140 ) ) )
                 {
-                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    if ( selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count )
                     {
-                        settings.SaveToProfile(profiles[selectedProfileIndex]);
+                        settings.SaveToProfile( profiles[selectedProfileIndex] );
                     }
                 }
-                
-                if (GUILayout.Button(new GUIContent("Rename", "Rename the selected profile"), GUILayout.Width(110)))
+
+                if ( GUILayout.Button( new GUIContent( "Rename", "Rename the selected profile" ), GUILayout.Width( 110 ) ) )
                 {
-                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    if ( selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count )
                     {
                         newProfileName = profiles[selectedProfileIndex];
                         isRenamingProfile = true;
                     }
                 }
-                
-                if (GUILayout.Button(new GUIContent("Delete", "Delete the selected profile"), GUILayout.Width(100)))
+
+                if ( GUILayout.Button( new GUIContent( "Delete", "Delete the selected profile" ), GUILayout.Width( 100 ) ) )
                 {
-                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    if ( selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count )
                     {
-                        settings.DeleteProfile(profiles[selectedProfileIndex]);
+                        settings.DeleteProfile( profiles[selectedProfileIndex] );
                         selectedProfileIndex = -1;
                     }
                 }
-                
-                if (GUI.tooltip != previousToolTip)
+
+                if ( GUI.tooltip != previousToolTip )
                 {
-                    GUI.Label(lastRect, GUI.tooltip);
+                    GUI.Label( lastRect, GUI.tooltip );
                     previousToolTip = GUI.tooltip;
                 }
-                
+
                 GUILayout.EndHorizontal();
-                
-                GUILayout.Space(25);
+
+                GUILayout.Space( 25 );
             }
             else
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("No saved profiles yet.");
+                GUILayout.Label( "No saved profiles yet." );
                 GUILayout.EndHorizontal();
-                GUILayout.Space(10);
+                GUILayout.Space( 10 );
             }
-            
+
             GUILayout.BeginHorizontal();
-            GUILayout.Label("New Profile Name:", GUILayout.Width(140));
-            
+            GUILayout.Label( "New Profile Name:", GUILayout.Width( 140 ) );
+
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 400;
-            
-            newProfileName = GUILayout.TextField(newProfileName, GUILayout.Width(200));
-            
-            bool validName = !string.IsNullOrEmpty(newProfileName) && 
-                             ValidateProfileName(newProfileName);
-            
+
+            newProfileName = GUILayout.TextField( newProfileName, GUILayout.Width( 200 ) );
+
+            bool validName = !string.IsNullOrEmpty( newProfileName ) &&
+                             ValidateProfileName( newProfileName );
+
             GUI.enabled = validName;
-            
-            if (isRenamingProfile)
+
+            if ( isRenamingProfile )
             {
-                if (GUILayout.Button(new GUIContent("Apply Rename", "Rename the selected profile"), GUILayout.Width(150)))
+                if ( GUILayout.Button( new GUIContent( "Apply Rename", "Rename the selected profile" ), GUILayout.Width( 150 ) ) )
                 {
-                    if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count)
+                    if ( selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count )
                     {
                         string oldName = profiles[selectedProfileIndex];
-                        string oldPath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), oldName + ".xml");
-                        string newPath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), newProfileName + ".xml");
-                        
-                        if (System.IO.File.Exists(oldPath) && !System.IO.File.Exists(newPath))
+                        string oldPath = System.IO.Path.Combine( System.IO.Path.Combine( mod.Path, "Profiles" ), oldName + ".xml" );
+                        string newPath = System.IO.Path.Combine( System.IO.Path.Combine( mod.Path, "Profiles" ), newProfileName + ".xml" );
+
+                        if ( System.IO.File.Exists( oldPath ) && !System.IO.File.Exists( newPath ) )
                         {
-                            System.IO.File.Move(oldPath, newPath);
-                            if (settings.lastLoadedProfileName == oldName)
+                            System.IO.File.Move( oldPath, newPath );
+                            if ( settings.lastLoadedProfileName == oldName )
                             {
                                 settings.lastLoadedProfileName = newProfileName;
-                                settings.Save(mod);
+                                settings.Save( mod );
                             }
                         }
                     }
                     newProfileName = "";
                     isRenamingProfile = false;  // Exit rename mode
                 }
-                
+
                 GUI.enabled = true;
-                
-                if (GUILayout.Button(new GUIContent("Cancel", "Cancel rename"), GUILayout.Width(80)))
+
+                if ( GUILayout.Button( new GUIContent( "Cancel", "Cancel rename" ), GUILayout.Width( 80 ) ) )
                 {
                     newProfileName = "";
                     isRenamingProfile = false;  // Exit rename mode
@@ -1930,134 +1929,134 @@ namespace Utility_Mod
             }
             else
             {
-                if (GUILayout.Button(new GUIContent("Save As New", "Create a new profile with the current settings"), GUILayout.Width(150)))
+                if ( GUILayout.Button( new GUIContent( "Save As New", "Create a new profile with the current settings" ), GUILayout.Width( 150 ) ) )
                 {
-                    settings.SaveToProfile(newProfileName);
+                    settings.SaveToProfile( newProfileName );
                     selectedProfileIndex = profiles.Count;
                     newProfileName = "";
                 }
             }
-            
+
             GUI.enabled = true;
-            
-            if (GUI.tooltip != previousToolTip)
+
+            if ( GUI.tooltip != previousToolTip )
             {
-                GUI.Label(lastRect, GUI.tooltip);
+                GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
-            
+
             GUILayout.EndHorizontal();
-            
-            GUILayout.Space(25);
-            
+
+            GUILayout.Space( 25 );
+
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("Import/Export:", "Share profiles via clipboard"));
+            GUILayout.Label( new GUIContent( "Import/Export:", "Share profiles via clipboard" ) );
             GUILayout.EndHorizontal();
-            
+
             GUILayout.BeginHorizontal();
-            
+
             GUI.enabled = selectedProfileIndex >= 0 && selectedProfileIndex < profiles.Count;
-            if (GUILayout.Button(new GUIContent("Export to Clipboard", "Copy selected profile to clipboard as Base64"), GUILayout.Width(220)))
+            if ( GUILayout.Button( new GUIContent( "Export to Clipboard", "Copy selected profile to clipboard as Base64" ), GUILayout.Width( 220 ) ) )
             {
-                ExportProfileToClipboard(profiles[selectedProfileIndex]);
+                ExportProfileToClipboard( profiles[selectedProfileIndex] );
             }
-            
+
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 400;
-            
+
             GUI.enabled = true;
-            
-            if (GUILayout.Button(new GUIContent("Import from Clipboard", "Import a profile from Base64 in clipboard"), GUILayout.Width(220)))
+
+            if ( GUILayout.Button( new GUIContent( "Import from Clipboard", "Import a profile from Base64 in clipboard" ), GUILayout.Width( 220 ) ) )
             {
                 ImportProfileFromClipboard();
             }
-            
-            if (GUI.tooltip != previousToolTip)
+
+            if ( GUI.tooltip != previousToolTip )
             {
-                GUI.Label(lastRect, GUI.tooltip);
+                GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
-            
+
             GUILayout.EndHorizontal();
-            
-            GUILayout.Space(30);
+
+            GUILayout.Space( 30 );
         }
-        
-        static bool ValidateProfileName(string name)
+
+        static bool ValidateProfileName( string name )
         {
-            if (string.IsNullOrEmpty(name)) return false;
-            
-            foreach (char c in name)
+            if ( string.IsNullOrEmpty( name ) ) return false;
+
+            foreach ( char c in name )
             {
-                if (!char.IsLetterOrDigit(c) && c != ' ' && c != '-' && c != '_')
+                if ( !char.IsLetterOrDigit( c ) && c != ' ' && c != '-' && c != '_' )
                 {
                     return false;
                 }
             }
-            
+
             return true;
         }
-        
-        static void ExportProfileToClipboard(string profileName)
+
+        static void ExportProfileToClipboard( string profileName )
         {
             try
             {
-                string profilePath = System.IO.Path.Combine(System.IO.Path.Combine(mod.Path, "Profiles"), profileName + ".xml");
-                if (System.IO.File.Exists(profilePath))
+                string profilePath = System.IO.Path.Combine( System.IO.Path.Combine( mod.Path, "Profiles" ), profileName + ".xml" );
+                if ( System.IO.File.Exists( profilePath ) )
                 {
-                    string xmlContent = System.IO.File.ReadAllText(profilePath);
-                    byte[] bytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
-                    string base64 = System.Convert.ToBase64String(bytes);
+                    string xmlContent = System.IO.File.ReadAllText( profilePath );
+                    byte[] bytes = System.Text.Encoding.UTF8.GetBytes( xmlContent );
+                    string base64 = System.Convert.ToBase64String( bytes );
                     GUIUtility.systemCopyBuffer = base64;
                 }
             }
-            catch (Exception ex)
+            catch ( Exception ex )
             {
-                mod.Logger.Error($"Failed to export profile: {ex.Message}");
+                mod.Logger.Error( $"Failed to export profile: {ex.Message}" );
             }
         }
-        
+
         static void ImportProfileFromClipboard()
         {
             try
             {
                 string clipboard = GUIUtility.systemCopyBuffer;
-                if (!string.IsNullOrEmpty(clipboard))
+                if ( !string.IsNullOrEmpty( clipboard ) )
                 {
-                    byte[] bytes = System.Convert.FromBase64String(clipboard);
-                    string xmlContent = System.Text.Encoding.UTF8.GetString(bytes);
-                    
-                    var serializer = new System.Xml.Serialization.XmlSerializer(typeof(Settings));
-                    using (var reader = new System.IO.StringReader(xmlContent))
+                    byte[] bytes = System.Convert.FromBase64String( clipboard );
+                    string xmlContent = System.Text.Encoding.UTF8.GetString( bytes );
+
+                    var serializer = new System.Xml.Serialization.XmlSerializer( typeof( Settings ) );
+                    using ( var reader = new System.IO.StringReader( xmlContent ) )
                     {
-                        Settings testSettings = (Settings)serializer.Deserialize(reader);
-                        
+                        Settings testSettings = (Settings)serializer.Deserialize( reader );
+
                         string profileName = "Imported";
                         int counter = 1;
                         var existingProfiles = settings.GetAvailableProfiles();
-                        while (existingProfiles.Contains(profileName))
+                        while ( existingProfiles.Contains( profileName ) )
                         {
                             profileName = $"Imported_{counter}";
                             counter++;
                         }
-                        
-                        string profilesDir = System.IO.Path.Combine(mod.Path, "Profiles");
-                        if (!System.IO.Directory.Exists(profilesDir))
+
+                        string profilesDir = System.IO.Path.Combine( mod.Path, "Profiles" );
+                        if ( !System.IO.Directory.Exists( profilesDir ) )
                         {
-                            System.IO.Directory.CreateDirectory(profilesDir);
+                            System.IO.Directory.CreateDirectory( profilesDir );
                         }
-                        
-                        string profilePath = System.IO.Path.Combine(profilesDir, profileName + ".xml");
-                        System.IO.File.WriteAllText(profilePath, xmlContent);
-                        
+
+                        string profilePath = System.IO.Path.Combine( profilesDir, profileName + ".xml" );
+                        System.IO.File.WriteAllText( profilePath, xmlContent );
+
                         selectedProfileIndex = existingProfiles.Count;
                     }
                 }
             }
-            catch (Exception ex)
+            catch ( Exception ex )
             {
-                mod.Logger.Error($"Failed to import profile: {ex.Message}");
+                mod.Logger.Error( $"Failed to import profile: {ex.Message}" );
             }
         }
 
@@ -2732,55 +2731,55 @@ namespace Utility_Mod
         public static void SpawnBlockInternal( int row, int column, BlockType blockType, Block prefabOverride = null )
         {
             Block block = null;
-            
-            if (prefabOverride != null)
+
+            if ( prefabOverride != null )
             {
                 // When we have a prefab override, replicate the core PlaceGround logic
                 // This handles the vast majority of blocks correctly
-                
+
                 // Calculate position (same as PlaceGround)
-                Vector3 position = new Vector3((float)(column * 16), (float)(row * 16), 5f);
-                
+                Vector3 position = new Vector3( (float)( column * 16 ), (float)( row * 16 ), 5f );
+
                 // Instantiate our exact prefab
-                GameObject clonedObject = UnityEngine.Object.Instantiate(prefabOverride.gameObject, position, Quaternion.identity);
+                GameObject clonedObject = UnityEngine.Object.Instantiate( prefabOverride.gameObject, position, Quaternion.identity );
                 block = clonedObject.GetComponent<Block>();
-                
-                if (block != null)
+
+                if ( block != null )
                 {
                     // Set up the block's grid position
                     block.row = row;
                     block.collumn = column;
                     block.initialRow = row;
                     block.initialColumn = column;
-                    
+
                     // Parent to Map
                     block.transform.parent = Map.Instance.transform;
-                    
+
                     // Add to the map's block array
                     Map.blocks[column, row] = block;
-                    
+
                     // Update groundTypes array (important for game logic)
-                    var groundTypesField = Traverse.Create(Map.Instance).Field("groundTypes");
+                    var groundTypesField = Traverse.Create( Map.Instance ).Field( "groundTypes" );
                     var groundTypes = groundTypesField.GetValue() as GroundType[,];
-                    if (groundTypes != null)
+                    if ( groundTypes != null )
                     {
                         groundTypes[column, row] = block.groundType;
                     }
-                    
+
                     // Call OnSpawned to initialize the block (random generators, etc)
                     block.OnSpawned();
-                    
+
                     // Register for networking
-                    Registry.RegisterDeterminsiticGameObject(block.gameObject);
-                    
+                    Registry.RegisterDeterminsiticGameObject( block.gameObject );
+
                     // Handle special case for 2x2 blocks (like big earth blocks)
-                    if (block.groundType == GroundType.Earth && block.size == 2)
+                    if ( block.groundType == GroundType.Earth && block.size == 2 )
                     {
-                        Map.SetBlockEmpty(Map.blocks[column + 1, row], column + 1, row);
+                        Map.SetBlockEmpty( Map.blocks[column + 1, row], column + 1, row );
                         Map.blocks[column + 1, row] = block;
-                        Map.SetBlockEmpty(Map.blocks[column, row - 1], column, row - 1);
+                        Map.SetBlockEmpty( Map.blocks[column, row - 1], column, row - 1 );
                         Map.blocks[column, row - 1] = block;
-                        Map.SetBlockEmpty(Map.blocks[column + 1, row - 1], column + 1, row - 1);
+                        Map.SetBlockEmpty( Map.blocks[column + 1, row - 1], column + 1, row - 1 );
                         Map.blocks[column + 1, row - 1] = block;
                     }
                 }
@@ -2790,8 +2789,8 @@ namespace Utility_Mod
                 // Use the original method
                 block = CreateBlock( column, row, blockType );
             }
-            
-            if (block == null) return;
+
+            if ( block == null ) return;
             if ( block.groundType != GroundType.Bridge || block.groundType != GroundType.Bridge2 || block.groundType != GroundType.AlienBridge )
             {
                 if ( column > 0 && Map.blocks[column - 1, row] != null )

@@ -24,7 +24,7 @@ namespace Utility_Mod
         // Large terrain blocks
         BigBlock = 11,
         SacredBigBlock = 13,
-        
+
         // Bridges/Platforms/Ladders
         Bridge = 7,
         Bridge2 = 60,
@@ -37,7 +37,7 @@ namespace Utility_Mod
         MetalLadder = 53,
         CityLadder = 54,
         DesertLadder = 55,
-        
+
         // Building Materials & Structures
         Brick = 3,
         BrickTop = 4,
@@ -67,7 +67,7 @@ namespace Utility_Mod
         Statue = 85,
         TyreBlock = 87,
         CityAssMouth = 115,
-        
+
         // Special Blocks
         FallingBlock = 8,
         Quicksand = 123,
@@ -79,19 +79,19 @@ namespace Utility_Mod
         Vault = 120,
         SmallCageBlock = 121,
         StandardCage = 122,
-        
+
         // Destructibles (barrels/explosives)
         ExplosiveBarrel = 20,
         RedExplosiveBarrel = 21,
         PropaneTank = 22,
         DesertOilBarrel = 23,
         OilTank = 24,
-        
+
         // Organic Destructibles
         BeeHive = 40,
         AlienEgg = 41,
         AlienEggExplosive = 42,
-        
+
         // Crates
         Crate = 30,
         AmmoCrate = 31,
@@ -105,7 +105,7 @@ namespace Utility_Mod
         FlexAmmoCrate = 39,
         MoneyCrate = 70,
         PillsCrate = 71,
-        
+
         // Hazards (note: these are BlockTypes that appear in the Hazards menu)
         AlienBarbShooter = 46,
         BuriedRocket = 86
@@ -116,34 +116,34 @@ namespace Utility_Mod
         // Checkpoints & Cages
         RescueCage = 0,
         CheckPoint = 1,
-        
+
         // Hazards
         Spikes = 2,
         Mines = 3,
         SawBlade = 4,
         HiddenExplosives = 5,
-        
+
         // Doors
         Door = 8,
         MookDoor = 9,
-        
+
         // Environment
         ZiplinePoint = 10,
         Scaffolding = 12,
         Fence = 13,
         Tree = 16,
         Bush = 17,
-        
+
         // Hanging Objects (Interactive)
         HangingVines = 18,
         HangingBrazier = 19
     }
-    
+
     public static class SpawnableTypesExtensions
     {
-        public static string GetDisplayName(this BlockType blockType)
+        public static string GetDisplayName( this BlockType blockType )
         {
-            switch (blockType)
+            switch ( blockType )
             {
                 // Terrain
                 case BlockType.Dirt: return "Dirt";
@@ -154,7 +154,7 @@ namespace Utility_Mod
                 case BlockType.AlienFlesh: return "Alien Flesh";
                 case BlockType.AlienExplodingFlesh: return "Alien Exploding Flesh";
                 case BlockType.AlienDirt: return "Alien Dirt";
-                
+
                 // Bridges/Platforms/Ladders
                 case BlockType.Bridge: return "Bridge";
                 case BlockType.Bridge2: return "Bridge 2";
@@ -167,7 +167,7 @@ namespace Utility_Mod
                 case BlockType.MetalLadder: return "Metal Ladder";
                 case BlockType.CityLadder: return "City Ladder";
                 case BlockType.DesertLadder: return "Desert Ladder";
-                
+
                 // Building Materials & Structures
                 case BlockType.Brick: return "Brick";
                 case BlockType.BrickTop: return "Brick Top";
@@ -185,7 +185,7 @@ namespace Utility_Mod
                 case BlockType.DesertRoof: return "Desert Roof";
                 case BlockType.DesertRoofRed: return "Desert Roof Red";
                 case BlockType.TentRoof: return "Tent Roof";
-                
+
                 // Special Blocks
                 case BlockType.FallingBlock: return "Falling Block";
                 case BlockType.Sandbag: return "Sandbag";
@@ -199,19 +199,19 @@ namespace Utility_Mod
                 case BlockType.Quicksand: return "Quicksand";
                 case BlockType.OilPipe: return "Oil Pipe";
                 case BlockType.AlienBarbShooter: return "Alien Barb Shooter";
-                
+
                 // Destructibles
                 case BlockType.ExplosiveBarrel: return "Explosive Barrel";
                 case BlockType.RedExplosiveBarrel: return "Red Explosive Barrel";
                 case BlockType.PropaneTank: return "Propane Tank";
                 case BlockType.DesertOilBarrel: return "Desert Oil Barrel";
                 case BlockType.OilTank: return "Oil Tank";
-                
+
                 // Organic Destructibles
                 case BlockType.BeeHive: return "Beehive";
                 case BlockType.AlienEgg: return "Alien Egg";
                 case BlockType.AlienEggExplosive: return "Alien Egg Explosive";
-                
+
                 // Crates
                 case BlockType.Crate: return "Crate";
                 case BlockType.AmmoCrate: return "Ammo Crate";
@@ -225,7 +225,7 @@ namespace Utility_Mod
                 case BlockType.FlexAmmoCrate: return "Flex Ammo Crate";
                 case BlockType.MoneyCrate: return "Money Crate";
                 case BlockType.PillsCrate: return "Pills Crate";
-                
+
                 // Cave/Hell
                 case BlockType.CaveEarth: return "Cave Earth";
                 case BlockType.Skulls: return "Skulls";
@@ -233,7 +233,7 @@ namespace Utility_Mod
                 case BlockType.HellRock: return "Hell Rock";
                 case BlockType.DesertCaveRock: return "Desert Cave Rock";
                 case BlockType.DesertCaveEarth: return "Desert Cave Earth";
-                
+
                 // City/Desert/Sacred
                 case BlockType.DesertEarth: return "Desert Earth";
                 case BlockType.CityEarth: return "City Earth";
@@ -243,40 +243,40 @@ namespace Utility_Mod
                 case BlockType.CityAssMouth: return "City Ass Mouth";
                 case BlockType.CityRoad: return "City Road";
                 case BlockType.SacredTempleGold: return "Sacred Temple Gold";
-                
+
                 default: return blockType.ToString();
             }
         }
-        
-        public static string GetDisplayName(this SpawnableDoodadType doodadType)
+
+        public static string GetDisplayName( this SpawnableDoodadType doodadType )
         {
-            switch (doodadType)
+            switch ( doodadType )
             {
                 // Checkpoints & Cages
                 case SpawnableDoodadType.RescueCage: return "Rescue Cage";
                 case SpawnableDoodadType.CheckPoint: return "Checkpoint";
-                
+
                 // Hazards
                 case SpawnableDoodadType.Spikes: return "Spikes";
                 case SpawnableDoodadType.Mines: return "Mine Field";
                 case SpawnableDoodadType.SawBlade: return "Saw Blade";
                 case SpawnableDoodadType.HiddenExplosives: return "Hidden Explosives";
-                
+
                 // Doors
                 case SpawnableDoodadType.Door: return "Door";
                 case SpawnableDoodadType.MookDoor: return "Mook Door";
-                
+
                 // Environment
                 case SpawnableDoodadType.ZiplinePoint: return "Zipline Anchor Point";
                 case SpawnableDoodadType.Scaffolding: return "Scaffolding";
                 case SpawnableDoodadType.Fence: return "Fence";
                 case SpawnableDoodadType.Tree: return "Tree";
                 case SpawnableDoodadType.Bush: return "Bush";
-                
+
                 // Hanging Objects
                 case SpawnableDoodadType.HangingVines: return "Hanging Vines";
                 case SpawnableDoodadType.HangingBrazier: return "Hanging Brazier";
-                
+
                 default: return doodadType.ToString();
             }
         }

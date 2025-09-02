@@ -1,10 +1,7 @@
-﻿using HarmonyLib;
-using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Utility_Mod
@@ -13,12 +10,12 @@ namespace Utility_Mod
     {
         // Track if we've already replayed edits for this level
         static string lastReplayedLevelKey = "";
-        
+
         static IEnumerator ReplayLevelEditsDelayed()
         {
             // Wait a bit to ensure level is fully loaded
-            yield return new WaitForSeconds(0.5f);
-            
+            yield return new WaitForSeconds( 0.5f );
+
             // Replay the edits
             ContextMenuManager.ReplayLevelEdits();
         }
@@ -245,7 +242,7 @@ namespace Utility_Mod
                 lastReplayedLevelKey = "";
             }
         }
-        
+
         [HarmonyPatch( typeof( PauseMenu ), "RestartLevel" )]
         static class PauseMenu_RestartLevel_Patch
         {
@@ -351,15 +348,15 @@ namespace Utility_Mod
             public static void Prefix( Player __instance, ref TestVanDammeAnim bro, ref Player.SpawnType spawnType, ref bool spawnViaAirDrop, ref Vector3 pos )
             {
                 // Check if we need to replay level edits
-                if (Main.enabled && Main.settings.enableLevelEditReplay)
+                if ( Main.enabled && Main.settings.enableLevelEditReplay )
                 {
                     string currentLevelKey = Main.GetCurrentLevelKey();
-                    if (lastReplayedLevelKey != currentLevelKey)
+                    if ( lastReplayedLevelKey != currentLevelKey )
                     {
                         lastReplayedLevelKey = currentLevelKey;
-                        
+
                         // If we have a custom spawn, apply edits immediately without delay
-                        if (Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel())
+                        if ( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() )
                         {
                             // Apply level edits synchronously to ensure blocks are in place before spawn
                             ContextMenuManager.ReplayLevelEdits();
@@ -367,14 +364,14 @@ namespace Utility_Mod
                         else
                         {
                             // Otherwise use the delayed replay for normal spawns
-                            if (ContextMenuManager.Instance != null)
+                            if ( ContextMenuManager.Instance != null )
                             {
-                                ContextMenuManager.Instance.StartCoroutine(ReplayLevelEditsDelayed());
+                                ContextMenuManager.Instance.StartCoroutine( ReplayLevelEditsDelayed() );
                             }
                         }
                     }
                 }
-                
+
                 if ( !Main.enabled || ( !( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() ) && !Main.settings.changeSpawnFinal ) )
                 {
                     return;
@@ -430,7 +427,7 @@ namespace Utility_Mod
                     {
                         PlayerOptions.Instance.cameraShakeAmount = 0f;
                     }
-                    Main.GoToLevel(Main.campaignNum.indexNumber, Main.levelNum.indexNumber);
+                    Main.GoToLevel( Main.campaignNum.indexNumber, Main.levelNum.indexNumber );
                 }
 
                 Main.loadedLevel = true;
@@ -754,7 +751,7 @@ namespace Utility_Mod
                 return true;
             }
         }
-        
+
         // Disable checkpoint flag audio
         [HarmonyPatch( typeof( CheckPoint ), "ActivateInternal" )]
         static class CheckPoint_ActivateInternal_Patch
@@ -763,7 +760,7 @@ namespace Utility_Mod
             {
                 if ( !Main.enabled || !Main.settings.disableFlagNoise )
                     return;
-                
+
                 // Stop and disable the AudioSource after activation
                 AudioSource audioSource = __instance.GetComponent<AudioSource>();
                 if ( audioSource != null )
@@ -773,7 +770,7 @@ namespace Utility_Mod
                 }
             }
         }
-        
+
         // Disable helicopter audio
         [HarmonyPatch( typeof( Helicopter ), "Start" )]
         static class Helicopter_Start_Patch
@@ -782,7 +779,7 @@ namespace Utility_Mod
             {
                 if ( !Main.enabled || !Main.settings.disableHelicopterNoise )
                     return;
-                
+
                 // Disable the helicopter's AudioSource
                 AudioSource audioSource = __instance.GetComponent<AudioSource>();
                 if ( audioSource != null )

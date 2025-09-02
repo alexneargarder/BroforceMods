@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityModManagerNet;
 
 namespace Utility_Mod
@@ -23,9 +19,9 @@ namespace Utility_Mod
 
         #region Constructor
 
-        public Dropdown(float x, float y, float width, float height, string[] options, int setIndexNumber, bool setShow = false)
+        public Dropdown( float x, float y, float width, float height, string[] options, int setIndexNumber, bool setShow = false )
         {
-            dropDownRect = new Rect(x, y, width, height);
+            dropDownRect = new Rect( x, y, width, height );
             list = options;
             this.indexNumber = setIndexNumber;
 
@@ -37,11 +33,11 @@ namespace Utility_Mod
 
         #region GUI Rendering
 
-        public void OnGUI(UnityModManager.ModEntry modEntry)
+        public void OnGUI( UnityModManager.ModEntry modEntry )
         {
-            if (GUILayout.Button("", GUILayout.Width(dropDownRect.width)))
+            if ( GUILayout.Button( "", GUILayout.Width( dropDownRect.width ) ) )
             {
-                if (!show)
+                if ( !show )
                 {
                     show = true;
                 }
@@ -55,22 +51,22 @@ namespace Utility_Mod
             dropDownRect.y = lastRect.y;
 
 
-            if (show)
+            if ( show )
             {
-                scrollViewVector = GUI.BeginScrollView(new Rect((dropDownRect.x), (dropDownRect.y + 25), dropDownRect.width, dropDownRect.height), scrollViewVector, new Rect(0, 0, dropDownRect.width, Mathf.Max(dropDownRect.height, (list.Length * 25))));
+                scrollViewVector = GUI.BeginScrollView( new Rect( ( dropDownRect.x ), ( dropDownRect.y + 25 ), dropDownRect.width, dropDownRect.height ), scrollViewVector, new Rect( 0, 0, dropDownRect.width, Mathf.Max( dropDownRect.height, ( list.Length * 25 ) ) ) );
 
-                GUI.Box(new Rect(0, 0, dropDownRect.width, Mathf.Max(dropDownRect.height, (list.Length * 25))), "");
+                GUI.Box( new Rect( 0, 0, dropDownRect.width, Mathf.Max( dropDownRect.height, ( list.Length * 25 ) ) ), "" );
 
-                for (int index = 0; index < list.Length; index++)
+                for ( int index = 0; index < list.Length; index++ )
                 {
 
-                    if (GUI.Button(new Rect(0, (index * 25), dropDownRect.width, 25), ""))
+                    if ( GUI.Button( new Rect( 0, ( index * 25 ), dropDownRect.width, 25 ), "" ) )
                     {
                         show = false;
                         indexNumber = index;
                     }
 
-                    GUI.Label(new Rect(5, (index * 25), dropDownRect.width, 25), list[index]);
+                    GUI.Label( new Rect( 5, ( index * 25 ), dropDownRect.width, 25 ), list[index] );
 
                 }
 
@@ -78,7 +74,7 @@ namespace Utility_Mod
             }
             else
             {
-                GUI.Label(new Rect((dropDownRect.x + 5), dropDownRect.y, 300, 25), new GUIContent( list[indexNumber], this.ToolTip ) );
+                GUI.Label( new Rect( ( dropDownRect.x + 5 ), dropDownRect.y, 300, 25 ), new GUIContent( list[indexNumber], this.ToolTip ) );
             }
         }
 

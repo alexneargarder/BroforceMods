@@ -1,12 +1,8 @@
-using RocketLib;
-using RocketLib.Utils;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
+using RocketLib.Utils;
 using UnityEngine;
 using UnityModManagerNet;
-using static UnityEngine.UI.CanvasScaler;
 
 namespace Utility_Mod
 {
@@ -174,7 +170,7 @@ namespace Utility_Mod
                         );
 
                         // Always try the exact cloning method first for perfect visual preservation
-                        if (!TryCloneBlockExact(modes.blockToClone, snappedPos))
+                        if ( !TryCloneBlockExact( modes.blockToClone, snappedPos ) )
                         {
                             // Fall back to the original method if exact cloning fails
                             BlockType? blockType = GetBlockTypeFromGroundType( modes.blockToClone.groundType, modes.blockToClone );
@@ -208,7 +204,7 @@ namespace Utility_Mod
             // Handle grab mode
             if ( CurrentMode == ContextMenuMode.Grab )
             {
-                
+
                 if ( modes.grabbedUnit != null && !modes.grabbedUnit.destroyed && modes.grabbedUnit.health > 0 )
                 {
                     // Reset velocities to prevent physics from interfering
@@ -240,7 +236,7 @@ namespace Utility_Mod
                     modes.grabbedUnit = null;
                 }
             }
-            
+
             // Handle mass delete mode
             if ( CurrentMode == ContextMenuMode.MassDelete )
             {
@@ -255,7 +251,7 @@ namespace Utility_Mod
                     // End dragging and delete everything in the rectangle
                     Vector3 currentPos = GetMouseWorldPosition();
                     modes.ExecuteMassDelete( modes.massDeleteStartPos, currentPos );
-                    
+
                     // Exit mass delete mode
                     CurrentMode = ContextMenuMode.Normal;
                     modes.isDraggingMassDelete = false;
@@ -349,7 +345,7 @@ namespace Utility_Mod
             {
                 modes.DrawGrabModeUI();
             }
-            
+
             // Draw mass delete mode UI
             if ( CurrentMode == ContextMenuMode.MassDelete )
             {
@@ -361,7 +357,7 @@ namespace Utility_Mod
             {
                 DrawQuickActionFeedback();
             }
-            
+
             ContextMenuBuilder.DrawProfileNameDialog();
         }
 
@@ -543,7 +539,7 @@ namespace Utility_Mod
                 {
                     UpdateCheckboxStates( CurrentMenu.GetItems(), item.ActionId );
                 }
-                
+
                 // Show feedback if this was triggered by Alt-click
                 if ( Input.GetKey( KeyCode.LeftAlt ) || Input.GetKey( KeyCode.RightAlt ) )
                 {
@@ -554,7 +550,7 @@ namespace Utility_Mod
             {
                 // Clear quick action
                 Main.settings.selectedQuickAction = null;
-                
+
                 // Show feedback
                 ShowQuickActionFeedback( item.Text, false );
             }
@@ -580,17 +576,17 @@ namespace Utility_Mod
         {
             // Calculate alpha for fade out effect
             float alpha = Mathf.Clamp01( quickActionFeedbackTimer / FEEDBACK_DISPLAY_TIME );
-            
+
             // Style setup
             GUIStyle style = new GUIStyle( GUI.skin.label );
             style.fontSize = 28;
             style.alignment = TextAnchor.MiddleCenter;
             style.normal.textColor = new Color( 1f, 1f, 1f, alpha );
-            
+
             // Background style
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
             bgStyle.normal.background = CreateTexture( 2, 2, new Color( 0f, 0f, 0f, 0.8f * alpha ) );
-            
+
             // Draw at top center of screen
             Rect textRect = new Rect( Screen.width / 2 - 300, 100, 600, 70 );
             GUI.Box( textRect, "", bgStyle );
@@ -619,25 +615,25 @@ namespace Utility_Mod
 
             // Get mouse position
             Vector2 mousePos = Event.current.mousePosition;
-            
+
             // Indicator settings
             float radius = 20f;
             float thickness = 3f;
             int segments = 32;
             float startAngle = -90f; // Start from top
             float progressAngle = progress * 360f;
-            
+
             // Center position
             Vector2 center = new Vector2( mousePos.x + radius + 10, mousePos.y );
-            
+
             // Draw background circle (darker)
             GUI.color = new Color( 0.2f, 0.2f, 0.2f, 0.5f );
             DrawCircularProgress( center, radius, thickness, 0f, 360f, segments );
-            
+
             // Draw progress arc
             GUI.color = new Color( 1f, 1f, 1f, 0.8f );
             DrawCircularProgress( center, radius, thickness, startAngle, progressAngle, segments );
-            
+
             // Reset color
             GUI.color = Color.white;
         }
@@ -646,29 +642,29 @@ namespace Utility_Mod
         {
             if ( arcAngle <= 0 )
                 return;
-                
+
             // Save current matrix
             Matrix4x4 matrix = GUI.matrix;
-            
+
             // Calculate how many segments to draw based on progress
             int segmentsToDraw = Mathf.Max( 1, Mathf.RoundToInt( segments * ( arcAngle / 360f ) ) );
             float anglePerSegment = arcAngle / segmentsToDraw;
-            
+
             // Draw each segment
             for ( int i = 0; i < segmentsToDraw; i++ )
             {
                 float angle = startAngle + ( i * anglePerSegment );
                 float radians = angle * Mathf.Deg2Rad;
-                
+
                 // Calculate position on circle
                 Vector2 pos = center + new Vector2( Mathf.Cos( radians ), Mathf.Sin( radians ) ) * radius;
-                
+
                 // Rotate around center to align segment
                 GUIUtility.RotateAroundPivot( angle + 90f, pos );
-                
+
                 // Draw segment
                 GUI.DrawTexture( new Rect( pos.x - thickness / 2f, pos.y, thickness, thickness ), Texture2D.whiteTexture );
-                
+
                 // Restore matrix for next segment
                 GUI.matrix = matrix;
             }
@@ -758,25 +754,25 @@ namespace Utility_Mod
                 }
                 return;
             }
-            
+
             // Handle special case for mass delete
             if ( action.Type == MenuActionType.MassDelete )
             {
                 // Enter mass delete mode
                 CurrentMode = ContextMenuMode.MassDelete;
                 modes.isDraggingMassDelete = false;
-                
+
                 // Close menu
                 CloseMenu();
                 return;
             }
-            
+
             // Handle special case for grab actions
             if ( action.Type == MenuActionType.GrabEnemy || action.Type == MenuActionType.GrabPlayer )
             {
                 // Execute the grab action
                 action.Execute( worldPos, useCurrentMousePosition );
-                
+
                 // Close menu unless Ctrl is held
                 if ( !Input.GetKey( KeyCode.LeftControl ) && !Input.GetKey( KeyCode.RightControl ) )
                 {
@@ -862,291 +858,291 @@ namespace Utility_Mod
         }
 
         // New method to try to clone a block exactly - returns true if successful
-        public bool TryCloneBlockExact(Block sourceBlock, Vector3 position)
+        public bool TryCloneBlockExact( Block sourceBlock, Vector3 position )
         {
-            if (sourceBlock == null || sourceBlock.destroyed)
+            if ( sourceBlock == null || sourceBlock.destroyed )
                 return false;
-                
+
             // Snap to grid
-            int column = (int)Mathf.Round(position.x / 16f);
-            int row = (int)Mathf.Round(position.y / 16f);
-            
+            int column = (int)Mathf.Round( position.x / 16f );
+            int row = (int)Mathf.Round( position.y / 16f );
+
             // Bounds checking
-            if (Map.MapData == null || column < 0 || column >= Map.MapData.Width || row < 0 || row >= Map.MapData.Height)
+            if ( Map.MapData == null || column < 0 || column >= Map.MapData.Width || row < 0 || row >= Map.MapData.Height )
                 return false;
-                
-            if (Map.blocks != null && Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed)
+
+            if ( Map.blocks != null && Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed )
             {
                 return false;
             }
-                
-            try 
+
+            try
             {
                 // Build the cache if needed
-                if (themeBlockCaches == null)
+                if ( themeBlockCaches == null )
                 {
                     BuildBlockPrefabCache();
                 }
-                
+
                 // Try to find the prefab in our cache
-                string sourceName = sourceBlock.name.Replace("(Clone)", "").Trim();
-                
+                string sourceName = sourceBlock.name.Replace( "(Clone)", "" ).Trim();
+
                 // Remove coordinate suffixes - handle both _X_Y and _X_Y_Z_W patterns
-                int underscoreIndex = sourceName.LastIndexOf('_');
-                if (underscoreIndex > 0)
+                int underscoreIndex = sourceName.LastIndexOf( '_' );
+                if ( underscoreIndex > 0 )
                 {
-                    string afterLastUnderscore = sourceName.Substring(underscoreIndex + 1);
+                    string afterLastUnderscore = sourceName.Substring( underscoreIndex + 1 );
                     // Check if it ends with a number
-                    if (Regex.IsMatch(afterLastUnderscore, @"^\d+$"))
+                    if ( Regex.IsMatch( afterLastUnderscore, @"^\d+$" ) )
                     {
                         // Look for the start of the coordinate pattern
                         int coordStart = underscoreIndex;
-                        while (coordStart > 0)
+                        while ( coordStart > 0 )
                         {
-                            int prevUnderscore = sourceName.LastIndexOf('_', coordStart - 1);
-                            if (prevUnderscore < 0)
+                            int prevUnderscore = sourceName.LastIndexOf( '_', coordStart - 1 );
+                            if ( prevUnderscore < 0 )
                                 break;
-                            string between = sourceName.Substring(prevUnderscore + 1, coordStart - prevUnderscore - 1);
-                            if (!Regex.IsMatch(between, @"^\d+$"))
+                            string between = sourceName.Substring( prevUnderscore + 1, coordStart - prevUnderscore - 1 );
+                            if ( !Regex.IsMatch( between, @"^\d+$" ) )
                                 break;
                             coordStart = prevUnderscore;
                         }
-                        sourceName = sourceName.Substring(0, coordStart);
+                        sourceName = sourceName.Substring( 0, coordStart );
                     }
                 }
-                
+
                 // Get current theme name
                 string currentThemeName = GetCurrentThemeName();
-                
+
                 Block prefabBlock = null;
                 GameObject prefabObject = null; // For boulders
-                
+
                 // Special handling for boulder blocks
-                if (sourceBlock is BoulderBlock && boulderPrefabCache != null && boulderPrefabCache.ContainsKey(sourceName))
+                if ( sourceBlock is BoulderBlock && boulderPrefabCache != null && boulderPrefabCache.ContainsKey( sourceName ) )
                 {
                     prefabObject = boulderPrefabCache[sourceName];
-                    if (prefabObject != null)
+                    if ( prefabObject != null )
                     {
                         prefabBlock = prefabObject.GetComponent<Block>();
                     }
                 }
-                else if (themeBlockCaches != null)
+                else if ( themeBlockCaches != null )
                 {
                     // First check current theme
-                    if (!string.IsNullOrEmpty(currentThemeName) && themeBlockCaches.ContainsKey(currentThemeName))
+                    if ( !string.IsNullOrEmpty( currentThemeName ) && themeBlockCaches.ContainsKey( currentThemeName ) )
                     {
                         var currentThemeCache = themeBlockCaches[currentThemeName];
-                        if (currentThemeCache.ContainsKey(sourceName))
+                        if ( currentThemeCache.ContainsKey( sourceName ) )
                         {
                             prefabBlock = currentThemeCache[sourceName];
                         }
                     }
-                    
+
                     // If not found in current theme, check other themes
-                    if (prefabBlock == null)
+                    if ( prefabBlock == null )
                     {
-                        foreach (var themeCache in themeBlockCaches)
+                        foreach ( var themeCache in themeBlockCaches )
                         {
-                            if (themeCache.Key == currentThemeName) continue; // Skip current theme, already checked
-                            
-                            if (themeCache.Value.ContainsKey(sourceName))
+                            if ( themeCache.Key == currentThemeName ) continue; // Skip current theme, already checked
+
+                            if ( themeCache.Value.ContainsKey( sourceName ) )
                             {
                                 prefabBlock = themeCache.Value[sourceName];
                                 break;
                             }
                         }
                     }
-                    
+
                     // Check if the cached prefab is still valid
-                    if (prefabBlock != null && (prefabBlock.gameObject == null))
+                    if ( prefabBlock != null && ( prefabBlock.gameObject == null ) )
                     {
                         prefabBlock = null;
                     }
                 }
-                
-                
-                if (prefabBlock != null)
+
+
+                if ( prefabBlock != null )
                 {
                     // Get the BlockType for tracking purposes
-                    BlockType? blockType = GetBlockTypeFromGroundType(sourceBlock.groundType, sourceBlock);
-                    
+                    BlockType? blockType = GetBlockTypeFromGroundType( sourceBlock.groundType, sourceBlock );
+
                     // Use our modified SpawnBlockInternal with the exact prefab
-                    Main.SpawnBlockInternal(row, column, blockType ?? BlockType.Brick, prefabBlock);
-                    
+                    Main.SpawnBlockInternal( row, column, blockType ?? BlockType.Brick, prefabBlock );
+
                     // Track the edit if recording
-                    if (Main.settings.isRecordingLevelEdits && blockType.HasValue)
+                    if ( Main.settings.isRecordingLevelEdits && blockType.HasValue )
                     {
-                        var action = MenuAction.CreateSpawnBlock(blockType.Value);
-                        ui.TrackLevelEdit(action, new Vector3(column * 16f, row * 16f, 5f));
+                        var action = MenuAction.CreateSpawnBlock( blockType.Value );
+                        ui.TrackLevelEdit( action, new Vector3( column * 16f, row * 16f, 5f ) );
                     }
-                    
+
                     return true;
                 }
             }
             catch
             {
             }
-            
+
             // Fallback: not using exact cloning
             return false;
         }
-        
+
         // Static cache for block prefabs, organized by theme name
         private static Dictionary<string, Dictionary<string, Block>> themeBlockCaches = null;
         // Cache for boulder GameObjects (which aren't Block components)
         private static Dictionary<string, GameObject> boulderPrefabCache = null;
-        
+
         // Get the name of the current active theme
         private static string GetCurrentThemeName()
         {
-            if (Map.Instance == null || Map.Instance.activeTheme == null)
+            if ( Map.Instance == null || Map.Instance.activeTheme == null )
                 return "";
-                
+
             // Compare activeTheme reference to known themes
-            if (Map.Instance.jungleThemeReference != null && Map.Instance.activeTheme == Map.Instance.jungleThemeReference.Asset)
+            if ( Map.Instance.jungleThemeReference != null && Map.Instance.activeTheme == Map.Instance.jungleThemeReference.Asset )
                 return "jungle";
-            if (Map.Instance.cityThemeReference != null && Map.Instance.activeTheme == Map.Instance.cityThemeReference.Asset)
+            if ( Map.Instance.cityThemeReference != null && Map.Instance.activeTheme == Map.Instance.cityThemeReference.Asset )
                 return "city";
-            if (Map.Instance.desertThemeReference != null && Map.Instance.activeTheme == Map.Instance.desertThemeReference.Asset)
+            if ( Map.Instance.desertThemeReference != null && Map.Instance.activeTheme == Map.Instance.desertThemeReference.Asset )
                 return "desert";
-            if (Map.Instance.burningJungleThemeReference != null && Map.Instance.activeTheme == Map.Instance.burningJungleThemeReference.Asset)
+            if ( Map.Instance.burningJungleThemeReference != null && Map.Instance.activeTheme == Map.Instance.burningJungleThemeReference.Asset )
                 return "burningJungle";
-            if (Map.Instance.forestThemeReference != null && Map.Instance.activeTheme == Map.Instance.forestThemeReference.Asset)
+            if ( Map.Instance.forestThemeReference != null && Map.Instance.activeTheme == Map.Instance.forestThemeReference.Asset )
                 return "forest";
-            if (Map.Instance.hellThemeReference != null && Map.Instance.activeTheme == Map.Instance.hellThemeReference.Asset)
+            if ( Map.Instance.hellThemeReference != null && Map.Instance.activeTheme == Map.Instance.hellThemeReference.Asset )
                 return "hell";
-            if (Map.Instance.americaThemeReference != null && Map.Instance.activeTheme == Map.Instance.americaThemeReference.Asset)
+            if ( Map.Instance.americaThemeReference != null && Map.Instance.activeTheme == Map.Instance.americaThemeReference.Asset )
                 return "america";
-                
+
             // Unknown theme
             return "";
         }
-        
+
         // Build a comprehensive cache of all block prefabs from all themes
         private static void BuildBlockPrefabCache()
         {
-            if (themeBlockCaches != null)
+            if ( themeBlockCaches != null )
                 return;
-                
+
             themeBlockCaches = new Dictionary<string, Dictionary<string, Block>>();
             boulderPrefabCache = new Dictionary<string, GameObject>();
-            
+
             // Get all theme references from Map.Instance
-            if (Map.Instance == null)
+            if ( Map.Instance == null )
             {
                 return;
             }
-            
+
             // Build cache for each theme
             // Process each theme individually
-            if (Map.Instance.jungleThemeReference != null && Map.Instance.jungleThemeReference.Asset != null)
-                BuildThemeCache("jungle", Map.Instance.jungleThemeReference.Asset);
-            if (Map.Instance.cityThemeReference != null && Map.Instance.cityThemeReference.Asset != null)
-                BuildThemeCache("city", Map.Instance.cityThemeReference.Asset);
-            if (Map.Instance.desertThemeReference != null && Map.Instance.desertThemeReference.Asset != null)
-                BuildThemeCache("desert", Map.Instance.desertThemeReference.Asset);
-            if (Map.Instance.burningJungleThemeReference != null && Map.Instance.burningJungleThemeReference.Asset != null)
-                BuildThemeCache("burningJungle", Map.Instance.burningJungleThemeReference.Asset);
-            if (Map.Instance.forestThemeReference != null && Map.Instance.forestThemeReference.Asset != null)
-                BuildThemeCache("forest", Map.Instance.forestThemeReference.Asset);
-            if (Map.Instance.hellThemeReference != null && Map.Instance.hellThemeReference.Asset != null)
-                BuildThemeCache("hell", Map.Instance.hellThemeReference.Asset);
-            if (Map.Instance.americaThemeReference != null && Map.Instance.americaThemeReference.Asset != null)
-                BuildThemeCache("america", Map.Instance.americaThemeReference.Asset);
-            
+            if ( Map.Instance.jungleThemeReference != null && Map.Instance.jungleThemeReference.Asset != null )
+                BuildThemeCache( "jungle", Map.Instance.jungleThemeReference.Asset );
+            if ( Map.Instance.cityThemeReference != null && Map.Instance.cityThemeReference.Asset != null )
+                BuildThemeCache( "city", Map.Instance.cityThemeReference.Asset );
+            if ( Map.Instance.desertThemeReference != null && Map.Instance.desertThemeReference.Asset != null )
+                BuildThemeCache( "desert", Map.Instance.desertThemeReference.Asset );
+            if ( Map.Instance.burningJungleThemeReference != null && Map.Instance.burningJungleThemeReference.Asset != null )
+                BuildThemeCache( "burningJungle", Map.Instance.burningJungleThemeReference.Asset );
+            if ( Map.Instance.forestThemeReference != null && Map.Instance.forestThemeReference.Asset != null )
+                BuildThemeCache( "forest", Map.Instance.forestThemeReference.Asset );
+            if ( Map.Instance.hellThemeReference != null && Map.Instance.hellThemeReference.Asset != null )
+                BuildThemeCache( "hell", Map.Instance.hellThemeReference.Asset );
+            if ( Map.Instance.americaThemeReference != null && Map.Instance.americaThemeReference.Asset != null )
+                BuildThemeCache( "america", Map.Instance.americaThemeReference.Asset );
+
             // Create a "shared" theme for SharedLevelObjectsHolder
-            if (Map.Instance.sharedObjectsReference != null && Map.Instance.sharedObjectsReference.Asset != null)
+            if ( Map.Instance.sharedObjectsReference != null && Map.Instance.sharedObjectsReference.Asset != null )
             {
                 var sharedCache = new Dictionary<string, Block>();
                 themeBlockCaches["shared"] = sharedCache;
-                
+
                 var sharedHolder = Map.Instance.sharedObjectsReference.Asset;
-                System.Reflection.FieldInfo[] sharedFields = sharedHolder.GetType().GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-                foreach (var field in sharedFields)
+                System.Reflection.FieldInfo[] sharedFields = sharedHolder.GetType().GetFields( System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public );
+                foreach ( var field in sharedFields )
                 {
-                    if (typeof(Block).IsAssignableFrom(field.FieldType))
+                    if ( typeof( Block ).IsAssignableFrom( field.FieldType ) )
                     {
-                        Block block = field.GetValue(sharedHolder) as Block;
-                        if (block != null)
+                        Block block = field.GetValue( sharedHolder ) as Block;
+                        if ( block != null )
                         {
-                            string name = block.name.Replace("(Clone)", "").Trim();
+                            string name = block.name.Replace( "(Clone)", "" ).Trim();
                             sharedCache[name] = block;
                         }
                     }
                 }
             }
-            
+
         }
-        
+
         // Helper method to build cache for a single theme
-        private static void BuildThemeCache(string themeName, ThemeHolder theme)
+        private static void BuildThemeCache( string themeName, ThemeHolder theme )
         {
-            if (theme == null)
+            if ( theme == null )
                 return;
-                
+
             var themeCache = new Dictionary<string, Block>();
             themeBlockCaches[themeName] = themeCache;
-            
-            System.Reflection.FieldInfo[] fields = theme.GetType().GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-            foreach (var field in fields)
+
+            System.Reflection.FieldInfo[] fields = theme.GetType().GetFields( System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public );
+            foreach ( var field in fields )
             {
                 // Handle Block fields
-                if (typeof(Block).IsAssignableFrom(field.FieldType))
+                if ( typeof( Block ).IsAssignableFrom( field.FieldType ) )
                 {
-                    Block block = field.GetValue(theme) as Block;
-                    if (block != null)
+                    Block block = field.GetValue( theme ) as Block;
+                    if ( block != null )
                     {
-                        string name = block.name.Replace("(Clone)", "").Trim();
+                        string name = block.name.Replace( "(Clone)", "" ).Trim();
                         themeCache[name] = block;
                     }
                 }
                 // Handle Block arrays
-                else if (field.FieldType.IsArray && typeof(Block).IsAssignableFrom(field.FieldType.GetElementType()))
+                else if ( field.FieldType.IsArray && typeof( Block ).IsAssignableFrom( field.FieldType.GetElementType() ) )
                 {
-                    Block[] blocks = field.GetValue(theme) as Block[];
-                    if (blocks != null)
+                    Block[] blocks = field.GetValue( theme ) as Block[];
+                    if ( blocks != null )
                     {
-                        foreach (Block block in blocks)
+                        foreach ( Block block in blocks )
                         {
-                            if (block != null)
+                            if ( block != null )
                             {
-                                string name = block.name.Replace("(Clone)", "").Trim();
+                                string name = block.name.Replace( "(Clone)", "" ).Trim();
                                 themeCache[name] = block;
                             }
                         }
                     }
                 }
                 // Handle boulders (GameObject array)
-                else if (field.Name == "boulders" && field.FieldType == typeof(GameObject[]))
+                else if ( field.Name == "boulders" && field.FieldType == typeof( GameObject[] ) )
                 {
-                    GameObject[] boulders = field.GetValue(theme) as GameObject[];
-                    if (boulders != null)
+                    GameObject[] boulders = field.GetValue( theme ) as GameObject[];
+                    if ( boulders != null )
                     {
-                        foreach (GameObject boulder in boulders)
+                        foreach ( GameObject boulder in boulders )
                         {
-                            if (boulder != null)
+                            if ( boulder != null )
                             {
-                                string name = boulder.name.Replace("(Clone)", "").Trim();
+                                string name = boulder.name.Replace( "(Clone)", "" ).Trim();
                                 boulderPrefabCache[name] = boulder;
                             }
                         }
                     }
                 }
                 // Handle crateDoodads (SpriteSM array that might contain blocks)
-                else if (field.Name == "crateDoodads" && field.FieldType == typeof(SpriteSM[]))
+                else if ( field.Name == "crateDoodads" && field.FieldType == typeof( SpriteSM[] ) )
                 {
-                    SpriteSM[] doodads = field.GetValue(theme) as SpriteSM[];
-                    if (doodads != null)
+                    SpriteSM[] doodads = field.GetValue( theme ) as SpriteSM[];
+                    if ( doodads != null )
                     {
-                        foreach (SpriteSM doodad in doodads)
+                        foreach ( SpriteSM doodad in doodads )
                         {
-                            if (doodad != null && doodad.gameObject != null)
+                            if ( doodad != null && doodad.gameObject != null )
                             {
                                 // Check if this doodad has a Block component
                                 Block block = doodad.gameObject.GetComponent<Block>();
-                                if (block != null)
+                                if ( block != null )
                                 {
-                                    string name = block.name.Replace("(Clone)", "").Trim();
+                                    string name = block.name.Replace( "(Clone)", "" ).Trim();
                                     themeCache[name] = block;
                                 }
                             }
@@ -1155,14 +1151,14 @@ namespace Utility_Mod
                 }
             }
         }
-        
-        private BlockType? MapAmmoCrateType(object ammoType)
+
+        private BlockType? MapAmmoCrateType( object ammoType )
         {
-            if (ammoType == null)
+            if ( ammoType == null )
                 return BlockType.Crate;
-                
+
             string typeName = ammoType.ToString();
-            switch (typeName)
+            switch ( typeName )
             {
                 case "Standard":
                     return BlockType.AmmoCrate;
@@ -1190,20 +1186,20 @@ namespace Utility_Mod
                     return BlockType.Crate;
             }
         }
-        
-        
+
+
         public BlockType? GetBlockTypeFromGroundType( GroundType groundType, Block block = null )
         {
             // Special handling for blocks that report misleading ground types
-            if (block != null)
+            if ( block != null )
             {
                 // DoodadCrate blocks report Earth ground type but should remain crates
-                if (block is DoodadCrate)
+                if ( block is DoodadCrate )
                 {
                     return BlockType.Crate;
                 }
             }
-            
+
             // Map GroundType to BlockType based on available BlockType values
             switch ( groundType )
             {
@@ -1532,7 +1528,7 @@ namespace Utility_Mod
             Vector3 worldPos = GetMouseWorldPosition();
 
             Camera camera = Camera.main ?? Camera.current;
-            if (camera == null)
+            if ( camera == null )
                 return null;
 
             // Use sphere cast for more generous hit detection
