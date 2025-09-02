@@ -23,7 +23,7 @@ namespace Utility_Mod
         public Action<bool> OnToggle { get; set; }  // Called when toggle state changes
         public bool IsHeader { get; set; }  // True for header items (no hover effect)
         public bool Enabled { get; set; } = true;  // Whether the menu item is enabled (clickable)
-        
+
         // Multi-button support
         public class ButtonInfo
         {
@@ -40,7 +40,7 @@ namespace Utility_Mod
         /// <summary>
         /// Creates a standard menu item with an action
         /// </summary>
-        public MenuItem(string text, Action action)
+        public MenuItem( string text, Action action )
         {
             Text = text;
             OnClick = action;
@@ -50,7 +50,7 @@ namespace Utility_Mod
         /// <summary>
         /// Creates a menu item with submenu items
         /// </summary>
-        public MenuItem(string text, List<MenuItem> subItems)
+        public MenuItem( string text, List<MenuItem> subItems )
         {
             Text = text;
             SubItems = subItems;
@@ -60,7 +60,7 @@ namespace Utility_Mod
         /// <summary>
         /// Creates a menu item with submenu that will be populated later
         /// </summary>
-        public MenuItem(string text)
+        public MenuItem( string text )
         {
             Text = text;
             SubItems = new List<MenuItem>();
@@ -90,17 +90,17 @@ namespace Utility_Mod
         /// <summary>
         /// Creates a label menu item (no action)
         /// </summary>
-        public static MenuItem CreateLabel(string text)
+        public static MenuItem CreateLabel( string text )
         {
-            return new MenuItem(text, (Action)null);
+            return new MenuItem( text, (Action)null );
         }
-        
+
         /// <summary>
         /// Creates a header menu item (no action, no hover effect)
         /// </summary>
-        public static MenuItem CreateHeader(string text)
+        public static MenuItem CreateHeader( string text )
         {
-            return new MenuItem(text, (Action)null) { IsHeader = true };
+            return new MenuItem( text, (Action)null ) { IsHeader = true };
         }
 
         #endregion
@@ -110,12 +110,12 @@ namespace Utility_Mod
         /// <summary>
         /// Adds a submenu item
         /// </summary>
-        public void AddSubItem(MenuItem item)
+        public void AddSubItem( MenuItem item )
         {
-            if (SubItems == null)
+            if ( SubItems == null )
                 SubItems = new List<MenuItem>();
-            
-            SubItems.Add(item);
+
+            SubItems.Add( item );
         }
 
         /// <summary>
@@ -123,10 +123,10 @@ namespace Utility_Mod
         /// </summary>
         public void AddSeparator()
         {
-            if (SubItems == null)
+            if ( SubItems == null )
                 SubItems = new List<MenuItem>();
-            
-            SubItems.Add(CreateSeparator());
+
+            SubItems.Add( CreateSeparator() );
         }
 
         #endregion

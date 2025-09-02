@@ -64,13 +64,19 @@
     <Compile Include="Display\MenuAction.cs" />
     <Compile Include="Display\MenuItem.cs" />
     <Compile Include="Display\MousePositionDisplay.cs" />
-    <Compile Include="Dropdown.cs" />
+    <Compile Include="Display\DisplayUtility.cs" />
+    <Compile Include="Display\InfoDisplay.cs" />
+    <Compile Include="TestDummy\DamageEvent.cs" />
+    <Compile Include="TestDummy\TestDummy.cs" />
+    <Compile Include="TestDummy\TestDummyManager.cs" />
+    <Compile Include="TestDummy\TestDummyDisplay.cs" />
+    <Compile Include="Misc\Dropdown.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Settings.cs" />
-    <Compile Include="SpawnableTypes.cs" />
-    <Compile Include="SwapBrosIntegration.cs" />
+    <Compile Include="Misc\SpawnableTypes.cs" />
+    <Compile Include="Misc\SwapBrosIntegration.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony, Version=2.2.2.0, Culture=neutral, processorArchitecture=MSIL">
