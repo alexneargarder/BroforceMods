@@ -507,6 +507,12 @@ namespace Mission_Impossibro
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
+            // Don't allow flexing during melee
+            if ( this.doingMelee )
+            {
+                return;
+            }
+            
             if ( !( this.grappleAttached || this.exitingGrapple ) )
             {
                 base.SetGestureAnimation( gesture );
