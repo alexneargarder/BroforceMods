@@ -29,6 +29,7 @@ namespace Utility_Mod
         public bool showSettingsProfilesOptions = false;
 
         // General Options
+        public bool skipIntro = true;
         public bool cameraShake = false;
         public bool enableSkip = true;
         public bool scaleUIWithWindowWidth = false;

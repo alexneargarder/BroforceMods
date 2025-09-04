@@ -786,5 +786,19 @@ namespace Utility_Mod
                     audioSource.enabled = false;
             }
         }
+        
+        [HarmonyPatch( typeof( Startup ), "Update" )]
+        static class Startup_Update_Patch
+        {
+            static bool Prefix( Startup __instance )
+            {
+                if ( !Main.enabled || !Main.settings.skipIntro )
+                    return true;
+                    
+                // Skip intro and go straight to main menu
+                GameState.LoadLevel( "MainMenu" );
+                return false;
+            }
+        }
     }
 }
