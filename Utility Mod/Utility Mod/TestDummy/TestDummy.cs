@@ -23,6 +23,11 @@ namespace Utility_Mod
 
             if ( originalMook != null && originalMook != this )
             {
+                if ( originalMook.soundHolder != null )
+                {
+                    this.soundHolder = originalMook.soundHolder;
+                }
+
                 this.health = 1000;
                 this.maxHealth = 1000;
 
@@ -46,6 +51,12 @@ namespace Utility_Mod
                 UnityEngine.Object.Destroy( disabler );
             }
 
+            InvulnerabilityFlash flash = this.GetComponent<InvulnerabilityFlash>();
+            if ( flash != null )
+            {
+                flash.enabled = false;
+            }
+
             Rigidbody rb = this.GetComponent<Rigidbody>();
             if ( rb != null )
             {
@@ -57,7 +68,7 @@ namespace Utility_Mod
             this.name = "TestDummy";
 
             // Set proper layer for collision detection
-            this.gameObject.layer = LayerMask.NameToLayer( "Enemies" );
+            this.gameObject.layer = LayerMask.NameToLayer( "Units" );
 
             this.playerNum = -1;
 
@@ -119,6 +130,22 @@ namespace Utility_Mod
         {
             // Override to prevent null reference exception
             // TestDummy doesn't die
+        }
+
+        protected override void SetGunPosition( float xOffset, float yOffset )
+        {
+        }
+
+        public override void AnimateActualIdleFrames()
+        {
+        }
+
+        protected override void AnimateIdle()
+        {
+        }
+
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
+        {
         }
 
         public override void Death( float xI, float yI, DamageObject damage )
