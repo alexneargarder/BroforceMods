@@ -188,6 +188,7 @@ namespace Utility_Mod
             "Reset Game Speed",
             
             // General Options
+            "Skip Intro",
             "Camera Shake",
             "Helicopter Skip",
             "Ending Skip",
@@ -664,6 +665,7 @@ namespace Utility_Mod
             {
                 GUILayout.BeginHorizontal();
                 {
+                    ShowKeybindingButton( "Skip Intro" );
                     ShowKeybindingButton( "Camera Shake" );
                     ShowKeybindingButton( "Helicopter Skip" );
                     ShowKeybindingButton( "Ending Skip" );
@@ -686,6 +688,9 @@ namespace Utility_Mod
             {
                 GUILayout.BeginHorizontal();
                 {
+                    settings.skipIntro = GUILayout.Toggle( settings.skipIntro, new GUIContent( "Skip Intro",
+                        "Skip intro logos and go straight to main menu" ), ScaledWidth( 75f ) );
+                    
                     settings.cameraShake = GUILayout.Toggle( settings.cameraShake, new GUIContent( "Camera Shake",
                         "Disable this to have camera shake automatically set to 0 at the start of a level" ), ScaledWidth( 100f ) );
 
@@ -2399,6 +2404,10 @@ namespace Utility_Mod
                     break;
 
                 // General Options
+                case "Skip Intro":
+                    settings.skipIntro = !settings.skipIntro;
+                    break;
+                    
                 case "Camera Shake":
                     settings.cameraShake = !settings.cameraShake;
                     break;
