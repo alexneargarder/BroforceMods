@@ -802,6 +802,16 @@ namespace Brostbuster
             this.alreadySpawnedSlimer = true;
         }
 
+        public override void SetGestureAnimation( GestureElement.Gestures gesture )
+        {
+            // Don't allow flexing during melee
+            if ( this.doingMelee )
+            {
+                return;
+            }
+            base.SetGestureAnimation( gesture );
+        }
+
         // Sets up melee attack
         protected override void StartCustomMelee()
         {
