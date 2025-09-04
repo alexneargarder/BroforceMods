@@ -425,6 +425,12 @@ namespace Captain_Ameribro_Mod
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
+            // Don't allow flexing during melee
+            if ( this.doingMelee )
+            {
+                return;
+            }
+
             if ( this.animateSpecial && gesture != GestureElement.Gestures.None )
             {
                 this.CancelSpecial();
