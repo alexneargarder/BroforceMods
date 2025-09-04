@@ -32,6 +32,7 @@ namespace Captain_Ameribro_Mod
         protected List<Unit> alreadyHit = new List<Unit>();
         protected const float groundRotationSpeed = -10.0f;
         public TestVanDammeAnim throwingPlayer;
+        protected bool shouldBoomerang = true;
 
         // Charging Variables
         public float shieldCharge = 0f;
@@ -164,9 +165,10 @@ namespace Captain_Ameribro_Mod
             this.lastXI = xI;
         }
 
-        public void Setup( TestVanDammeAnim player, float currentSpecialCharge = 0f )
+        public void Setup( TestVanDammeAnim player, float currentSpecialCharge = 0f, bool enableBoomerang = true )
         {
             this.throwingPlayer = player;
+            this.shouldBoomerang = enableBoomerang;
 
             this.shieldCharge = currentSpecialCharge;
 
@@ -230,24 +232,31 @@ namespace Captain_Ameribro_Mod
                 {
                     this.ReturnShield( this.firedBy );
                 }
-                if ( !this.hasReachedApex && this.speed < ( 0.5 * this.originalSpeed ) ) // Shield has slowed down enough to be considered at Apex
+                if ( this.shouldBoomerang )
                 {
-                    this.hasReachedApex = true;
+                    if ( !this.hasReachedApex && this.speed < ( 0.5 * this.originalSpeed ) ) // Shield has slowed down enough to be considered at Apex
+                    {
+                        this.hasReachedApex = true;
 
-                    this.seekTurningSpeedLerpM = 3f;
-                    this.seekTurningSpeedM = 20f;
-                    this.seekSpeedCurrent = this.seekTurningSpeedM / 10;
+                        this.seekTurningSpeedLerpM = 3f;
+                        this.seekTurningSpeedM = 20f;
+                        this.seekSpeedCurrent = this.seekTurningSpeedM / 10;
 
-                    this.BeginReturnSeek();
+                        this.BeginReturnSeek();
 
 
+                    }
+                    else if ( this.hasReachedApex )
+                    {
+                        this.ReturnSeek();
+                    }
+                    this.CheckReturnShield();
                 }
-                else if ( this.hasReachedApex )
+                else if ( !this.shouldBoomerang )
                 {
-                    this.ReturnSeek();
+                    this.StartDropping();
                 }
-                this.CheckReturnShield();
-                if ( this.hasReachedApex ) // Check if shield should start snapping
+                if ( this.shouldBoomerang && this.hasReachedApex ) // Check if shield should start snapping
                 {
                     if ( !startedSnap && Vector3.Distance( this.transform.position, this.throwingPlayer.transform.position ) < 100 )
                     {
@@ -410,7 +419,7 @@ namespace Captain_Ameribro_Mod
         // Called by RunProjectile Base method
         protected override void MoveProjectile()
         {
-            if ( !this.stopSeeking )
+            if ( !this.stopSeeking && !this.dropping )
             {
                 this.RunSeeking();
                 if ( this.targetAngle > this.angle + 3.14159274f )
@@ -436,15 +445,26 @@ namespace Captain_Ameribro_Mod
                 {
                     this.speed = Mathf.Lerp( this.speed, this.originalSpeed, this.t * 10f );
                 }
-                else
+                else if ( this.shouldBoomerang )
                 {
                     this.speed = Mathf.Lerp( this.speed, 0, this.t * 10f );
                 }
-                this.seekSpeedCurrent = Mathf.Lerp( this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t );
-                this.angle = Mathf.Lerp( this.angle, this.targetAngle, this.t * this.seekSpeedCurrent );
-                Vector2 vector = global::Math.Point2OnCircle( this.angle, this.speed );
-                this.xI = vector.x;
-                this.yI = vector.y;
+                else
+                {
+                    this.speed *= 1f - this.t * 0.5f;
+                }
+                if ( !this.dropping )
+                {
+                    this.seekSpeedCurrent = Mathf.Lerp( this.seekSpeedCurrent, this.seekTurningSpeedM, this.seekTurningSpeedLerpM * this.t );
+                    this.angle = Mathf.Lerp( this.angle, this.targetAngle, this.t * this.seekSpeedCurrent );
+                    Vector2 vector = global::Math.Point2OnCircle( this.angle, this.speed );
+                    this.xI = vector.x;
+                    this.yI = vector.y;
+                }
+                else
+                {
+                    this.xI *= 1f - this.t * 0.3f;
+                }
             }
 
             base.MoveProjectile();
@@ -530,7 +550,8 @@ namespace Captain_Ameribro_Mod
                     {
                         EffectsController.CreateSuddenSparkShower( this.raycastHit.point.x + this.raycastHit.normal.x * 3f, this.raycastHit.point.y + this.raycastHit.normal.y * 3f, this.sparkCount / 2, 2f, 40f + UnityEngine.Random.value * 80f, this.raycastHit.normal.x * ( 100f + UnityEngine.Random.value * 210f ), this.raycastHit.normal.y * 120f + ( -60f + UnityEngine.Random.value * 350f ), 0.2f );
                     }
-                    this.xI *= -this.bounceXM;
+                    float bounceMultiplier = this.dropping ? 0.3f : 1f;
+                    this.xI *= -this.bounceXM * bounceMultiplier;
                     if ( this.raycastHit.collider.gameObject.GetComponent<Block>() != null && !this.hasReachedApex ) // Hit a block / wall
                     {
                         this.raycastHit.collider.gameObject.GetComponent<Block>().Damage( new DamageObject( 2, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this ) );
@@ -613,7 +634,8 @@ namespace Captain_Ameribro_Mod
                         this.xI *= this.frictionM;
                         if ( this.yI < -40f )
                         {
-                            this.yI *= -this.bounceYM;
+                            float vertBounceMultiplier = this.dropping ? 0.4f : 1f;
+                            this.yI *= -this.bounceYM * vertBounceMultiplier;
                         }
                         else
                         {
@@ -631,7 +653,8 @@ namespace Captain_Ameribro_Mod
                     {
                         this.raycastHit.collider.gameObject.GetComponent<Block>().Damage( new DamageObject( 0, DamageType.Knock, this.xI, this.yI, base.X, base.Y, this ) );
                     }
-                    this.yI *= -( this.bounceYM + 0.1f );
+                    float vertBounceMultiplier = this.dropping ? 0.4f : 1f;
+                    this.yI *= -( this.bounceYM + 0.1f ) * vertBounceMultiplier;
                     this.PlayBounceSoundWall();
                     this.rotationSpeed = groundRotationSpeed * this.xI;
                 }
@@ -691,6 +714,13 @@ namespace Captain_Ameribro_Mod
             {
                 float num2 = num / 210f;
                 float num3 = 0.05f + Mathf.Clamp( num2 * num2, 0f, 0.25f );
+                
+                if ( this.dropping )
+                {
+                    float speedRatio = Mathf.Clamp01( num / 300f );
+                    num3 *= speedRatio * 0.5f;
+                }
+                
                 Sound.GetInstance().PlaySoundEffectAt( this.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f );
             }
         }
@@ -702,6 +732,13 @@ namespace Captain_Ameribro_Mod
             {
                 float num2 = num / 210f;
                 float num3 = 0.05f + Mathf.Clamp( num2 * num2, 0f, 0.25f );
+                
+                if ( this.dropping )
+                {
+                    float speedRatio = Mathf.Clamp01( num / 300f );
+                    num3 *= speedRatio * 0.5f;
+                }
+                
                 //Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
                 Sound.GetInstance().PlaySoundEffectAt( this.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f );
             }
@@ -732,6 +769,9 @@ namespace Captain_Ameribro_Mod
 
         protected override void HitUnits()
         {
+            if ( this.dropping && Mathf.Abs(this.xI) < 10f && Mathf.Abs(this.yI) < 10f )
+                return;
+                
             if ( this.hitUnitsDelay > 0f )
             {
                 this.hitUnitsDelay -= this.t;

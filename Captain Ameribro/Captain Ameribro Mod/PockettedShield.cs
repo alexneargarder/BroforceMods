@@ -32,7 +32,7 @@ namespace Captain_Ameribro_Mod
                 thrownShield = ProjectileController.SpawnProjectileLocally( this.shieldPrefab, bro, bro.X + bro.transform.localScale.x * 6f, bro.Y + 15f, bro.transform.localScale.x * 400f, 0f, false, bro.playerNum, false, false, 0f ) as Shield;
             }
 
-            thrownShield.Setup( bro );
+            thrownShield.Setup( bro, 0f, false );
         }
 
 
