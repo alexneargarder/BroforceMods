@@ -171,7 +171,7 @@ namespace Drunken_Broster.MeleeItems
                 return;
             }
             this.exploded = true;
-            float range = 65f;
+            float range = 55f;
             EffectsController.CreateExplosionRangePop( base.X, base.Y, -1f, range * 2f );
             EffectsController.CreateSparkShower( base.X, base.Y, 70, 3f, 200f, 0f, 250f, 0.6f, 0.5f );
             EffectsController.CreatePlumes( base.X, base.Y, 3, 8f, 315f, 0f, 0f );
@@ -186,7 +186,7 @@ namespace Drunken_Broster.MeleeItems
             MapController.DamageGround( this, 12, DamageType.Fire, range, base.X, base.Y, null, false );
             Map.ShakeTrees( base.X, base.Y, 256f, 64f, 128f );
             MapController.BurnUnitsAround_NotNetworked( this, this.playerNum, 1, range * 2f, base.X, base.Y, true, true );
-            Map.ExplodeUnits( this, 12, DamageType.Fire, range * 1.2f, range, base.X, base.Y - 6f, 350f, 300f, this.playerNum, false, true, true );
+            Map.ExplodeUnits( this, 12, DamageType.Fire, range * 1.1f, range, base.X, base.Y - 6f, 350f, 300f, this.playerNum, false, true, true );
             Map.ExplodeUnits( this, 1, DamageType.Fire, range * 1f, range, base.X, base.Y - 6f, 350f, 300f, this.playerNum, false, true, true );
         }
 

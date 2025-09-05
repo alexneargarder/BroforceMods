@@ -49,10 +49,10 @@ namespace Drunken_Broster
         protected int attackDownwardsStrikeFrame = 3;
         protected int attackForwardsStrikeFrame = 2;
         protected bool attackHasHit = false;
-        protected const int soberEnemyFistDamage = 6;
-        protected const int soberGroundFistDamage = 6;
-        protected const int drunkEnemyFistDamage = 11;
-        protected const int drunkGroundFistDamage = 11;
+        protected const int soberEnemyFistDamage = 10;
+        protected const int soberGroundFistDamage = 10;
+        protected const int drunkEnemyFistDamage = 15;
+        protected const int drunkGroundFistDamage = 15;
         protected int enemyFistDamage = soberEnemyFistDamage;
         protected int groundFistDamage = soberGroundFistDamage;
         public Shrapnel shrapnelSpark;
@@ -147,6 +147,7 @@ namespace Drunken_Broster
 
             // Needed to have custom melee functions called, actual type is irrelevant
             this.meleeType = MeleeType.Disembowel;
+            this.currentMeleeType = this.meleeType;
 
             this.originalSpeed = this.speed;
             BroLee broLeePrefab = HeroController.GetHeroPrefab( HeroType.BroLee ) as BroLee;
@@ -653,7 +654,7 @@ namespace Drunken_Broster
             if ( this.stationaryAttackCounter % 2 == 0 )
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, 10f * base.transform.localScale.x, 950f, 6f, base.playerNum, out _, this );
-                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit ) )
+                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 13f, 13f, base.X + base.transform.localScale.x * 7f, base.Y + 7f, 10f * base.transform.localScale.x, 950f, true, true, false, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -699,7 +700,7 @@ namespace Drunken_Broster
             else
             {
                 DamageDoodads( 3, DamageType.Knifed, base.X + (float)( base.Direction * 4 ), base.Y + 7f, 700f * base.transform.localScale.x, 250f, 6f, base.playerNum, out _, this );
-                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage, 1, DamageType.Blade, 13f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 5f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
+                if ( HitUnitsStationaryAttack( this, base.playerNum, this.enemyFistDamage + 2, 1, DamageType.Blade, 13f, 8f, base.X + base.transform.localScale.x * 7f, base.Y + 5f, 700f * base.transform.localScale.x, 250f, true, true, false, this.alreadyHit ) )
                 {
                     if ( !this.hasHitWithFists )
                     {
@@ -1142,8 +1143,8 @@ namespace Drunken_Broster
                                 num = 0;
                                 flag = true;
                             }
-                            // Send units hit in midair away rather than up
-                            if ( !unit.IsOnGround() )
+                            // Send units hit in midair further
+                            if ( !unit.IsOnGround() && ( this.drunk || unit.health <= 0 ) )
                             {
                                 xI *= this.drunk ? 1.75f : 1.25f;
                                 yI *= this.drunk ? 1.75f : 1.25f;
@@ -1163,7 +1164,13 @@ namespace Drunken_Broster
                             }
                             else
                             {
-                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                                damage = ValueOrchestrator.GetModifiedDamage( damage, playerNum );
+                                // Don't allow instagibs
+                                if ( damage > unit.health )
+                                {
+                                    damage = unit.health;
+                                }
+                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
                             }
                             result = true;
                             if ( flag )
@@ -1204,7 +1211,7 @@ namespace Drunken_Broster
                                 flag = true;
                             }
                             // Send units hit in midair further
-                            if ( !unit.IsOnGround() )
+                            if ( !unit.IsOnGround() && ( this.drunk || unit.health <= 0 ) )
                             {
                                 xI *= this.drunk ? 3.0f : 2.5f;
                                 yI *= this.drunk ? 1.5f : 1.25f;
@@ -2221,8 +2228,8 @@ namespace Drunken_Broster
             var itemPool = new List<KeyValuePair<MeleeItem, int>>
             {
                 // General pool (all themes)
-                new KeyValuePair<MeleeItem, int>( MeleeItem.Crate, 120 ),
-                new KeyValuePair<MeleeItem, int>( MeleeItem.Bottle, 100 )
+                new KeyValuePair<MeleeItem, int>( MeleeItem.Crate, 110 ),
+                new KeyValuePair<MeleeItem, int>( MeleeItem.Bottle, 90 )
             };
 
             switch ( theme )
@@ -2230,13 +2237,13 @@ namespace Drunken_Broster
                 case LevelTheme.Jungle:
                     itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Coconut, 25 + rareItemBoost ) );
                     itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Beehive, 20 + rareItemBoost ) );
-                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 10 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 12 + rareItemBoost ) );
                     break;
 
                 case LevelTheme.City:
                     itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.SoccerBall, 25 + rareItemBoost ) );
-                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Tire, 10 + rareItemBoost ) );
-                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 10 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Tire, 13 + rareItemBoost ) );
+                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 11 + rareItemBoost ) );
                     break;
 
                 case LevelTheme.Hell:
@@ -2456,7 +2463,7 @@ namespace Drunken_Broster
             MapController.DamageGround( this, 12, DamageType.Fire, range, base.X, base.Y, null, false );
             Map.ShakeTrees( base.X, base.Y, 256f, 64f, 128f );
             MapController.BurnUnitsAround_NotNetworked( this, this.playerNum, 1, range * 2f, base.X, base.Y, true, true );
-            Map.ExplodeUnits( this, 12, DamageType.Fire, range * 1.2f, range, base.X, base.Y - 6f, 200f, 300f, this.playerNum, false, true, true );
+            Map.ExplodeUnits( this, 12, DamageType.Fire, range * 1.1f, range, base.X, base.Y - 6f, 200f, 300f, this.playerNum, false, true, true );
             Map.ExplodeUnits( this, 1, DamageType.Fire, range * 1f, range, base.X, base.Y - 6f, 200f, 300f, this.playerNum, false, true, true );
             this.ExtraKnock( -1 * base.transform.localScale.x * 150, 400 );
 
@@ -2733,10 +2740,13 @@ namespace Drunken_Broster
             this.progressedFarEnough = false;
             this.canWallClimb = false;
 
+            // Ensure melee attack type is set, otherwise wrong animation plays
+            this.currentMeleeType = MeleeType.Disembowel;
+
             // Switch to melee sprite
             base.GetComponent<Renderer>().material = this.meleeSpriteGrabThrowing;
 
-            base.ChangeFrame();
+            this.ChangeFrame();
         }
 
         protected void ThrowHeldItem()
@@ -3128,6 +3138,11 @@ namespace Drunken_Broster
             this.enemyFistDamage = drunkEnemyFistDamage;
             this.groundFistDamage = drunkGroundFistDamage;
             this.attackDownwardsStrikeFrame = 2;
+
+            // Start holding bottle
+            this.chosenItem = MeleeItem.Bottle;
+            this.SwitchToHeldItem();
+
             DrunkenCameraManager.RegisterDrunk( this );
         }
 
