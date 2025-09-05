@@ -11,6 +11,7 @@ namespace Drunken_Broster.MeleeItems
         protected int maxBounces = 6;
         protected int maxBulletHits = 5;
         protected bool shouldKillIfNotVisible = true;
+        protected float clearHitEnemiesCooldown = 0f;
 
         protected override void Awake()
         {
@@ -20,7 +21,7 @@ namespace Drunken_Broster.MeleeItems
             this.useAngularFriction = true;
             this.angularFrictionM = 5;
             this.bounceOffEnemies = true;
-            this.bounceOffEnemiesMultiple = true;
+            this.bounceOffEnemiesMultiple = false;
             this.shootable = true;
             this.rotateAtRightAngles = false;
             this.size = 5;
@@ -43,6 +44,18 @@ namespace Drunken_Broster.MeleeItems
             this.soundHolder.hitSounds[2] = ResourcesController.GetAudioClip( SoundPath, "coconutHit3.wav" );
             this.soundHolder.hitSounds[3] = ResourcesController.GetAudioClip( SoundPath, "coconutHit4.wav" );
             this.soundHolder.hitSounds[4] = ResourcesController.GetAudioClip( SoundPath, "coconutHit5.wav" );
+        }
+
+        protected override bool Update()
+        {
+            this.clearHitEnemiesCooldown += this.t;
+            if ( this.clearHitEnemiesCooldown > 1f )
+            {
+                this.clearHitEnemiesCooldown -= 1f;
+                this.alreadyBouncedOffUnits.Clear();
+            }
+
+            return base.Update();
         }
 
         protected override void Bounce( bool bounceX, bool bounceY )
@@ -137,6 +150,12 @@ namespace Drunken_Broster.MeleeItems
         // Allow bouncing off enemies when moving horizontally
         protected override void BounceOffEnemies()
         {
+            // Don't allow bounces off enemies if nearly at rest
+            if ( Mathf.Abs( xI ) < 25 && Mathf.Abs( yI ) < 25 )
+            {
+                return;
+            }
+
             if ( this.bounceOffEnemiesMultiple )
             {
                 if ( Map.HitAllLivingUnits( this.firedBy, this.playerNum, this.damage, DamageType.Bounce, this.size - 2f, this.size + 2f, base.X, base.Y, this.xI, 30f, false, true ) )
