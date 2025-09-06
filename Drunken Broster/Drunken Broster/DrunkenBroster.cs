@@ -2954,11 +2954,6 @@ namespace Drunken_Broster
             }
         }
 
-        private bool IsWalking()
-        {
-            return base.Y < this.groundHeight + 0.5f && this.yI < 10f;
-        }
-
         protected override void PressSpecial()
         {
             if ( this.usingSpecial || this.doingMelee || this.hasBeenCoverInAcid || this.throwingHeldObject )
@@ -3020,13 +3015,9 @@ namespace Drunken_Broster
             {
                 this.frameRate = 0.1f;
                 this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
-                if ( this.usingSpecialFrame < 10 && this.IsWalking() )
+                if ( this.IsOnGround() )
                 {
-                    this.speed = 0f;
-                }
-                else
-                {
-                    this.speed = this.originalSpeed;
+                    this.speed = 30f;
                 }
                 if ( this.usingSpecialFrame == 4 )
                 {
@@ -3050,13 +3041,9 @@ namespace Drunken_Broster
             {
                 this.frameRate = 0.11f;
                 this.sprite.SetLowerLeftPixel( (float)( this.usingSpecialFrame * this.spritePixelWidth ), (float)( this.spritePixelHeight * 10 ) );
-                if ( this.usingSpecialFrame < 11 && this.IsWalking() )
+                if ( this.IsOnGround() )
                 {
-                    this.speed = 0f;
-                }
-                else
-                {
-                    this.speed = this.originalSpeed;
+                    this.speed = 30f;
                 }
 
                 if ( this.usingSpecialFrame == 1 )
@@ -3134,7 +3121,7 @@ namespace Drunken_Broster
             base.GetComponent<Renderer>().material = this.drunkSprite;
             this.drunkCounter = maxDrunkTime;
             this.drunk = true;
-            this.speed = this.originalSpeed = 110;
+            this.originalSpeed = 110;
             this.enemyFistDamage = drunkEnemyFistDamage;
             this.groundFistDamage = drunkGroundFistDamage;
             this.attackDownwardsStrikeFrame = 2;
@@ -3167,7 +3154,7 @@ namespace Drunken_Broster
             base.GetComponent<Renderer>().material = this.normalSprite;
             this.drunkCounter = 0;
             this.drunk = false;
-            this.speed = this.originalSpeed = 130;
+            this.originalSpeed = 130;
             this.enemyFistDamage = soberEnemyFistDamage;
             this.groundFistDamage = soberGroundFistDamage;
             this.attackDownwardsStrikeFrame = 3;
@@ -3394,7 +3381,7 @@ namespace Drunken_Broster
                 this.slideExtraSpeed = 0f;
             }
 
-            if ( !this.doingMelee )
+            if ( !this.doingMelee && !this.usingSpecial )
             {
                 this.speed = this.originalSpeed + this.slideExtraSpeed;
             }
