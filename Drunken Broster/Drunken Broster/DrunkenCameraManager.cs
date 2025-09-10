@@ -53,22 +53,19 @@ namespace Drunken_Broster
 
         public static void UnregisterDrunk( DrunkenBroster bro, bool immediateReset = false )
         {
-            if ( drunkBros.Contains( bro ) )
-            {
-                drunkBros.Remove( bro );
+            drunkBros.Remove( bro );
 
-                // If no drunk bros remain, start sobering animation
-                if ( drunkBros.Count == 0 )
+            // If no drunk bros remain, start sobering animation
+            if ( drunkBros.Count == 0 )
+            {
+                // If immediate reset is true then it indicates we should immediately reset the camera tilt if no drunken bros are left
+                if ( immediateReset )
                 {
-                    // If immediate reset is true then it indicates we should immediately reset the camera tilt if no drunken bros are left
-                    if ( immediateReset )
-                    {
-                        ResetCamera();
-                    }
-                    else
-                    {
-                        isSoberingUp = true;
-                    }
+                    ResetCamera();
+                }
+                else
+                {
+                    isSoberingUp = true;
                 }
             }
         }

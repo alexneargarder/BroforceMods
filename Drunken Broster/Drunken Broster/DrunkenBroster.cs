@@ -3167,14 +3167,6 @@ namespace Drunken_Broster
             DrunkenCameraManager.UnregisterDrunk( this );
         }
 
-        protected void ResetCameraTilt()
-        {
-            if ( this.drunk )
-            {
-                DrunkenCameraManager.UnregisterDrunk( this );
-            }
-        }
-
         public override void Death( float xI, float yI, DamageObject damage )
         {
             DrunkenCameraManager.UnregisterDrunk( this );
