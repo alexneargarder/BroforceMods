@@ -1073,9 +1073,28 @@ namespace Drunken_Broster
                     SortOfFollow.Shake( 0.15f );
                     this.MakeEffects();
                 }
-                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, this.groundFistDamage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
+                // Deal extra damage to bosses
+                int damage = this.groundFistDamage;
+                if ( this.raycastHit.collider.gameObject.layer == 30 )
+                {
+                    if ( this.drunk )
+                    {
+                        damage += 12;
+                    }
+                    else
+                    {
+                        damage += 7;
+                    }
+                }
+                MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, damage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
+                // If we hit something on the LargeObjects layer, don't continue hitting stuff because it could be a boss
+                if ( this.raycastHit.collider.gameObject.layer == 30 )
+                {
+                    this.hasHitWithWall = true;
+                    this.attackHasHit = true;
+                }
                 // If we hit a steelblock, then don't allow further hits
-                if ( this.drunk && this.raycastHit.collider.gameObject.GetComponent<SteelBlock>() != null )
+                else if ( this.drunk && this.raycastHit.collider.gameObject.GetComponent<SteelBlock>() != null )
                 {
                     this.hasHitWithWall = true;
                     this.attackHasHit = true;
