@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 using World.LevelEdit.Triggers;
@@ -19,31 +18,31 @@ namespace Custom_Triggers_Mod
                 }
 
                 Main.Log( "info name: " + info.name );
-                if ( info.name == "SPECIALSTRING" )
-                {
-                    Main.Log( "overriding trigger action" );
-                    try
-                    {
-                        __result = new TestCustomTriggerAction();
+                //if ( info.name == "SPECIALSTRING" )
+                //{
+                //    Main.Log( "overriding trigger action" );
+                //    try
+                //    {
+                //        __result = new TestCustomTriggerAction();
 
-                        __result.Info = info;
-                        __result.timeOffsetLeft = info.timeOffset;
-                        __result.AssignDeterministicIDs();
-                    }
-                    catch ( Exception ex )
-                    {
-                        Main.Log( "failed creating custom trigger action: " + ex.ToString() );
-                    }
+                //        __result.Info = info;
+                //        __result.timeOffsetLeft = info.timeOffset;
+                //        __result.AssignDeterministicIDs();
+                //    }
+                //    catch ( Exception ex )
+                //    {
+                //        Main.Log( "failed creating custom trigger action: " + ex.ToString() );
+                //    }
 
-                    return false;
-                }
+                //    return false;
+                //}
 
                 return true;
             }
         }
 
         [HarmonyPatch( typeof( LevelEditorGUI ), "ShowTriggerMenu" )]
-        static class LevelEditorGUI_ShowTriggerMenu_Patch
+        public static class LevelEditorGUI_ShowTriggerMenu_Patch
         {
             public static void PlayClickSound( LevelEditorGUI __instance )
             {
@@ -409,6 +408,8 @@ namespace Custom_Triggers_Mod
                             ___selectedTrigger.actions.Add( rogueforceBombardmentActionInfo );
                             ___selectedAction = rogueforceBombardmentActionInfo;
                         }
+                        // Display Add new for all custom triggers
+                        CustomTriggerManager.DisplayAddCustomTriggers( __instance, ref ___selectedTrigger, ref ___selectedAction );
 
                         GUILayout.Label( "Current Actions:", new GUILayoutOption[0] );
                         int num = 1;
@@ -448,11 +449,13 @@ namespace Custom_Triggers_Mod
                     }
                     else
                     {
+                        bool isCustomAction = ___selectedAction is CustomTriggerActionInfo;
+
                         GUILayout.BeginHorizontal( new GUILayoutOption[0] );
                         GUILayout.Label( "Editing Action: ", new GUILayoutOption[0] );
                         ___selectedAction.name = GUILayout.TextField( ___selectedAction.name ?? string.Empty, new GUILayoutOption[0] );
                         GUILayout.EndHorizontal();
-                        GUILayout.Label( "Editing " + ___selectedAction.type + " action", new GUILayoutOption[0] );
+                        GUILayout.Label( "Editing " + ( isCustomAction ? CustomTriggerManager.GetCustomActionType( ___selectedAction ) : ___selectedAction.type.ToString() ) + " action", new GUILayoutOption[0] );
                         ___selectedAction.onlyOnHardMode = GUILayout.Toggle( ___selectedAction.onlyOnHardMode, "Only On Hard Mode", new GUILayoutOption[0] );
                         GUILayout.BeginHorizontal( new GUILayoutOption[0] );
                         if ( GUILayout.Button( "Deselect Action", new GUILayoutOption[0] ) )

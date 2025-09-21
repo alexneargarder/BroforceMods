@@ -2,7 +2,7 @@
 
 namespace Custom_Triggers_Mod
 {
-    public class TestCustomTriggerAction : TriggerAction
+    public class MyCustomTriggerAction : CustomTriggerAction
     {
         public override TriggerActionInfo Info
         {
@@ -12,7 +12,7 @@ namespace Custom_Triggers_Mod
             }
             set
             {
-                this.info = (TriggerActionInfo)value;
+                this.info = (MyCustomTriggerActionInfo)value;
             }
         }
 
@@ -31,6 +31,6 @@ namespace Custom_Triggers_Mod
 
         }
 
-        public TriggerActionInfo info;
+        public MyCustomTriggerActionInfo info;
     }
 }

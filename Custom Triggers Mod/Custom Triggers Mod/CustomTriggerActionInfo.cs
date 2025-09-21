@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.IO;
 
 namespace Custom_Triggers_Mod
 {
-    internal class CustomTriggerActionInfo
+    public abstract class CustomTriggerActionInfo : TriggerActionInfo
     {
+        public override void Serialize( BinaryWriter bw )
+        {
+            Main.Log( "serializing custom action" );
+            base.Serialize( bw );
+        }
     }
 }
