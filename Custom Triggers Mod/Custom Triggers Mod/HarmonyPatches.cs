@@ -600,21 +600,25 @@ namespace Custom_Triggers_Mod
                         {
                             GUILayout.BeginHorizontal( new GUILayoutOption[0] );
                             string text = num.ToString() + ":";
-                            if ( !string.IsNullOrEmpty( triggerActionInfo.name ) )
+
+                            // Get the action type name - use custom name if it's a custom trigger
+                            string actionTypeName;
+                            if ( triggerActionInfo is CustomTriggerActionInfo )
                             {
-                                string text2 = text;
-                                text = string.Concat( new string[]
-                                {
-                            text2,
-                            triggerActionInfo.name,
-                            " (",
-                            triggerActionInfo.ToString(),
-                            ")"
-                                } );
+                                actionTypeName = CustomTriggerManager.GetCustomActionType( triggerActionInfo );
                             }
                             else
                             {
-                                text += triggerActionInfo.ToString();
+                                actionTypeName = triggerActionInfo.ToString();
+                            }
+
+                            if ( !string.IsNullOrEmpty( triggerActionInfo.name ) )
+                            {
+                                text = text + triggerActionInfo.name + " (" + actionTypeName + ")";
+                            }
+                            else
+                            {
+                                text += actionTypeName;
                             }
                             GUILayout.Label( text, new GUILayoutOption[0] );
                             GUILayout.EndHorizontal();
