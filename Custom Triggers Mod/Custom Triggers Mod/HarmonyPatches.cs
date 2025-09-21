@@ -1,4 +1,8 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Xml.Serialization;
 using HarmonyLib;
 using UnityEngine;
 using World.LevelEdit.Triggers;
@@ -7,37 +11,216 @@ namespace Custom_Triggers_Mod
 {
     public class HarmonyPatches
     {
-        [HarmonyPatch( typeof( TriggerFactory ), "CreateAction" )]
+        [HarmonyPatch( typeof( LevelEditorGUI ), "SaveLevel" )]
+        static class LevelEditorGUI_SaveLevel_Patch
+        {
+            static void Prefix()
+            {
+                if ( !Main.enabled || Map.MapData == null || Map.MapData.TriggerList == null )
+                    return;
+
+                foreach ( var trigger in Map.MapData.TriggerList )
+                {
+                    if ( trigger.actions == null )
+                        continue;
+
+                    for ( int i = 0; i < trigger.actions.Count; i++ )
+                    {
+                        if ( trigger.actions[i] is CustomTriggerActionInfo customAction )
+                        {
+                            WeatherActionInfo weatherInfo = CustomTriggerManager.ConvertToWeatherInfo( customAction );
+                            trigger.actions[i] = weatherInfo;
+                        }
+                    }
+                }
+            }
+
+            static void Postfix()
+            {
+                if ( !Main.enabled || Map.MapData == null || Map.MapData.TriggerList == null )
+                    return;
+
+                foreach ( var trigger in Map.MapData.TriggerList )
+                {
+                    if ( trigger.actions == null )
+                        continue;
+
+                    for ( int i = 0; i < trigger.actions.Count; i++ )
+                    {
+                        var action = trigger.actions[i];
+                        if ( action is WeatherActionInfo weatherAction && weatherAction.name != null && weatherAction.name.StartsWith( "CUSTOMTRIGGER|" ) )
+                        {
+                            var customInfo = CustomTriggerManager.ConvertToCustomInfo( weatherAction );
+                            trigger.actions[i] = customInfo;
+                        }
+                    }
+                }
+            }
+        }
+
+        [HarmonyPatch( typeof( LevelEditorGUI ), "SaveCampaign" )]
+        static class LevelEditorGUI_SaveCampaign_Patch
+        {
+            static void Prefix()
+            {
+                if ( !Main.enabled || LevelEditorGUI.campaign == null || LevelEditorGUI.campaign.levels == null )
+                    return;
+
+                foreach ( var mapData in LevelEditorGUI.campaign.levels )
+                {
+                    if ( mapData == null || mapData.TriggerList == null )
+                        continue;
+
+                    foreach ( var trigger in mapData.TriggerList )
+                    {
+                        if ( trigger.actions == null )
+                            continue;
+
+                        for ( int i = 0; i < trigger.actions.Count; i++ )
+                        {
+                            if ( trigger.actions[i] is CustomTriggerActionInfo customAction )
+                            {
+                                WeatherActionInfo weatherInfo = CustomTriggerManager.ConvertToWeatherInfo( customAction );
+                                trigger.actions[i] = weatherInfo;
+                            }
+                        }
+                    }
+                }
+            }
+
+            static void Postfix()
+            {
+                if ( !Main.enabled || LevelEditorGUI.campaign == null || LevelEditorGUI.campaign.levels == null )
+                    return;
+
+                foreach ( var mapData in LevelEditorGUI.campaign.levels )
+                {
+                    if ( mapData == null || mapData.TriggerList == null )
+                        continue;
+
+                    foreach ( var trigger in mapData.TriggerList )
+                    {
+                        if ( trigger.actions == null )
+                            continue;
+
+                        for ( int i = 0; i < trigger.actions.Count; i++ )
+                        {
+                            var action = trigger.actions[i];
+                            if ( action is WeatherActionInfo weatherAction && weatherAction.name != null && weatherAction.name.StartsWith( "CUSTOMTRIGGER|" ) )
+                            {
+                                var customInfo = CustomTriggerManager.ConvertToCustomInfo( weatherAction );
+                                trigger.actions[i] = customInfo;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [HarmonyPatch( typeof( TriggerFactory ), "CreateAction", typeof( TriggerActionInfo ) )]
         static class TriggerFactory_CreateAction_Patch
         {
-            public static bool Prefix( ref TriggerActionInfo info, ref TriggerAction __result )
+            static bool Prefix( TriggerActionInfo info, ref TriggerAction __result )
             {
-                if ( !Main.enabled )
-                {
+                if ( !Main.enabled || info == null )
                     return true;
+
+                if ( info is CustomTriggerActionInfo )
+                {
+                    string triggerType = CustomTriggerManager.GetCustomActionType( info );
+                    if ( !string.IsNullOrEmpty( triggerType ) && CustomTriggerManager.CustomTriggers.ContainsKey( triggerType ) )
+                    {
+                        var customTrigger = CustomTriggerManager.CustomTriggers[triggerType];
+                        TriggerAction action = Activator.CreateInstance( customTrigger.CustomTriggerActionType ) as TriggerAction;
+                        action.Info = info;
+                        action.timeOffsetLeft = info.timeOffset;
+                        action.AssignDeterministicIDs();
+                        __result = action;
+                        return false;
+                    }
+                }
+                else if ( info is WeatherActionInfo weatherInfo && info.type == TriggerActionType.Weather && weatherInfo.name != null && weatherInfo.name.StartsWith( "CUSTOMTRIGGER|" ) )
+                {
+                    __result = CustomTriggerManager.CreateCustomAction( info );
+                    return false;
                 }
 
-                Main.Log( "info name: " + info.name );
-                //if ( info.name == "SPECIALSTRING" )
-                //{
-                //    Main.Log( "overriding trigger action" );
-                //    try
-                //    {
-                //        __result = new TestCustomTriggerAction();
-
-                //        __result.Info = info;
-                //        __result.timeOffsetLeft = info.timeOffset;
-                //        __result.AssignDeterministicIDs();
-                //    }
-                //    catch ( Exception ex )
-                //    {
-                //        Main.Log( "failed creating custom trigger action: " + ex.ToString() );
-                //    }
-
-                //    return false;
-                //}
-
                 return true;
+            }
+        }
+
+        [HarmonyPatch( typeof( FileIO ), "SaveToBFL", typeof( MapData ), typeof( string ), typeof( bool ), typeof( bool ) )]
+        static class FileIO_SaveToBFL_Patch
+        {
+            static void Prefix( MapData mapData )
+            {
+                if ( !Main.enabled || mapData == null || mapData.TriggerList == null )
+                    return;
+
+                foreach ( var trigger in mapData.TriggerList )
+                {
+                    if ( trigger.actions == null )
+                        continue;
+
+                    for ( int i = 0; i < trigger.actions.Count; i++ )
+                    {
+                        if ( trigger.actions[i] is CustomTriggerActionInfo customAction )
+                        {
+                            WeatherActionInfo weatherInfo = CustomTriggerManager.ConvertToWeatherInfo( customAction );
+                            trigger.actions[i] = weatherInfo;
+                        }
+                    }
+                }
+            }
+
+            static void Postfix( MapData mapData )
+            {
+                if ( !Main.enabled || mapData == null || mapData.TriggerList == null )
+                    return;
+
+                foreach ( var trigger in mapData.TriggerList )
+                {
+                    if ( trigger.actions == null )
+                        continue;
+
+                    for ( int i = 0; i < trigger.actions.Count; i++ )
+                    {
+                        var action = trigger.actions[i];
+                        if ( action is WeatherActionInfo weatherAction && weatherAction.name != null && weatherAction.name.StartsWith( "CUSTOMTRIGGER|" ) )
+                        {
+                            var customInfo = CustomTriggerManager.ConvertToCustomInfo( weatherAction );
+                            trigger.actions[i] = customInfo;
+                        }
+                    }
+                }
+            }
+        }
+
+        [HarmonyPatch( typeof( FileIO ), "LoadCampaignBytes" )]
+        static class FileIO_LoadCampaignBytes_Patch
+        {
+            static void Postfix( Campaign __result )
+            {
+                if ( !Main.enabled || __result == null || __result.levels == null || CustomTriggerManager.CustomTriggers.Count == 0 )
+                    return;
+
+                foreach ( var mapData in __result.levels )
+                {
+                    CustomTriggerManager.ConvertAllCustomTriggersInMapData( mapData );
+                }
+            }
+        }
+
+        [HarmonyPatch( typeof( FileIO ), "LoadLevelBytes", MethodType.Normal )]
+        [HarmonyPatch( new Type[] { typeof( byte[] ) } )]
+        static class FileIO_LoadLevelBytes_Patch
+        {
+            static void Postfix( MapData __result )
+            {
+                if ( !Main.enabled || __result == null || CustomTriggerManager.CustomTriggers.Count == 0 )
+                    return;
+
+                CustomTriggerManager.ConvertAllCustomTriggersInMapData( __result );
             }
         }
 
@@ -486,7 +669,5 @@ namespace Custom_Triggers_Mod
                 return false;
             }
         }
-
-
     }
 }

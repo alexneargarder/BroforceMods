@@ -17,10 +17,17 @@ namespace Custom_Triggers_Mod
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
             settings = Settings.Load<Settings>( modEntry );
+            mod = modEntry;
             var harmony = new Harmony( modEntry.Info.Id );
             var assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll( assembly );
-            mod = modEntry;
+            try
+            {
+                harmony.PatchAll( assembly );
+            }
+            catch ( Exception ex )
+            {
+                Log( "Exception patching harmony: " + ex.ToString() );
+            }
 
             CustomTriggerManager.RegisterCustomTrigger( typeof( MyCustomTriggerAction ), typeof( MyCustomTriggerActionInfo ), "my custom trigger" );
 
