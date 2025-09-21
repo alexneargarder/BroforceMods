@@ -24,11 +24,9 @@ namespace Custom_Triggers_Mod
         public override void Start()
         {
             base.Start();
-            Main.Log( "in start" );
             this.state = TriggerActionState.Done;
 
             HeroController.players[0].character.GetComponent<SpriteSM>().SetColor( Color.blue );
-
         }
 
         public MyCustomTriggerActionInfo info;
