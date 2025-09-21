@@ -22,6 +22,8 @@ namespace Custom_Triggers_Mod
             harmony.PatchAll( assembly );
             mod = modEntry;
 
+            CustomTriggerManager.RegisterCustomTrigger( typeof( MyCustomTriggerAction ), typeof( MyCustomTriggerActionInfo ), "my custom trigger" );
+
             return true;
         }
 
