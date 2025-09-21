@@ -2731,8 +2731,8 @@ namespace Drunken_Broster
 
         protected void StartThrowingItem()
         {
-            // Don't start a throw if we're already throwing, or doing another animation
-            if ( this.throwingHeldItem || this.doingMelee || this.chimneyFlip || this.usingSpecial )
+            // Don't start a throw if we're already throwing, or doing another animation, or dead
+            if ( this.throwingHeldItem || this.doingMelee || this.chimneyFlip || this.usingSpecial || this.acceptedDeath || this.health <= 0 || this.HasBeenCoveredInAcid() )
             {
                 return;
             }
@@ -2975,7 +2975,8 @@ namespace Drunken_Broster
 
         protected override void PressSpecial()
         {
-            if ( this.usingSpecial || this.doingMelee || this.hasBeenCoverInAcid || this.throwingHeldObject )
+            // Don't allow special if we're doing another animation, or dead
+            if ( this.usingSpecial || this.doingMelee || this.hasBeenCoverInAcid || this.throwingHeldObject || this.acceptedDeath || this.health <= 0 || this.HasBeenCoveredInAcid() )
             {
                 return;
             }
