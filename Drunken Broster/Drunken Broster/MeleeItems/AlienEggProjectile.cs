@@ -87,6 +87,7 @@ namespace Drunken_Broster.MeleeItems
             this.faceHugger.gameObject.SetActive( false );
             this.faceHugger.playerNum = 5;
             this.faceHugger.firingPlayerNum = 5;
+            this.faceHugger.gameObject.name = "friend";
         }
 
         protected override void SetRotation()
