@@ -54,13 +54,6 @@ namespace Utility_Mod
             {
                 activeDummies.Add( dummy );
                 dummy.Setup();
-
-                if ( !Map.units.Contains( dummy ) )
-                {
-                    Map.units.Add( dummy );
-                }
-
-                Map.RegisterUnit( dummy, false );
             }
 
             return dummy;
