@@ -41,7 +41,7 @@ namespace Drunken_Broster
             {
                 if ( __instance.insemenationCompleted && __instance.layEggsInsideBros )
                 {
-                    AlienXenomorph_Start_Patch.nextAlienFriendly = true;
+                    AlienXenomorph_Start_Patch.nextAlienFriendly = __instance.gameObject.name == "friend";
                 }
             }
         }
