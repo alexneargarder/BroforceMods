@@ -3029,7 +3029,10 @@ namespace Drunken_Broster
             this.SetSpriteOffset( 0f, 0f );
             this.DeactivateGun();
             this.invulnerable = true;
-            this.invulnerableTime = 0.3f;
+            if ( this.invulnerableTime < 0.35f )
+            {
+                this.invulnerableTime = 0.3f;
+            }
             // Animate drinking to become drunk
             if ( !this.wasDrunk )
             {
@@ -3358,12 +3361,12 @@ namespace Drunken_Broster
                     }
 
                     // Handle invulnerability during slide roll
-                    if ( this.drunk && this.rollingFrames <= 26 && this.rollingFrames >= 13 )
+                    if ( this.drunk && this.rollingFrames <= 26 && this.rollingFrames >= 13 && this.invulnerableTime < 0.2f )
                     {
                         this.invulnerable = true;
                         this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
                     }
-                    else if ( !this.drunk && this.rollingFrames <= 24 && this.rollingFrames >= 15 )
+                    else if ( !this.drunk && this.rollingFrames <= 24 && this.rollingFrames >= 15 && this.invulnerableTime < 0.2f )
                     {
                         this.invulnerable = true;
                         this.invulnerableTime = 0.1f; // Keep refreshing invulnerability
