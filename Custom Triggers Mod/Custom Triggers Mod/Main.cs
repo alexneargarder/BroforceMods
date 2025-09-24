@@ -29,8 +29,6 @@ namespace Custom_Triggers_Mod
                 Log( "Exception patching harmony: " + ex.ToString() );
             }
 
-            CustomTriggerManager.RegisterCustomTrigger( typeof( MyCustomTriggerAction ), typeof( MyCustomTriggerActionInfo ), "my custom trigger" );
-
             return true;
         }
 
