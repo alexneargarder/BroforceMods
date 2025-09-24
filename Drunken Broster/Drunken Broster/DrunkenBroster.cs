@@ -2254,8 +2254,11 @@ namespace Drunken_Broster
             switch ( theme )
             {
                 case LevelTheme.Jungle:
-                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Coconut, 25 + rareItemBoost ) );
-                    itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Beehive, 20 + rareItemBoost ) );
+                    if ( !hasAliens )
+                    {
+                        itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Coconut, 25 + rareItemBoost ) );
+                        itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.Beehive, 20 + rareItemBoost ) );
+                    }
                     itemPool.Add( new KeyValuePair<MeleeItem, int>( MeleeItem.ExplosiveBarrel, 12 + rareItemBoost ) );
                     break;
 
