@@ -3318,6 +3318,19 @@ namespace Drunken_Broster
         {
             return !( this.attackUpwards || this.attackDownwards ) && base.IsOverLadder( xOffset, ref ladderXPos );
         }
+
+        // Don't reset frames if doing melee
+        public override void AttachToZipline( ZipLine zipLine )
+        {
+            if ( this.doingMelee )
+            {
+                this.attachedToZipline = zipLine;
+            }
+            else
+            {
+                base.AttachToZipline( zipLine );
+            }
+        }
         #endregion
 
         #region Roll
