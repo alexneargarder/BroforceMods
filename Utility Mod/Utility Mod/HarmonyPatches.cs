@@ -423,10 +423,6 @@ namespace Utility_Mod
                 if ( !Main.loadedLevel && Main.settings.goToLevelOnStartup )
                 {
                     Main.loadedLevel = true;
-                    if ( !Main.settings.cameraShake )
-                    {
-                        PlayerOptions.Instance.cameraShakeAmount = 0f;
-                    }
                     Main.GoToLevel( Main.campaignNum.indexNumber, Main.levelNum.indexNumber );
                 }
 
@@ -786,7 +782,7 @@ namespace Utility_Mod
                     audioSource.enabled = false;
             }
         }
-        
+
         [HarmonyPatch( typeof( Startup ), "Update" )]
         static class Startup_Update_Patch
         {
@@ -794,7 +790,7 @@ namespace Utility_Mod
             {
                 if ( !Main.enabled || !Main.settings.skipIntro )
                     return true;
-                    
+
                 // Skip intro and go straight to main menu
                 GameState.LoadLevel( "MainMenu" );
                 return false;
