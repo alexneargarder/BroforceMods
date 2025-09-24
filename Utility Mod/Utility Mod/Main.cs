@@ -690,7 +690,7 @@ namespace Utility_Mod
                 {
                     settings.skipIntro = GUILayout.Toggle( settings.skipIntro, new GUIContent( "Skip Intro",
                         "Skip intro logos and go straight to main menu" ), ScaledWidth( 75f ) );
-                    
+
                     settings.cameraShake = GUILayout.Toggle( settings.cameraShake, new GUIContent( "Camera Shake",
                         "Disable this to have camera shake automatically set to 0 at the start of a level" ), ScaledWidth( 100f ) );
 
@@ -2407,7 +2407,7 @@ namespace Utility_Mod
                 case "Skip Intro":
                     settings.skipIntro = !settings.skipIntro;
                     break;
-                    
+
                 case "Camera Shake":
                     settings.cameraShake = !settings.cameraShake;
                     break;
@@ -3015,6 +3015,11 @@ namespace Utility_Mod
 
         public static void GoToLevel( int campaignIndex, int levelIndex )
         {
+            if ( !Main.settings.cameraShake )
+            {
+                PlayerOptions.Instance.cameraShakeAmount = 0f;
+            }
+
             // Setup player 1 if they haven't yet joined (like if we're calling this function on the main menu
             if ( !HeroController.IsPlayerPlaying( 0 ) )
             {
