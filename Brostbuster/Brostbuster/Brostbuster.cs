@@ -63,6 +63,12 @@ namespace Brostbuster
         // Misc
         protected bool acceptedDeath = false;
 
+        // Variants
+        [SaveableSetting]
+        public static bool filterVariants = false;
+        [SaveableSetting]
+        public static List<int> enabledVariants = new List<int>() { 0, 1, 2, 3 };
+
         #region General
         public override void PreloadAssets()
         {
@@ -83,19 +89,103 @@ namespace Brostbuster
             // Don't duplicate brostbuster variants
             if ( Brostbuster.currentBros.Count > 0 )
             {
-                List<int> available = new List<int> { 0, 1, 2, 3 };
-                foreach ( Brostbuster bro in currentBros )
+                List<int> available;
+                if ( filterVariants )
                 {
-                    available.Remove( bro.CurrentVariant );
+                    available = new List<int>( enabledVariants );
+                }
+                else
+                {
+                    available = new List<int> { 0, 1, 2, 3 };
                 }
 
-                Brostbuster.currentBros.Add( this );
-                return available[UnityEngine.Random.Range( 0, available.Count )];
+                foreach ( Brostbuster bro in currentBros )
+                {
+                    // Don't count bros that are recalling to account for a brostbuster rescuing a bro
+                    if ( !bro.recalling )
+                    {
+                        available.Remove( bro.CurrentVariant );
+                    }
+                }
+
+                if ( available.Count > 0 )
+                {
+                    Brostbuster.currentBros.Add( this );
+                    return available[UnityEngine.Random.Range( 0, available.Count )];
+                }
+            }
+
+            Brostbuster.currentBros.Add( this );
+            if ( filterVariants )
+            {
+                return enabledVariants[UnityEngine.Random.Range( 0, enabledVariants.Count )];
             }
             else
             {
-                Brostbuster.currentBros.Add( this );
                 return base.GetVariant();
+            }
+        }
+
+        public override void UIOptions()
+        {
+            base.UIOptions();
+
+            filterVariants = GUILayout.Toggle( filterVariants, "Only spawn with certain skins" );
+            if ( filterVariants )
+            {
+                GUILayout.Space( 15 );
+                bool rayStantz = enabledVariants.Contains( 0 );
+                bool peterVenkman = enabledVariants.Contains( 1 );
+                bool egonSpengler = enabledVariants.Contains( 2 );
+                bool winstonZeddemore = enabledVariants.Contains( 3 );
+
+                if ( rayStantz != ( rayStantz = GUILayout.Toggle( rayStantz, "Ray Stantz" ) ) )
+                {
+                    if ( rayStantz )
+                    {
+                        enabledVariants.Add( 0 );
+                    }
+                    else
+                    {
+                        enabledVariants.Remove( 0 );
+                    }
+                }
+
+                if ( peterVenkman != ( peterVenkman = GUILayout.Toggle( peterVenkman, "Peter Venkman" ) ) )
+                {
+                    if ( peterVenkman )
+                    {
+                        enabledVariants.Add( 1 );
+                    }
+                    else
+                    {
+                        enabledVariants.Remove( 1 );
+                    }
+                }
+
+                if ( egonSpengler != ( egonSpengler = GUILayout.Toggle( egonSpengler, "Egon Spengler" ) ) )
+                {
+                    if ( egonSpengler )
+                    {
+                        enabledVariants.Add( 2 );
+                    }
+                    else
+                    {
+                        enabledVariants.Remove( 2 );
+                    }
+                }
+
+                if ( winstonZeddemore != ( winstonZeddemore = GUILayout.Toggle( winstonZeddemore, "Winston Zeddemore" ) ) )
+                {
+                    if ( winstonZeddemore )
+                    {
+                        enabledVariants.Add( 3 );
+                    }
+                    else
+                    {
+                        enabledVariants.Remove( 3 );
+                    }
+                }
             }
         }
 
