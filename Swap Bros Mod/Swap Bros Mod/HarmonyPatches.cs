@@ -1,26 +1,25 @@
-﻿using HarmonyLib;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Swap_Bros_Mod
 {
     public class HarmonyPatches
     {
-        [HarmonyPatch(typeof(Player), "SpawnHero")]
+        [HarmonyPatch( typeof( Player ), "SpawnHero" )]
         static class Player_SpawnHero_Patch
         {
-            static void Prefix(Player __instance, ref HeroType nextHeroType)
+            static void Prefix( Player __instance, ref HeroType nextHeroType )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                     return;
 
                 try
                 {
-                    if (Main.manualSpawn)
+                    if ( Main.manualSpawn )
                     {
                         Main.manualSpawn = false;
                         return;
@@ -28,52 +27,52 @@ namespace Swap_Bros_Mod
 
                     int curPlayer = __instance.playerNum;
 
-                    if (!Main.settings.alwaysChosen)
+                    if ( !Main.settings.alwaysChosen )
                     {
-                        if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
+                        if ( GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked )
                         {
                             Main.CreateBroList();
                         }
 
                         // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
-                        if (Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode)
+                        if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
                         {
                             // Check if map has a forced bro
-                            if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random)
+                            if ( !Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random )
                             {
                                 nextHeroType = Map.MapData.forcedBro;
 
-                                int nextHero = Main.currentBroList.IndexOf(Main.HeroTypeToString(nextHeroType));
+                                int nextHero = Main.currentBroList.IndexOf( Main.HeroTypeToString( nextHeroType ) );
 
-                                if (nextHero == -1)
+                                if ( nextHero == -1 )
                                 {
                                     nextHero = 0;
                                 }
 
-                                if (Main.settings.enableBromaker)
+                                if ( Main.settings.enableBromaker )
                                 {
-                                    Main.DisableCustomBroSpawning(curPlayer);
+                                    Main.DisableCustomBroSpawning( curPlayer );
                                 }
 
                                 Main.settings.selGridInt[curPlayer] = nextHero;
                             }
                             // Check if map has multiple forced bros
-                            else if (!Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0)
+                            else if ( !Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 )
                             {
-                                string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())];
+                                string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range( 0, Main.currentBroListUnseen.Count() )];
 
-                                nextHeroType = Main.StringToHeroType(nextHeroName);
+                                nextHeroType = Main.StringToHeroType( nextHeroName );
 
-                                int nextHero = Main.currentBroList.IndexOf(nextHeroName);
+                                int nextHero = Main.currentBroList.IndexOf( nextHeroName );
 
-                                if (nextHero == -1)
+                                if ( nextHero == -1 )
                                 {
                                     nextHero = 0;
                                 }
 
-                                if (Main.settings.enableBromaker)
+                                if ( Main.settings.enableBromaker )
                                 {
-                                    Main.DisableCustomBroSpawning(curPlayer);
+                                    Main.DisableCustomBroSpawning( curPlayer );
                                 }
 
                                 Main.settings.selGridInt[curPlayer] = nextHero;
@@ -83,55 +82,55 @@ namespace Swap_Bros_Mod
                                 int nextHero = 0;
 
                                 // If we're using vanilla bro selection and there are still bros that we haven't spawned as, prioritize those first
-                                if (Main.settings.useVanillaBroSelection && Main.currentBroListUnseen.Count() > 0)
+                                if ( Main.settings.useVanillaBroSelection && Main.currentBroListUnseen.Count() > 0 )
                                 {
                                     // Check if a previous character exists and ensure we don't spawn as them if possible
                                     string previousCharacter = string.Empty;
-                                    if (__instance.character != null)
+                                    if ( __instance.character != null )
                                     {
-                                        if (!(Main.settings.enableBromaker && Main.CheckIfCustomBro(__instance.character, ref previousCharacter)))
+                                        if ( !( Main.settings.enableBromaker && Main.CheckIfCustomBro( __instance.character, ref previousCharacter ) ) )
                                         {
-                                            previousCharacter = Main.HeroTypeToString(__instance.character.heroType);
+                                            previousCharacter = Main.HeroTypeToString( __instance.character.heroType );
                                         }
 
                                         // Don't remove bro unless this is a new list
-                                        if (Main.currentBroListUnseen.Contains(previousCharacter) && Main.currentBroListUnseen.Count() > 1)
+                                        if ( Main.currentBroListUnseen.Contains( previousCharacter ) && Main.currentBroListUnseen.Count() > 1 )
                                         {
-                                            Main.currentBroListUnseen.Remove(previousCharacter);
+                                            Main.currentBroListUnseen.Remove( previousCharacter );
                                         }
                                         else
                                         {
                                             previousCharacter = string.Empty;
                                         }
                                     }
-                                    nextHero = Main.currentBroList.IndexOf(Main.currentBroListUnseen[UnityEngine.Random.Range(0, Main.currentBroListUnseen.Count())]);
-                                    if (previousCharacter != string.Empty)
+                                    nextHero = Main.currentBroList.IndexOf( Main.currentBroListUnseen[UnityEngine.Random.Range( 0, Main.currentBroListUnseen.Count() )] );
+                                    if ( previousCharacter != string.Empty )
                                     {
-                                        Main.currentBroListUnseen.Add(previousCharacter);
+                                        Main.currentBroListUnseen.Add( previousCharacter );
                                     }
 
-                                    if (nextHero == -1)
+                                    if ( nextHero == -1 )
                                     {
                                         nextHero = 0;
                                     }
                                 }
                                 else
                                 {
-                                    nextHero = UnityEngine.Random.Range(0, Main.currentBroList.Count());
+                                    nextHero = UnityEngine.Random.Range( 0, Main.currentBroList.Count() );
                                 }
 
                                 // Check if bro is custom or not
-                                if (Main.IsBroCustom(nextHero))
+                                if ( Main.IsBroCustom( nextHero ) )
                                 {
-                                    Main.MakeCustomBroSpawn(curPlayer, Main.currentBroList[nextHero]);
+                                    Main.MakeCustomBroSpawn( curPlayer, Main.currentBroList[nextHero] );
                                     nextHeroType = HeroType.Rambro;
                                 }
                                 else
                                 {
-                                    if (Main.settings.enableBromaker)
-                                        Main.DisableCustomBroSpawning(curPlayer);
+                                    if ( Main.settings.enableBromaker )
+                                        Main.DisableCustomBroSpawning( curPlayer );
 
-                                    nextHeroType = Main.StringToHeroType(Main.currentBroList[nextHero]);
+                                    nextHeroType = Main.StringToHeroType( Main.currentBroList[nextHero] );
                                 }
 
                                 Main.settings.selGridInt[curPlayer] = nextHero;
@@ -139,123 +138,131 @@ namespace Swap_Bros_Mod
                         }
                         else
                         {
-                            Main.SetSelectedBro(__instance.playerNum, nextHeroType);
+                            Main.SetSelectedBro( __instance.playerNum, nextHeroType );
                         }
                         return;
                     }
+                    else
+                    {
+                        // Ensure we aren't overwriting forced bros, even if always chosen is enabled
+                        if ( !Main.settings.ignoreForcedBros && Map.MapData != null && ( Map.MapData.forcedBro != HeroType.Random || ( Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 ) ) )
+                        {
+                            return;
+                        }
+                    }
 
                     // If we're in IronBro and don't want to force spawn a bro we haven't unlocked
-                    if (GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked)
+                    if ( GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked )
                     {
                         // Make sure list of available hardcore bros is up-to-date
                         Main.CreateBroList();
                         // If Bromaker is enabled and selected character is custom
-                        if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
+                        if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
                         {
-                            Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
+                            Main.MakeCustomBroSpawn( curPlayer, Main.GetSelectedBroName( curPlayer ) );
                             // Ensure we don't spawn boondock bros because one gets left over
                             nextHeroType = HeroType.Rambro;
                         }
                         else
                         {
-                            if (Main.settings.enableBromaker)
-                                Main.DisableCustomBroSpawning(curPlayer);
-                            nextHeroType = Main.GetSelectedBroHeroType(curPlayer);
+                            if ( Main.settings.enableBromaker )
+                                Main.DisableCustomBroSpawning( curPlayer );
+                            nextHeroType = Main.GetSelectedBroHeroType( curPlayer );
                         }
                     }
                     // If bro spawning is a custom bro
-                    else if (Main.settings.enableBromaker && Main.IsBroCustom(Main.settings.selGridInt[curPlayer]))
+                    else if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
                     {
-                        Main.MakeCustomBroSpawn(curPlayer, Main.GetSelectedBroName(curPlayer));
+                        Main.MakeCustomBroSpawn( curPlayer, Main.GetSelectedBroName( curPlayer ) );
                         // Ensure we don't spawn boondock bros because one gets left over
                         nextHeroType = HeroType.Rambro;
                     }
                     // If we're just spawning a normal character
                     else
                     {
-                        if (Main.settings.enableBromaker)
-                            Main.DisableCustomBroSpawning(curPlayer);
-                        nextHeroType = Main.GetSelectedBroHeroType(curPlayer);
+                        if ( Main.settings.enableBromaker )
+                            Main.DisableCustomBroSpawning( curPlayer );
+                        nextHeroType = Main.GetSelectedBroHeroType( curPlayer );
                     }
 
                 }
-                catch (Exception ex)
+                catch ( Exception ex )
                 {
-                    Main.Log("Exception occurred while spawning bro: " + ex.ToString());
+                    Main.Log( "Exception occurred while spawning bro: " + ex.ToString() );
                 }
             }
-            static void Postfix(Player __instance, ref HeroType nextHeroType)
+            static void Postfix( Player __instance, ref HeroType nextHeroType )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                     return;
 
-                if (Main.settings.enableBromaker)
+                if ( Main.settings.enableBromaker )
                 {
                     Main.EnableCustomBroSpawning();
                     string name = "";
-                    if ( Main.CheckIfCustomBro(__instance.character, ref name) )
+                    if ( Main.CheckIfCustomBro( __instance.character, ref name ) )
                     {
-                        if (name != Main.GetSelectedBroName(__instance.playerNum))
+                        if ( name != Main.GetSelectedBroName( __instance.playerNum ) )
                         {
-                            Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf(name);
-                            if (Main.settings.selGridInt[__instance.playerNum] == -1)
+                            Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf( name );
+                            if ( Main.settings.selGridInt[__instance.playerNum] == -1 )
                             {
                                 Main.CreateBroList();
-                                Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf(name);
+                                Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf( name );
                             }
                         }
 
-                        Main.currentBroListUnseen.Remove(name);
+                        Main.currentBroListUnseen.Remove( name );
                     }
                     else
                     {
-                        Main.currentBroListUnseen.Remove(Main.HeroTypeToString(nextHeroType));
+                        Main.currentBroListUnseen.Remove( Main.HeroTypeToString( nextHeroType ) );
                     }
                 }
                 else
                 {
-                    Main.currentBroListUnseen.Remove(Main.HeroTypeToString(nextHeroType));
+                    Main.currentBroListUnseen.Remove( Main.HeroTypeToString( nextHeroType ) );
                 }
 
-                if (Main.currentBroListUnseen.Count() == 0)
+                if ( Main.currentBroListUnseen.Count() == 0 )
                 {
-                    if (!Main.settings.ignoreForcedBros && Map.MapData != null && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count > 0)
+                    if ( !Main.settings.ignoreForcedBros && Map.MapData != null && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count > 0 )
                     {
                         Main.currentBroListUnseen.Clear();
-                        for (int i = 0; i < Map.MapData.forcedBros.Count(); ++i)
+                        for ( int i = 0; i < Map.MapData.forcedBros.Count(); ++i )
                         {
-                            Main.currentBroListUnseen.Add(Main.HeroTypeToString(Map.MapData.forcedBros[i]));
+                            Main.currentBroListUnseen.Add( Main.HeroTypeToString( Map.MapData.forcedBros[i] ) );
                         }
                     }
                     else
                     {
-                        Main.currentBroListUnseen.AddRange(Main.currentBroList);
+                        Main.currentBroListUnseen.AddRange( Main.currentBroList );
                     }
                 }
             }
         }
 
 
-        [HarmonyPatch(typeof(Player), "GetInput")]
+        [HarmonyPatch( typeof( Player ), "GetInput" )]
         static class Player_GetInput_Patch
         {
-            public static void Postfix(Player __instance)
+            public static void Postfix( Player __instance )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return;
                 }
 
                 int curPlayer = __instance.playerNum;
-                bool leftPressed = Main.wasKeyPressed(Main.settings.swapLeftKeys[__instance.playerNum]);
-                bool rightPressed = Main.wasKeyPressed(Main.settings.swapRightKeys[__instance.playerNum]);
+                bool leftPressed = Main.wasKeyPressed( Main.settings.swapLeftKeys[__instance.playerNum] );
+                bool rightPressed = Main.wasKeyPressed( Main.settings.swapRightKeys[__instance.playerNum] );
 
-                if ((((leftPressed || rightPressed) && Main.cooldown == 0f && __instance.IsAlive()) || (Main.settings.clickingEnabled && Main.switched[curPlayer])) && __instance.character.pilottedUnit == null)
+                if ( ( ( ( leftPressed || rightPressed ) && Main.cooldown == 0f && __instance.IsAlive() ) || ( Main.settings.clickingEnabled && Main.switched[curPlayer] ) ) && __instance.character.pilottedUnit == null )
                 {
                     // If clicking is enabled and player clicked a bro
-                    if (Main.settings.clickingEnabled && Main.switched[curPlayer])
+                    if ( Main.settings.clickingEnabled && Main.switched[curPlayer] )
                     {
-                        Main.SwapToSpecificBro(curPlayer, Main.settings.selGridInt[curPlayer]);
+                        Main.SwapToSpecificBro( curPlayer, Main.settings.selGridInt[curPlayer] );
                         Main.switched[curPlayer] = false;
                         return;
                     }
@@ -264,25 +271,25 @@ namespace Swap_Bros_Mod
                     Main.EnsureBroListUpdated();
 
                     int targetIndex = Main.settings.selGridInt[curPlayer];
-                    
-                    if (leftPressed)
+
+                    if ( leftPressed )
                     {
                         targetIndex--;
-                        if (targetIndex < 0)
+                        if ( targetIndex < 0 )
                         {
                             targetIndex = Main.maxBroNum;
                         }
                     }
-                    else if (rightPressed)
+                    else if ( rightPressed )
                     {
                         targetIndex++;
-                        if (targetIndex > Main.maxBroNum)
+                        if ( targetIndex > Main.maxBroNum )
                         {
                             targetIndex = 0;
                         }
                     }
 
-                    if (Main.SwapToSpecificBro(curPlayer, targetIndex))
+                    if ( Main.SwapToSpecificBro( curPlayer, targetIndex ) )
                     {
                         Main.cooldown = Main.settings.swapCoolDown;
                     }
@@ -291,20 +298,20 @@ namespace Swap_Bros_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Player), "Update")]
+        [HarmonyPatch( typeof( Player ), "Update" )]
         static class Player_Update_Patch
         {
-            static void Prefix(Player __instance)
+            static void Prefix( Player __instance )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return;
                 }
-                if (Main.cooldown > 0f)
+                if ( Main.cooldown > 0f )
                 {
-                    __instance.character.SetInvulnerable(0f, false);
+                    __instance.character.SetInvulnerable( 0f, false );
                     Main.cooldown -= Time.unscaledDeltaTime;
-                    if (Main.cooldown < 0f)
+                    if ( Main.cooldown < 0f )
                     {
                         Main.cooldown = 0f;
                     }
@@ -312,18 +319,18 @@ namespace Swap_Bros_Mod
             }
         }
 
-        [HarmonyPatch(typeof(TestVanDammeAnim), "SetInvulnerable")]
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "SetInvulnerable" )]
         static class TestVanDammeAnim_SetInvulnerable_Patch
         {
-            static bool Prefix(TestVanDammeAnim __instance, float time, bool restartBubble = true)
+            static bool Prefix( TestVanDammeAnim __instance, float time, bool restartBubble = true )
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return true;
                 }
-                if (time == 0f && !restartBubble)
+                if ( time == 0f && !restartBubble )
                 {
-                    Traverse.Create(typeof(TestVanDammeAnim)).Field("invulnerableTime").SetValue(0);
+                    Traverse.Create( typeof( TestVanDammeAnim ) ).Field( "invulnerableTime" ).SetValue( 0 );
                     __instance.invulnerable = false;
                     return false;
                 }
@@ -332,12 +339,12 @@ namespace Swap_Bros_Mod
             }
         }
 
-        [HarmonyPatch(typeof(Map), "Awake")]
+        [HarmonyPatch( typeof( Map ), "Awake" )]
         static class Map_Awake_Patch
         {
             static void Postfix()
             {
-                if (!Main.enabled)
+                if ( !Main.enabled )
                 {
                     return;
                 }
@@ -348,43 +355,43 @@ namespace Swap_Bros_Mod
                 if ( !Main.settings.ignoreForcedBros && Map.MapData != null && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count > 0 )
                 {
                     Main.currentBroListUnseen.Clear();
-                    for (int i = 0; i < Map.MapData.forcedBros.Count(); ++i)
+                    for ( int i = 0; i < Map.MapData.forcedBros.Count(); ++i )
                     {
-                        Main.currentBroListUnseen.Add(Main.HeroTypeToString(Map.MapData.forcedBros[i]));
+                        Main.currentBroListUnseen.Add( Main.HeroTypeToString( Map.MapData.forcedBros[i] ) );
                     }
                 }
                 else
                 {
-                    Main.currentBroListUnseen.AddRange(Main.currentBroList);
+                    Main.currentBroListUnseen.AddRange( Main.currentBroList );
                 }
             }
         }
 
 
-        [HarmonyPatch(typeof(PauseMenu), "ReturnToMenu")]
+        [HarmonyPatch( typeof( PauseMenu ), "ReturnToMenu" )]
         static class PauseMenu_ReturnToMenu_Patch
         {
-            static bool Prefix(PauseMenu __instance, PauseGameConfirmationPopup ___m_ConfirmationPopup)
+            static bool Prefix( PauseMenu __instance, PauseGameConfirmationPopup ___m_ConfirmationPopup )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
 
-                MethodInfo dynMethod = ___m_ConfirmationPopup.GetType().GetMethod("ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-                dynMethod.Invoke(___m_ConfirmationPopup, null);
+                MethodInfo dynMethod = ___m_ConfirmationPopup.GetType().GetMethod( "ConfirmReturnToMenu", BindingFlags.NonPublic | BindingFlags.Instance );
+                dynMethod.Invoke( ___m_ConfirmationPopup, null );
 
                 return false;
             }
 
         }
 
-        [HarmonyPatch(typeof(PauseMenu), "ReturnToMap")]
+        [HarmonyPatch( typeof( PauseMenu ), "ReturnToMap" )]
         static class PauseMenu_ReturnToMap_Patch
         {
-            static bool Prefix(PauseMenu __instance)
+            static bool Prefix( PauseMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
@@ -398,26 +405,26 @@ namespace Swap_Bros_Mod
 
 
 
-        [HarmonyPatch(typeof(PauseMenu), "RestartLevel")]
+        [HarmonyPatch( typeof( PauseMenu ), "RestartLevel" )]
         static class PauseMenu_RestartLevel_Patch
         {
-            static bool Prefix(PauseMenu __instance)
+            static bool Prefix( PauseMenu __instance )
             {
-                if (!Main.enabled || !Main.settings.disableConfirm)
+                if ( !Main.enabled || !Main.settings.disableConfirm )
                 {
                     return true;
                 }
 
                 Map.ClearSuperCheckpointStatus();
 
-                (Traverse.Create(typeof(TriggerManager)).Field("alreadyTriggeredTriggerOnceTriggers").GetValue() as List<string>).Clear();
+                ( Traverse.Create( typeof( TriggerManager ) ).Field( "alreadyTriggeredTriggerOnceTriggers" ).GetValue() as List<string> ).Clear();
 
-                if (GameModeController.publishRun)
+                if ( GameModeController.publishRun )
                 {
                     GameModeController.publishRun = false;
                     LevelEditorGUI.levelEditorActive = true;
                 }
-                PauseController.SetPause(PauseStatus.UnPaused);
+                PauseController.SetPause( PauseStatus.UnPaused );
                 GameModeController.RestartLevel();
 
                 return false;
