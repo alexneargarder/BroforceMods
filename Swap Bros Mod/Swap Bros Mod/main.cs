@@ -190,12 +190,12 @@ namespace Swap_Bros_Mod
             }
 
             settings.ignoreForcedBros = GUILayout.Toggle( settings.ignoreForcedBros, new GUIContent( "Ignore Forced Bros",
-                "Controls whether filtering will prevent you from spawning as certain bros on levels which force you to use specific bros" ), GUILayout.ExpandWidth( false ) );
+                "Controls whether levels which force you to use specific bros can be overidden by filtering or always spawn as chosen." ), GUILayout.ExpandWidth( false ) );
 
             // Display the tooltip from the element that has mouseover or keyboard focus
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
-            lastRect.width += 300;
+            lastRect.width += 700;
             GUI.Label( lastRect, GUI.tooltip );
 
             GUILayout.EndVertical();
@@ -359,7 +359,7 @@ namespace Swap_Bros_Mod
 
                     lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
-                    lastRect.width += 300;
+                    lastRect.width += 700;
 
                     // Don't allow sorting method to change while filtering bros
                     if ( !changingEnabledBros )

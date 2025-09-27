@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using UnityModManagerNet;
 
 namespace Swap_Bros_Mod
 {
     public enum SortingMethod
-    { 
+    {
         UnlockOrder = 0,
         AlphabeticalAZ = 1,
         AlphabeticalZA = 2
@@ -37,9 +34,9 @@ namespace Swap_Bros_Mod
         public SortingMethod sorting = SortingMethod.UnlockOrder;
         public string sortingMethodName = "Sorting Method: Unlock Order";
 
-        public override void Save(UnityModManager.ModEntry modEntry)
+        public override void Save( UnityModManager.ModEntry modEntry )
         {
-            Save(this, modEntry);
+            Save( this, modEntry );
         }
     }
 }
