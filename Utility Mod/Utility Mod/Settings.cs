@@ -34,10 +34,9 @@ namespace Utility_Mod
         public bool enableSkip = true;
         public bool scaleUIWithWindowWidth = false;
         public bool endingSkip = true;
-        public bool disableConfirm = true;
+        public bool disableConfirm = false;
         public bool quickMainMenu = false;
         public bool helicopterWait = false;
-        public bool skipBreakingCutscenes = true;
         public bool skipAllCutscenes = false;
         public bool disableFlagNoise = false;
         public bool disableHelicopterNoise = false;

@@ -287,11 +287,13 @@ namespace Utility_Mod
 
             // Create GameObject for mouse position display
             GameObject mouseDisplayGO = new GameObject( "UtilityMod_MousePositionDisplay" );
+            RocketLibUtils.MakeObjectUnpausable( mouseDisplayGO );
             mouseDisplayGO.AddComponent<MousePositionDisplay>();
             UnityEngine.Object.DontDestroyOnLoad( mouseDisplayGO );
 
             // Create GameObject for context menu manager
             GameObject contextMenuGO = new GameObject( "UtilityMod_ContextMenuManager" );
+            RocketLibUtils.MakeObjectUnpausable( contextMenuGO );
             contextMenuGO.AddComponent<ContextMenuManager>();
             UnityEngine.Object.DontDestroyOnLoad( contextMenuGO );
 
@@ -704,7 +706,7 @@ namespace Utility_Mod
 
                     settings.helicopterWait = GUILayout.Toggle( settings.helicopterWait, new GUIContent( "Helicopter Wait", "Makes helicopter wait for all alive players before leaving" ), ScaledWidth( 110f ) );
 
-                    settings.disableConfirm = GUILayout.Toggle( settings.disableConfirm, new GUIContent( "Fix Mod Window Disappearing",
+                    settings.disableConfirm = GUILayout.Toggle( settings.disableConfirm, new GUIContent( "Disable confirmation menu",
                         "Disables confirmation screen when restarting or returning to map/menu" ), GUILayout.ExpandWidth( false ) );
                 }
                 GUILayout.EndHorizontal();
@@ -713,13 +715,11 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal();
                 {
-                    settings.skipBreakingCutscenes = GUILayout.Toggle( settings.skipBreakingCutscenes, new GUIContent( "Disable Broken Cutscenes", "Prevents cutscenes that destroy the mod window from playing, includes all the flex powerup and ammo crate unlock cutscenes." ), ScaledWidth( 170f ) );
+                    settings.skipAllCutscenes = GUILayout.Toggle( settings.skipAllCutscenes, new GUIContent( "Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes." ), ScaledWidth( 170f ) );
 
                     Rect lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
                     lastRect.width += 800;
-
-                    settings.skipAllCutscenes = GUILayout.Toggle( settings.skipAllCutscenes, new GUIContent( "Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes." ), ScaledWidth( 170f ) );
 
                     settings.scaleUIWithWindowWidth = GUILayout.Toggle( settings.scaleUIWithWindowWidth, new GUIContent( "Scale UI with Window Width", "Scales UI elements based on window width" ), ScaledWidth( 200f ) );
 
@@ -2430,10 +2430,6 @@ namespace Utility_Mod
 
                 case "Fix Mod Window Disappearing":
                     settings.disableConfirm = !settings.disableConfirm;
-                    break;
-
-                case "Disable Broken Cutscenes":
-                    settings.skipBreakingCutscenes = !settings.skipBreakingCutscenes;
                     break;
 
                 case "Disable All Cutscenes":
