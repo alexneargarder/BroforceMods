@@ -787,27 +787,26 @@ namespace Swap_Bros_Mod
 
         public static bool CustomCountChanged()
         {
-            return BroMakerStorage.Bros.Length != allCustomBros.Count();
+            if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
+            {
+                return BroSpawnManager.GetAllSpawnableBrosNames().Count() != allCustomBros.Count();
+            }
+            else
+            {
+                return BroSpawnManager.GetAllUnlockedBrosNames().Count() != allCustomBros.Count();
+            }
         }
 
         public static void LoadCustomBros()
         {
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
-                allCustomBros = BSett.instance.AvailableBros;
-                actuallyAllCustomBros = new List<string>();
-                for ( int i = 0; i < BroMakerStorage.Bros.Length; ++i )
-                {
-                    actuallyAllCustomBros.Add( BroMakerStorage.Bros[i].name );
-                }
+                allCustomBros = BroSpawnManager.GetAllSpawnableBrosNames();
+                actuallyAllCustomBros = BroSpawnManager.GetAllUnlockedBrosNames();
             }
             else
             {
-                allCustomBros = new List<string>();
-                for ( int i = 0; i < BroMakerStorage.Bros.Length; ++i )
-                {
-                    allCustomBros.Add( BroMakerStorage.Bros[i].name );
-                }
+                allCustomBros = BroSpawnManager.GetAllUnlockedBrosNames();
                 actuallyAllCustomBros = allCustomBros;
             }
 
@@ -897,7 +896,7 @@ namespace Swap_Bros_Mod
 
         public static int GetBromakerHardcoreAmount()
         {
-            return BSett.instance.AvailableBros.Count();
+            return BroSpawnManager.HardcoreAvailableBros.Count();
         }
 
         public static bool OnlyCustomBrosInHardcore()
