@@ -180,9 +180,6 @@ namespace Swap_Bros_Mod
             settings.clickingEnabled = GUILayout.Toggle( settings.clickingEnabled, new GUIContent( "Clicking a new bro causes swap",
                 "Clicking a bro in the menu below will swap you to that bro immediately" ), GUILayout.ExpandWidth( false ) );
 
-            settings.disableConfirm = GUILayout.Toggle( settings.disableConfirm, new GUIContent( "Fix mod window disappearing",
-                "Disables confirmation screen when restarting or returning to map/menu" ), GUILayout.ExpandWidth( false ) );
-
             if ( settings.filterBros != ( settings.filterBros = GUILayout.Toggle( settings.filterBros, new GUIContent( "Filter Bros",
                 "Only spawn as enabled characters" ), GUILayout.ExpandWidth( false ) ) ) )
             {

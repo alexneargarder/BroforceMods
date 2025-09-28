@@ -17,7 +17,6 @@ namespace Swap_Bros_Mod
         public bool includeExpendabros = false;
         public bool includeUnfinishedCharacters = false;
         public bool clickingEnabled = true;
-        public bool disableConfirm = true;
         public bool enableBromaker = false;
         public float swapCoolDown = 0.5f;
 
