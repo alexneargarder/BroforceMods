@@ -1,9 +1,0 @@
-{
-	"Id": "Custom Triggers Mod",
-	"DisplayName": "Custom Triggers Mod",
-	"Author": "AlexN",
-	"Version": "1.0.0",
-	"AssemblyName": "Custom Triggers Mod.dll",
-	"EntryMethod": "Custom_Triggers_Mod.Main.Load",
-	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
-}
