@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using TFBGames.Systems;
 using UnityEngine;
 
 namespace Utility_Mod
@@ -728,18 +729,7 @@ namespace Utility_Mod
                     return true;
                 }
 
-                if ( Main.settings.skipBreakingCutscenes && ( name == CutsceneName.FlexAir || name == CutsceneName.FlexGolden || name == CutsceneName.FlexInvincible || name == CutsceneName.FlexTeleport ) )
-                {
-                    return false;
-                }
-                else if ( Main.settings.skipBreakingCutscenes && ( name == CutsceneName.AmmoAirstrike || name == CutsceneName.AmmoMechDrop || name == CutsceneName.AmmoPheromones || name == CutsceneName.AmmoRCCar || name == CutsceneName.AmmoStandard || name == CutsceneName.AmmoSteroids || name == CutsceneName.AmmoTimeSlow ) )
-                {
-                    string sceneToLoad = GameModeController.FinishCampaignFromCutscene( true );
-                    GameState.Instance.sceneToLoad = sceneToLoad;
-                    GameModeController.LoadNextScene( GameState.Instance );
-                    return false;
-                }
-                else if ( Main.settings.skipAllCutscenes )
+                if ( Main.settings.skipAllCutscenes )
                 {
                     return false;
                 }
@@ -790,6 +780,12 @@ namespace Utility_Mod
             {
                 if ( !Main.enabled || !Main.settings.skipIntro )
                     return true;
+
+                // Wait for main menu assets to load if not going straight to level on startup
+                if ( !Main.settings.goToLevelOnStartup && !GameSystems.ResourceManager.HasAssetsToEnterScene( "MainMenu" ) )
+                {
+                    return false;
+                }
 
                 // Skip intro and go straight to main menu
                 GameState.LoadLevel( "MainMenu" );
