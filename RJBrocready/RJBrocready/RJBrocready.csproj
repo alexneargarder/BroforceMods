@@ -43,6 +43,10 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="RocketLib, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Bro-Maker\lib\RocketLib.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -79,6 +83,7 @@
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="RJBrocready.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RJBrocreadyAction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
