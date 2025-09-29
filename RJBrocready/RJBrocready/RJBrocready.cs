@@ -46,6 +46,7 @@ namespace RJBrocready
             Reforming = 5,
         }
         protected bool gibbed = false;
+        protected bool canBecomeThing = true;
         protected bool theThing = false;
         public ThingState currentState = ThingState.Human;
         protected float fakeDeathTime = 0f;
@@ -131,6 +132,19 @@ namespace RJBrocready
             CustomHero.PreloadSprites( ProjectilePath, new List<string> { "Dynamite.png" } );
             CustomHero.PreloadSounds( SoundPath, new List<string>() { "dynamiteExplosion.wav", "flameStart.wav", "flameLoop.wav", "fireAxe1.wav", "fireAxe2.wav", "fireAxe3.wav", "axeHit1.wav", "axeHit2.wav", "axeHit3.wav" } );
             CustomHero.PreloadSounds( Path.Combine( SoundPath, "ThingSounds" ), new List<string>() { "transform1.wav", "transform2.wav", "transform3.wav", "transformBack.wav", "whipStart1.wav", "whipStart2.wav", "whipStart3.wav", "KnifeStab2.wav", "tentacleHit1.wav", "tentacleHit2.wav", "tentacleHit3.wav", "tentacleHitTerrain1.wav", "tentacleHitTerrain2.wav", "whipHit11.wav", "whipHit12.wav", "whipHit13.wav", "whipHit21.wav", "whipHit22.wav", "whipHit23.wav", "whipMiss1.wav", "whipMiss2.wav", "whipMiss3.wav", "bite.wav", "bite2.wav", "bite3.wav", "tentacleImpale1.wav", "tentacleImpale2.wav", "tentacleImpale3.wav" } );
+        }
+
+        public override void HarmonyPatches( Harmony harmony )
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            harmony.PatchAll( assembly );
+        }
+
+        public override void RegisterCustomTriggers()
+        {
+            base.RegisterCustomTriggers();
+
+            RocketLib.CustomTriggers.CustomTriggerManager.RegisterCustomTrigger( typeof( RJBrocreadyAction ), typeof( RJBrocreadyActionInfo ), "R.J. Brocready - Disable The Thing", "Custom Bros" );
         }
 
         protected override void Start()
@@ -396,12 +410,6 @@ namespace RJBrocready
         public override void UIOptions()
         {
             RJBrocready.permanentlyBecomeThingInIronBro = GUILayout.Toggle( RJBrocready.permanentlyBecomeThingInIronBro, "Carry over death between levels in IronBro" );
-        }
-
-        public override void HarmonyPatches( Harmony harmony )
-        {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll( assembly );
         }
         #endregion
 
@@ -1019,6 +1027,11 @@ namespace RJBrocready
         #endregion
 
         #region TheThing
+        public void SetCanBecomeThing( bool enabled )
+        {
+            this.canBecomeThing = enabled;
+        }
+
         protected override void Gib( DamageType damageType, float xI, float yI )
         {
             gibbed = true;
@@ -1032,7 +1045,7 @@ namespace RJBrocready
 
         public override void Death( float xI, float yI, DamageObject damage )
         {
-            if ( !theThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
+            if ( !theThing && canBecomeThing && !gibbed && damage.damageType != DamageType.Acid && damage.damageType != DamageType.Spikes )
             {
                 if ( this.IsInseminated() || this.HasFaceHugger() )
                 {
@@ -1041,7 +1054,7 @@ namespace RJBrocready
                 }
                 FakeDeath( xI, yI, damage );
             }
-            else
+            else if ( theThing )
             {
                 ThingState previousState = this.currentState;
                 ExitMonsterForm();
@@ -1052,6 +1065,10 @@ namespace RJBrocready
                     this.Gib( damage.damageType, Mathf.Sign( xI ) * 50, yI );
                     EffectsController.CreateSlimeExplosion( base.X, base.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, BloodColor.Red );
                 }
+                base.Death( xI, yI, damage );
+            }
+            else
+            {
                 base.Death( xI, yI, damage );
             }
             this.flameSource.Stop();
