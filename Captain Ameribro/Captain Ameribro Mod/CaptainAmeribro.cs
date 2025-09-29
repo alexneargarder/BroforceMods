@@ -1123,5 +1123,10 @@ namespace Captain_Ameribro_Mod
                 this.CancelMelee();
             }
         }
+
+        // Don't try to create fader trails
+        protected override void CreateFaderTrailInstance()
+        {
+        }
     }
 }
