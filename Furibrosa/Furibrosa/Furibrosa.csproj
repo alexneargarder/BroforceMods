@@ -21,6 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,6 +30,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
@@ -80,6 +82,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bolt.cs" />
+    <Compile Include="FuribrosaSummonWarRigAction.cs" />
     <Compile Include="FuriosaFlare.cs" />
     <Compile Include="Furibrosa.cs" />
     <Compile Include="HarmonyPatches.cs" />

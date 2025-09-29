@@ -104,6 +104,7 @@ namespace Furibrosa
         public bool keepGoingBeyondTarget = false;
         public float secondTargetX = 0f;
         public float summonedDirection = 1f;
+        public bool manualSpawn = false;
 
         // Primary Variables
         public enum FuriosaState
@@ -354,7 +355,7 @@ namespace Furibrosa
             this.playerNum = 0;
 
             // Make sure sprites look correct with multiple War Rigs on screen
-            Vector3 playerSpriteOffset = new Vector3( 0f, 0f, summoner.playerNum * 0.1f );
+            Vector3 playerSpriteOffset = new Vector3( 0f, 0f, ( summoner != null ? summoner.playerNum : UnityEngine.Random.Range( 0, 4 ) ) * 0.1f );
             this.GetComponent<SpriteSM>().offset += playerSpriteOffset;
             this.gunSprite.offset += playerSpriteOffset;
             this.wheelsSprite.offset += playerSpriteOffset;
@@ -451,12 +452,13 @@ namespace Furibrosa
             }
         }
 
-        public void SetTarget( Furibrosa summoner, float targetX, Vector3 localScale, float summonedDirection )
+        public void SetTarget( Furibrosa summoner, float targetX, Vector3 localScale, float summonedDirection, bool manualSpawn = false )
         {
             this.summoner = summoner;
             this.targetX = targetX;
             base.transform.localScale = localScale;
             this.summonedDirection = summonedDirection;
+            this.manualSpawn = manualSpawn;
         }
 
         protected void MoveTowardsStart()
@@ -465,7 +467,7 @@ namespace Furibrosa
             {
                 if ( Tools.FastAbsWithinRange( this.X - this.targetX, 5 ) || Mathf.Sign( this.targetX - this.X ) != summonedDirection )
                 {
-                    if ( summoner.holdingSpecial )
+                    if ( !manualSpawn && summoner != null && summoner.holdingSpecial )
                     {
                         summoner.GoPastFuriosa();
                     }
@@ -476,7 +478,7 @@ namespace Furibrosa
                     this.reachedStartingPoint = true;
                     this.groundFriction = originalGroundFriction;
                 }
-                else if ( Tools.FastAbsWithinRange( this.X - this.targetX, 75f ) && !( this.keepGoingBeyondTarget || summoner.holdingSpecial ) )
+                else if ( Tools.FastAbsWithinRange( this.X - this.targetX, 75f ) && !( this.keepGoingBeyondTarget || ( !manualSpawn && summoner != null && summoner.holdingSpecial ) ) )
                 {
                     this.groundFriction = 5f;
                 }
@@ -603,14 +605,17 @@ namespace Furibrosa
         {
             this.SetDeltaTime();
 
-            // Stay near Furiosa
-            if ( this.summonedDirection > 0 )
+            if ( !this.manualSpawn )
             {
-                this.SetPosition( new Vector3( SortOfFollow.GetScreenMinX() - 65f, base.transform.position.y, 0f ) );
-            }
-            else
-            {
-                this.SetPosition( new Vector3( SortOfFollow.GetScreenMaxX() + 65f, base.transform.position.y, 0f ) );
+                // Stay near Furiosa
+                if ( this.summonedDirection > 0 )
+                {
+                    this.SetPosition( new Vector3( SortOfFollow.GetScreenMinX() - 65f, base.transform.position.y, 0f ) );
+                }
+                else
+                {
+                    this.SetPosition( new Vector3( SortOfFollow.GetScreenMaxX() + 65f, base.transform.position.y, 0f ) );
+                }
             }
 
             // Start horn audio
@@ -631,7 +636,7 @@ namespace Furibrosa
             if ( this.startupTimer < 0.8 && !this.playedRevStart )
             {
                 // Play inbetween vehicle and player
-                Sound.GetInstance().PlaySoundEffectAt( this.vehicleRev, 0.7f, ( base.transform.position + summoner.transform.position ) / 2f, 1f, true, false, false, 0f );
+                Sound.GetInstance().PlaySoundEffectAt( this.vehicleRev, 0.7f, summoner != null ? ( base.transform.position + summoner.transform.position ) / 2f : base.transform.position, 1f, true, false, false, 0f );
                 this.playedRevStart = true;
             }
 
@@ -1836,6 +1841,15 @@ namespace Furibrosa
             }
         }
 
+        public void SetToGround()
+        {
+            LayerMask layer = ( 1 << LayerMask.NameToLayer( "Ground" ) ) | ( 1 << LayerMask.NameToLayer( "LargeObjects" ) ) | ( 1 << LayerMask.NameToLayer( "IndestructibleGround" ) );
+            if ( Physics.Raycast( new Vector3( base.transform.position.x, base.transform.position.y + 14f, 0f ), Vector3.down, out this.raycastHit, 500f, layer ) )
+            {
+                this.SetPosition( this.raycastHit.point );
+            }
+        }
+
         protected override void FallDamage( float yI )
         {
             if ( ( !this.isHero && yI < this.fallDamageHurtSpeed ) || ( this.isHero && yI < this.fallDamageHurtSpeedHero ) )
@@ -2027,11 +2041,23 @@ namespace Furibrosa
 
         protected virtual bool CrushUnitsWhileMoving( int damageUnitsAmount, float unitsXRange, float unitsYRange, float xOffset, float yOffset, out bool hitHeavy )
         {
+            Unit hitUnitsAsThis = this.pilotUnit ?? this.summoner;
+            // Default to any other player
+            if ( hitUnitsAsThis == null )
+            {
+                for ( int i = 0; i < 4; ++i )
+                {
+                    if ( HeroController.PlayerIsAlive( i ) )
+                    {
+                        hitUnitsAsThis = HeroController.players[i].character;
+                    }
+                }
+            }
             float knockback = Mathf.Max( Mathf.Min( Mathf.Abs( this.xI ), 75f ), 225 );
             hitHeavy = false;
             if ( this.xI < 0 || this.left )
             {
-                if ( HitUnits( this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, -2 * knockback, 4 * knockback, true, true, true, out hitHeavy ) )
+                if ( HitUnits( this, hitUnitsAsThis, hitUnitsAsThis.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X - xOffset, base.Y + yOffset, -2 * knockback, 4 * knockback, true, true, true, out hitHeavy ) )
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
@@ -2040,7 +2066,7 @@ namespace Furibrosa
             }
             else if ( this.xI > 0 || this.right )
             {
-                if ( HitUnits( this, summoner, summoner.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, 2 * knockback, 4 * knockback, true, true, true, out hitHeavy ) )
+                if ( HitUnits( this, hitUnitsAsThis, hitUnitsAsThis.playerNum, damageUnitsAmount, DamageType.GibIfDead, unitsXRange, unitsYRange, base.X + xOffset, base.Y + yOffset, 2 * knockback, 4 * knockback, true, true, true, out hitHeavy ) )
                 {
                     PlayRunOverUnitSound();
                     this.crushUnitCooldown = 0.5f;
@@ -3085,6 +3111,9 @@ namespace Furibrosa
                 {
                     this.gunSprite.meshRender.material = this.crossbowMat;
                 }
+
+                // Update summoner in case old furibrosa is null and new pilot tries to use sound effects
+                this.summoner = furibrosa;
             }
             else
             {

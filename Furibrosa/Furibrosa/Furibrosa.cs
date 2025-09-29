@@ -69,8 +69,8 @@ namespace Furibrosa
         protected bool isInterpolating = false;
 
         // Special
-        protected static WarRig warRigPrefab;
-        protected WarRig currentWarRig;
+        public static WarRig warRigPrefab;
+        public WarRig currentWarRig;
         public bool holdingSpecial = false;
         public float holdingSpecialTime = 0f;
 
@@ -86,6 +86,17 @@ namespace Furibrosa
             CustomHero.PreloadSprites( DirectoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" } );
 
             CustomHero.PreloadSounds( SoundPath, new List<string> { "crossbowShot1.wav", "crossbowShot2.wav", "crossbowShot3.wav", "crossbowShot4.wav", "flareShot1.wav", "flareShot2.wav", "flareShot3.wav", "flareShot4.wav", "charged.wav", "weaponSwap.wav", "meleeSwing1.wav", "meleeSwing2.wav", "meleeSwing3.wav", "vehicleIdleLoop.wav", "vehicleBoost.wav", "vehicleHornMedium.wav", "vehicleHornLong.wav", "vehicleHit1.wav", "vehicleHit2.wav", "vehicleHit3.wav", "harpoon.wav" } );
+        }
+
+        public override void HarmonyPatches( Harmony harmony )
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            harmony.PatchAll( assembly );
+        }
+
+        public override void RegisterCustomTriggers()
+        {
+            RocketLib.CustomTriggers.CustomTriggerManager.RegisterCustomTrigger( typeof( FuribrosaSummonWarRigAction ), typeof( FuribrosaSummonWarRigActionInfo ), "Furibrosa - Summon War Rig", "Custom Bros" );
         }
 
         protected override void Start()
@@ -161,28 +172,7 @@ namespace Furibrosa
             // Create WarRig
             try
             {
-                if ( warRigPrefab == null )
-                {
-                    GameObject warRig = null;
-                    for ( int i = 0; i < InstantiationController.PrefabList.Count; ++i )
-                    {
-                        if ( InstantiationController.PrefabList[i] != null && InstantiationController.PrefabList[i].name == "ZMookArmouredGuy" )
-                        {
-                            warRig = UnityEngine.Object.Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject;
-                        }
-                    }
-
-                    if ( warRig != null )
-                    {
-                        warRigPrefab = warRig.AddComponent<WarRig>();
-                        warRigPrefab.Setup();
-                    }
-                    else
-                    {
-                        throw new Exception( "Mech Prefab not found" );
-                    }
-                    UnityEngine.Object.DontDestroyOnLoad( warRigPrefab );
-                }
+                CreateWarRigPrefab();
             }
             catch ( Exception ex )
             {
@@ -198,6 +188,32 @@ namespace Furibrosa
                     this.SwitchWeapon();
                 }
                 randomizedWeapon = true;
+            }
+        }
+
+        public static void CreateWarRigPrefab()
+        {
+            if ( warRigPrefab == null )
+            {
+                GameObject warRig = null;
+                for ( int i = 0; i < InstantiationController.PrefabList.Count; ++i )
+                {
+                    if ( InstantiationController.PrefabList[i] != null && InstantiationController.PrefabList[i].name == "ZMookArmouredGuy" )
+                    {
+                        warRig = UnityEngine.Object.Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject;
+                    }
+                }
+
+                if ( warRig != null )
+                {
+                    warRigPrefab = warRig.AddComponent<WarRig>();
+                    warRigPrefab.Setup();
+                }
+                else
+                {
+                    throw new Exception( "Mech Prefab not found" );
+                }
+                UnityEngine.Object.DontDestroyOnLoad( warRigPrefab );
             }
         }
 
@@ -374,12 +390,6 @@ namespace Furibrosa
                 // Settings changed, update json
                 this.SaveSettings();
             }
-        }
-
-        public override void HarmonyPatches( Harmony harmony )
-        {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            harmony.PatchAll( assembly );
         }
 
         public override void Death( float xI, float yI, DamageObject damage )
