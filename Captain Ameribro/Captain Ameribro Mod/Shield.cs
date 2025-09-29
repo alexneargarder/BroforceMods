@@ -1,6 +1,6 @@
-﻿using BroMakerLib;
+﻿using System.Collections.Generic;
+using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Captain_Ameribro_Mod
@@ -530,15 +530,6 @@ namespace Captain_Ameribro_Mod
             }
         }
 
-        protected override void OnDestroy()
-        {
-            base.OnDestroy();
-            if ( this.shieldCollider != null && this.shieldCollider.gameObject != null )
-            {
-                UnityEngine.Object.Destroy( this.shieldCollider.gameObject );
-            }
-        }
-
         protected override bool HitWalls()
         {
             if ( this.xI < 0f )
@@ -714,13 +705,13 @@ namespace Captain_Ameribro_Mod
             {
                 float num2 = num / 210f;
                 float num3 = 0.05f + Mathf.Clamp( num2 * num2, 0f, 0.25f );
-                
+
                 if ( this.dropping )
                 {
                     float speedRatio = Mathf.Clamp01( num / 300f );
                     num3 *= speedRatio * 0.5f;
                 }
-                
+
                 Sound.GetInstance().PlaySoundEffectAt( this.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f );
             }
         }
@@ -732,13 +723,13 @@ namespace Captain_Ameribro_Mod
             {
                 float num2 = num / 210f;
                 float num3 = 0.05f + Mathf.Clamp( num2 * num2, 0f, 0.25f );
-                
+
                 if ( this.dropping )
                 {
                     float speedRatio = Mathf.Clamp01( num / 300f );
                     num3 *= speedRatio * 0.5f;
                 }
-                
+
                 //Sound.GetInstance().PlaySoundEffectAt(this.soundHolder.hitSounds[CaptainAmeribro.hitSound], num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f);
                 Sound.GetInstance().PlaySoundEffectAt( this.shieldUnitBounce, num3 * this.bounceVolumeM, base.transform.position, 1f, true, false, false, 0f );
             }
@@ -769,9 +760,9 @@ namespace Captain_Ameribro_Mod
 
         protected override void HitUnits()
         {
-            if ( this.dropping && Mathf.Abs(this.xI) < 10f && Mathf.Abs(this.yI) < 10f )
+            if ( this.dropping && Mathf.Abs( this.xI ) < 10f && Mathf.Abs( this.yI ) < 10f )
                 return;
-                
+
             if ( this.hitUnitsDelay > 0f )
             {
                 this.hitUnitsDelay -= this.t;
