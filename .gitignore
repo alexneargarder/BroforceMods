@@ -383,3 +383,8 @@ Scripts/no-launch.toggle
 
 # Settings Profiles
 **/Profiles/
+
+# NixOS / devenv
+.devenv/**
+.devenv.flake.nix
+.direnv/

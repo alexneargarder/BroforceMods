@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -37,15 +37,8 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib">
-      <HintPath>..\..\..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="RocketLib, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Mods-Broforce\RocketLib\src\RocketLibUMM\bin\Debug\RocketLib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -107,4 +100,4 @@
   <PropertyGroup>
     <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\bro-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
   </PropertyGroup>
-</Project>
+<ItemGroup><ProjectReference Include="..\..\..\Bro-Maker\BroMakerLib\BroMakerLib.csproj" /><ProjectReference Include="..\..\..\Mods-Broforce\RocketLib\src\RocketLib\RocketLib.csproj" /></ItemGroup></Project>

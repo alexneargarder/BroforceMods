@@ -45,10 +45,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib, Version=2.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
@@ -85,6 +81,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\UnityModManager.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Bro-Maker\BroMakerLib\BroMakerLib.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
