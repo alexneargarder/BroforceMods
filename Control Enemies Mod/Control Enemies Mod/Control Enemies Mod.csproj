@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -40,14 +40,8 @@
     <Reference Include="BitCode">
       <HintPath>..\..\libs\Extra Libs\BitCode.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib">
-      <HintPath>..\..\..\Bro-Maker\BroMakerLib.UnityMod\bin\Debug\BroMakerLib.dll</HintPath>
-    </Reference>
     <Reference Include="Rewired_Core">
       <HintPath>..\..\libs\Extra Libs\Rewired_Core.dll</HintPath>
-    </Reference>
-    <Reference Include="RocketLib">
-      <HintPath>..\..\..\Mods-Broforce\RocketLib\src\RocketLibUMM\bin\Debug\RocketLib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -97,4 +91,4 @@
   <PropertyGroup>
     <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
   </PropertyGroup>
-</Project>
+<ItemGroup><ProjectReference Include="..\..\..\Bro-Maker\BroMakerLib\BroMakerLib.csproj" /><ProjectReference Include="..\..\..\Mods-Broforce\RocketLib\src\RocketLib\RocketLib.csproj" /></ItemGroup></Project>
