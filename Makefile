@@ -26,7 +26,7 @@ else
 endif
 
 # Common MSBuild flags
-MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo /p:PreBuildEvent="" /p:PostBuildEvent=""
+MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo /p:PreBuildEvent="" /p:PostBuildEvent="" /m
 
 # Installation paths
 MODS_PATH := $(GAME_PATH)/Mods
@@ -39,92 +39,123 @@ all:
 
 clean:
 	$(MSBUILD) BroforceMods.sln /t:Clean $(MSBUILD_FLAGS)
+	$(MSBUILD) "../Mods-Broforce/RocketLib/src/RocketLib.sln" /t:Clean $(MSBUILD_FLAGS)
+	$(MSBUILD) "../Bro-Maker/BroMakerLib.sln" /t:Clean $(MSBUILD_FLAGS)
+	@rm -f .install-rocketlib .install-bromaker
 
-rebuild: clean all
+rebuild:
+	$(MAKE) clean
+	$(MAKE) all
 
-# Installation functions for each project type
-install-utility-mod:
-	@[ -f "Utility Mod/Utility Mod/bin/Release/Utility Mod.dll" ] && \
-		mkdir -p "$(MODS_PATH)/Utility Mod" && \
-		cp -f "Utility Mod/Utility Mod/bin/Release/Utility Mod.dll" "$(MODS_PATH)/Utility Mod/" && \
-		echo "  ✓ Installed Utility Mod" || true
+# Dependency build targets
+.PHONY: build-rocketlib build-bromaker
 
-install-rocketlib:
-	@if [ -d "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod" ]; then \
-		mkdir -p "$(MODS_PATH)/RocketLib" && \
-		cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true; \
-		cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true; \
-		cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true; \
-		cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true; \
-		echo "  ✓ Installed RocketLib"; \
-	fi
+build-rocketlib:
+	$(MSBUILD) "../Mods-Broforce/RocketLib/src/RocketLib.sln" $(MSBUILD_FLAGS)
 
-install-bromaker:
-	@if [ -d "../Bro-Maker/BroMakerLib/_Mod" ]; then \
-		mkdir -p "$(MODS_PATH)/BroMaker" && \
-		cp -f "../Bro-Maker/BroMakerLib/_Mod/"* "$(MODS_PATH)/BroMaker/" 2>/dev/null || true; \
-		cp -f "../Bro-Maker/BroMakerLib/bin/Release/BroMakerLib.dll" "$(MODS_PATH)/BroMaker/" 2>/dev/null || true; \
-		echo "  ✓ Installed BroMaker"; \
-	fi
+build-bromaker:
+	$(MSBUILD) "../Bro-Maker/BroMakerLib.sln" $(MSBUILD_FLAGS)
 
-# Individual project build targets (always build and install)
+# Dependency installation markers
+.install-rocketlib: build-rocketlib
+	@mkdir -p "$(MODS_PATH)/RocketLib"
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@echo "  ✓ Installed RocketLib"
+	@touch $@
+
+.install-bromaker: build-bromaker
+	@mkdir -p "$(MODS_PATH)/BroMaker"
+	@cp -f "../Bro-Maker/BroMakerLib/_Mod/"* "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
+	@cp -f "../Bro-Maker/BroMakerLib/bin/Release/BroMakerLib.dll" "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
+	@echo "  ✓ Installed BroMaker"
+	@touch $@
+
+# Installation functions (not targets)
+define install-rocketlib-files
+	@mkdir -p "$(MODS_PATH)/RocketLib"
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@echo "  ✓ Installed RocketLib"
+endef
+
+define install-bromaker-files
+	@mkdir -p "$(MODS_PATH)/BroMaker"
+	@cp -f "../Bro-Maker/BroMakerLib/_Mod/"* "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
+	@cp -f "../Bro-Maker/BroMakerLib/bin/Release/BroMakerLib.dll" "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
+	@echo "  ✓ Installed BroMaker"
+endef
+
+# Individual project build targets
 utility-mod:
 	$(MSBUILD) "Utility Mod/Utility Mod.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-rocketlib
-	@$(MAKE) install-utility-mod
+	$(call install-rocketlib-files)
+	@mkdir -p "$(MODS_PATH)/Utility Mod"
+	@cp -f "Utility Mod/Utility Mod/bin/Release/Utility Mod.dll" "$(MODS_PATH)/Utility Mod/"
+	@echo "  ✓ Installed Utility Mod"
 
 swap-bros:
 	$(MSBUILD) "Swap Bros Mod/Swap Bros Mod.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker
+	$(call install-bromaker-files)
 	@mkdir -p "$(MODS_PATH)/Swap Bros Mod"
 	@cp -f "Swap Bros Mod/Swap Bros Mod/bin/Release/Swap Bros Mod.dll" "$(MODS_PATH)/Swap Bros Mod/"
 	@echo "  ✓ Installed Swap Bros Mod"
 
 captain-ameribro:
 	$(MSBUILD) "Captain Ameribro/Captain Ameribro Mod.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Captain Ameribro"
 	@cp -f "Captain Ameribro/Captain Ameribro Mod/bin/Release/Captain Ameribro Mod.dll" "$(BROS_PATH)/Captain Ameribro/Captain Ameribro.dll"
 	@echo "  ✓ Installed Captain Ameribro"
 
 mission-impossibro:
 	$(MSBUILD) "Mission Impossibro/Mission Impossibro.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Mission Impossibro"
 	@cp -f "Mission Impossibro/Mission Impossibro/bin/Release/Mission Impossibro.dll" "$(BROS_PATH)/Mission Impossibro/"
 	@echo "  ✓ Installed Mission Impossibro"
 
 brostbuster:
 	$(MSBUILD) "Brostbuster/Brostbuster.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Brostbuster"
 	@cp -f "Brostbuster/Brostbuster/bin/Release/Brostbuster.dll" "$(BROS_PATH)/Brostbuster/"
 	@echo "  ✓ Installed Brostbuster"
 
 rjbrocready:
 	$(MSBUILD) "RJBrocready/RJBrocready.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/RJBrocready"
 	@cp -f "RJBrocready/RJBrocready/bin/Release/RJBrocready.dll" "$(BROS_PATH)/RJBrocready/"
 	@echo "  ✓ Installed RJBrocready"
 
 furibrosa:
 	$(MSBUILD) "Furibrosa/Furibrosa.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Furibrosa"
 	@cp -f "Furibrosa/Furibrosa/bin/Release/Furibrosa.dll" "$(BROS_PATH)/Furibrosa/"
 	@echo "  ✓ Installed Furibrosa"
 
 drunken-broster:
 	$(MSBUILD) "Drunken Broster/Drunken Broster.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Drunken Broster"
 	@cp -f "Drunken Broster/Drunken Broster/bin/Release/Drunken Broster.dll" "$(BROS_PATH)/Drunken Broster/"
 	@echo "  ✓ Installed Drunken Broster"
 
 control-enemies:
 	$(MSBUILD) "Control Enemies Mod/Control Enemies Mod.sln" $(MSBUILD_FLAGS)
-	@$(MAKE) install-bromaker install-rocketlib
+	$(call install-rocketlib-files)
+	$(call install-bromaker-files)
 	@mkdir -p "$(MODS_PATH)/Control Enemies Mod"
 	@cp -f "Control Enemies Mod/Control Enemies Mod/bin/Release/Control Enemies Mod.dll" "$(MODS_PATH)/Control Enemies Mod/"
 	@echo "  ✓ Installed Control Enemies Mod"
@@ -147,22 +178,10 @@ ironbro-multiplayer:
 	@cp -f "IronBro Multiplayer Mod/IronBro Multiplayer Mod/bin/Release/IronBro Multiplayer Mod.dll" "$(MODS_PATH)/IronBro Multiplayer Mod/"
 	@echo "  ✓ Installed IronBro Multiplayer Mod"
 
-# Dependency projects
-rocketlib:
-	$(MSBUILD) "../Mods-Broforce/RocketLib/src/RocketLib.sln" $(MSBUILD_FLAGS)
-	@mkdir -p "$(MODS_PATH)/RocketLib"
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@[ -f "$(MODS_PATH)/RocketLib/RocketLib.dll" ] && echo "  ✓ Installed RocketLib" || true
+# Standalone dependency targets
+rocketlib: .install-rocketlib
 
-bromaker:
-	$(MSBUILD) "../Bro-Maker/BroMakerLib.sln" $(MSBUILD_FLAGS)
-	@mkdir -p "$(MODS_PATH)/BroMaker"
-	@cp -f "../Bro-Maker/BroMakerLib/_Mod/"* "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
-	@cp -f "../Bro-Maker/BroMakerLib/bin/Release/BroMakerLib.dll" "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
-	@[ -f "$(MODS_PATH)/BroMaker/BroMakerLib.dll" ] && echo "  ✓ Installed BroMaker" || true
+bromaker: .install-bromaker
 
 # Install all built DLLs to game directories
 install-all:
@@ -229,5 +248,9 @@ help:
 	@echo "Dependencies:"
 	@echo "  make rocketlib - Build RocketLib"
 	@echo "  make bromaker  - Build BroMakerLib"
+	@echo ""
+	@echo "Parallel builds:"
+	@echo "  make -j8      - Build all projects in parallel"
+	@echo "  make -j8 rebuild - Clean and rebuild in parallel"
 
-.PHONY: all clean rebuild install-all install-rocketlib install-bromaker install-utility-mod help utility-mod swap-bros captain-ameribro mission-impossibro brostbuster rjbrocready furibrosa drunken-broster control-enemies randomizer unity-inspector ironbro-multiplayer rocketlib bromaker
+.PHONY: all clean rebuild install-all build-rocketlib build-bromaker help utility-mod swap-bros captain-ameribro mission-impossibro brostbuster rjbrocready furibrosa drunken-broster control-enemies randomizer unity-inspector ironbro-multiplayer rocketlib bromaker
