@@ -1,5 +1,5 @@
-<?xml version='1.0' encoding='utf-8'?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -90,6 +90,9 @@
     <Reference Include="BitCode.AssetManagement">
       <HintPath>..\..\libs\Extra Libs\BitCode.AssetManagement.dll</HintPath>
     </Reference>
+    <Reference Include="RocketLib">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\RocketLib\RocketLib.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\UnityEngine.dll</HintPath>
@@ -130,4 +133,4 @@
   <PropertyGroup>
     <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
   </PropertyGroup>
-<ItemGroup><ProjectReference Include="..\..\..\Mods-Broforce\RocketLib\src\RocketLib\RocketLib.csproj" /></ItemGroup></Project>
+</Project>
