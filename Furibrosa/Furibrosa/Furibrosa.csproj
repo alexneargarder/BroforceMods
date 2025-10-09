@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{F637A9E4-6C18-40E6-834A-0A75C00103C5}</ProjectGuid>
+    <ProjectGuid>{A69204C2-D00B-42E2-B70E-E13C5604010D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Furibrosa</RootNamespace>

@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{F637A9E4-6C18-40E6-834A-0A75C00103C5}</ProjectGuid>
+    <ProjectGuid>{E43DB26B-372D-4E03-9100-0D8065AFDAC9}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>RJBrocready</RootNamespace>

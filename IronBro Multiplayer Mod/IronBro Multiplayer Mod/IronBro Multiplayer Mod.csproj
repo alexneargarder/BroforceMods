@@ -72,7 +72,5 @@
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>del "D:\Steam\steamapps\common\Broforce\Mods\Development - multiplayer\*.cache"</PostBuildEvent>
-  </PropertyGroup>
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>

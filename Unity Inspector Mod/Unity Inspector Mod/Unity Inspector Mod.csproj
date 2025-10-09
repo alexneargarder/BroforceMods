@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{52724136-162B-41E7-94F7-EA1E65B59A0C}</ProjectGuid>
+    <ProjectGuid>{1ADE4D25-5A23-47AF-A05B-04E7A002E599}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Unity_Inspector_Mod</RootNamespace>
@@ -85,10 +85,5 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-post-build.bat" "$(ProjectName)" "$(TargetPath)" "$(TargetDir)" "$(TargetFileName)" "$(TargetName)" "$(ConfigurationName)" "$(PlatformName)" "$(ProjectDir)" "$(SolutionDir)" "$(OutDir)"</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
-  </PropertyGroup>
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>

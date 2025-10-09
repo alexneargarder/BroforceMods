@@ -41,13 +41,13 @@
       <HintPath>..\..\libs\Extra Libs\BitCode.dll</HintPath>
     </Reference>
     <Reference Include="BroMakerLib">
-      <HintPath>..\..\..\Bro-Maker\BroMakerLib.UnityMod\bin\Debug\BroMakerLib.dll</HintPath>
+      <HintPath>$(BroMakerLibPath)</HintPath>
     </Reference>
     <Reference Include="Rewired_Core">
       <HintPath>..\..\libs\Extra Libs\Rewired_Core.dll</HintPath>
     </Reference>
     <Reference Include="RocketLib">
-      <HintPath>..\..\..\Mods-Broforce\RocketLib\src\RocketLibUMM\bin\Debug\RocketLib.dll</HintPath>
+      <HintPath>$(RocketLibPath)</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -91,10 +91,5 @@
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-post-build.bat" "$(ProjectName)" "$(TargetPath)" "$(TargetDir)" "$(TargetFileName)" "$(TargetName)" "$(ConfigurationName)" "$(PlatformName)" "$(ProjectDir)" "$(SolutionDir)" "$(OutDir)"</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
-  </PropertyGroup>
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>

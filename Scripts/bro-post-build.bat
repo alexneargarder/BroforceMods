@@ -11,12 +11,12 @@ set "ProjectDir=%~8"
 set "SolutionDir=%~9"
 shift
 set "OutDir=%~9"
+shift
+set "LaunchBroforceOnBuild=%~9"
 
 del "%BROFORCEPATH%\BroMaker_Storage\%ProjectName%\*.cache"
 XCOPY /Y /R "%TargetPath%" "%BROFORCEPATH%\BroMaker_Storage\%ProjectName%\%ProjectName%.dll*"
 
-rem Check if no-launch toggle file exists
-set "TOGGLE_FILE=%ProjectDir%..\..\Scripts\no-launch.toggle"
-if not exist "%TOGGLE_FILE%" (
+if /i "%LaunchBroforceOnBuild%"=="true" (
     start steam://rungameid/274190
 )

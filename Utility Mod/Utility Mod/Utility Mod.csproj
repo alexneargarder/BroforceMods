@@ -91,7 +91,7 @@
       <HintPath>..\..\libs\Extra Libs\BitCode.AssetManagement.dll</HintPath>
     </Reference>
     <Reference Include="RocketLib">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\RocketLib\RocketLib.dll</HintPath>
+      <HintPath>$(RocketLibPath)</HintPath>
     </Reference>
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -127,10 +127,5 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-post-build.bat" "$(ProjectName)" "$(TargetPath)" "$(TargetDir)" "$(TargetFileName)" "$(TargetName)" "$(ConfigurationName)" "$(PlatformName)" "$(ProjectDir)" "$(SolutionDir)" "$(OutDir)"</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PreBuildEvent>call "$(ProjectDir)..\..\Scripts\mod-pre-build.bat" "$(ProjectName)" "$(Configuration)" "$(Platform)" "$(ProjectDir)" "$(TargetPath)"</PreBuildEvent>
-  </PropertyGroup>
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>
