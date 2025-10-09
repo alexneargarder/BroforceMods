@@ -150,6 +150,12 @@ namespace Captain_Ameribro_Mod
                 this.caughtShieldFromPrevious = false;
                 ++this.SpecialAmmo;
             }
+
+            // Check if spawning with no special ammo
+            if ( this.SpecialAmmo == 0 )
+            {
+                this.SwitchToNoShieldMats();
+            }
         }
 
         protected override void Update()
@@ -173,7 +179,6 @@ namespace Captain_Ameribro_Mod
                         this.thrownShield.ReturnShieldSilent();
                     }
                     this.SpecialAmmo = 1;
-                    this.SwitchToWithShieldMats();
                     this.acceptedDeath = false;
                 }
             }
@@ -267,6 +272,28 @@ namespace Captain_Ameribro_Mod
             base.AnimateWallAnticipation();
         }
 
+        public override int SpecialAmmo
+        {
+            get => base.SpecialAmmo;
+            set
+            {
+                // Handle changes in special ammo amount by updating shield visuals
+                if ( this._specialAmmo != value )
+                {
+                    if ( value > 0 )
+                    {
+                        this.SwitchToWithShieldMats();
+                    }
+                    else
+                    {
+                        this.SwitchToNoShieldMats();
+                    }
+                }
+
+                base.SpecialAmmo = value;
+            }
+        }
+
         protected override void UseSpecial()
         {
             if ( this.SpecialAmmo > 0 && !isHoldingSpecial )
@@ -277,8 +304,6 @@ namespace Captain_Ameribro_Mod
                 }
 
                 this.SpecialAmmo--;
-
-                SwitchToNoShieldMats();
 
                 float chargedShieldSpeed = shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
@@ -303,7 +328,7 @@ namespace Captain_Ameribro_Mod
 
         protected void SwitchToNoShieldMats()
         {
-            if ( this._specialAmmo <= 0 )
+            if ( !this.hasBeenCoverInAcid && this.finishedStartup )
             {
                 this.materialNormal = this.materialNormalNoShield;
                 this.gunSprite.meshRender.material = this.gunMaterialNoShield;
@@ -312,12 +337,15 @@ namespace Captain_Ameribro_Mod
 
         protected void SwitchToWithShieldMats()
         {
-            this.materialNormal = this.materialNormalShield;
-            this.gunSprite.meshRender.material = this.gunMaterialNormal;
-
-            if ( !this.animateSpecial )
+            if ( !this.hasBeenCoverInAcid && this.finishedStartup )
             {
-                base.GetComponent<Renderer>().material = this.materialNormalShield;
+                this.materialNormal = this.materialNormalShield;
+                this.gunSprite.meshRender.material = this.gunMaterialNormal;
+
+                if ( !this.animateSpecial )
+                {
+                    base.GetComponent<Renderer>().material = this.materialNormalShield;
+                }
             }
         }
 
@@ -328,7 +356,6 @@ namespace Captain_Ameribro_Mod
                 ++this.SpecialAmmo;
                 return;
             }
-            SwitchToWithShieldMats();
             if ( this.doingMelee )
             {
                 this.doingMelee = false;
