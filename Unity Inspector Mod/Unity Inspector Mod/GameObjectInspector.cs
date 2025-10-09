@@ -130,40 +130,40 @@ namespace Unity_Inspector_Mod
             return InspectComponent( component );
         }
 
-        private static bool TryGetFieldValue(System.Reflection.FieldInfo field, Component component, out object value)
+        private static bool TryGetFieldValue( System.Reflection.FieldInfo field, Component component, out object value )
         {
             value = null;
-            
+
             try
             {
-                value = field.GetValue(component);
+                value = field.GetValue( component );
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
         }
 
-        private static bool TryGetPropertyValue(System.Reflection.PropertyInfo prop, Component component, out object value)
+        private static bool TryGetPropertyValue( System.Reflection.PropertyInfo prop, Component component, out object value )
         {
             value = null;
-            
+
             // Check if the property getter might have side effects or create new instances
             // In Unity, certain properties like MeshFilter.mesh create new instances when accessed
             var getMethod = prop.GetGetMethod();
-            if (getMethod != null)
+            if ( getMethod != null )
             {
                 // Check if this is a property that returns the same type as a shared/prefixed version
                 // (e.g., mesh vs sharedMesh, material vs sharedMaterial)
                 var propName = prop.Name;
-                var sharedVersion = "shared" + char.ToUpper(propName[0]) + propName.Substring(1);
+                var sharedVersion = "shared" + char.ToUpper( propName[0] ) + propName.Substring( 1 );
                 var allProps = prop.DeclaringType.GetProperties();
-                
-                foreach (var otherProp in allProps)
+
+                foreach ( var otherProp in allProps )
                 {
-                    if (otherProp.Name.Equals(sharedVersion, StringComparison.OrdinalIgnoreCase) &&
-                        otherProp.PropertyType == prop.PropertyType)
+                    if ( otherProp.Name.Equals( sharedVersion, StringComparison.OrdinalIgnoreCase ) &&
+                        otherProp.PropertyType == prop.PropertyType )
                     {
                         // This property has a "shared" version, which means the non-shared version
                         // likely creates instances. Skip it.
@@ -172,13 +172,13 @@ namespace Unity_Inspector_Mod
                     }
                 }
             }
-            
+
             try
             {
-                value = prop.GetValue(component, null);
+                value = prop.GetValue( component, null );
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
@@ -190,9 +190,9 @@ namespace Unity_Inspector_Mod
             var properties = new Dictionary<string, object>();
 
             // Skip certain problematic types that cause crashes
-            if (type.Name.Contains("TestVanDammeAnim") || 
-                type.Name.Contains("NetworkedPlayer") ||
-                type.FullName.Contains("Rewired"))
+            if ( type.Name.Contains( "TestVanDammeAnim" ) ||
+                type.Name.Contains( "NetworkedPlayer" ) ||
+                type.FullName.Contains( "Rewired" ) )
             {
                 return new
                 {
@@ -209,21 +209,21 @@ namespace Unity_Inspector_Mod
                 try
                 {
                     // Skip backing fields and complex types
-                    if (field.Name.Contains("k__BackingField") || 
-                        field.Name.Contains("m_") ||
-                        field.FieldType.FullName.Contains("System.Action") ||
-                        field.FieldType.FullName.Contains("System.Func"))
+                    if ( field.Name.Contains( "k__BackingField" ) ||
+                        field.Name.Contains( "m_" ) ||
+                        field.FieldType.FullName.Contains( "System.Action" ) ||
+                        field.FieldType.FullName.Contains( "System.Func" ) )
                         continue;
 
                     object value;
-                    if (TryGetFieldValue(field, component, out value))
+                    if ( TryGetFieldValue( field, component, out value ) )
                     {
-                        properties[field.Name] = SerializeValue(value);
-                        }
+                        properties[field.Name] = SerializeValue( value );
+                    }
                     else
                     {
                         properties[field.Name] = $"<timeout or error reading {field.FieldType.Name}>";
-                        }
+                    }
                     fieldCount++;
                 }
                 catch { }
@@ -238,21 +238,21 @@ namespace Unity_Inspector_Mod
                     try
                     {
                         // Skip complex properties that might cause issues
-                        if (prop.PropertyType.FullName.Contains("System.Action") ||
-                            prop.PropertyType.FullName.Contains("System.Func") ||
-                            prop.Name == "gameObject" || 
-                            prop.Name == "transform")
+                        if ( prop.PropertyType.FullName.Contains( "System.Action" ) ||
+                            prop.PropertyType.FullName.Contains( "System.Func" ) ||
+                            prop.Name == "gameObject" ||
+                            prop.Name == "transform" )
                             continue;
 
                         object value;
-                        if (TryGetPropertyValue(prop, component, out value))
+                        if ( TryGetPropertyValue( prop, component, out value ) )
                         {
-                            properties[prop.Name] = SerializeValue(value);
-                            }
+                            properties[prop.Name] = SerializeValue( value );
+                        }
                         else
                         {
                             properties[prop.Name] = $"<timeout or error reading {prop.PropertyType.Name}>";
-                            }
+                        }
                         propCount++;
                     }
                     catch { }
@@ -261,25 +261,25 @@ namespace Unity_Inspector_Mod
 
             // Get methods
             var methods = new List<object>();
-            var methodInfos = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            foreach (var method in methodInfos)
+            var methodInfos = type.GetMethods( BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly );
+            foreach ( var method in methodInfos )
             {
-                if (method.IsSpecialName) continue; // Skip property getters/setters
-                
-                var parameters = method.GetParameters().Select(p => new 
-                { 
-                    name = p.Name, 
-                    type = p.ParameterType.Name 
-                }).ToArray();
-                
-                methods.Add(new
+                if ( method.IsSpecialName ) continue; // Skip property getters/setters
+
+                var parameters = method.GetParameters().Select( p => new
+                {
+                    name = p.Name,
+                    type = p.ParameterType.Name
+                } ).ToArray();
+
+                methods.Add( new
                 {
                     name = method.Name,
                     returnType = method.ReturnType.Name,
                     parameters = parameters
-                });
+                } );
             }
-            
+
             return new
             {
                 type = type.Name,
@@ -295,7 +295,7 @@ namespace Unity_Inspector_Mod
 
             var type = value.GetType();
             // Skip delegates and events
-            if (type.BaseType == typeof(System.MulticastDelegate))
+            if ( type.BaseType == typeof( System.MulticastDelegate ) )
                 return "<delegate>";
 
             if ( type.IsPrimitive || type == typeof( string ) )

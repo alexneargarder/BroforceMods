@@ -33,7 +33,7 @@ MODS_PATH := $(GAME_PATH)/Mods
 BROS_PATH := $(GAME_PATH)/BroMaker_Storage
 
 # Main targets
-all:
+all: .install-rocketlib .install-bromaker
 	$(MSBUILD) BroforceMods.sln $(MSBUILD_FLAGS)
 	@$(MAKE) install-all
 
@@ -91,71 +91,56 @@ define install-bromaker-files
 endef
 
 # Individual project build targets
-utility-mod:
+utility-mod: .install-rocketlib
 	$(MSBUILD) "Utility Mod/Utility Mod.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
 	@mkdir -p "$(MODS_PATH)/Utility Mod"
 	@cp -f "Utility Mod/Utility Mod/bin/Release/Utility Mod.dll" "$(MODS_PATH)/Utility Mod/"
 	@echo "  ✓ Installed Utility Mod"
 
-swap-bros:
+swap-bros: .install-bromaker
 	$(MSBUILD) "Swap Bros Mod/Swap Bros Mod.sln" $(MSBUILD_FLAGS)
-	$(call install-bromaker-files)
 	@mkdir -p "$(MODS_PATH)/Swap Bros Mod"
 	@cp -f "Swap Bros Mod/Swap Bros Mod/bin/Release/Swap Bros Mod.dll" "$(MODS_PATH)/Swap Bros Mod/"
 	@echo "  ✓ Installed Swap Bros Mod"
 
-captain-ameribro:
+captain-ameribro: .install-bromaker
 	$(MSBUILD) "Captain Ameribro/Captain Ameribro Mod.sln" $(MSBUILD_FLAGS)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Captain Ameribro"
 	@cp -f "Captain Ameribro/Captain Ameribro Mod/bin/Release/Captain Ameribro Mod.dll" "$(BROS_PATH)/Captain Ameribro/Captain Ameribro.dll"
 	@echo "  ✓ Installed Captain Ameribro"
 
-mission-impossibro:
+mission-impossibro: .install-rocketlib .install-bromaker
 	$(MSBUILD) "Mission Impossibro/Mission Impossibro.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Mission Impossibro"
 	@cp -f "Mission Impossibro/Mission Impossibro/bin/Release/Mission Impossibro.dll" "$(BROS_PATH)/Mission Impossibro/"
 	@echo "  ✓ Installed Mission Impossibro"
 
-brostbuster:
+brostbuster: .install-rocketlib .install-bromaker
 	$(MSBUILD) "Brostbuster/Brostbuster.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Brostbuster"
 	@cp -f "Brostbuster/Brostbuster/bin/Release/Brostbuster.dll" "$(BROS_PATH)/Brostbuster/"
 	@echo "  ✓ Installed Brostbuster"
 
-rjbrocready:
+rjbrocready: .install-rocketlib .install-bromaker
 	$(MSBUILD) "RJBrocready/RJBrocready.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/RJBrocready"
 	@cp -f "RJBrocready/RJBrocready/bin/Release/RJBrocready.dll" "$(BROS_PATH)/RJBrocready/"
 	@echo "  ✓ Installed RJBrocready"
 
-furibrosa:
+furibrosa: .install-rocketlib .install-bromaker
 	$(MSBUILD) "Furibrosa/Furibrosa.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Furibrosa"
 	@cp -f "Furibrosa/Furibrosa/bin/Release/Furibrosa.dll" "$(BROS_PATH)/Furibrosa/"
 	@echo "  ✓ Installed Furibrosa"
 
-drunken-broster:
+drunken-broster: .install-rocketlib .install-bromaker
 	$(MSBUILD) "Drunken Broster/Drunken Broster.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(BROS_PATH)/Drunken Broster"
 	@cp -f "Drunken Broster/Drunken Broster/bin/Release/Drunken Broster.dll" "$(BROS_PATH)/Drunken Broster/"
 	@echo "  ✓ Installed Drunken Broster"
 
-control-enemies:
+control-enemies: .install-rocketlib .install-bromaker
 	$(MSBUILD) "Control Enemies Mod/Control Enemies Mod.sln" $(MSBUILD_FLAGS)
-	$(call install-rocketlib-files)
-	$(call install-bromaker-files)
 	@mkdir -p "$(MODS_PATH)/Control Enemies Mod"
 	@cp -f "Control Enemies Mod/Control Enemies Mod/bin/Release/Control Enemies Mod.dll" "$(MODS_PATH)/Control Enemies Mod/"
 	@echo "  ✓ Installed Control Enemies Mod"
