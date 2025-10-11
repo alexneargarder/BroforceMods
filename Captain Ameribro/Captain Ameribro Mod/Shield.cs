@@ -57,13 +57,17 @@ namespace Captain_Ameribro_Mod
         public float seekTurningSpeedM = 20f;
         protected float angle;
         protected float seekCounter = 0.1f;
-        protected bool stopSeeking = false;
+        public bool stopSeeking = false;
         protected int bounceCount = 5;
         protected bool startedSnap = false;
         protected float startingThrowX;
         protected float startingThrowY;
         protected Vector3 startingThrowVector;
         protected LayerMask ladderLayer;
+
+        // Custom Trigger Variables
+        public bool spawnedByTrigger = false;
+        public bool permanentlyGrantShield = false;
 
         // Sounds
         public AudioClip[] shieldUnitBounce;
@@ -183,9 +187,18 @@ namespace Captain_Ameribro_Mod
             this.knockbackXI = this.knockbackXI + ( this.knockbackXI * currentSpecialCharge );
             this.knockbackYI = this.knockbackYI + ( this.knockbackYI * currentSpecialCharge );
 
-            this.startingThrowX = this.throwingPlayer.X;
-            this.startingThrowY = this.throwingPlayer.Y;
-            this.startingThrowVector = this.throwingPlayer.transform.position;
+            if ( this.throwingPlayer != null )
+            {
+                this.startingThrowX = this.throwingPlayer.X;
+                this.startingThrowY = this.throwingPlayer.Y;
+                this.startingThrowVector = this.throwingPlayer.transform.position;
+            }
+            else
+            {
+                this.startingThrowX = 0f;
+                this.startingThrowY = 0f;
+                this.startingThrowVector = Vector3.zero;
+            }
 
             base.transform.eulerAngles = new Vector3( 0f, 0f, 0f );
 
@@ -471,7 +484,15 @@ namespace Captain_Ameribro_Mod
             this.shieldCollider.transform.position = base.transform.position;
             if ( this.dropping )
             {
-                ApplyGravity();
+                // If the shield was spawned by a trigger, ensure it doesn't fall through the ground while offscreen
+                if ( this.spawnedByTrigger && !SortOfFollow.IsItSortOfVisible( base.transform.position ) )
+                {
+                    this.xI = this.yI = 0;
+                }
+                else
+                {
+                    ApplyGravity();
+                }
             }
         }
 
@@ -865,6 +886,13 @@ namespace Captain_Ameribro_Mod
             {
                 EffectsController.CreatePuffDisappearEffect( base.X, base.Y + 2f, 0f, 0f );
             }
+
+            // If spawned by trigger, grant 
+            if ( this.spawnedByTrigger && this.permanentlyGrantShield )
+            {
+                RocketLib.CustomTriggers.CustomTriggerStateManager.SetDuringLevel( "Captain Ameribro Grant Shield", true );
+            }
+
             Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.powerUp, 0.7f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.1f, true, false, false, 0f );
             this.DeregisterProjectile();
             UnityEngine.Object.Destroy( base.gameObject );
