@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="..\..\LocalPath.props" Condition="Exists('..\..\LocalPath.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -32,6 +33,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CaptainAmeribro.cs" />
+    <Compile Include="CaptainAmeribroAction.cs" />
     <Compile Include="PockettedShield.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Shield.cs" />
@@ -45,9 +47,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="BroMakerLib, Version=2.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="BroMakerLib">
       <HintPath>$(BroMakerLibPath)</HintPath>
+    </Reference>
+    <Reference Include="RocketLib">
+      <HintPath>$(RocketLibPath)</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

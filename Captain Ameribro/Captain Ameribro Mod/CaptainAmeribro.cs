@@ -129,6 +129,11 @@ namespace Captain_Ameribro_Mod
             pistolSounds[3] = ResourcesController.GetAudioClip( SoundPath, "pistol4.wav" );
         }
 
+        public override void RegisterCustomTriggers()
+        {
+            RocketLib.CustomTriggers.CustomTriggerManager.RegisterCustomTrigger( typeof( CaptainAmeribroAction ), typeof( CaptainAmeribroActionInfo ), "Captain Ameribro - Spawn Shield", "Custom Bros" );
+        }
+
         protected override void Start()
         {
             base.Start();
@@ -149,6 +154,12 @@ namespace Captain_Ameribro_Mod
             {
                 this.caughtShieldFromPrevious = false;
                 ++this.SpecialAmmo;
+            }
+
+            // Check if we've picked up a custom trigger shield this level that is overriding our special ammo count
+            if ( RocketLib.CustomTriggers.CustomTriggerStateManager.Get<bool>( "Captain Ameribro Grant Shield" ) && this.SpecialAmmo == 0 )
+            {
+                this.SpecialAmmo = 1;
             }
 
             // Check if spawning with no special ammo
@@ -595,7 +606,7 @@ namespace Captain_Ameribro_Mod
             }
             if ( this.sound != null )
             {
-                this.sound.PlaySoundEffectAt( this.soundHolder.defendSounds, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f );
+                this.sound.PlaySoundEffectAt( this.shieldMeleeTerrain, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f );
             }
         }
 
