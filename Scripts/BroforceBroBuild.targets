@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Import local path configuration -->
-  <Import Project="$(MSBuildThisFileDirectory)..\LocalPath.props" Condition="Exists('$(MSBuildThisFileDirectory)..\LocalPath.props')" />
-
   <!-- Pre-build event for bro projects -->
   <Target Name="BroPreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="call &quot;$(MSBuildThisFileDirectory)bro-pre-build.bat&quot; &quot;$(ProjectName)&quot; &quot;$(Configuration)&quot; &quot;$(Platform)&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetPath)&quot; &quot;$(CloseBroforceOnBuild)&quot;" />
