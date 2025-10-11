@@ -369,19 +369,6 @@ namespace Utility_Mod
                 return false;
             }
 
-            // Allow menu to work anywhere, but still check for editor mode if Map exists
-            try
-            {
-                if ( Map.isEditing )
-                {
-                    return false;
-                }
-            }
-            catch
-            {
-                // Map might not exist in menus, that's ok
-            }
-
             return true;
         }
 
