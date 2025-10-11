@@ -3,40 +3,16 @@ using UnityEngine;
 
 namespace Furibrosa
 {
-    class FuribrosaSummonWarRigActionInfo : CustomTriggerActionInfo
+    public class FuribrosaSummonWarRigActionInfo : CustomTriggerActionInfo
     {
         public bool StartOnGround = true;
         public GridPoint SpawnPoint = new GridPoint( 0, 0 );
         public GridPoint TargetPoint = new GridPoint( 0, 0 );
+
         public override void ShowGUI( LevelEditorGUI gui )
         {
-            if ( GUILayout.Button( string.Concat( new object[]
-        {
-            "Set Spawn Point (currently C ",
-            this.SpawnPoint.collumn,
-            " R ",
-            this.SpawnPoint.row,
-            ")"
-        } ), new GUILayoutOption[0] ) )
-            {
-                gui.settingWaypoint = true;
-                gui.waypointToSet = this.SpawnPoint;
-                gui.MarkTargetPoint( this.SpawnPoint );
-            }
-
-            if ( GUILayout.Button( string.Concat( new object[]
-        {
-            "Set Target Point (currently C ",
-            this.TargetPoint.collumn,
-            " R ",
-            this.TargetPoint.row,
-            ")"
-        } ), new GUILayoutOption[0] ) )
-            {
-                gui.settingWaypoint = true;
-                gui.waypointToSet = this.TargetPoint;
-                gui.MarkTargetPoint( this.TargetPoint );
-            }
+            ShowGridPointOption( gui, this.SpawnPoint, "Set Spawn Point" );
+            ShowGridPointOption( gui, this.TargetPoint, "Set Target Point" );
 
             GUILayout.Space( 5 );
 
@@ -44,22 +20,8 @@ namespace Furibrosa
         }
     }
 
-    public class FuribrosaSummonWarRigAction : CustomTriggerAction
+    public class FuribrosaSummonWarRigAction : CustomTriggerAction<FuribrosaSummonWarRigActionInfo>
     {
-        FuribrosaSummonWarRigActionInfo info;
-
-        public override TriggerActionInfo Info
-        {
-            get
-            {
-                return this.info;
-            }
-            set
-            {
-                this.info = (FuribrosaSummonWarRigActionInfo)value;
-            }
-        }
-
         public FuribrosaSummonWarRigAction()
         {
             Furibrosa.CreateWarRigPrefab();
