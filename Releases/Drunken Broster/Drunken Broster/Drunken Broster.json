@@ -24,6 +24,11 @@
      "width": 256,
      "height": 256
     },
+    "spriteMenuOffset":
+    {
+      "x": 50,
+      "y": 0
+    },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_Rambro",
     "playCutsceneOnFirstSpawn": true

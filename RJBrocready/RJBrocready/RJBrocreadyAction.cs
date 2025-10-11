@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace RJBrocready
 {
-    class RJBrocreadyActionInfo : CustomTriggerActionInfo
+    public class RJBrocreadyActionInfo : CustomTriggerActionInfo
     {
         public bool enableBecomingThing = true;
         public override void ShowGUI( LevelEditorGUI gui )
@@ -13,22 +13,8 @@ namespace RJBrocready
         }
     }
 
-    public class RJBrocreadyAction : CustomTriggerAction
+    public class RJBrocreadyAction : CustomTriggerAction<RJBrocreadyActionInfo>
     {
-        RJBrocreadyActionInfo info;
-
-        public override TriggerActionInfo Info
-        {
-            get
-            {
-                return this.info;
-            }
-            set
-            {
-                this.info = (RJBrocreadyActionInfo)value;
-            }
-        }
-
         public override void Start()
         {
             base.Start();

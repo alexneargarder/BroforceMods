@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1E413A30-B103-4B09-AC00-F558156F56E2}</ProjectGuid>
+    <ProjectGuid>{F637A9E4-6C18-40E6-834A-0A75C00103C5}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Drunken_Broster</RootNamespace>

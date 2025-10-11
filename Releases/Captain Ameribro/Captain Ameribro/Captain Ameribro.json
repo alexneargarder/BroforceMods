@@ -35,5 +35,11 @@
     "originalSpecialAmmo": 1,
     "canAirdash": true,
     "airdashMaxTime": 0.23
+  },
+  "unlockConfig": {
+    "method": "RescueOrLevel",
+    "unlockLevelPath": "Test Ameribro Unlock.bfc",
+    "unlockLevelName": "Test Ameribro Unlock",
+    "RescueCountRequired": 20
   }
 }
