@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using UnityModManagerNet;
 
 namespace Control_Enemies_Mod
@@ -22,7 +19,7 @@ namespace Control_Enemies_Mod
 
     public class SaveGame
     {
-        public SaveGame(int[] currentScore, int[] requiredScore, int currentHeroNum)
+        public SaveGame( int[] currentScore, int[] requiredScore, int currentHeroNum )
         {
             this.currentScore = currentScore;
             this.requiredScore = requiredScore;
@@ -99,9 +96,9 @@ namespace Control_Enemies_Mod
         // Save info
         public SaveGame[] saveGames = new SaveGame[] { new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame() };
 
-        public override void Save(UnityModManager.ModEntry modEntry)
+        public override void Save( UnityModManager.ModEntry modEntry )
         {
-            Save(this, modEntry);
+            Save( this, modEntry );
         }
 
     }
