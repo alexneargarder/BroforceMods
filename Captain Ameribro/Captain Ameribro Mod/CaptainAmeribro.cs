@@ -60,6 +60,7 @@ namespace Captain_Ameribro_Mod
         protected Projectile pistolBullet;
         protected float airDashCooldown = 0f;
         protected bool alreadySpawnedBullet = false;
+        protected bool chargedAirDash = false;
 
         // Misc Variables
         protected List<Unit> currentlyHitting;
@@ -67,6 +68,7 @@ namespace Captain_Ameribro_Mod
         protected bool acceptedDeath = false;
         protected InvulnerabilityFlash invulnerabilityFlash;
 
+        #region General
         protected override void Awake()
         {
             shield = CustomProjectile.CreatePrefab<Shield>( new List<Type>() { typeof( SphereCollider ) } );
@@ -244,11 +246,21 @@ namespace Captain_Ameribro_Mod
             }
 
             // Reflect projectiles if airdashing
-            if ( this.airdashTime > 0 && this.airdashTime < 0.27 )
+            if ( this.airdashTime > 0 )
             {
-                if ( Map.DeflectProjectiles( this, this.playerNum, 8f, this.X, this.Y, this.transform.localScale.x * 300, true ) )
+                if ( this.chargedAirDash )
                 {
-                    Sound.GetInstance().PlaySoundEffectAt( ricochetSounds, 0.6f, base.transform.position, 1f, true, false, false, 0f );
+                    if ( Map.DeflectProjectiles( this, this.playerNum, 8f, this.X, this.Y, this.transform.localScale.x * 300, true ) )
+                    {
+                        Sound.GetInstance().PlaySoundEffectAt( ricochetSounds, 0.6f, base.transform.position, 1f, true, false, false, 0f );
+                    }
+                }
+                else if ( this.airdashTime < 0.27 )
+                {
+                    if ( Map.DeflectProjectiles( this, this.playerNum, 8f, this.X, this.Y, this.transform.localScale.x * 300, true ) )
+                    {
+                        Sound.GetInstance().PlaySoundEffectAt( ricochetSounds, 0.6f, base.transform.position, 1f, true, false, false, 0f );
+                    }
                 }
             }
 
@@ -273,6 +285,471 @@ namespace Captain_Ameribro_Mod
             }
         }
 
+        protected override void AnimateInseminationFrames()
+        {
+            int num = 24 + base.CalculateInseminationFrame();
+            this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
+        }
+
+        protected override void CheckFacingDirection()
+        {
+            if ( !this.chimneyFlip && this.holdStillTime <= 0f && ( this.airdashTime <= 0 ) )
+            {
+                if ( this.usingSpecial && !this.turnAroundWhhileUsingSpecials && this.pressSpecialFacingDirection != 0 )
+                {
+                    base.transform.localScale = new Vector3( (float)this.pressSpecialFacingDirection, this.yScale, 1f );
+                }
+                else if ( this.xI < 0f || ( this.left && this.health > 0 ) )
+                {
+                    base.transform.localScale = new Vector3( -1f, this.yScale, 1f );
+                }
+                else if ( this.xI > 0f || ( this.right && this.health > 0 ) )
+                {
+                    base.transform.localScale = new Vector3( 1f, this.yScale, 1f );
+                }
+            }
+        }
+        #endregion
+
+        #region Primary
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
+        {
+            if ( !this.animateSpecial )
+            {
+                if ( base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed )
+                {
+                    this.gunSprite.SetLowerLeftPixel( (float)( this.gunSpritePixelWidth * ( 11 + spriteFrame ) ), (float)( this.gunSpritePixelHeight * ( 1 + spriteRow ) ) );
+                }
+                else if ( this.attachedToZipline != null && base.actionState == ActionState.Jumping )
+                {
+                    this.gunSprite.SetLowerLeftPixel( (float)( this.gunSpritePixelWidth * 11 ), (float)( this.gunSpritePixelHeight * 2 ) );
+                }
+                else
+                {
+                    base.SetGunSprite( spriteFrame, spriteRow );
+                }
+            }
+        }
+
+        public override void PlaySliceSound()
+        {
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            if ( this.sound != null )
+            {
+                this.sound.PlaySoundEffectAt( this.soundHolder.special2Sounds, this.sliceVolume, base.transform.position, 1f, true, false, false, 0f );
+            }
+        }
+
+        public override void PlayWallSound()
+        {
+            if ( this.sound == null )
+            {
+                this.sound = Sound.GetInstance();
+            }
+            if ( this.sound != null )
+            {
+                this.sound.PlaySoundEffectAt( this.shieldMeleeTerrain, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f );
+            }
+        }
+
+        protected override void UseFire()
+        {
+            if ( !this.animateSpecial && this.airdashTime <= 0 )
+            {
+                base.UseFire();
+                this.fireDelay = 0.25f;
+            }
+        }
+
+        protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
+        {
+            if ( this.attachedToZipline != null )
+            {
+                if ( base.transform.localScale.x > 0f )
+                {
+                    this.AirDashRight();
+                }
+                else
+                {
+                    this.AirDashLeft();
+                }
+                return;
+            }
+            Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
+            this.gunFrame = 1;
+            this.punchingIndex++;
+            this.gunCounter = 0f;
+            this.SetGunFrame();
+            currentlyHitting = new List<Unit>();
+            float num = base.transform.localScale.x * 12f;
+            this.ConstrainToFragileBarriers( ref num, 16f );
+            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 18f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) )
+            {
+                this.MakeEffects( this.raycastHit.point.x + base.transform.localScale.x * 4f, this.raycastHit.point.y );
+                MapController.Damage_Local( this, this.raycastHit.collider.gameObject, normalAttackDamage, DamageType.Bullet, this.xI + base.transform.localScale.x * 200f, 0f, x, y );
+                this.hasHitWithWall = true;
+                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 12f, x, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
+                {
+                    this.hasHitWithSlice = true;
+                }
+                else
+                {
+                    this.hasHitWithSlice = false;
+                }
+                Map.DisturbWildLife( x, y, 80f, base.playerNum );
+            }
+            else
+            {
+                this.hasHitWithWall = false;
+                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
+                {
+                    this.hasHitWithSlice = true;
+                }
+                else
+                {
+                    this.hasHitWithSlice = false;
+                }
+            }
+        }
+
+        protected void NormalAttackDamage( float x, float y, float xSpeed, float ySpeed )
+        {
+            float num = base.transform.localScale.x * 12f;
+            this.ConstrainToFragileBarriers( ref num, 16f );
+            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 18f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) )
+            {
+            }
+            else
+            {
+                this.hasHitWithWall = false;
+                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
+                {
+                    this.hasHitWithSlice = true;
+                }
+                else
+                {
+                    this.hasHitWithSlice = false;
+                }
+            }
+        }
+
+        protected override void RunGun()
+        {
+            if ( this.specialAttackDashTime > 0f )
+            {
+                this.gunFrame = 11;
+                this.SetGunFrame();
+            }
+            else if ( !this.WallDrag && !this.animateSpecial )
+            {
+                if ( this.gunFrame > 0 )
+                {
+                    if ( !this.hasBeenCoverInAcid )
+                    {
+                        base.GetComponent<Renderer>().material = this.materialArmless;
+                    }
+                    this.gunCounter += this.t;
+                    if ( this.gunCounter > 0.05f )
+                    {
+                        this.gunCounter -= 0.05f;
+                        this.gunFrame++;
+                        if ( this.gunFrame > 4 && !heldGunFrame )
+                        {
+                            this.NormalAttackDamage( base.X + base.transform.localScale.x * 10f, base.Y + 6.5f, base.transform.localScale.x * 400f, (float)UnityEngine.Random.Range( -20, 20 ) );
+                            if ( this.hasHitWithSlice )
+                            {
+                                this.PlaySliceSound();
+                                this.hasHitWithSlice = false;
+                            }
+                            else if ( this.hasHitWithWall )
+                            {
+                                this.PlayWallSound();
+                                this.hasHitWithWall = false;
+                            }
+                            this.gunFrame = 4;
+                            this.heldGunFrame = true;
+                        }
+                        if ( this.gunFrame >= 6 && heldGunFrame )
+                        {
+                            this.gunFrame = 0;
+                        }
+                        if ( this.gunFrame == 0 && this.punchingIndex % 2 == 1 )
+                        {
+                            this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
+                        }
+                        else
+                        {
+                            this.SetGunFrame();
+                        }
+                        if ( this.gunFrame == 2 )
+                        {
+                            if ( this.hasHitWithSlice )
+                            {
+                                this.PlaySliceSound();
+                                this.hasHitWithSlice = false;
+                            }
+                            else if ( this.hasHitWithWall )
+                            {
+                                this.PlayWallSound();
+                                this.hasHitWithWall = false;
+                            }
+                        }
+                    }
+                }
+            }
+            if ( !this.animateSpecial && ( !this.gunSprite.gameObject.activeSelf || this.gunFrame == 0 ) && !this.hasBeenCoverInAcid )
+            {
+                base.GetComponent<Renderer>().material = this.materialNormal;
+                this.heldGunFrame = false;
+            }
+        }
+
+        protected void SetGunFrame()
+        {
+            if ( !this.ducking )
+            {
+                int num = this.punchingIndex % 2;
+                if ( num != 0 )
+                {
+                    if ( num == 1 )
+                    {
+                        this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 5 + this.gunFrame ) ), 32f );
+                    }
+                }
+                else
+                {
+                    this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
+                }
+            }
+            else
+            {
+                int num2 = this.punchingIndex % 2;
+                if ( num2 != 0 )
+                {
+                    if ( num2 == 1 )
+                    {
+                        this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 15 + this.gunFrame ) ), 32f );
+                    }
+                }
+                else
+                {
+                    this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 10 + this.gunFrame ) ), 32f );
+                }
+            }
+        }
+
+        protected override void PressHighFiveMelee( bool forceHighFive = false )
+        {
+            if ( this.right && this.CanAirDash( DirectionEnum.Right ) && this.SpecialAmmo > 0 )
+            {
+                if ( !this.wasHighFive )
+                {
+                    this.Airdash( true );
+                }
+            }
+            else if ( this.left && this.CanAirDash( DirectionEnum.Left ) && this.SpecialAmmo > 0 )
+            {
+                if ( !this.wasHighFive )
+                {
+                    this.Airdash( true );
+                }
+            }
+            else if ( this.airdashTime <= 0f )
+            {
+                base.PressHighFiveMelee( false );
+            }
+        }
+        #endregion
+
+        #region Melee
+        // Performs melee attack
+        protected void MeleeAttack( bool shouldTryHitTerrain, bool playMissSound )
+        {
+            bool flag;
+            Map.DamageDoodads( meleeAttackDamage - 2, DamageType.Knock, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null );
+            this.KickDoors( 24f );
+            if ( Map.HitClosestUnit( this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 300f, 600f, true, false, base.IsMine, false, true ) )
+            {
+                this.sound.PlaySoundEffectAt( shieldMeleeHit[this.currentMeleeSound], 0.5f, base.transform.position, 1f, true, false, false, 0f );
+                this.meleeHasHit = true;
+            }
+            else if ( playMissSound )
+            {
+                //this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
+            }
+            this.meleeChosenUnit = null;
+            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, meleeAttackDamage - 2 ) )
+            {
+                this.meleeHasHit = true;
+                this.sound.PlaySoundEffectAt( shieldMeleeTerrain, 0.5f, base.transform.position, 1f, true, false, false, 0f );
+            }
+            this.TriggerBroMeleeEvent();
+        }
+
+        // Sets up melee attack
+        protected override void StartCustomMelee()
+        {
+            if ( this.animateSpecial )
+            {
+                return;
+            }
+            if ( this.CanStartNewMelee() )
+            {
+                this.usingShieldMelee = this._specialAmmo > 0;
+                this.alreadySpawnedBullet = false;
+                if ( !( this.nearbyMook != null && this.nearbyMook.CanBeThrown() ) && this.usingShieldMelee )
+                {
+                    this.currentMeleeSound = UnityEngine.Random.Range( 0, shieldMeleeSwing.Length );
+                    this.sound.PlaySoundEffectAt( shieldMeleeSwing[this.currentMeleeSound], 0.6f, base.transform.position, 1f, true, false, false, 0f );
+                }
+                base.frame = 1;
+                base.counter = -0.05f;
+
+                this.AnimateMelee();
+            }
+            else if ( this.CanStartMeleeFollowUp() )
+            {
+                this.meleeFollowUp = true;
+                this.alreadySpawnedBullet = false;
+            }
+            if ( !this.jumpingMelee && this.usingShieldMelee )
+            {
+                this.dashingMelee = true;
+                this.xI = (float)base.Direction * this.speed;
+            }
+            this.StartMeleeCommon();
+        }
+
+        // Calls MeleeAttack
+        protected override void AnimateCustomMelee()
+        {
+            this.AnimateMeleeCommon();
+            // Shield bash
+            if ( this.usingShieldMelee )
+            {
+                int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
+                int num2 = 1;
+                if ( !this.standingMelee )
+                {
+                    if ( this.jumpingMelee )
+                    {
+                        num = 17 + Mathf.Clamp( base.frame, 0, 6 );
+                        num2 = 6;
+                    }
+                    else if ( this.dashingMelee )
+                    {
+                        num = 17 + Mathf.Clamp( base.frame, 0, 6 );
+                        num2 = 6;
+                        if ( base.frame == 4 )
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                        else if ( base.frame == 5 )
+                        {
+                            base.counter -= 0.0334f;
+                        }
+                    }
+                }
+                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
+                if ( base.frame == 3 )
+                {
+                    base.counter -= 0.066f;
+                    this.MeleeAttack( true, true );
+                }
+                else if ( base.frame > 3 && !this.meleeHasHit )
+                {
+                    this.MeleeAttack( false, false );
+                }
+                if ( base.frame >= 6 )
+                {
+                    base.frame = 0;
+                    this.CancelMelee();
+                }
+            }
+            // Fire gun
+            else
+            {
+                int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
+                int num2 = 1;
+                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
+                if ( base.frame == 3 && !this.alreadySpawnedBullet )
+                {
+                    this.sound.PlaySoundEffectAt( pistolSounds, 0.5f, base.transform.position, 1f, true, false, false, 0f );
+                    Projectile bullet = ProjectileController.SpawnProjectileLocally( this.pistolBullet, this, this.X + ( this.transform.localScale.x * 12 ), this.Y + 13.5f, this.transform.localScale.x * 250, 0, base.playerNum );
+                    EffectsController.CreateMuzzleFlashEffect( this.X + ( this.transform.localScale.x * 14 ), this.Y + 13.5f, -25f, this.transform.localScale.x * 100, 0, base.transform );
+                    this.alreadySpawnedBullet = true;
+                }
+                if ( base.frame >= 6 )
+                {
+                    base.frame = 0;
+                    this.CancelMelee();
+                }
+            }
+        }
+
+        protected override void RunCustomMeleeMovement()
+        {
+            if ( !this.useNewKnifingFrames )
+            {
+                if ( base.Y > this.groundHeight + 1f )
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if ( this.jumpingMelee )
+            {
+                this.ApplyFallingGravity();
+                if ( this.yI < this.maxFallSpeed )
+                {
+                    this.yI = this.maxFallSpeed;
+                }
+            }
+            else if ( this.dashingMelee )
+            {
+                if ( base.frame <= 1 )
+                {
+                    this.xI = 0f;
+                    this.yI = 0f;
+                }
+                else if ( base.frame <= 3 )
+                {
+                    if ( this.meleeChosenUnit == null )
+                    {
+                        if ( !this.isInQuicksand && this.usingShieldMelee )
+                        {
+                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                        }
+                        this.yI = 0f;
+                    }
+                    else if ( !this.isInQuicksand && this.usingShieldMelee )
+                    {
+                        this.xI = this.speed * 0.5f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 6f;
+                    }
+                }
+                else if ( base.frame <= 5 )
+                {
+                    if ( !this.isInQuicksand && this.usingShieldMelee )
+                    {
+                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
+                    }
+                    this.ApplyFallingGravity();
+                }
+                else
+                {
+                    this.ApplyFallingGravity();
+                }
+            }
+            else if ( base.Y > this.groundHeight + 1f )
+            {
+                this.CancelMelee();
+            }
+        }
+        #endregion
+
+        #region Special
         protected override void AnimateWallAnticipation()
         {
             // Cancel holding special if we are about to grab a wall
@@ -558,270 +1035,15 @@ namespace Captain_Ameribro_Mod
                 }
             }
         }
+        #endregion
 
-        // Copie from Neo
-        protected override void AnimateInseminationFrames()
-        {
-            int num = 24 + base.CalculateInseminationFrame();
-            this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( this.spritePixelHeight * 8 ) );
-        }
-
-        // Copied from Neo
-        protected override void SetGunSprite( int spriteFrame, int spriteRow )
-        {
-            if ( !this.animateSpecial )
-            {
-                if ( base.actionState == ActionState.ClimbingLadder && this.hangingOneArmed )
-                {
-                    this.gunSprite.SetLowerLeftPixel( (float)( this.gunSpritePixelWidth * ( 11 + spriteFrame ) ), (float)( this.gunSpritePixelHeight * ( 1 + spriteRow ) ) );
-                }
-                else if ( this.attachedToZipline != null && base.actionState == ActionState.Jumping )
-                {
-                    this.gunSprite.SetLowerLeftPixel( (float)( this.gunSpritePixelWidth * 11 ), (float)( this.gunSpritePixelHeight * 2 ) );
-                }
-                else
-                {
-                    base.SetGunSprite( spriteFrame, spriteRow );
-                }
-            }
-        }
-
-        public override void PlaySliceSound()
-        {
-            if ( this.sound == null )
-            {
-                this.sound = Sound.GetInstance();
-            }
-            if ( this.sound != null )
-            {
-                this.sound.PlaySoundEffectAt( this.soundHolder.special2Sounds, this.sliceVolume, base.transform.position, 1f, true, false, false, 0f );
-            }
-        }
-
-        public override void PlayWallSound()
-        {
-            if ( this.sound == null )
-            {
-                this.sound = Sound.GetInstance();
-            }
-            if ( this.sound != null )
-            {
-                this.sound.PlaySoundEffectAt( this.shieldMeleeTerrain, this.wallHitVolume, base.transform.position, 1f, true, false, false, 0f );
-            }
-        }
-
-        protected override void UseFire()
-        {
-            if ( !this.animateSpecial && this.airdashTime <= 0 )
-            {
-                base.UseFire();
-                this.fireDelay = 0.25f;
-            }
-        }
-
-        protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
-        {
-            if ( this.attachedToZipline != null )
-            {
-                if ( base.transform.localScale.x > 0f )
-                {
-                    this.AirDashRight();
-                }
-                else
-                {
-                    this.AirDashLeft();
-                }
-                return;
-            }
-            Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
-            this.gunFrame = 1;
-            this.punchingIndex++;
-            this.gunCounter = 0f;
-            this.SetGunFrame();
-            currentlyHitting = new List<Unit>();
-            float num = base.transform.localScale.x * 12f;
-            this.ConstrainToFragileBarriers( ref num, 16f );
-            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 18f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) )
-            {
-                this.MakeEffects( this.raycastHit.point.x + base.transform.localScale.x * 4f, this.raycastHit.point.y );
-                MapController.Damage_Local( this, this.raycastHit.collider.gameObject, normalAttackDamage, DamageType.Bullet, this.xI + base.transform.localScale.x * 200f, 0f, x, y );
-                this.hasHitWithWall = true;
-                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 12f, x, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
-                {
-                    this.hasHitWithSlice = true;
-                }
-                else
-                {
-                    this.hasHitWithSlice = false;
-                }
-                Map.DisturbWildLife( x, y, 80f, base.playerNum );
-            }
-            else
-            {
-                this.hasHitWithWall = false;
-                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
-                {
-                    this.hasHitWithSlice = true;
-                }
-                else
-                {
-                    this.hasHitWithSlice = false;
-                }
-            }
-        }
-
-        protected void NormalAttackDamage( float x, float y, float xSpeed, float ySpeed )
-        {
-            float num = base.transform.localScale.x * 12f;
-            this.ConstrainToFragileBarriers( ref num, 16f );
-            if ( Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 5.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 18f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) || Physics.Raycast( new Vector3( x - Mathf.Sign( base.transform.localScale.x ) * 12f, y + 10.5f, 0f ), new Vector3( base.transform.localScale.x, 0f, 0f ), out this.raycastHit, 19f, this.groundLayer | 1 << LayerMask.NameToLayer( "FLUI" ) ) )
-            {
-            }
-            else
-            {
-                this.hasHitWithWall = false;
-                if ( Map.HitUnits( this, base.playerNum, normalAttackDamage, DamageType.Melee, 10, x + base.transform.localScale.x * 0, y, base.transform.localScale.x * 250, 100f, false, true, false, this.alreadyHit, false, false ) )
-                {
-                    this.hasHitWithSlice = true;
-                }
-                else
-                {
-                    this.hasHitWithSlice = false;
-                }
-            }
-        }
-
-        protected override void RunGun()
-        {
-            if ( this.specialAttackDashTime > 0f )
-            {
-                this.gunFrame = 11;
-                this.SetGunFrame();
-            }
-            else if ( !this.WallDrag && !this.animateSpecial )
-            {
-                if ( this.gunFrame > 0 )
-                {
-                    if ( !this.hasBeenCoverInAcid )
-                    {
-                        base.GetComponent<Renderer>().material = this.materialArmless;
-                    }
-                    this.gunCounter += this.t;
-                    if ( this.gunCounter > 0.05f )
-                    {
-                        this.gunCounter -= 0.05f;
-                        this.gunFrame++;
-                        if ( this.gunFrame > 4 && !heldGunFrame )
-                        {
-                            this.NormalAttackDamage( base.X + base.transform.localScale.x * 10f, base.Y + 6.5f, base.transform.localScale.x * 400f, (float)UnityEngine.Random.Range( -20, 20 ) );
-                            if ( this.hasHitWithSlice )
-                            {
-                                this.PlaySliceSound();
-                                this.hasHitWithSlice = false;
-                            }
-                            else if ( this.hasHitWithWall )
-                            {
-                                this.PlayWallSound();
-                                this.hasHitWithWall = false;
-                            }
-                            this.gunFrame = 4;
-                            this.heldGunFrame = true;
-                        }
-                        if ( this.gunFrame >= 6 && heldGunFrame )
-                        {
-                            this.gunFrame = 0;
-                        }
-                        if ( this.gunFrame == 0 && this.punchingIndex % 2 == 1 )
-                        {
-                            this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
-                        }
-                        else
-                        {
-                            this.SetGunFrame();
-                        }
-                        if ( this.gunFrame == 2 )
-                        {
-                            if ( this.hasHitWithSlice )
-                            {
-                                this.PlaySliceSound();
-                                this.hasHitWithSlice = false;
-                            }
-                            else if ( this.hasHitWithWall )
-                            {
-                                this.PlayWallSound();
-                                this.hasHitWithWall = false;
-                            }
-                        }
-                    }
-                }
-            }
-            if ( !this.animateSpecial && ( !this.gunSprite.gameObject.activeSelf || this.gunFrame == 0 ) && !this.hasBeenCoverInAcid )
-            {
-                base.GetComponent<Renderer>().material = this.materialNormal;
-                this.heldGunFrame = false;
-            }
-        }
-
-        protected void SetGunFrame()
-        {
-            if ( !this.ducking )
-            {
-                int num = this.punchingIndex % 2;
-                if ( num != 0 )
-                {
-                    if ( num == 1 )
-                    {
-                        this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 5 + this.gunFrame ) ), 32f );
-                    }
-                }
-                else
-                {
-                    this.gunSprite.SetLowerLeftPixel( (float)( 32 * this.gunFrame ), 32f );
-                }
-            }
-            else
-            {
-                int num2 = this.punchingIndex % 2;
-                if ( num2 != 0 )
-                {
-                    if ( num2 == 1 )
-                    {
-                        this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 15 + this.gunFrame ) ), 32f );
-                    }
-                }
-                else
-                {
-                    this.gunSprite.SetLowerLeftPixel( (float)( 32 * ( 10 + this.gunFrame ) ), 32f );
-                }
-            }
-        }
-
-        protected override void PressHighFiveMelee( bool forceHighFive = false )
-        {
-            if ( this.right && this.CanAirDash( DirectionEnum.Right ) && this.SpecialAmmo > 0 )
-            {
-                if ( !this.wasHighFive )
-                {
-                    this.Airdash( true );
-                }
-            }
-            else if ( this.left && this.CanAirDash( DirectionEnum.Left ) && this.SpecialAmmo > 0 )
-            {
-                if ( !this.wasHighFive )
-                {
-                    this.Airdash( true );
-                }
-            }
-            else if ( this.airdashTime <= 0f )
-            {
-                base.PressHighFiveMelee( false );
-            }
-        }
-
+        #region AirDash
         protected override void AirDashLeft()
         {
-            if ( !this.animateSpecial && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
+            // Airdash if we have the shield and are not charging, unless we've fully charged
+            if ( ( !this.animateSpecial || this.playedShingNoise ) && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
             {
+                this.SetAirDashTime();
                 if ( this.attachedToZipline != null )
                 {
                     this.attachedToZipline.DetachUnit( this );
@@ -845,8 +1067,10 @@ namespace Captain_Ameribro_Mod
 
         protected override void AirDashRight()
         {
-            if ( !this.animateSpecial && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
+            // Airdash if we have the shield and are not charging, unless we've fully charged
+            if ( ( !this.animateSpecial || this.playedShingNoise ) && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
             {
+                this.SetAirDashTime();
                 if ( this.attachedToZipline != null )
                 {
                     this.attachedToZipline.DetachUnit( this );
@@ -960,205 +1184,18 @@ namespace Captain_Ameribro_Mod
             this.sound.PlaySoundEffectAt( airDashSound, 0.75f, base.transform.position, 1f, true, false, false, 0f );
         }
 
-        protected override void CheckFacingDirection()
+        protected virtual void SetAirDashTime()
         {
-            if ( !this.chimneyFlip && this.holdStillTime <= 0f && ( this.airdashTime <= 0 ) )
+            if ( this.isHoldingSpecial && this.playedShingNoise )
             {
-                if ( this.usingSpecial && !this.turnAroundWhhileUsingSpecials && this.pressSpecialFacingDirection != 0 )
-                {
-                    base.transform.localScale = new Vector3( (float)this.pressSpecialFacingDirection, this.yScale, 1f );
-                }
-                else if ( this.xI < 0f || ( this.left && this.health > 0 ) )
-                {
-                    base.transform.localScale = new Vector3( -1f, this.yScale, 1f );
-                }
-                else if ( this.xI > 0f || ( this.right && this.health > 0 ) )
-                {
-                    base.transform.localScale = new Vector3( 1f, this.yScale, 1f );
-                }
+                this.chargedAirDash = true;
+                this.airdashMaxTime = 0.40f;
+                this.CancelSpecial();
             }
-        }
-
-        // Performs melee attack
-        protected void MeleeAttack( bool shouldTryHitTerrain, bool playMissSound )
-        {
-            bool flag;
-            Map.DamageDoodads( meleeAttackDamage - 2, DamageType.Knock, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null );
-            this.KickDoors( 24f );
-            if ( Map.HitClosestUnit( this, base.playerNum, meleeAttackDamage, DamageType.Knock, 14f, 24f, base.X + base.transform.localScale.x * 8f, base.Y + 8f, base.transform.localScale.x * 300f, 600f, true, false, base.IsMine, false, true ) )
-            {
-                this.sound.PlaySoundEffectAt( shieldMeleeHit[this.currentMeleeSound], 0.5f, base.transform.position, 1f, true, false, false, 0f );
-                this.meleeHasHit = true;
-            }
-            else if ( playMissSound )
-            {
-                //this.sound.PlaySoundEffectAt(this.soundHolder.missSounds, 0.3f, base.transform.position, 1f, true, false, false, 0f);
-            }
-            this.meleeChosenUnit = null;
-            if ( shouldTryHitTerrain && this.TryMeleeTerrain( 0, meleeAttackDamage - 2 ) )
-            {
-                this.meleeHasHit = true;
-                this.sound.PlaySoundEffectAt( shieldMeleeTerrain, 0.5f, base.transform.position, 1f, true, false, false, 0f );
-            }
-            this.TriggerBroMeleeEvent();
-        }
-
-        // Sets up melee attack
-        protected override void StartCustomMelee()
-        {
-            if ( this.animateSpecial )
-            {
-                return;
-            }
-            if ( this.CanStartNewMelee() )
-            {
-                this.usingShieldMelee = this._specialAmmo > 0;
-                this.alreadySpawnedBullet = false;
-                if ( !( this.nearbyMook != null && this.nearbyMook.CanBeThrown() ) && this.usingShieldMelee )
-                {
-                    this.currentMeleeSound = UnityEngine.Random.Range( 0, shieldMeleeSwing.Length );
-                    this.sound.PlaySoundEffectAt( shieldMeleeSwing[this.currentMeleeSound], 0.6f, base.transform.position, 1f, true, false, false, 0f );
-                }
-                base.frame = 1;
-                base.counter = -0.05f;
-
-                this.AnimateMelee();
-            }
-            else if ( this.CanStartMeleeFollowUp() )
-            {
-                this.meleeFollowUp = true;
-                this.alreadySpawnedBullet = false;
-            }
-            if ( !this.jumpingMelee && this.usingShieldMelee )
-            {
-                this.dashingMelee = true;
-                this.xI = (float)base.Direction * this.speed;
-            }
-            this.StartMeleeCommon();
-        }
-
-        // Calls MeleeAttack
-        protected override void AnimateCustomMelee()
-        {
-            this.AnimateMeleeCommon();
-            // Shield bash
-            if ( this.usingShieldMelee )
-            {
-                int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
-                int num2 = 1;
-                if ( !this.standingMelee )
-                {
-                    if ( this.jumpingMelee )
-                    {
-                        num = 17 + Mathf.Clamp( base.frame, 0, 6 );
-                        num2 = 6;
-                    }
-                    else if ( this.dashingMelee )
-                    {
-                        num = 17 + Mathf.Clamp( base.frame, 0, 6 );
-                        num2 = 6;
-                        if ( base.frame == 4 )
-                        {
-                            base.counter -= 0.0334f;
-                        }
-                        else if ( base.frame == 5 )
-                        {
-                            base.counter -= 0.0334f;
-                        }
-                    }
-                }
-                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
-                if ( base.frame == 3 )
-                {
-                    base.counter -= 0.066f;
-                    this.MeleeAttack( true, true );
-                }
-                else if ( base.frame > 3 && !this.meleeHasHit )
-                {
-                    this.MeleeAttack( false, false );
-                }
-                if ( base.frame >= 6 )
-                {
-                    base.frame = 0;
-                    this.CancelMelee();
-                }
-            }
-            // Fire gun
             else
             {
-                int num = 25 + Mathf.Clamp( base.frame, 0, 6 );
-                int num2 = 1;
-                this.sprite.SetLowerLeftPixel( (float)( num * this.spritePixelWidth ), (float)( num2 * this.spritePixelHeight ) );
-                if ( base.frame == 3 && !this.alreadySpawnedBullet )
-                {
-                    this.sound.PlaySoundEffectAt( pistolSounds, 0.5f, base.transform.position, 1f, true, false, false, 0f );
-                    Projectile bullet = ProjectileController.SpawnProjectileLocally( this.pistolBullet, this, this.X + ( this.transform.localScale.x * 12 ), this.Y + 13.5f, this.transform.localScale.x * 250, 0, base.playerNum );
-                    EffectsController.CreateMuzzleFlashEffect( this.X + ( this.transform.localScale.x * 14 ), this.Y + 13.5f, -25f, this.transform.localScale.x * 100, 0, base.transform );
-                    this.alreadySpawnedBullet = true;
-                }
-                if ( base.frame >= 6 )
-                {
-                    base.frame = 0;
-                    this.CancelMelee();
-                }
-            }
-        }
-
-        protected override void RunCustomMeleeMovement()
-        {
-            if ( !this.useNewKnifingFrames )
-            {
-                if ( base.Y > this.groundHeight + 1f )
-                {
-                    this.ApplyFallingGravity();
-                }
-            }
-            else if ( this.jumpingMelee )
-            {
-                this.ApplyFallingGravity();
-                if ( this.yI < this.maxFallSpeed )
-                {
-                    this.yI = this.maxFallSpeed;
-                }
-            }
-            else if ( this.dashingMelee )
-            {
-                if ( base.frame <= 1 )
-                {
-                    this.xI = 0f;
-                    this.yI = 0f;
-                }
-                else if ( base.frame <= 3 )
-                {
-                    if ( this.meleeChosenUnit == null )
-                    {
-                        if ( !this.isInQuicksand && this.usingShieldMelee )
-                        {
-                            this.xI = this.speed * 1f * base.transform.localScale.x;
-                        }
-                        this.yI = 0f;
-                    }
-                    else if ( !this.isInQuicksand && this.usingShieldMelee )
-                    {
-                        this.xI = this.speed * 0.5f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 6f;
-                    }
-                }
-                else if ( base.frame <= 5 )
-                {
-                    if ( !this.isInQuicksand && this.usingShieldMelee )
-                    {
-                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
-                    }
-                    this.ApplyFallingGravity();
-                }
-                else
-                {
-                    this.ApplyFallingGravity();
-                }
-            }
-            else if ( base.Y > this.groundHeight + 1f )
-            {
-                this.CancelMelee();
+                this.chargedAirDash = false;
+                this.airdashMaxTime = 0.23f;
             }
         }
 
@@ -1166,5 +1203,6 @@ namespace Captain_Ameribro_Mod
         protected override void CreateFaderTrailInstance()
         {
         }
+        #endregion
     }
 }
