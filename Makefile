@@ -39,7 +39,7 @@ all: .install-rocketlib .install-bromaker
 
 clean:
 	$(MSBUILD) BroforceMods.sln /t:Clean $(MSBUILD_FLAGS)
-	$(MSBUILD) "../Mods-Broforce/RocketLib/src/RocketLib.sln" /t:Clean $(MSBUILD_FLAGS)
+	$(MSBUILD) "../RocketLib/RocketLib.sln" /t:Clean $(MSBUILD_FLAGS)
 	$(MSBUILD) "../Bro-Maker/BroMakerLib.sln" /t:Clean $(MSBUILD_FLAGS)
 	@rm -f .install-rocketlib .install-bromaker
 
@@ -51,7 +51,7 @@ rebuild:
 .PHONY: build-rocketlib build-bromaker
 
 build-rocketlib:
-	$(MSBUILD) "../Mods-Broforce/RocketLib/src/RocketLib.sln" $(MSBUILD_FLAGS)
+	$(MSBUILD) "../RocketLib/RocketLib.sln" $(MSBUILD_FLAGS)
 
 build-bromaker:
 	$(MSBUILD) "../Bro-Maker/BroMakerLib.sln" $(MSBUILD_FLAGS)
@@ -59,10 +59,9 @@ build-bromaker:
 # Dependency installation markers
 .install-rocketlib: build-rocketlib
 	@mkdir -p "$(MODS_PATH)/RocketLib"
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../RocketLib/RocketLib/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -rf "../RocketLib/RocketLib/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../RocketLib/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
 	@echo "  ✓ Installed RocketLib"
 	@touch $@
 
@@ -76,10 +75,9 @@ build-bromaker:
 # Installation functions (not targets)
 define install-rocketlib-files
 	@mkdir -p "$(MODS_PATH)/RocketLib"
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -f "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../RocketLib/RocketLib/_Mod/"* "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -rf "../RocketLib/RocketLib/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -f "../RocketLib/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
 	@echo "  ✓ Installed RocketLib"
 endef
 
@@ -195,12 +193,11 @@ install-all:
 	@mkdir -p "$(BROS_PATH)/Drunken Broster" 2>/dev/null || true
 	@cp -u "Drunken Broster/Drunken Broster/bin/Release/Drunken Broster.dll" "$(BROS_PATH)/Drunken Broster/" 2>/dev/null && echo "  ✓ Updated Drunken Broster" || true
 	@mkdir -p "$(MODS_PATH)/RocketLib" 2>/dev/null || true
-	@cp -u "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"*.json "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -u "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"*.txt "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -u "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/"*.xml "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -rf "../Mods-Broforce/RocketLib/src/RocketLibUMM/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
-	@cp -u "../Mods-Broforce/RocketLib/src/RocketLibUMM/bin/Release/RocketLibUMM.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null && echo "  ✓ Updated RocketLibUMM" || true
-	@cp -u "../Mods-Broforce/RocketLib/src/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null && echo "  ✓ Updated RocketLib" || true
+	@cp -u "../RocketLib/RocketLib/_Mod/"*.json "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -u "../RocketLib/RocketLib/_Mod/"*.txt "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -u "../RocketLib/RocketLib/_Mod/"*.xml "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -rf "../RocketLib/RocketLib/_Mod/Resources" "$(MODS_PATH)/RocketLib/" 2>/dev/null || true
+	@cp -u "../RocketLib/RocketLib/bin/Release/RocketLib.dll" "$(MODS_PATH)/RocketLib/" 2>/dev/null && echo "  ✓ Updated RocketLib" || true
 	@mkdir -p "$(MODS_PATH)/BroMaker" 2>/dev/null || true
 	@cp -u "../Bro-Maker/BroMakerLib/_Mod/"*.json "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
 	@cp -u "../Bro-Maker/BroMakerLib/_Mod/"*.txt "$(MODS_PATH)/BroMaker/" 2>/dev/null || true
