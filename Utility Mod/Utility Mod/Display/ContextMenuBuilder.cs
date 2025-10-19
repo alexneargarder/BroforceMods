@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RocketLib.Loggers;
+using RocketLib.UMM;
 using RocketLib.Utils;
 using UnityEngine;
 
@@ -1207,10 +1209,14 @@ namespace Utility_Mod
             {
                 ShowCheckbox = true,
                 IsToggleAction = true,
-                IsChecked = RocketLib.Main.showLogOnScreen,
+                IsChecked = RocketLib.RocketMain.settings.ShowLogOnScreen,
                 OnToggle = ( isChecked ) =>
                 {
-                    RocketLib.Main.showLogOnScreen = isChecked;
+                    RocketLib.RocketMain.settings.ShowLogOnScreen = isChecked;
+                    if ( isChecked )
+                    {
+                        RocketLib.Loggers.ScreenLogger.Load();
+                    }
                 }
             } );
         }
