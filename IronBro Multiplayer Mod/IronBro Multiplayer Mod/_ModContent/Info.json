@@ -1,0 +1,9 @@
+{
+	"Id": "IronBro Multiplayer Mod",
+	"DisplayName": "IronBro Multiplayer",
+	"Author": "AlexN",
+	"Version": "1.0.0",
+	"AssemblyName": "IronBro Multiplayer Mod.dll",
+	"EntryMethod": "IronBro_Multiplayer_Mod.Main.Load",
+	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+}
