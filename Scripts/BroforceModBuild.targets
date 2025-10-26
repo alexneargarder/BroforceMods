@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Import global props first if it exists -->
+  <Import Project="$(MSBuildThisFileDirectory)../../BroforceGlobal.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)../../BroforceGlobal.props')" />
+
+  <!-- Import local props second (overrides global) -->
   <Import Project="$(MSBuildThisFileDirectory)../LocalBroforcePath.props"
           Condition="Exists('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')" />
 
@@ -12,6 +17,8 @@
     <LaunchBroforceOnBuild Condition="'$(LaunchBroforceOnBuild)' == ''">false</LaunchBroforceOnBuild>
     <VerboseBuildOutput Condition="'$(VerboseBuildOutput)' == ''">false</VerboseBuildOutput>
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
   </PropertyGroup>
 
@@ -29,10 +36,11 @@
     </ItemGroup>
 
     <PropertyGroup>
+      <InstallFolderName Condition="'$(InstallFolderName)' == ''">$(ProjectName)</InstallFolderName>
       <IsModProject Condition="Exists('$(ProjectDir)$(ModContentFolder)\Info.json')">true</IsModProject>
       <IsBroProject Condition="'@(ModJsonFiles->Count())' != '0'">true</IsBroProject>
-      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)\Mods\$(ProjectName)\</InstallPath>
-      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)\BroMaker_Storage\$(ProjectName)\</InstallPath>
+      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)\Mods\$(InstallFolderName)\</InstallPath>
+      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)\BroMaker_Storage\$(InstallFolderName)\</InstallPath>
     </PropertyGroup>
 
     <Error Text="Could not determine project type. $(ModContentFolder) folder must contain either Info.json (for mods) or *.mod.json (for bros)."
