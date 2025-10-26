@@ -6,7 +6,7 @@ using BroMakerLib;
 using BroMakerLib.CustomObjects.Projectiles;
 using UnityEngine;
 
-namespace Captain_Ameribro_Mod
+namespace Captain_Ameribro
 {
     public class PockettedShield : CustomPockettedSpecial
     {

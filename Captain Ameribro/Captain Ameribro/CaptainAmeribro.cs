@@ -5,7 +5,7 @@ using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
 using UnityEngine;
 
-namespace Captain_Ameribro_Mod
+namespace Captain_Ameribro
 {
     [HeroPreset( "Captain Ameribro", HeroType.Nebro )]
     class CaptainAmeribro : SwordHero

@@ -301,7 +301,6 @@ namespace Utility_Mod
             if ( settings.captureUnityLogs )
             {
                 Application.logMessageReceived += OnUnityLogMessageReceived;
-                Log( "Unity log capture initialized (enabled in settings)" );
             }
 
             return true;
@@ -320,7 +319,6 @@ namespace Utility_Mod
             if ( !value && settings != null && settings.captureUnityLogs )
             {
                 Application.logMessageReceived -= OnUnityLogMessageReceived;
-                Log( "Unity log capture disabled (mod toggled off)" );
             }
 
             return true;

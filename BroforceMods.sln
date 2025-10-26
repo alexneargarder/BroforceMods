@@ -4,7 +4,7 @@ VisualStudioVersion = 17.14.36414.22 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brostbuster", "Brostbuster\Brostbuster\Brostbuster.csproj", "{F637A9E4-6C18-40E6-834A-0A75C00103C5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Captain Ameribro", "Captain Ameribro\Captain Ameribro Mod\Captain Ameribro.csproj", "{AD2D94AC-3409-4923-8EE7-E200C9395628}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Captain Ameribro", "Captain Ameribro\Captain Ameribro\Captain Ameribro.csproj", "{AD2D94AC-3409-4923-8EE7-E200C9395628}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Control Enemies Mod", "Control Enemies Mod\Control Enemies Mod\Control Enemies Mod.csproj", "{52724136-162B-41E7-94F7-EA1E65B59A0C}"
 EndProject

@@ -1,8 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <BroMakerLibPath>$(MSBuildThisFileDirectory)..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</BroMakerLibPath>
-    <RocketLibPath>$(MSBuildThisFileDirectory)..\RocketLib\RocketLib\bin\Debug\RocketLib.dll</RocketLibPath>
-    <CloseBroforceOnBuild>true</CloseBroforceOnBuild>
-    <LaunchBroforceOnBuild>true</LaunchBroforceOnBuild>
-  </PropertyGroup>
-</Project>

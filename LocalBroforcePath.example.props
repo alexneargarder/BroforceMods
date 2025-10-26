@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    Copy this file to LocalBroforcePath.props and configure for your system.
+    This file is git-ignored and contains your personal build settings.
+  -->
+
+  <!-- OPTIONAL: Share settings across repos with BroforceGlobal.props -->
+  <!-- If BroforceGlobal.props exists in parent directory, it will be imported here -->
+  <!-- Note that any settings below override the global settings -->
+  <Import Project="$(MSBuildThisFileDirectory)../../BroforceGlobal.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)../../BroforceGlobal.props')" />
+
+  <PropertyGroup>
+
+    <!-- REQUIRED: Broforce installation directory -->
+    <BroforcePath>C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
+
+    <!-- For Thunderstore/r2modman installs, use profile path instead: -->
+    <!-- <BroforcePath>C:\Users\YourName\AppData\Roaming\r2modmanPlus-local\Broforce\profiles\Default\UMM</BroforcePath> -->
+
+    <!-- Library paths (repo-specific, adjust if your repos are in different locations) -->
+    <BroMakerLibPath>$(MSBuildThisFileDirectory)..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</BroMakerLibPath>
+    <RocketLibPath>$(MSBuildThisFileDirectory)..\RocketLib\RocketLib\bin\Debug\RocketLib.dll</RocketLibPath>
+
+    <!-- Build Options (uncomment to override global or set if not using global) -->
+    <!-- Close game before build to prevent file locking (default: true) -->
+    <!-- <CloseBroforceOnBuild>false</CloseBroforceOnBuild> -->
+
+    <!-- Launch game via Steam after build (default: false) -->
+    <!-- <LaunchBroforceOnBuild>true</LaunchBroforceOnBuild> -->
+
+    <!-- Use hard links for ModContent files (faster copying) (default: false) -->
+    <!-- <UseHardLinksForInstall>true</UseHardLinksForInstall> -->
+
+    <!-- Show detailed build messages (default: false) -->
+    <!-- <VerboseBuildOutput>true</VerboseBuildOutput> -->
+
+  </PropertyGroup>
+</Project>

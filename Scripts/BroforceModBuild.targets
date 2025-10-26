@@ -1,12 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Pre-build event for mod projects -->
-  <Target Name="ModPreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="call &quot;$(MSBuildThisFileDirectory)mod-pre-build.bat&quot; &quot;$(ProjectName)&quot; &quot;$(Configuration)&quot; &quot;$(Platform)&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetPath)&quot; &quot;$(CloseBroforceOnBuild)&quot;" />
+
+  <Import Project="$(MSBuildThisFileDirectory)../LocalBroforcePath.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')" />
+
+  <PropertyGroup>
+    <BroforcePath Condition="'$(BroforcePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
+    <UseHardLinksForInstall Condition="'$(UseHardLinksForInstall)' == ''">false</UseHardLinksForInstall>
+    <ModContentFolder Condition="'$(ModContentFolder)' == ''">_ModContent</ModContentFolder>
+    <CloseBroforceOnBuild Condition="'$(CloseBroforceOnBuild)' == ''">true</CloseBroforceOnBuild>
+    <LaunchBroforceOnBuild Condition="'$(LaunchBroforceOnBuild)' == ''">false</LaunchBroforceOnBuild>
+    <VerboseBuildOutput Condition="'$(VerboseBuildOutput)' == ''">false</VerboseBuildOutput>
+    <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
+    <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
+  </PropertyGroup>
+
+  <Target Name="KillGameProcess" BeforeTargets="Build"
+          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
+    <Exec Command="taskkill /f /t /im Broforce_beta.exe &gt;nul 2&gt;&amp;1"
+          IgnoreExitCode="true"
+          ContinueOnError="true" />
+    <Message Text="Closed Broforce" Importance="high" Condition="'$(MSBuildLastTaskResult)' == 'true' AND '$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <!-- Post-build event for mod projects -->
-  <Target Name="ModPostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="call &quot;$(MSBuildThisFileDirectory)mod-post-build.bat&quot; &quot;$(ProjectName)&quot; &quot;$(TargetPath)&quot; &quot;$(TargetDir)&quot; &quot;$(TargetFileName)&quot; &quot;$(TargetName)&quot; &quot;$(ConfigurationName)&quot; &quot;$(PlatformName)&quot; &quot;$(ProjectDir)&quot; &quot;$(SolutionDir)&quot; &quot;$(OutDir)&quot; &quot;$(LaunchBroforceOnBuild)&quot;" />
+  <Target Name="DetectProjectType" BeforeTargets="InstallToGame">
+    <ItemGroup>
+      <ModJsonFiles Include="$(ProjectDir)$(ModContentFolder)\*.mod.json" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <IsModProject Condition="Exists('$(ProjectDir)$(ModContentFolder)\Info.json')">true</IsModProject>
+      <IsBroProject Condition="'@(ModJsonFiles->Count())' != '0'">true</IsBroProject>
+      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)\Mods\$(ProjectName)\</InstallPath>
+      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)\BroMaker_Storage\$(ProjectName)\</InstallPath>
+    </PropertyGroup>
+
+    <Error Text="Could not determine project type. $(ModContentFolder) folder must contain either Info.json (for mods) or *.mod.json (for bros)."
+           Condition="'$(InstallPath)' == ''" />
+
+    <Message Text="========================================" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="Project: $(ProjectName)" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="Type: Unity Mod Manager Mod" Importance="high" Condition="'$(IsModProject)' == 'true' AND '$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="Type: BroMaker Bro" Importance="high" Condition="'$(IsBroProject)' == 'true' AND '$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="Install: $(InstallPath)" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="========================================" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
+
+  <Target Name="CopyXmlDocumentation" AfterTargets="Build" BeforeTargets="InstallToGame"
+          Condition="'$(CopyXmlDocToModContent)' == 'true'">
+    <PropertyGroup>
+      <XmlDocPath>$(TargetDir)$(AssemblyName).xml</XmlDocPath>
+      <XmlDocDestination>$(ProjectDir)$(ModContentFolder)\$(AssemblyName).xml</XmlDocDestination>
+    </PropertyGroup>
+
+    <Copy SourceFiles="$(XmlDocPath)"
+          DestinationFiles="$(XmlDocDestination)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(XmlDocPath)')" />
+
+    <Message Text="Copied XML documentation to $(ModContentFolder)" Importance="high"
+             Condition="Exists('$(XmlDocPath)') AND '$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="InstallToGame" AfterTargets="Build" DependsOnTargets="DetectProjectType">
+    <MakeDir Directories="$(ProjectDir)$(ModContentFolder)" />
+    <MakeDir Directories="$(InstallPath)" />
+
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(ProjectDir)$(ModContentFolder)"
+          SkipUnchangedFiles="true" />
+
+    <ItemGroup>
+      <ModContentFiles Include="$(ProjectDir)$(ModContentFolder)\**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(ModContentFiles)"
+          DestinationFiles="@(ModContentFiles->'$(InstallPath)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          UseHardlinksIfPossible="$(UseHardLinksForInstall)"
+          Retries="3"
+          RetryDelayMilliseconds="500">
+      <Output TaskParameter="CopiedFiles" ItemName="CopiedContentFiles" />
+    </Copy>
+
+    <Message Text="✓ Installed successfully" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="  Files: @(CopiedContentFiles->Count()) files" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="CleanCacheFiles" AfterTargets="InstallToGame">
+    <ItemGroup>
+      <CacheFiles Include="$(InstallPath)*.cache" />
+    </ItemGroup>
+    <Delete Files="@(CacheFiles)" ContinueOnError="true" />
+    <Message Text="Cleaned cache files" Importance="low" Condition="'@(CacheFiles)' != ''" />
+  </Target>
+
+  <Target Name="LaunchGame" AfterTargets="InstallToGame"
+          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
+    <Exec Command="start steam://rungameid/274190" />
+    <Message Text="Launching Broforce via Steam" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="CleanInstall" DependsOnTargets="DetectProjectType">
+    <RemoveDir Directories="$(InstallPath)" Condition="Exists('$(InstallPath)')" />
+    <Message Text="Cleaned install folder: $(InstallPath)" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="RebuildAndInstall" DependsOnTargets="Clean;CleanInstall;Build" />
+
 </Project>

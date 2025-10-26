@@ -8,8 +8,8 @@
     <ProjectGuid>{AD2D94AC-3409-4923-8EE7-E200C9395628}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Captain_Ameribro_Mod</RootNamespace>
-    <AssemblyName>Captain Ameribro Mod</AssemblyName>
+    <RootNamespace>Captain_Ameribro</RootNamespace>
+    <AssemblyName>Captain Ameribro</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -91,5 +91,5 @@
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="..\..\Scripts\BroforceBroBuild.targets" />
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>

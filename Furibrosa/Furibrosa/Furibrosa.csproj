@@ -91,5 +91,5 @@
     <Compile Include="WarRig.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="..\..\Scripts\BroforceBroBuild.targets" />
+  <Import Project="..\..\Scripts\BroforceModBuild.targets" />
 </Project>
