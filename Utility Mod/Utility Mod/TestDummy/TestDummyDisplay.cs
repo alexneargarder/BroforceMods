@@ -5,6 +5,8 @@ namespace Utility_Mod
     public class TestDummyDisplay : InfoDisplay
     {
         private TestDummy dummy;
+        private GUIStyle buttonStyle;
+        private GUIStyle hoverButtonStyle;
 
         void Awake()
         {
@@ -55,6 +57,53 @@ namespace Utility_Mod
                     textColor = Color.white;
 
                 displayStyle.normal.textColor = textColor;
+            }
+
+            InitializeButtonStyles();
+        }
+
+        private void InitializeButtonStyles()
+        {
+            if ( buttonStyle == null )
+            {
+                buttonStyle = new GUIStyle( GUI.skin.button );
+                buttonStyle.fontSize = 18;
+                buttonStyle.fontStyle = FontStyle.Bold;
+                buttonStyle.normal.textColor = Color.white;
+                buttonStyle.alignment = TextAnchor.MiddleCenter;
+                buttonStyle.padding = new RectOffset( 10, 10, 5, 5 );
+            }
+
+            if ( hoverButtonStyle == null )
+            {
+                hoverButtonStyle = new GUIStyle( buttonStyle );
+                hoverButtonStyle.normal.textColor = Color.yellow;
+            }
+        }
+
+        protected override void OnGUI()
+        {
+            base.OnGUI();
+
+            if ( !enabled || ( autoHide && !ShouldDisplay() ) || dummy == null )
+                return;
+
+            float buttonWidth = 100f;
+            float buttonHeight = 35f;
+            float buttonSpacing = 10f;
+            Rect buttonRect = new Rect(
+                lastDisplayRect.x + ( lastDisplayRect.width - buttonWidth ) / 2,
+                lastDisplayRect.yMax + buttonSpacing,
+                buttonWidth,
+                buttonHeight
+            );
+
+            bool isHovered = buttonRect.Contains( Event.current.mousePosition );
+            GUIStyle currentButtonStyle = isHovered ? hoverButtonStyle : buttonStyle;
+
+            if ( GUI.Button( buttonRect, "Reset", currentButtonStyle ) )
+            {
+                dummy.ResetStats();
             }
         }
     }
