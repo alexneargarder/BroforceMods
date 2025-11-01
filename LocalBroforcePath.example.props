@@ -21,8 +21,8 @@
     <!-- <BroforcePath>C:\Users\YourName\AppData\Roaming\r2modmanPlus-local\Broforce\profiles\Default\UMM</BroforcePath> -->
 
     <!-- Library paths (repo-specific, adjust if your repos are in different locations) -->
-    <BroMakerLibPath>$(MSBuildThisFileDirectory)..\Bro-Maker\BroMakerLib\bin\Debug\BroMakerLib.dll</BroMakerLibPath>
-    <RocketLibPath>$(MSBuildThisFileDirectory)..\RocketLib\RocketLib\bin\Debug\RocketLib.dll</RocketLibPath>
+    <BroMakerLibPath>$(MSBuildThisFileDirectory)../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
+    <RocketLibPath>$(MSBuildThisFileDirectory)../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
 
     <!-- Build Options (uncomment to override global or set if not using global) -->
     <!-- Close game before build to prevent file locking (default: true) -->
