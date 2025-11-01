@@ -21,6 +21,7 @@ namespace Utility_Mod
         protected GUIStyle displayStyle;
         protected int fontSize = 16;
         protected Color textColor = Color.white;
+        protected Rect lastDisplayRect;
 
         protected abstract string GetDisplayText();
         protected abstract bool ShouldDisplay();
@@ -51,7 +52,7 @@ namespace Utility_Mod
             }
         }
 
-        void OnGUI()
+        protected virtual void OnGUI()
         {
             if ( !enabled || ( autoHide && !ShouldDisplay() ) )
                 return;
@@ -64,11 +65,13 @@ namespace Utility_Mod
 
             if ( displayMode == DisplayMode.WorldAnchored )
             {
-                // Check if object is on screen
-                if ( hideWhenOffScreen && Camera.main != null )
+                if ( Camera.main == null )
+                    return;
+
+                Vector3 screenPos = Camera.main.WorldToScreenPoint( transform.position );
+
+                if ( hideWhenOffScreen )
                 {
-                    Vector3 screenPos = Camera.main.WorldToScreenPoint( transform.position );
-                    // Check if behind camera or outside screen bounds
                     if ( screenPos.z < 0 ||
                         screenPos.x < 0 || screenPos.x > Screen.width ||
                         screenPos.y < 0 || screenPos.y > Screen.height )
@@ -77,18 +80,28 @@ namespace Utility_Mod
                     }
                 }
 
-                DisplayUtility.DrawWorldAnchoredBox( transform.position, text, displayStyle, screenOffset, keepInBounds );
+                if ( screenPos.z < 0 )
+                    return;
+
+                Vector2 guiPos = new Vector2( screenPos.x + screenOffset.x, Screen.height - screenPos.y + screenOffset.y );
+                Vector2 textSize = displayStyle.CalcSize( new GUIContent( text ) );
+                lastDisplayRect = new Rect( guiPos.x - textSize.x / 2, guiPos.y - textSize.y, textSize.x, textSize.y );
+
+                if ( keepInBounds )
+                    lastDisplayRect = DisplayUtility.KeepInScreenBounds( lastDisplayRect );
+
+                DisplayUtility.DrawInfoBox( lastDisplayRect, text, displayStyle );
             }
             else
             {
                 Vector2 position = GetDisplayPosition();
                 Vector2 size = displayStyle.CalcSize( new GUIContent( text ) );
-                Rect rect = new Rect( position.x, position.y, size.x, size.y );
+                lastDisplayRect = new Rect( position.x, position.y, size.x, size.y );
 
                 if ( keepInBounds )
-                    rect = DisplayUtility.KeepInScreenBounds( rect );
+                    lastDisplayRect = DisplayUtility.KeepInScreenBounds( lastDisplayRect );
 
-                DisplayUtility.DrawInfoBox( rect, text, displayStyle );
+                DisplayUtility.DrawInfoBox( lastDisplayRect, text, displayStyle );
             }
         }
     }
