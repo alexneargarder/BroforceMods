@@ -1,4 +1,5 @@
 ﻿using BroMakerLib.CustomObjects.Projectiles;
+using Rogueforce;
 using UnityEngine;
 using Utility;
 
@@ -18,7 +19,7 @@ namespace Drunken_Broster.MeleeItems
             }
 
             this.projectileSize = 12f;
-            this.damage = 13;
+            this.damage = 16;
             this.damageInternal = this.damage;
             this.fullDamage = this.damage;
 
@@ -67,11 +68,66 @@ namespace Drunken_Broster.MeleeItems
             this.yI -= 500f * this.t;
         }
 
+        public bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, bool hitDead, MonoBehaviour avoidID = null )
+        {
+            if ( Map.units == null )
+            {
+                return false;
+            }
+            bool result = false;
+            bool flag = false;
+            int num = 999999;
+            for ( int i = Map.units.Count - 1; i >= 0; i-- )
+            {
+                Unit unit = Map.units[i];
+                if ( unit != null && ( avoidID == null || avoidID != unit ) && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num && ( hitDead || unit.health > 0 ) )
+                {
+                    float f = unit.X - x;
+                    if ( Mathf.Abs( f ) - xRange < unit.width )
+                    {
+                        float num2 = unit.Y + unit.height / 2f + 3f - y;
+                        if ( Mathf.Abs( num2 ) - yRange < unit.height )
+                        {
+                            if ( !penetrates && unit.health > 0 )
+                            {
+                                num = 0;
+                                flag = true;
+                            }
+                            if ( !canGib && unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else if ( unit.health <= 0 )
+                            {
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( corpseDamage, playerNum ), damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            else
+                            {
+                                damage = ValueOrchestrator.GetModifiedDamage( damage, playerNum );
+                                // Don't allow instagibs
+                                if ( damage > unit.health )
+                                {
+                                    damage = unit.health;
+                                }
+                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                            }
+                            result = true;
+                            if ( flag )
+                            {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         protected override void HitUnits()
         {
             if ( this.reversing )
             {
-                if ( Map.HitLivingUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, true, false ) )
+                if ( HitUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, false, false ) )
                 {
                     this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
                     global::UnityEngine.Object.Destroy( base.gameObject );
@@ -82,7 +138,7 @@ namespace Drunken_Broster.MeleeItems
                     }
                 }
             }
-            else if ( Map.HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, false, false ) )
+            else if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, false, true ) )
             {
                 this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
                 global::UnityEngine.Object.Destroy( base.gameObject );
@@ -91,6 +147,26 @@ namespace Drunken_Broster.MeleeItems
                 {
                     AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
                 }
+            }
+        }
+
+        // Don't apply double damage to units unlike base implementation
+        protected override void TryHitUnitsAtSpawn()
+        {
+            if ( this.firedBy != null && this.firedBy.GetComponent<TestVanDammeAnim>() != null && this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
+            {
+                if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), this.projectileSize / 2f, base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI, false, false, false, false, this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit ) )
+                {
+                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                    global::UnityEngine.Object.Destroy( base.gameObject );
+                    this.hasHit = true;
+                }
+            }
+            else if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), this.projectileSize / 2f, base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI, false, false, false, false ) )
+            {
+                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                global::UnityEngine.Object.Destroy( base.gameObject );
+                this.hasHit = true;
             }
         }
 

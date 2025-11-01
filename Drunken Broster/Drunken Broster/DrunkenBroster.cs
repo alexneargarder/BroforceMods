@@ -361,7 +361,7 @@ namespace Drunken_Broster
             }
 
             GUILayout.Space( 10 );
-            CompletelyRandomMeleeItems = GUILayout.Toggle( CompletelyRandomMeleeItems, "Allow any enabled melee items with equal weights regardless of level restrictions" );
+            CompletelyRandomMeleeItems = GUILayout.Toggle( CompletelyRandomMeleeItems, "Allow all enabled melee items to be pulled on any level, and use equal weights" );
 
         }
 
