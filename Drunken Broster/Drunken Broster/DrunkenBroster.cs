@@ -1088,7 +1088,7 @@ namespace Drunken_Broster
                 }
                 MapController.Damage_Networked( this, this.raycastHit.collider.gameObject, damage, DamageType.Blade, this.xI, 0f, this.raycastHit.point.x, this.raycastHit.point.y );
                 // If we hit something on the LargeObjects layer, don't continue hitting stuff because it could be a boss
-                if ( this.raycastHit.collider.gameObject.layer == 30 )
+                if ( BroMakerLib.BroMakerUtilities.IsBoss( this.raycastHit.collider.gameObject ) || this.raycastHit.collider.gameObject.layer == 30 )
                 {
                     this.hasHitWithWall = true;
                     this.attackHasHit = true;
