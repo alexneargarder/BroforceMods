@@ -107,6 +107,22 @@ namespace Drunken_Broster
         public FlickerFader fire1, fire2, fire3;
         public AudioClip[] barrelExplodeSounds;
         public AudioClip[] soccerKickSounds;
+        [SaveableSetting]
+        public static List<MeleeItem> EnabledMeleeItems = new List<MeleeItem>
+        {
+            MeleeItem.Tire,
+            MeleeItem.AcidEgg,
+            MeleeItem.Beehive,
+            MeleeItem.Bottle,
+            MeleeItem.Crate,
+            MeleeItem.Coconut,
+            MeleeItem.ExplosiveBarrel,
+            MeleeItem.SoccerBall,
+            MeleeItem.AlienEgg,
+            MeleeItem.Skull,
+        };
+        [SaveableSetting]
+        public static bool CompletelyRandomMeleeItems = false;
 
         // Special
         public AudioClip slurp;
@@ -322,6 +338,31 @@ namespace Drunken_Broster
             {
                 this.SaveSettings();
             }
+
+            GUILayout.Space( 20 );
+            GUILayout.Label( "Enabled Items:" );
+            foreach ( MeleeItem item in Enum.GetValues( typeof( MeleeItem ) ) )
+            {
+                if ( item == MeleeItem.None ) continue;
+                bool previousEnabledState = EnabledMeleeItems.Contains( item );
+                bool newEnabledState = GUILayout.Toggle( previousEnabledState, item.ToString() );
+                if ( previousEnabledState != newEnabledState )
+                {
+                    if ( newEnabledState )
+                    {
+                        EnabledMeleeItems.Add( item );
+                    }
+                    else
+                    {
+                        EnabledMeleeItems.Remove( item );
+                    }
+                    this.SaveSettings();
+                }
+            }
+
+            GUILayout.Space( 10 );
+            CompletelyRandomMeleeItems = GUILayout.Toggle( CompletelyRandomMeleeItems, "Allow any enabled melee items with equal weights regardless of level restrictions" );
+
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2223,6 +2264,18 @@ namespace Drunken_Broster
 
         protected MeleeItem ChooseItem()
         {
+            if ( CompletelyRandomMeleeItems )
+            {
+                if ( EnabledMeleeItems.Count > 0 )
+                {
+                    int randomIndex = UnityEngine.Random.Range( 0, EnabledMeleeItems.Count );
+                    return EnabledMeleeItems[randomIndex];
+                }
+                else
+                {
+                    return MeleeItem.Crate;
+                }
+            }
             LevelTheme theme = Map.MapData.theme;
             bool hasAliens = Map.hasAliens;
             int rareItemBoost = 0;
@@ -2288,6 +2341,15 @@ namespace Drunken_Broster
                     itemPool[i] = new KeyValuePair<MeleeItem, int>( itemPool[i].Key, itemPool[i].Value / 8 );
                     break;
                 }
+            }
+
+            // Remove all items that arne't in the enabled list
+            itemPool.RemoveAll( item => !EnabledMeleeItems.Contains( item.Key ) );
+
+            // Default to crate if no items are enabled
+            if ( itemPool.Count == 0 )
+            {
+                return MeleeItem.Crate;
             }
 
             // Weighted random selection - higher weight = more common
