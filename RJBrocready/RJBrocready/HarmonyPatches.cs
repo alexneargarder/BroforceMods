@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using HarmonyLib;
-using BroMakerLib.Loggers;
 using BroMakerLib.CustomObjects.Bros;
+using BroMakerLib.Loggers;
+using HarmonyLib;
 
 namespace RJBrocready
 {
     class HarmonyPatches
     {
-        [HarmonyPatch(typeof(ZipLine), "ShouldUnitAttach")]
+        [HarmonyPatch( typeof( ZipLine ), "ShouldUnitAttach" )]
         static class ZipLine_ShouldUnitAttach_Patch
         {
-            public static bool Prefix(ref Unit unit, ref bool __result)
+            public static bool Prefix( ref Unit unit, ref bool __result )
             {
                 if ( unit is RJBrocready )
                 {
@@ -29,12 +28,12 @@ namespace RJBrocready
             }
         }
 
-        [HarmonyPatch(typeof(SaveSlotsMenu), "SelectSlot")]
+        [HarmonyPatch( typeof( SaveSlotsMenu ), "SelectSlot" )]
         static class SaveSlotsMenu_SelectSlot_Patch
         {
-            public static void Prefix(SaveSlotsMenu __instance, ref int slot)
+            public static void Prefix( SaveSlotsMenu __instance, ref int slot )
             {
-                if (SaveSlotsMenu.createNewGame)
+                if ( SaveSlotsMenu.createNewGame )
                 {
                     try
                     {
@@ -47,9 +46,9 @@ namespace RJBrocready
                         RJBrocready.previouslyDiedInIronBro[slot] = false;
                         CustomHero.SaveSettings<RJBrocready>();
                     }
-                    catch (Exception e)
+                    catch ( Exception e )
                     {
-                        BMLogger.ExceptionLog(e);
+                        BMLogger.ExceptionLog( e );
                     }
                 }
             }

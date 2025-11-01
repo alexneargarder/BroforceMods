@@ -1743,7 +1743,7 @@ namespace RJBrocready
                         this.hasHitTerrain = false;
                         this.playedHitSound = false;
                         this.playedMissSound = false;
-                        Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
 
                     if ( this.gunFrame > 8 && this.gunFrame < 11 )
@@ -1895,7 +1895,7 @@ namespace RJBrocready
 
                 if ( this.gunFrame == 5 )
                 {
-                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.2f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                 }
                 else if ( this.gunFrame == 7 && this.currentTentacleState == TentacleState.Inactive )
                 {
@@ -1907,7 +1907,7 @@ namespace RJBrocready
                 }
                 else if ( gunFrame == 10 )
                 {
-                    this.sound.PlaySoundEffectAt( this.biteSound, 0.25f, base.transform.position, 1f, true, false, false, 0f );
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.45f, base.transform.position, 1f, true, false, false, 0f );
                 }
                 // Eat mook
                 else if ( this.gunFrame == 12 )
@@ -2151,15 +2151,15 @@ namespace RJBrocready
                 this.tentacleWhipSprite.UpdateUVs();
                 if ( tentaclePosition.x <= 0 || this.tentacleHitUnit || this.tentacleHitGround )
                 {
-                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSound, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                    Sound.GetInstance().PlaySoundEffectAt( this.whipStartSound, 0.6f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     if ( this.tentacleHitUnit || this.tentacleHitGround )
                     {
-                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds, 0.4f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
-                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds2, 0.3f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds, 0.6f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipHitSounds2, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
                     else
                     {
-                        Sound.GetInstance().PlaySoundEffectAt( this.whipMissSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                        Sound.GetInstance().PlaySoundEffectAt( this.whipMissSounds, 0.7f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                     }
 
                     this.currentTentacleState = TentacleState.Attached;
@@ -2200,7 +2200,7 @@ namespace RJBrocready
                         else
                         {
                             // Play impale sound
-                            Sound.GetInstance().PlaySoundEffectAt( this.tentacleImpaleSounds, 0.5f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
+                            Sound.GetInstance().PlaySoundEffectAt( this.tentacleImpaleSounds, 0.7f, base.transform.position, 1f + this.pitchShiftAmount, true, false, false, 0f );
                             this.tentacleImpaler.position = tentacleHitPoint;
                             this.unitHit.Impale( tentacleImpaler, new Vector3( base.transform.localScale.x, 0f, 0f ), 0, base.transform.localScale.x, 0, 0, 0 );
                             this.unitHit.Y = this.tentacleHitPoint.y - 8f;
@@ -2334,7 +2334,7 @@ namespace RJBrocready
             // Play hitting terrain sound for the thing
             if ( playSound )
             {
-                this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.2f, base.transform.position, 1f, true, false, false, 0f );
+                this.sound.PlaySoundEffectAt( this.soundHolder.meleeHitTerrainSound, 0.35f, base.transform.position, 1f, true, false, false, 0f );
             }
             EffectsController.CreateProjectilePopWhiteEffect( this.raycastHit.point.x, this.raycastHit.point.y );
             return true;
@@ -2362,7 +2362,7 @@ namespace RJBrocready
                 this.gunSprite.SetLowerLeftPixel( this.gunFrame * 64f, 320f );
                 if ( this.gunFrame == 3 && !this.playedAxeSound )
                 {
-                    this.sound.PlaySoundEffectAt( this.biteSound, 0.25f, base.transform.position, 1f, true, false, false, 0f );
+                    this.sound.PlaySoundEffectAt( this.biteSound, 0.45f, base.transform.position, 1f, true, false, false, 0f );
                     this.playedAxeSound = true;
                 }
                 else if ( this.gunFrame == 6 )
