@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Localisation;
@@ -1987,6 +1989,54 @@ namespace Control_Enemies_Mod
 
                     typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                 }
+            }
+        }
+        #endregion
+
+        // Fix skinless mook dying immediately
+        #region Skinless Mook
+        // Prevent SkinnedMook from dying on spawn in non-Hell levels when player-controlled
+        [HarmonyPatch( typeof( SkinnedMook ), "Start" )]
+        static class SkinnedMook_Start_Patch
+        {
+            static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
+            {
+                var codeMatcher = new CodeMatcher( instructions, generator );
+
+                MethodInfo deathRPCMethod = AccessTools.Method( typeof( Unit ), "DeathRPC", new Type[] { typeof( float ), typeof( float ), typeof( float ), typeof( float ) } );
+
+                FieldInfo playerNumField = AccessTools.Field( typeof( NetworkedUnit ), "_playerNum" );
+
+                codeMatcher.MatchStartForward(
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Call ),
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Call ),
+                        new CodeMatch( i => i.Calls( deathRPCMethod ) )
+                    );
+
+                if ( !codeMatcher.IsValid )
+                {
+                    Main.mod.Logger.Log( "SkinnedMook.Start transpiler: Could not find DeathRPC call" );
+                    return instructions;
+                }
+
+                Label skipDeathLabel = generator.DefineLabel();
+
+                codeMatcher.Insert(
+                    new CodeInstruction( OpCodes.Ldarg_0 ),
+                    new CodeInstruction( OpCodes.Ldfld, playerNumField ),
+                    new CodeInstruction( OpCodes.Ldc_I4_0 ),
+                    new CodeInstruction( OpCodes.Bge_S, skipDeathLabel )
+                );
+
+                codeMatcher.Advance( 12 );
+                codeMatcher.Labels.Add( skipDeathLabel );
+
+                return codeMatcher.InstructionEnumeration();
             }
         }
         #endregion
