@@ -1,6 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using TFBGames.Systems;
 using UnityEngine;
@@ -790,6 +792,46 @@ namespace Utility_Mod
                 // Skip intro and go straight to main menu
                 GameState.LoadLevel( "MainMenu" );
                 return false;
+            }
+        }
+
+        // Prevent SkinnedMook from dying on spawn in non-Hell levels
+        [HarmonyPatch( typeof( SkinnedMook ), "Start" )]
+        static class SkinnedMook_Start_Patch
+        {
+            static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
+            {
+                var codeMatcher = new CodeMatcher( instructions, generator );
+
+                MethodInfo deathRPCMethod = AccessTools.Method( typeof( Unit ), "DeathRPC", new Type[] { typeof( float ), typeof( float ), typeof( float ), typeof( float ) } );
+
+                codeMatcher.MatchStartForward(
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Call ),
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( OpCodes.Call ),
+                        new CodeMatch( i => i.Calls( deathRPCMethod ) )
+                    );
+
+                if ( !codeMatcher.IsValid )
+                {
+                    return instructions;
+                }
+
+                Label skipDeathLabel = generator.DefineLabel();
+
+                codeMatcher.Insert(
+                    new CodeInstruction( OpCodes.Ldc_I4_1 ),
+                    new CodeInstruction( OpCodes.Brtrue_S, skipDeathLabel )
+                );
+
+                codeMatcher.Advance( 10 );
+                codeMatcher.Labels.Add( skipDeathLabel );
+
+                return codeMatcher.InstructionEnumeration();
             }
         }
     }
