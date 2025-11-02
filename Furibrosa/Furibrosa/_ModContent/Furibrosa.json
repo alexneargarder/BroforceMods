@@ -6,14 +6,12 @@
     "Sprite": "sprite.png",
     "GunSprite": "gunSpriteCrossbow.png",
     "SpecialIcons": "special.png",
-    "SpecialIconOffset":
-    {
+    "SpecialIconOffset": {
       "x": 5,
       "y": 0
     },
     "Avatar": "avatar.png",
-    "GunSpriteOffset":
-    {
+    "GunSpriteOffset": {
       "x": 0,
       "y": 0
     }
@@ -22,17 +20,21 @@
     "heading": "Imperator Furibrosa",
     "subtitle1": "Joins the Battle!",
     "headingScale": 0.11,
-    "spriteRect":
-    {
-     "x": -6,
-     "y": 256,
-     "width": 256,
-     "height": 256
+    "spriteRect": {
+      "x": -6,
+      "y": 256,
+      "width": 256,
+      "height": 256
+    },
+    "spriteMenuOffset": {
+      "x": 10,
+      "y": 0
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_BroDredd",
     "playCutsceneOnFirstSpawn": true
   },
+
   "beforeAwake": {
     "speed": 130,
     "fireRate": 0.2,

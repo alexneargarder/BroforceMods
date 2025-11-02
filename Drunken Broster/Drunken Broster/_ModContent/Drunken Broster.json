@@ -7,8 +7,7 @@
     "GunSprite": "gunSprite.png",
     "SpecialIcons": "special.png",
     "Avatar": "avatar.png",
-    "GunSpriteOffset":
-    {
+    "GunSpriteOffset": {
       "x": 0,
       "y": -1
     }
@@ -17,17 +16,15 @@
     "heading": "Drunken Broster",
     "subtitle1": "Joins the Battle!",
     "headingScale": 0.14,
-    "spriteRect":
-    {
-     "x": 0,
-     "y": 256,
-     "width": 256,
-     "height": 256
+    "spriteRect": {
+      "x": 0,
+      "y": 256,
+      "width": 256,
+      "height": 256
     },
-    "spriteMenuOffset":
-    {
-      "x": 50,
-      "y": 0
+    "spriteMenuOffset": {
+      "x": 60,
+      "y": 5
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_Rambro",
