@@ -38,8 +38,8 @@
   },
   "unlockConfig": {
     "method": "RescueOrLevel",
-    "unlockLevelPath": "Test Ameribro Unlock.bfc",
-    "unlockLevelName": "Test Ameribro Unlock",
+    "unlockLevelPath": "CaptainAmeribro.bfc",
+    "unlockLevelName": "Behind Enemy Lines",
     "RescueCountRequired": 20
   }
 }
