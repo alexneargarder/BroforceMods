@@ -559,7 +559,7 @@ namespace Captain_Ameribro
             }
             else if ( this.airdashTime <= 0f )
             {
-                base.PressHighFiveMelee( false );
+                base.PressHighFiveMelee( forceHighFive );
             }
         }
         #endregion
