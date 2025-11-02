@@ -7,8 +7,7 @@
     "GunSprite": "gunSprite.png",
     "SpecialIcons": "special.png",
     "Avatar": "avatar.png",
-    "GunSpriteOffset":
-    {
+    "GunSpriteOffset": {
       "x": 1,
       "y": 0
     }
@@ -19,13 +18,16 @@
     "headingScale": 0.11,
     "subtitleScale": 0.09,
     "spritePath": "cutscene.png",
-    "spriteRect":
-    {
+    "spriteRect": {
       "x": 0,
       "y": 270,
       "width": 256,
       "height": 256
-     },
+    },
+    "spriteMenuOffset": {
+      "x": 0,
+      "y": -17
+    },
     "anim": "Intro_Bro_BroDredd",
     "playCutsceneOnFirstSpawn": true
   },

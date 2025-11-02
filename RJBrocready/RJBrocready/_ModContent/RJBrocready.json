@@ -3,10 +3,10 @@
   "characterPreset": "R.J. Brocready",
   "parameters": {
     "BetterAnimation": true,
-    "Sprite": [ "sprite.png", "thingSprite.png" ],
+    "Sprite": ["sprite.png", "thingSprite.png"],
     "GunSprite": "gunSprite.png",
     "SpecialIcons": ["special.png", "thingSpecial.png"],
-    "Avatar": [ "avatar.png", "thingAvatar.png" ],
+    "Avatar": ["avatar.png", "thingAvatar.png"],
     "GunSpriteOffset": [
       {
         "x": 0,
@@ -23,7 +23,7 @@
         "y": 0
       }
     ],
-    "SpecialIconSpacing": [ 0, 4 ]
+    "SpecialIconSpacing": [0, 4]
   },
   "cutscene": {
     "heading": "R.J. Brocready",
@@ -34,6 +34,10 @@
       "y": 250,
       "width": 256,
       "height": 256
+    },
+    "spriteMenuOffset": {
+      "x": 0,
+      "y": 15
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_Rambro",
