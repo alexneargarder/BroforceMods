@@ -85,8 +85,66 @@ namespace Unity_Inspector_Mod
         static void Postfix(ref int __result)
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
-            
+
             if (InputSimulator.IsInputSimulated("escape") && __result == -1)
+            {
+                __result = 4;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(InputReader), "GetControllerPressingFire")]
+    [HarmonyPatch(new Type[] { typeof(bool) })]
+    static class InputReader_GetControllerPressingFire_Patch
+    {
+        static void Postfix(ref int __result, bool ignoreBlock)
+        {
+            if (!InputSimulator.HasAnySimulatedInput()) return;
+
+            if (InputSimulator.IsInputSimulated("fire") && __result == -1)
+            {
+                __result = 4;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(InputReader), "GetControllerPressingHighFive")]
+    static class InputReader_GetControllerPressingHighFive_Patch
+    {
+        static void Postfix(ref int __result)
+        {
+            if (!InputSimulator.HasAnySimulatedInput()) return;
+
+            if (InputSimulator.IsInputSimulated("highfive") && __result == -1)
+            {
+                __result = 4;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(InputReader), "GetControllerPressingJump")]
+    [HarmonyPatch(new Type[] { typeof(bool) })]
+    static class InputReader_GetControllerPressingJump_Patch
+    {
+        static void Postfix(ref int __result, bool ignoreBlock)
+        {
+            if (!InputSimulator.HasAnySimulatedInput()) return;
+
+            if (InputSimulator.IsInputSimulated("jump") && __result == -1)
+            {
+                __result = 4;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(InputReader), "GetControllerPressingSpecial")]
+    static class InputReader_GetControllerPressingSpecial_Patch
+    {
+        static void Postfix(ref int __result)
+        {
+            if (!InputSimulator.HasAnySimulatedInput()) return;
+
+            if (InputSimulator.IsInputSimulated("special") && __result == -1)
             {
                 __result = 4;
             }
