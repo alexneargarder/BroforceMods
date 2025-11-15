@@ -11,118 +11,152 @@ namespace Unity_Inspector_Mod
     {
         private static Evaluator evaluator;
         private static StringBuilder output;
+        private static bool initialized;
+        private static readonly object initLock = new object();
+
         // Represents void return type
         private sealed class VoidType
         {
             public static readonly VoidType Value = new VoidType();
             private VoidType() { }
         }
-        
-        static CodeExecutor()
-        {
-            Initialize();
-        }
-        
+
         private static void Initialize()
         {
-            try
+            lock (initLock)
             {
-                output = new StringBuilder();
-                
-                // Use exact same setup as RuntimeUnityEditor
-                var settings = new CompilerSettings()
+                if (initialized) return;
+
+                try
                 {
-                    Version = LanguageVersion.Experimental,
-                    GenerateDebugInfo = false,
-                    StdLib = true,
-                    Target = Target.Library,
-                    WarningLevel = 0,
-                    EnhancedWarnings = false
-                };
-                
-                var printer = new ConsoleReportPrinter(output);
-                var context = new CompilerContext(settings, printer);
-                
-                evaluator = new Evaluator(context);
-                
-                // Standard libraries to skip (they're included via StdLib = true)
-                var stdLib = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
-                {
-                    "mscorlib", "System.Core", "System", "System.Xml"
-                };
-                
-                // Import all non-standard assemblies from the AppDomain
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    try
+                    // Force load game assemblies by touching key types BEFORE evaluator creation
+                    // This ensures AppDomain.GetAssemblies() returns complete list
+                    var typesToPreload = new[]
                     {
-                        string name = assembly.GetName().Name;
-                        if (stdLib.Contains(name))
-                            continue;
-                            
-                        // Skip assemblies without a location (usually dynamic)
-                        if (!string.IsNullOrEmpty(assembly.Location))
+                        typeof(UnityEngine.GameObject),
+                        typeof(LevelSelectionController),
+                        typeof(HeroController),
+                        typeof(GameState),
+                        typeof(GameModeController)
+                    };
+                    foreach (var type in typesToPreload)
+                    {
+                        _ = type.AssemblyQualifiedName;
+                    }
+
+                    output = new StringBuilder();
+
+                    var settings = new CompilerSettings()
+                    {
+                        Version = LanguageVersion.Experimental,
+                        GenerateDebugInfo = false,
+                        StdLib = true,
+                        Target = Target.Library,
+                        WarningLevel = 0,
+                        EnhancedWarnings = false
+                    };
+
+                    var printer = new ConsoleReportPrinter(output);
+                    var context = new CompilerContext(settings, printer);
+
+                    // CRITICAL: Create evaluator AFTER forcing assembly loads
+                    evaluator = new Evaluator(context);
+
+                    // Standard libraries to skip
+                    var stdLib = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "mscorlib", "System.Core", "System", "System.Xml"
+                    };
+
+                    // CRITICAL: Reference assemblies AFTER evaluator creation
+                    foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        try
                         {
-                            evaluator.ReferenceAssembly(assembly);
+                            string name = assembly.GetName().Name;
+                            if (stdLib.Contains(name))
+                                continue;
+
+                            if (!string.IsNullOrEmpty(assembly.Location))
+                            {
+                                evaluator.ReferenceAssembly(assembly);
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            // Some assemblies might fail to load
                         }
                     }
-                    catch (Exception)
+
+                    // CRITICAL: Run using statements separately, not all at once
+                    evaluator.Run("using System;");
+                    evaluator.Run("using System.Collections.Generic;");
+                    evaluator.Run("using System.Linq;");
+                    evaluator.Run("using UnityEngine;");
+
+                    // CRITICAL: Execute meaningful warm-up code that touches referenced types
+                    // Simple "1+1" doesn't work - must access actual type system
+                    evaluator.Run("var _warmup = new System.Collections.Generic.List<int>();");
+                    evaluator.Run("_warmup.Add(1);");
+                    evaluator.Run("var _go = typeof(UnityEngine.GameObject);");
+
+                    // Touch game-specific types to ensure their assemblies are fully loaded
+                    try
                     {
-                        // Some assemblies might fail to load, that's ok
+                        evaluator.Run("var _lsc = typeof(LevelSelectionController);");
+                        evaluator.Run("var _hc = typeof(HeroController);");
+                        evaluator.Run("var _gs = typeof(GameState);");
                     }
+                    catch
+                    {
+                        // Some types might not be available during initialization, that's ok
+                    }
+
+                    initialized = true;
                 }
-                
-                // Set up environment exactly like RuntimeUnityEditor does
-                var envSetup = "using System;" +
-                               "using UnityEngine;" +
-                               "using System.Linq;" +
-                               "using System.Collections;" +
-                               "using System.Collections.Generic;";
-                
-                // Compile and invoke the using statements
-                object result = VoidType.Value;
-                CompiledMethod compiled;
-                evaluator.Compile(envSetup, out compiled);
-                if (compiled != null)
+                catch (Exception ex)
                 {
-                    compiled.Invoke(ref result);
+                    Main.Log($"Failed to initialize CodeExecutor: {ex.Message}");
+                    initialized = false;
+                    evaluator = null;
+                    throw;
                 }
-            }
-            catch (Exception ex)
-            {
-                Main.Log($"Failed to initialize CodeExecutor: {ex.Message}");
-                throw;
             }
         }
         
         public static object Execute(string code)
         {
+            return ExecuteWithRetry(code, retriesRemaining: 2);
+        }
+
+        private static object ExecuteWithRetry(string code, int retriesRemaining)
+        {
             try
             {
-                // Make sure evaluator is initialized
-                if (evaluator == null)
+                // Ensure initialization with lock
+                if (!initialized)
                 {
                     Initialize();
                 }
-                
+
                 // Execute all code on the main thread to prevent Unity API crashes
                 object executionResult = null;
                 Exception executionException = null;
-                
+
                 MainThreadDispatcher.EnqueueAndWait(() =>
                 {
                     try
                     {
-                        output.Length = 0; // Clear the StringBuilder
-                        
+                        output.Length = 0;
+
                         // Strip comments from the code
                         string processedCode = StripComments(code);
-                        
+
                         // Use the same approach as RuntimeUnityEditor - compile and invoke
                         object result = VoidType.Value;
                         CompiledMethod compiled;
                         evaluator.Compile(processedCode, out compiled);
-                        
+
                         if (compiled == null)
                         {
                             // Check for compilation errors
@@ -148,9 +182,9 @@ namespace Unity_Inspector_Mod
                             }
                             return;
                         }
-                        
+
                         compiled.Invoke(ref result);
-                        
+
                         // Return the result
                         bool hasResult = result != null && !ReferenceEquals(result, VoidType.Value);
                         executionResult = new
@@ -161,16 +195,45 @@ namespace Unity_Inspector_Mod
                             output = output.ToString()
                         };
                     }
+                    catch (InternalErrorException iex)
+                    {
+                        // Don't destroy evaluator on first errors - it may be warming up
+                        executionException = iex;
+                    }
                     catch (Exception ex)
                     {
-                        Main.Log($"Execution error: {ex.Message}");
                         executionException = ex;
                     }
                 }, 5000);
-                
+
                 // Check if there was an exception during execution
                 if (executionException != null)
                 {
+                    // Check if it's an InteractiveHost/TypeLoad error and we have retries left
+                    if (retriesRemaining > 0 &&
+                        (executionException.Message.Contains("InteractiveHost") ||
+                         executionException.Message.Contains("Unexpected error when loading type") ||
+                         executionException is TypeLoadException ||
+                         executionException is InternalErrorException))
+                    {
+                        // Silent retry - no logging spam
+                        System.Threading.Thread.Sleep(300);
+                        return ExecuteWithRetry(code, retriesRemaining: retriesRemaining - 1);
+                    }
+
+                    // All retries exhausted
+                    Main.Log($"Code execution failed after retries: {executionException.Message}");
+
+                    // If it was an InternalErrorException, force re-init for next call
+                    if (executionException is InternalErrorException)
+                    {
+                        lock (initLock)
+                        {
+                            initialized = false;
+                            evaluator = null;
+                        }
+                    }
+
                     return new
                     {
                         success = false,
@@ -179,7 +242,7 @@ namespace Unity_Inspector_Mod
                         result = (object)null
                     };
                 }
-                
+
                 return executionResult;
             }
             catch (TimeoutException tex)
@@ -353,7 +416,7 @@ namespace Unity_Inspector_Mod
         {
             var fullMessage = $"{msg.Location}: {msg.Text}";
             output.AppendLine(fullMessage);
-            Main.Log($"Compiler message: {fullMessage}");
+            // Don't log compiler messages - they're captured in output for error reporting
         }
     }
 }
