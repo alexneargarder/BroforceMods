@@ -34,14 +34,18 @@
       "variants/cutscene_zeddemore.png"
     ],
     "spriteRect": {
-      "x": 16,
+      "x": 0,
       "y": 256,
       "width": 256,
       "height": 256
     },
+    "spriteOffset": {
+      "x": -16,
+      "y": 0
+    },
     "spriteMenuOffset": {
       "x": 10,
-      "y": 25
+      "y": 15
     },
     "anim": "Intro_Bro_Rambro",
     "playCutsceneOnFirstSpawn": true

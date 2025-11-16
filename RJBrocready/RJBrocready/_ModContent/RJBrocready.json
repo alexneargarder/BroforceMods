@@ -30,10 +30,14 @@
     "subtitle1": "Joins the Battle!",
     "headingScale": 0.14,
     "spriteRect": {
-      "x": 23,
-      "y": 250,
+      "x": 0,
+      "y": 256,
       "width": 256,
       "height": 256
+    },
+    "spriteOffset": {
+      "x": -23,
+      "y": -6
     },
     "spriteMenuOffset": {
       "x": 0,
