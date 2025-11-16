@@ -1,0 +1,29 @@
+## v1.1.0 (unreleased)
+- Changes for BroMaker update.
+- Fixed shield being unable to be consumed by worm tunnels.
+- Allow shield to be used by other characters.
+- Small buffs.
+
+## v1.0.5
+- Changes for BroMaker update.
+
+## v1.0.4
+- Improved load time.
+- Slightly buffed melee bullet reflect ability.
+
+## v1.0.3
+- Fixed being able to fire multiple bullets in one melee attack
+
+## v1.0.2
+- Fixed airdash animation issues.
+- Fixed issues with reviving Ameribro with holy water.
+- Fixed punching while using special.
+
+## v1.0.1
+- Updated to latest Bromaker version.
+- Fixed issue with mashing special button.
+- Fixed issue with dying while punching.
+- Fixed issue with animations while having multiple shields.
+
+## v1.0.0
+- Release
