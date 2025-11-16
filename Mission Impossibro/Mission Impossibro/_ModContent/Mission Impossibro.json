@@ -20,9 +20,13 @@
     "spritePath": "cutscene.png",
     "spriteRect": {
       "x": 0,
-      "y": 270,
+      "y": 256,
       "width": 256,
       "height": 256
+    },
+    "spriteOffset": {
+      "x": 0,
+      "y": 14
     },
     "spriteMenuOffset": {
       "x": 0,

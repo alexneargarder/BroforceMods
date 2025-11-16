@@ -19,10 +19,15 @@
     "headingScale": 0.13,
     "spriteRect":
     {
-     "x": 35,
-     "y": 252,
+     "x": 0,
+     "y": 256,
      "width": 256,
      "height": 256
+    },
+    "spriteOffset":
+    {
+      "x": -35,
+      "y": -4
     },
     "spritePath": "captainAmeribroCutscene.png",
     "anim": "Intro_Bro_BroDredd",
