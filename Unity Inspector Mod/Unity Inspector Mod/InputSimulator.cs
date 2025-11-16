@@ -102,33 +102,24 @@ namespace Unity_Inspector_Mod
         
         private static void PressInputMultiple(string inputKey, int count, int intervalMs, int playerNum)
         {
-            int pressesCompleted = 0;
-            Timer multiPressTimer = null;
-            
-            multiPressTimer = new Timer(_ =>
+            // Block until all presses complete
+            for (int i = 0; i < count; i++)
             {
-                if (pressesCompleted >= count)
-                {
-                    multiPressTimer?.Dispose();
-                    return;
-                }
-                
                 // Press the input
                 simulatedInputs[inputKey] = true;
-                
-                // Release after 50ms (shorter than single press to allow faster navigation)
-                var releaseTimer = new Timer(__ =>
+
+                // Release after 50ms
+                var releaseTimer = new Timer(_ =>
                 {
                     simulatedInputs[inputKey] = false;
                 }, null, 50, Timeout.Infinite);
-                
-                pressesCompleted++;
-                
-                if (pressesCompleted >= count)
+
+                // Wait for interval before next press (except after last press)
+                if (i < count - 1)
                 {
-                    multiPressTimer?.Dispose();
+                    System.Threading.Thread.Sleep(intervalMs);
                 }
-            }, null, 0, intervalMs);
+            }
         }
         
         public static bool IsInputSimulated(string inputKey)
