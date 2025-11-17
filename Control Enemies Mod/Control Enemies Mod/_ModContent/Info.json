@@ -3,7 +3,7 @@
 	"DisplayName": "Control Enemies Mod",
 	"Author": "AlexN",
 	"Version": "1.0.1",
-	"Requirements": [ "RocketLib-2.3.1" ],
+	"Requirements": [ "RocketLib-2.4.0" ],
 	"LoadAfter": [ "RocketLib", "BroMaker", "Swap Bros Mod" ],
 	"AssemblyName": "Control Enemies Mod.dll",
 	"EntryMethod": "Control_Enemies_Mod.Main.Load",
