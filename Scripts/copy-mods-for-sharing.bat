@@ -5,7 +5,7 @@ REM Copy mods from game directory to temp folder and upload to Google Drive
 echo Preparing mods for upload to Google Drive...
 echo.
 
-set "SOURCE=C:\Program Files (x86)\Steam\steamapps\common\Broforce"
+set "SOURCE=C:\Users\Alex\AppData\Roaming\r2modmanPlus-local\Broforce\profiles\Default\UMM"
 set "DEST=%TEMP%\Broforce_Upload"
 
 REM Create destination folders if they don't exist
