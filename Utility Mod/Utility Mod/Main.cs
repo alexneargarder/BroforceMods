@@ -220,33 +220,7 @@ namespace Utility_Mod
 
             mod = modEntry;
 
-            try
-            {
-                settings = Settings.Load<Settings>( modEntry );
-
-                // Check if settings were actually loaded from file
-                // If SettingsVersion is still 0, we got a fresh object (not loaded from file)
-                if ( settings.SettingsVersion == 0 )
-                {
-                    var settingsPath = System.IO.Path.Combine( modEntry.Path, "Settings.xml" );
-                    // Settings file exists but couldn't be loaded - attempt recovery
-                    settings = RocketLib.Utils.SettingsRecovery.TryRecoverSettings<Settings>( settingsPath, settings );
-                }
-
-                // Always ensure version is set to non-zero so it saves properly
-                if ( settings.SettingsVersion == 0 )
-                    settings.SettingsVersion = 1;
-            }
-            catch
-            {
-                // Settings format changed - use recovery
-                var settingsPath = System.IO.Path.Combine( modEntry.Path, "Settings.xml" );
-                settings = RocketLib.Utils.SettingsRecovery.TryRecoverSettings<Settings>( settingsPath );
-
-                // Always ensure version is set to non-zero
-                if ( settings.SettingsVersion == 0 )
-                    settings.SettingsVersion = 1;
-            }
+            settings = Settings.Load<Settings>( modEntry );
 
             try
             {
