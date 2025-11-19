@@ -661,22 +661,22 @@ namespace Utility_Mod
                 GUILayout.BeginHorizontal();
                 {
                     settings.skipIntro = GUILayout.Toggle( settings.skipIntro, new GUIContent( "Skip Intro",
-                        "Skip intro logos and go straight to main menu" ), WindowScaling.ScaledWidth(75f ) );
+                        "Skip intro logos and go straight to main menu" ), WindowScaling.ScaledWidth( 75f ) );
 
                     settings.cameraShake = GUILayout.Toggle( settings.cameraShake, new GUIContent( "Camera Shake",
-                        "Disable this to have camera shake automatically set to 0 at the start of a level" ), WindowScaling.ScaledWidth(100f ) );
+                        "Disable this to have camera shake automatically set to 0 at the start of a level" ), WindowScaling.ScaledWidth( 100f ) );
 
                     settings.enableSkip = GUILayout.Toggle( settings.enableSkip, new GUIContent( "Helicopter Skip",
-                        "Skips helicopter on world map and immediately takes you into a level" ), WindowScaling.ScaledWidth(120f ) );
+                        "Skips helicopter on world map and immediately takes you into a level" ), WindowScaling.ScaledWidth( 120f ) );
 
                     settings.endingSkip = GUILayout.Toggle( settings.endingSkip, new GUIContent( "Ending Skip",
-                        "Speeds up the ending" ), WindowScaling.ScaledWidth(100f ) );
+                        "Speeds up the ending" ), WindowScaling.ScaledWidth( 100f ) );
 
-                    settings.quickMainMenu = GUILayout.Toggle( settings.quickMainMenu, new GUIContent( "Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech" ), WindowScaling.ScaledWidth(190f ) );
+                    settings.quickMainMenu = GUILayout.Toggle( settings.quickMainMenu, new GUIContent( "Speed up Main Menu Loading", "Makes menu options show up immediately rather than after the eagle screech" ), WindowScaling.ScaledWidth( 190f ) );
 
-                    settings.helicopterWait = GUILayout.Toggle( settings.helicopterWait, new GUIContent( "Helicopter Wait", "Makes helicopter wait for all alive players before leaving" ), WindowScaling.ScaledWidth(110f ) );
+                    settings.helicopterWait = GUILayout.Toggle( settings.helicopterWait, new GUIContent( "Helicopter Wait", "Makes helicopter wait for all alive players before leaving" ), WindowScaling.ScaledWidth( 110f ) );
 
-                    settings.disableConfirm = GUILayout.Toggle( settings.disableConfirm, new GUIContent( "Disable confirmation menu",
+                    settings.disableConfirm = GUILayout.Toggle( settings.disableConfirm, new GUIContent( "Disable Confirmation Menu",
                         "Disables confirmation screen when restarting or returning to map/menu" ), GUILayout.ExpandWidth( false ) );
                 }
                 GUILayout.EndHorizontal();
@@ -685,13 +685,13 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal();
                 {
-                    settings.skipAllCutscenes = GUILayout.Toggle( settings.skipAllCutscenes, new GUIContent( "Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes." ), WindowScaling.ScaledWidth(170f ) );
+                    settings.skipAllCutscenes = GUILayout.Toggle( settings.skipAllCutscenes, new GUIContent( "Disable All Cutscenes", "Disables all bro unlock, boss fight, and powerup unlock cutscenes." ), WindowScaling.ScaledWidth( 170f ) );
 
                     Rect lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
                     lastRect.width += 800;
 
-                    settings.scaleUIWithWindowWidth = GUILayout.Toggle( settings.scaleUIWithWindowWidth, new GUIContent( "Scale UI with Window Width", "Scales UI elements based on window width" ), WindowScaling.ScaledWidth(200f ) );
+                    settings.scaleUIWithWindowWidth = GUILayout.Toggle( settings.scaleUIWithWindowWidth, new GUIContent( "Scale UI with Window Width", "Scales UI elements based on window width" ), WindowScaling.ScaledWidth( 200f ) );
 
                     GUI.Label( lastRect, GUI.tooltip );
                     previousToolTip = GUI.tooltip;
@@ -799,7 +799,7 @@ namespace Utility_Mod
 
                             Main.settings.levelNum = levelNum.indexNumber;
 
-                            if ( GUILayout.Button( new GUIContent( "Go to level" ), WindowScaling.ScaledWidth(100 ) ) )
+                            if ( GUILayout.Button( new GUIContent( "Go to level" ), WindowScaling.ScaledWidth( 100 ) ) )
                             {
                                 GoToLevel( campaignNum.indexNumber, levelNum.indexNumber );
                             }
@@ -825,7 +825,7 @@ namespace Utility_Mod
                             GUILayout.Space( 1 );
                             if ( !dropdownActive )
                             {
-                                Main.settings.goToLevelOnStartup = GUILayout.Toggle( Main.settings.goToLevelOnStartup, new GUIContent( "Go to level on startup", "Spawns you into the level as soon as the game starts." ), WindowScaling.ScaledWidth(150 ) );
+                                Main.settings.goToLevelOnStartup = GUILayout.Toggle( Main.settings.goToLevelOnStartup, new GUIContent( "Go to level on startup", "Spawns you into the level as soon as the game starts." ), WindowScaling.ScaledWidth( 150 ) );
 
                                 Rect lastRect = GUILayoutUtility.GetLastRect();
                                 lastRect.y += 25;
@@ -854,7 +854,7 @@ namespace Utility_Mod
                             if ( !dropdownActive )
                             {
 
-                                if ( GUILayout.Button( new GUIContent( "Previous Level", "This only works in game" ), new GUILayoutOption[] { WindowScaling.ScaledWidth(150 ), GUILayout.ExpandWidth( false ) } ) )
+                                if ( GUILayout.Button( new GUIContent( "Previous Level", "This only works in game" ), new GUILayoutOption[] { WindowScaling.ScaledWidth( 150 ), GUILayout.ExpandWidth( false ) } ) )
                                 {
                                     ChangeLevel( -1 );
                                 }
@@ -863,7 +863,7 @@ namespace Utility_Mod
                                 lastRect.y += 20;
                                 lastRect.width += 500;
 
-                                if ( GUILayout.Button( new GUIContent( "Next Level", "This only works in game" ), new GUILayoutOption[] { WindowScaling.ScaledWidth(150 ), GUILayout.ExpandWidth( false ) } ) )
+                                if ( GUILayout.Button( new GUIContent( "Next Level", "This only works in game" ), new GUILayoutOption[] { WindowScaling.ScaledWidth( 150 ), GUILayout.ExpandWidth( false ) } ) )
                                 {
                                     ChangeLevel( 1 );
                                 }
@@ -972,7 +972,7 @@ namespace Utility_Mod
 
                 GUILayout.Space( 15 );
 
-                if ( GUILayout.Button( "Summon Mech", WindowScaling.ScaledWidth(140 ) ) )
+                if ( GUILayout.Button( "Summon Mech", WindowScaling.ScaledWidth( 140 ) ) )
                 {
                     if ( currentCharacter != null )
                     {
@@ -991,11 +991,11 @@ namespace Utility_Mod
 
                 GUILayout.Space( 25 );
 
-                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth(400 ) );
+                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth( 400 ) );
 
                 GUILayout.Label( "Time Slow Factor: " + settings.slowTimeFactor );
 
-                if ( settings.slowTimeFactor != ( settings.slowTimeFactor = GUILayout.HorizontalSlider( settings.slowTimeFactor, 0, 5, WindowScaling.ScaledWidth(200 ) ) ) )
+                if ( settings.slowTimeFactor != ( settings.slowTimeFactor = GUILayout.HorizontalSlider( settings.slowTimeFactor, 0, 5, WindowScaling.ScaledWidth( 200 ) ) ) )
                 {
                     Main.StartTimeSlow();
                 }
@@ -1016,11 +1016,11 @@ namespace Utility_Mod
 
                 GUILayout.Space( 25 );
 
-                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth(500 ) );
+                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth( 500 ) );
 
                 GUILayout.Label( "Scene to Load: " );
 
-                settings.sceneToLoad = GUILayout.TextField( settings.sceneToLoad, WindowScaling.ScaledWidth(200 ) );
+                settings.sceneToLoad = GUILayout.TextField( settings.sceneToLoad, WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.EndHorizontal();
 
@@ -1122,11 +1122,11 @@ namespace Utility_Mod
                     GUILayout.Label( "X", GUILayout.Width( 10 ) );
                     teleportX = GUILayout.TextField( teleportX, GUILayout.Width( 100 ) );
                     GUILayout.Space( 20 );
-                    GUILayout.Label( "Y", WindowScaling.ScaledWidth(10 ) );
+                    GUILayout.Label( "Y", WindowScaling.ScaledWidth( 10 ) );
                     GUILayout.Space( 10 );
-                    teleportY = GUILayout.TextField( teleportY, WindowScaling.ScaledWidth(100 ) );
+                    teleportY = GUILayout.TextField( teleportY, WindowScaling.ScaledWidth( 100 ) );
 
-                    if ( GUILayout.Button( "Teleport", WindowScaling.ScaledWidth(100 ) ) )
+                    if ( GUILayout.Button( "Teleport", WindowScaling.ScaledWidth( 100 ) ) )
                     {
                         float x, y;
                         if ( float.TryParse( teleportX, out x ) && float.TryParse( teleportY, out y ) )
@@ -1142,7 +1142,7 @@ namespace Utility_Mod
 
                 GUILayout.Space( 15 );
 
-                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth(400 ) );
+                GUILayout.BeginHorizontal( WindowScaling.ScaledWidth( 400 ) );
 
                 bool newChangeSpawn = GUILayout.Toggle( settings.changeSpawn, "Spawn at Custom Waypoint" );
                 if ( newChangeSpawn != settings.changeSpawn )
@@ -1174,7 +1174,7 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal();
                 {
-                    if ( GUILayout.Button( "Save Position for Custom Spawn", WindowScaling.ScaledWidth(250 ) ) )
+                    if ( GUILayout.Button( "Save Position for Custom Spawn", WindowScaling.ScaledWidth( 250 ) ) )
                     {
                         if ( currentCharacter != null && GameState.Instance != null )
                         {
@@ -1182,7 +1182,7 @@ namespace Utility_Mod
                         }
                     }
 
-                    if ( GUILayout.Button( "Teleport to Custom Spawn Position", WindowScaling.ScaledWidth(300 ) ) )
+                    if ( GUILayout.Button( "Teleport to Custom Spawn Position", WindowScaling.ScaledWidth( 300 ) ) )
                     {
                         if ( currentCharacter != null && HasCustomSpawnForCurrentLevel() )
                         {
@@ -1191,7 +1191,7 @@ namespace Utility_Mod
                         }
                     }
 
-                    if ( GUILayout.Button( "Clear Custom Spawn", WindowScaling.ScaledWidth(150 ) ) )
+                    if ( GUILayout.Button( "Clear Custom Spawn", WindowScaling.ScaledWidth( 150 ) ) )
                     {
                         if ( GameState.Instance != null )
                         {
@@ -1215,7 +1215,7 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal();
                 {
-                    if ( GUILayout.Button( "Teleport to Current Checkpoint ", WindowScaling.ScaledWidth(250 ) ) )
+                    if ( GUILayout.Button( "Teleport to Current Checkpoint ", WindowScaling.ScaledWidth( 250 ) ) )
                     {
                         if ( currentCharacter != null )
                         {
@@ -1224,7 +1224,7 @@ namespace Utility_Mod
                         }
                     }
 
-                    if ( GUILayout.Button( "Teleport to Final Checkpoint", WindowScaling.ScaledWidth(200 ) ) )
+                    if ( GUILayout.Button( "Teleport to Final Checkpoint", WindowScaling.ScaledWidth( 200 ) ) )
                     {
                         if ( currentCharacter != null )
                         {
@@ -1239,7 +1239,7 @@ namespace Utility_Mod
                 {
                     GUILayout.BeginHorizontal();
                     {
-                        if ( GUILayout.Button( "Save Position to Waypoint " + ( i + 1 ), WindowScaling.ScaledWidth(250 ) ) )
+                        if ( GUILayout.Button( "Save Position to Waypoint " + ( i + 1 ), WindowScaling.ScaledWidth( 250 ) ) )
                         {
                             if ( currentCharacter != null )
                             {
@@ -1248,7 +1248,7 @@ namespace Utility_Mod
                             }
                         }
 
-                        if ( GUILayout.Button( "Teleport to Waypoint " + ( i + 1 ), WindowScaling.ScaledWidth(200 ) ) )
+                        if ( GUILayout.Button( "Teleport to Waypoint " + ( i + 1 ), WindowScaling.ScaledWidth( 200 ) ) )
                         {
                             if ( currentCharacter != null )
                             {
@@ -1347,7 +1347,7 @@ namespace Utility_Mod
 
                 GUILayout.BeginHorizontal();
 
-                GUILayout.Label( settings.zoomLevel.ToString( "0.00" ), WindowScaling.ScaledWidth(100 ) );
+                GUILayout.Label( settings.zoomLevel.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
                 settings.zoomLevel = GUILayout.HorizontalSlider( settings.zoomLevel, 0, 10 );
 
@@ -1421,14 +1421,14 @@ namespace Utility_Mod
 
             GUILayout.BeginHorizontal();
             string speedText = settings.isGamePaused ? "Game Speed: PAUSED" : $"Game Speed: {settings.gameSpeedMultiplier:F2}x";
-            GUILayout.Label( speedText, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( speedText, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label( $"Step Size: {settings.gameSpeedStep:F2}", WindowScaling.ScaledWidth(150 ) );
-            float newStep = GUILayout.HorizontalSlider( settings.gameSpeedStep, 0.01f, 0.50f, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( $"Step Size: {settings.gameSpeedStep:F2}", WindowScaling.ScaledWidth( 150 ) );
+            float newStep = GUILayout.HorizontalSlider( settings.gameSpeedStep, 0.01f, 0.50f, WindowScaling.ScaledWidth( 200 ) );
             // Round to nearest 0.01
             settings.gameSpeedStep = Mathf.Round( newStep * 100f ) / 100f;
             GUILayout.EndHorizontal();
@@ -1489,7 +1489,7 @@ namespace Utility_Mod
 
             settings.contextMenuEnabled = GUILayout.Toggle( settings.contextMenuEnabled,
                 new GUIContent( "Enable Right Click Menu", "Enables the context menu system. Right-click in-game to open menus with various actions." ),
-                WindowScaling.ScaledWidth(200 ) );
+                WindowScaling.ScaledWidth( 200 ) );
 
             // Tooltip for context menu mode
             Rect lastRect = GUILayoutUtility.GetLastRect();
@@ -1512,7 +1512,7 @@ namespace Utility_Mod
 
             // Add Help button
             GUILayout.BeginHorizontal();
-            if ( GUILayout.Button( new GUIContent( "Show Help", "View keyboard shortcuts and usage instructions" ), WindowScaling.ScaledWidth(100 ) ) )
+            if ( GUILayout.Button( new GUIContent( "Show Help", "View keyboard shortcuts and usage instructions" ), WindowScaling.ScaledWidth( 100 ) ) )
             {
                 var contextMenuManager = UnityEngine.Object.FindObjectOfType<ContextMenuManager>();
                 if ( contextMenuManager != null )
@@ -1525,9 +1525,9 @@ namespace Utility_Mod
             GUILayout.Space( 10 );
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Hold Duration:", "How long to hold right-click before the menu opens (when no quick action is set)" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( settings.contextMenuHoldDuration.ToString( "0.00" ) + "s", WindowScaling.ScaledWidth(50 ) );
-            settings.contextMenuHoldDuration = GUILayout.HorizontalSlider( settings.contextMenuHoldDuration, 0.1f, 1.0f, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( new GUIContent( "Hold Duration:", "How long to hold right-click before the menu opens (when no quick action is set)" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( settings.contextMenuHoldDuration.ToString( "0.00" ) + "s", WindowScaling.ScaledWidth( 50 ) );
+            settings.contextMenuHoldDuration = GUILayout.HorizontalSlider( settings.contextMenuHoldDuration, 0.1f, 1.0f, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
@@ -1550,9 +1550,9 @@ namespace Utility_Mod
             if ( settings.enableRecentItems )
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent( "Max Recent Items:", "Number of recently used actions to show at the top of context menus" ), WindowScaling.ScaledWidth(150 ) );
-                GUILayout.Label( settings.maxRecentItems.ToString(), WindowScaling.ScaledWidth(30 ) );
-                settings.maxRecentItems = (int)GUILayout.HorizontalSlider( settings.maxRecentItems, 1, 10, WindowScaling.ScaledWidth(150 ) );
+                GUILayout.Label( new GUIContent( "Max Recent Items:", "Number of recently used actions to show at the top of context menus" ), WindowScaling.ScaledWidth( 150 ) );
+                GUILayout.Label( settings.maxRecentItems.ToString(), WindowScaling.ScaledWidth( 30 ) );
+                settings.maxRecentItems = (int)GUILayout.HorizontalSlider( settings.maxRecentItems, 1, 10, WindowScaling.ScaledWidth( 150 ) );
                 GUILayout.EndHorizontal();
             }
 
@@ -1560,7 +1560,7 @@ namespace Utility_Mod
 
             // Quick Clone keybinding
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit." ), WindowScaling.ScaledWidth(100 ) );
+            GUILayout.Label( new GUIContent( "Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit." ), WindowScaling.ScaledWidth( 100 ) );
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
             lastRect.width += 700;
@@ -1584,34 +1584,34 @@ namespace Utility_Mod
                 (int)settings.enemyPaintMode,
                 new GUIContent[] { new GUIContent( "Time-based", "Spawns enemies at regular time intervals while dragging" ), new GUIContent( "Distance-based", "Spawns enemies only when you've moved a certain distance" ) },
                 2,
-                WindowScaling.ScaledWidth(300 ) );
+                WindowScaling.ScaledWidth( 300 ) );
             GUILayout.Space( 5 );
 
             if ( settings.enemyPaintMode == EnemyPaintMode.TimeBased )
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent( "Enemy Spawn Delay:", "Time between enemy spawns in paint mode" ), WindowScaling.ScaledWidth(150 ) );
-                GUILayout.Label( settings.enemyPaintDelay.ToString( "0.0" ) + "s", WindowScaling.ScaledWidth(50 ) );
-                settings.enemyPaintDelay = GUILayout.HorizontalSlider( settings.enemyPaintDelay, 0.1f, 2.0f, WindowScaling.ScaledWidth(200 ) );
+                GUILayout.Label( new GUIContent( "Enemy Spawn Delay:", "Time between enemy spawns in paint mode" ), WindowScaling.ScaledWidth( 150 ) );
+                GUILayout.Label( settings.enemyPaintDelay.ToString( "0.0" ) + "s", WindowScaling.ScaledWidth( 50 ) );
+                settings.enemyPaintDelay = GUILayout.HorizontalSlider( settings.enemyPaintDelay, 0.1f, 2.0f, WindowScaling.ScaledWidth( 200 ) );
                 GUILayout.EndHorizontal();
             }
             else
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label( new GUIContent( "Enemy Spawn Distance:", "Distance in blocks you must move before spawning another enemy" ), WindowScaling.ScaledWidth(150 ) );
-                GUILayout.Label( settings.enemyPaintDistance.ToString( "0" ) + " blocks", WindowScaling.ScaledWidth(80 ) );
-                settings.enemyPaintDistance = Mathf.Round( GUILayout.HorizontalSlider( settings.enemyPaintDistance, 1f, 5f, WindowScaling.ScaledWidth(200 ) ) );
+                GUILayout.Label( new GUIContent( "Enemy Spawn Distance:", "Distance in blocks you must move before spawning another enemy" ), WindowScaling.ScaledWidth( 150 ) );
+                GUILayout.Label( settings.enemyPaintDistance.ToString( "0" ) + " blocks", WindowScaling.ScaledWidth( 80 ) );
+                settings.enemyPaintDistance = Mathf.Round( GUILayout.HorizontalSlider( settings.enemyPaintDistance, 1f, 5f, WindowScaling.ScaledWidth( 200 ) ) );
                 GUILayout.EndHorizontal();
             }
 
             // Block/Doodad spawn distance
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Block/Doodad Spawn Distance:", "Distance in blocks you must move before placing another block or doodad in paint mode" ), WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( new GUIContent( "Block/Doodad Spawn Distance:", "Distance in blocks you must move before placing another block or doodad in paint mode" ), WindowScaling.ScaledWidth( 200 ) );
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 25;
             lastRect.width += 500;
-            GUILayout.Label( settings.blockPaintDistance.ToString( "0" ) + " blocks", WindowScaling.ScaledWidth(80 ) );
-            settings.blockPaintDistance = Mathf.Round( GUILayout.HorizontalSlider( settings.blockPaintDistance, 1f, 5f, WindowScaling.ScaledWidth(200 ) ) );
+            GUILayout.Label( settings.blockPaintDistance.ToString( "0" ) + " blocks", WindowScaling.ScaledWidth( 80 ) );
+            settings.blockPaintDistance = Mathf.Round( GUILayout.HorizontalSlider( settings.blockPaintDistance, 1f, 5f, WindowScaling.ScaledWidth( 200 ) ) );
             GUILayout.EndHorizontal();
 
             if ( GUI.tooltip != previousToolTip )
@@ -1628,68 +1628,68 @@ namespace Utility_Mod
 
             // Background Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Background Color:", "RGB color of the context menu background" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( "R:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuBackgroundR = GUILayout.HorizontalSlider( settings.menuBackgroundR, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "G:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuBackgroundG = GUILayout.HorizontalSlider( settings.menuBackgroundG, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "B:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuBackgroundB = GUILayout.HorizontalSlider( settings.menuBackgroundB, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
+            GUILayout.Label( new GUIContent( "Background Color:", "RGB color of the context menu background" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( "R:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuBackgroundR = GUILayout.HorizontalSlider( settings.menuBackgroundR, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "G:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuBackgroundG = GUILayout.HorizontalSlider( settings.menuBackgroundG, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "B:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuBackgroundB = GUILayout.HorizontalSlider( settings.menuBackgroundB, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
             GUILayout.EndHorizontal();
 
             // Background Alpha
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Background Transparency:", "How opaque the menu background is (100% = fully opaque)" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( ( settings.menuBackgroundAlpha * 100 ).ToString( "0" ) + "%", WindowScaling.ScaledWidth(50 ) );
-            settings.menuBackgroundAlpha = GUILayout.HorizontalSlider( settings.menuBackgroundAlpha, 0f, 1f, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( new GUIContent( "Background Transparency:", "How opaque the menu background is (100% = fully opaque)" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( ( settings.menuBackgroundAlpha * 100 ).ToString( "0" ) + "%", WindowScaling.ScaledWidth( 50 ) );
+            settings.menuBackgroundAlpha = GUILayout.HorizontalSlider( settings.menuBackgroundAlpha, 0f, 1f, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
 
             // Text Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Text Color:", "RGB color of the menu text" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( "R:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuTextR = GUILayout.HorizontalSlider( settings.menuTextR, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "G:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuTextG = GUILayout.HorizontalSlider( settings.menuTextG, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "B:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuTextB = GUILayout.HorizontalSlider( settings.menuTextB, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
+            GUILayout.Label( new GUIContent( "Text Color:", "RGB color of the menu text" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( "R:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuTextR = GUILayout.HorizontalSlider( settings.menuTextR, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "G:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuTextG = GUILayout.HorizontalSlider( settings.menuTextG, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "B:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuTextB = GUILayout.HorizontalSlider( settings.menuTextB, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
 
             // Highlight Color
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Highlight Color:", "RGB color when hovering over menu items" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( "R:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuHighlightR = GUILayout.HorizontalSlider( settings.menuHighlightR, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "G:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuHighlightG = GUILayout.HorizontalSlider( settings.menuHighlightG, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
-            GUILayout.Label( "B:", WindowScaling.ScaledWidth(20 ) );
-            settings.menuHighlightB = GUILayout.HorizontalSlider( settings.menuHighlightB, 0f, 1f, WindowScaling.ScaledWidth(80 ) );
+            GUILayout.Label( new GUIContent( "Highlight Color:", "RGB color when hovering over menu items" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( "R:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuHighlightR = GUILayout.HorizontalSlider( settings.menuHighlightR, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "G:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuHighlightG = GUILayout.HorizontalSlider( settings.menuHighlightG, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
+            GUILayout.Label( "B:", WindowScaling.ScaledWidth( 20 ) );
+            settings.menuHighlightB = GUILayout.HorizontalSlider( settings.menuHighlightB, 0f, 1f, WindowScaling.ScaledWidth( 80 ) );
             GUILayout.EndHorizontal();
 
             // Highlight Alpha
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Highlight Transparency:", "How opaque the hover highlight is (100% = fully opaque)" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( ( settings.menuHighlightAlpha * 100 ).ToString( "0" ) + "%", WindowScaling.ScaledWidth(50 ) );
-            settings.menuHighlightAlpha = GUILayout.HorizontalSlider( settings.menuHighlightAlpha, 0f, 1f, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( new GUIContent( "Highlight Transparency:", "How opaque the hover highlight is (100% = fully opaque)" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( ( settings.menuHighlightAlpha * 100 ).ToString( "0" ) + "%", WindowScaling.ScaledWidth( 50 ) );
+            settings.menuHighlightAlpha = GUILayout.HorizontalSlider( settings.menuHighlightAlpha, 0f, 1f, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
 
             // Font Size
             GUILayout.BeginHorizontal();
-            GUILayout.Label( new GUIContent( "Font Size:", "Size of text in context menus" ), WindowScaling.ScaledWidth(150 ) );
-            GUILayout.Label( settings.menuFontSize.ToString(), WindowScaling.ScaledWidth(30 ) );
-            settings.menuFontSize = (int)GUILayout.HorizontalSlider( settings.menuFontSize, 12, 24, WindowScaling.ScaledWidth(200 ) );
+            GUILayout.Label( new GUIContent( "Font Size:", "Size of text in context menus" ), WindowScaling.ScaledWidth( 150 ) );
+            GUILayout.Label( settings.menuFontSize.ToString(), WindowScaling.ScaledWidth( 30 ) );
+            settings.menuFontSize = (int)GUILayout.HorizontalSlider( settings.menuFontSize, 12, 24, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 10 );
 
             // Reset to Default Button
-            if ( GUILayout.Button( new GUIContent( "Reset to Default Style", "Restore all style settings to their default values" ), WindowScaling.ScaledWidth(200 ) ) )
+            if ( GUILayout.Button( new GUIContent( "Reset to Default Style", "Restore all style settings to their default values" ), WindowScaling.ScaledWidth( 200 ) ) )
             {
                 settings.menuBackgroundR = 0.1f;
                 settings.menuBackgroundG = 0.1f;
@@ -1742,7 +1742,7 @@ namespace Utility_Mod
         {
             GUILayout.BeginVertical();
             {
-                if ( GUILayout.Button( keybindingMode ? "Exit Keybinding Mode" : "Enter Keybinding Mode", WindowScaling.ScaledWidth(200 ) ) )
+                if ( GUILayout.Button( keybindingMode ? "Exit Keybinding Mode" : "Enter Keybinding Mode", WindowScaling.ScaledWidth( 200 ) ) )
                 {
                     keybindingMode = !keybindingMode;
                 }
