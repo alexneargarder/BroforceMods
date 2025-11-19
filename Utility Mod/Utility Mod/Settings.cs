@@ -13,10 +13,9 @@ namespace Utility_Mod
         DistanceBased = 1
     }
 
-    public class Settings : UnityModManager.ModSettings
+    public class Settings : RocketLib.XmlModSettings
     {
-        // Version marker - if this is still 0 after loading, we know settings weren't loaded from file
-        public int SettingsVersion = 0;
+        public override int SettingsVersion { get; set; } = 1;
 
         // Show / hide each section
         public bool showGeneralOptions = false;
@@ -153,7 +152,7 @@ namespace Utility_Mod
 
         private string GetProfilePath( string profileName )
         {
-            string profilesDir = Path.Combine( Main.mod.Path, "Profiles" );
+            string profilesDir = Path.Combine( Main.mod.ConfigPath, "Profiles" );
             return Path.Combine( profilesDir, profileName + ".xml" );
         }
 
@@ -161,7 +160,7 @@ namespace Utility_Mod
         {
             try
             {
-                string profilesDir = Path.Combine( Main.mod.Path, "Profiles" );
+                string profilesDir = Path.Combine( Main.mod.ConfigPath, "Profiles" );
                 if ( !Directory.Exists( profilesDir ) )
                 {
                     Directory.CreateDirectory( profilesDir );
@@ -237,7 +236,7 @@ namespace Utility_Mod
             var profiles = new List<string>();
             try
             {
-                string profilesDir = Path.Combine( Main.mod.Path, "Profiles" );
+                string profilesDir = Path.Combine( Main.mod.ConfigPath, "Profiles" );
                 if ( Directory.Exists( profilesDir ) )
                 {
                     var files = Directory.GetFiles( profilesDir, "*.xml" );
