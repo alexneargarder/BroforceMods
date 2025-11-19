@@ -3,7 +3,11 @@
 - Added ability to go to level without being on the world map.
 - Added option to go to level immediately when the game starts.
 - Changed custom spawn position to save per level.
-- Added beehive to list of spawnable objects
+- Added right click menu with a bunch of utilities.
+- Added test dummy for checking dps.
+- Added system for making level edits, saving them, and reapplying them to campaign levels.
+- Added system for saving and loading settings profiles for Utility Mod.
+
 
 ## v2.3.2
 - Added option for skipping cutscenes that destroy the mod window, this is enabled by default.
