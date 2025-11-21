@@ -236,4 +236,22 @@ namespace IronBro_Multiplayer_Mod
             GameModeController_IsHardcoreMode_Patch.disableHardcoreCheck = false;
         }
     }
+
+    // Fix rejoining after dropping out causing you to lose all lives
+    [HarmonyPatch( typeof( HeroController ), "DropoutRPC" )]
+    static class HeroController_DropoutRPC_Patch
+    {
+        public static void Postfix( HeroController __instance )
+        {
+            if ( !Main.enabled )
+            {
+                return;
+            }
+
+            if ( GameModeController.IsHardcoreMode )
+            {
+                HeroController.Instance.IDroppedOutThisRound = false;
+            }
+        }
+    }
 }

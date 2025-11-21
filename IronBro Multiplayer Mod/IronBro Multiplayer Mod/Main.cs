@@ -1,29 +1,9 @@
 ﻿/**
  * TODO
  * 
- * Fix weird crashes which seem to be more frequent in the Hell levels
- * 
- * Sync lives correctly in iron bro multiplayer
- * 
- * drop out works but is sort of weird if player 1 leaves and rejoins
- * 
  * Fix other player dying when one player finishes level via zip line in hell
  * 
  * Helicopter stays and level doesn't end on special challenge levels
- * 
-**/
-/**
- * FIXED
- * 
- * dropout doesn't appear
- * 
- * Doesn't work well in Normal mode multiplayer (if both players die, the level finishes and you win)
- * 
- * If in singleplayer, dying resets the level
- * 
- * helicopter doesn't leave on levels where helicopter drops you off (not a huge deal)
- * 
- * 
  * 
 **/
 
