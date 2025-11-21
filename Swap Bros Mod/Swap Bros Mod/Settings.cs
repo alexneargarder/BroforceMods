@@ -18,6 +18,7 @@ namespace Swap_Bros_Mod
         public bool includeUnfinishedCharacters = false;
         public bool clickingEnabled = true;
         public bool enableBromaker = false;
+        public bool enableBromakerDefault = true;
         public float swapCoolDown = 0.5f;
 
         public int[] selGridInt = { 0, 0, 0, 0 };
