@@ -1,5 +1,7 @@
 # IronBro Multiplayer Mod
 
+This mod allows you to play local multiplayer in IronBro mode.
+
 ## Installation Instructions
 
 Detailed installation instructions can be found [here](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447).
