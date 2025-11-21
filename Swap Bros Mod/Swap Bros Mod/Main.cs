@@ -66,6 +66,7 @@ namespace Swap_Bros_Mod
         public static bool brosRemoved = false;
         public static GUIStyle buttonStyle;
         public static GUIStyle warningStyle;
+        public static float cachedFilterWidth = 0f;
 
         static bool Load( UnityModManager.ModEntry modEntry )
         {
@@ -170,6 +171,18 @@ namespace Swap_Bros_Mod
             {
                 LoadCustomBros();
                 CreateBroList();
+            }
+
+            if ( cachedFilterWidth <= 0 )
+            {
+                GUILayout.BeginHorizontal();
+                Rect measureRect = GUILayoutUtility.GetRect( 0, 0, GUILayout.ExpandWidth( true ) );
+                if ( Event.current.type == EventType.Repaint && measureRect.width > 1 )
+                {
+                    cachedFilterWidth = measureRect.width - 25f;
+                }
+                GUILayout.EndHorizontal();
+                return;
             }
 
             GUILayout.BeginHorizontal();
@@ -411,17 +424,22 @@ namespace Swap_Bros_Mod
                         // Display filtering menu
                         if ( changingEnabledBros )
                         {
+                            int columnsPerRow = 5;
+                            int totalBros = allBros.Count();
+
+                            float buttonWidth = cachedFilterWidth / columnsPerRow;
+
                             GUILayout.BeginVertical();
                             GUILayout.BeginHorizontal();
-                            for ( int j = 0; j < allBros.Count(); ++j )
+                            for ( int j = 0; j < totalBros; ++j )
                             {
-                                if ( j % 5 == 0 )
+                                if ( j % columnsPerRow == 0 )
                                 {
                                     GUILayout.EndHorizontal();
                                     GUILayout.BeginHorizontal();
                                 }
 
-                                filteredBroList[j] = GUILayout.Toggle( filteredBroList[j], allBros[j], buttonStyle, GUILayout.Height( 26 ), GUILayout.Width( 180 ) );
+                                filteredBroList[j] = GUILayout.Toggle( filteredBroList[j], allBros[j], buttonStyle, GUILayout.Height( 26 ), GUILayout.Width( buttonWidth ) );
                             }
                             GUILayout.EndHorizontal();
                             GUILayout.Space( 20 );
