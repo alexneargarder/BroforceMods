@@ -6,7 +6,7 @@ Detailed installation instructions can be found [here](https://steamcommunity.co
 
 ## Bugs and Issues
 
-If you run into any bugs or have any issues with the mod, please join the [Free Lives Discord](https://discord.com/invite/freelives), and post in the bf-mods channel.
+If you run into any bugs or have any issues with the mod, please join the [Free Lives Discord](https://discord.com/invite/freelives) and post in the bf-mods channel.
 
 ## Current Features
 
