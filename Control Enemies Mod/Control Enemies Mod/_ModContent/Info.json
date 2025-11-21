@@ -6,6 +6,5 @@
 	"Requirements": [ "RocketLib-2.4.0" ],
 	"LoadAfter": [ "RocketLib", "BroMaker", "Swap Bros Mod" ],
 	"AssemblyName": "Control Enemies Mod.dll",
-	"EntryMethod": "Control_Enemies_Mod.Main.Load",
-	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+	"EntryMethod": "Control_Enemies_Mod.Main.Load"
 }
