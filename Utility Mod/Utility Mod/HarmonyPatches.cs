@@ -156,7 +156,7 @@ namespace Utility_Mod
                     return true;
                 }
 
-                // Check if helicopter should wait for ohter players
+                // Check if helicopter should wait for other players
                 if ( Main.settings.helicopterWait )
                 {
                     if ( result != LevelResult.Success || ( HeroController.GetPlayersOnHelicopterAmount() == 0 ) )
