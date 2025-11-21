@@ -6,6 +6,5 @@
 	"Requirements": [ "RocketLib-2.4.0" ],
 	"LoadAfter": [ "RocketLib" ],
 	"AssemblyName": "Utility Mod.dll",
-	"EntryMethod": "Utility_Mod.Main.Load",
-	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+	"EntryMethod": "Utility_Mod.Main.Load"
 }

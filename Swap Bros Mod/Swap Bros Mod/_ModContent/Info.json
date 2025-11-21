@@ -5,6 +5,5 @@
 	"Version": "2.1.4",
 	"LoadAfter": [ "BroMaker" ],
 	"AssemblyName": "Swap Bros Mod.dll",
-	"EntryMethod": "Swap_Bros_Mod.Main.Load",
-	"Repository": "https://raw.githubusercontent.com/alexneargarder/BroforceMods/master/Repository.json"
+	"EntryMethod": "Swap_Bros_Mod.Main.Load"
 }
