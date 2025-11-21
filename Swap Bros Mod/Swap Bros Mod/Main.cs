@@ -91,7 +91,20 @@ namespace Swap_Bros_Mod
                 mod.Logger.Error( e.ToString() );
             }
 
-            if ( Main.settings.enableBromaker )
+            // Check if bromaker is available unless it was manually toggled already
+            if ( settings.enableBromakerDefault && !settings.enableBromaker )
+            {
+                try
+                {
+                    LoadCustomBros();
+                    settings.enableBromaker = true;
+                }
+                catch
+                {
+                    settings.enableBromaker = false;
+                }
+            }
+            else if ( settings.enableBromaker )
             {
                 try
                 {
@@ -99,8 +112,8 @@ namespace Swap_Bros_Mod
                 }
                 catch
                 {
-                    Main.Log( "BroMaker is not installed." );
-                    Main.settings.enableBromaker = false;
+                    Log( "BroMaker is not installed." );
+                    settings.enableBromaker = false;
                 }
             }
 
@@ -252,6 +265,7 @@ namespace Swap_Bros_Mod
             if ( settings.enableBromaker != ( settings.enableBromaker = GUILayout.Toggle( settings.enableBromaker, new GUIContent( "Include BroMaker Bros",
                 "Shows custom bros installed with BroMaker" ), GUILayout.ExpandWidth( false ) ) ) )
             {
+                settings.enableBromakerDefault = false;
                 if ( settings.enableBromaker )
                 {
                     try
