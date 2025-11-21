@@ -1,0 +1,10 @@
+{
+  "name": "IronBro_Multiplayer_Mod",
+  "author": "AlexN",
+  "version_number": "1.0.1",
+  "website_url": "https://github.com/alexneargarder/BroforceMods",
+  "description": "This mod allows you to play local multiplayer in IronBro mode.",
+  "dependencies": [
+    "UMM-UMM-1.0.2"
+  ]
+}
