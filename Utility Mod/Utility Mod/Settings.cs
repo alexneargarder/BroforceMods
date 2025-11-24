@@ -4,6 +4,7 @@ using System.IO;
 using System.Xml.Serialization;
 using UnityEngine;
 using UnityModManagerNet;
+using RocketLib.Settings;
 
 namespace Utility_Mod
 {
@@ -13,7 +14,7 @@ namespace Utility_Mod
         DistanceBased = 1
     }
 
-    public class Settings : RocketLib.XmlModSettings
+    public class Settings : XmlModSettings
     {
         public override int SettingsVersion { get; set; } = 1;
 
