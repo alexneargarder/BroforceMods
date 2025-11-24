@@ -834,5 +834,35 @@ namespace Utility_Mod
                 return codeMatcher.InstructionEnumeration();
             }
         }
+
+        // Disable player bubbles if setting is enabled
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "RestartBubble", new Type[] { typeof( float ) } )]
+        static class TestVanDammeAnim_RestartBubble_Patch
+        {
+            public static bool Prefix()
+            {
+                if ( !Main.enabled )
+                {
+                    return true;
+                }
+
+                return !Main.settings.disablePlayerBubbles;
+            }
+        }
+
+        // Disable player bubbles if setting is enabled
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "RestartBubble", new Type[] { } )]
+        static class TestVanDammeAnim_RestartBubble2_Patch
+        {
+            public static bool Prefix()
+            {
+                if ( !Main.enabled )
+                {
+                    return true;
+                }
+
+                return !Main.settings.disablePlayerBubbles;
+            }
+        }
     }
 }
