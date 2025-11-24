@@ -1263,35 +1263,21 @@ namespace Utility_Mod
             }
             else
             {
-                GUILayout.BeginHorizontal();
-
                 settings.printAudioPlayed = GUILayout.Toggle( settings.printAudioPlayed, new GUIContent( "Print Audio Played", "Prints the name of the Audio Clip to the Log" ) );
 
-                GUILayout.EndHorizontal();
-
-
                 GUILayout.Space( 10 );
-
-
-                GUILayout.BeginHorizontal();
 
                 settings.suppressAnnouncer = GUILayout.Toggle( settings.suppressAnnouncer, new GUIContent( "Suppress Announcer", "Disables the Countdown at the start of levels" ) );
 
-                GUILayout.EndHorizontal();
-
-
                 GUILayout.Space( 10 );
-
-
-                GUILayout.BeginHorizontal();
 
                 settings.maxCageSpawns = GUILayout.Toggle( settings.maxCageSpawns, new GUIContent( "Max Cage Spawns", "Forces every cage that spawns on the map to contain a prisoner" ) );
 
-                GUILayout.EndHorizontal();
-
                 GUILayout.Space( 10 );
 
-                GUILayout.BeginHorizontal();
+                settings.disablePlayerBubbles = GUILayout.Toggle( settings.disablePlayerBubbles, new GUIContent( "Disable Player Bubbles", "Disables the player bubbles that appear above characters" ) );
+
+                GUILayout.Space( 10 );
 
                 settings.showMousePosition = GUILayout.Toggle( settings.showMousePosition, new GUIContent( "Show Mouse Position", "Displays the world coordinates of the mouse cursor on screen" ) );
 
@@ -1303,8 +1289,6 @@ namespace Utility_Mod
                     GUI.Label( lastRect, GUI.tooltip );
                     previousToolTip = GUI.tooltip;
                 }
-
-                GUILayout.EndHorizontal();
 
                 GUILayout.Space( 30 );
 
