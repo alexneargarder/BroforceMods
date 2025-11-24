@@ -1222,9 +1222,12 @@ namespace Drunken_Broster
                             }
                             else
                             {
-                                xI *= this.drunk ? 1.5f : 1f;
-                                yI *= this.drunk ? 1.5f : 1f;
+                                xI *= this.drunk ? 1.7f : 1.2f;
+                                yI *= this.drunk ? 1.7f : 1.2f;
                             }
+                            // Cap speeds to +/- 1400
+                            xI = Mathf.Clamp( xI, -1400f, 1400f );
+                            yI = Mathf.Clamp( yI, -1400f, 1400f );
                             if ( !canGib && unit.health <= 0 )
                             {
                                 Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
@@ -1267,7 +1270,8 @@ namespace Drunken_Broster
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
                 Unit unit = Map.units[i];
-                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num && ( hitDead || unit.health > 0 ) )
+                // Don't hit dead units unless allowed or if they're in midair
+                if ( unit != null && GameModeController.DoesPlayerNumDamage( playerNum, unit.playerNum ) && !unit.invulnerable && unit.health <= num && ( hitDead || unit.health > 0 || !unit.IsOnGround() ) )
                 {
                     float f = unit.X - x;
                     if ( Mathf.Abs( f ) - xRange < unit.width )
@@ -1287,6 +1291,9 @@ namespace Drunken_Broster
                                 xI *= this.drunk ? 3.0f : 2.5f;
                                 yI *= this.drunk ? 1.5f : 1.25f;
                             }
+                            // Cap speeds to +/- 1400
+                            xI = Mathf.Clamp( xI, -1400f, 1400f );
+                            yI = Mathf.Clamp( yI, -1400f, 1400f );
                             if ( !canGib && unit.health <= 0 )
                             {
                                 Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
