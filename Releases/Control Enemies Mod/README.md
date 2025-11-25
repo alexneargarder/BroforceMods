@@ -22,6 +22,12 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 This video shows the competitive mode, but there are several other ways to play the mod that can be done in singleplayer.
 
+[![Control Enemies Mod Pig Gameplay](https://img.youtube.com/vi/totW2lk3fH8/maxresdefault.jpg)](https://www.youtube.com/watch?v=totW2lk3fH8 "Control Enemies Mod Pig Gameplay")
+
+[Watch on YouTube](https://www.youtube.com/watch?v=totW2lk3fH8)
+
+This video shows a great challenge run Bralef did playing only as a pig.
+
 ## Credits
 
 - Thanks to FishTsar for making the ghost sprites.
