@@ -3,6 +3,8 @@
 	"DisplayName": "Randomizer Mod",
 	"Author": "AlexN",
 	"Version": "2.0.5",
+	"Requirements": [ "RocketLib" ],
+	"LoadAfter": [ "RocketLib" ],
 	"AssemblyName": "Randomizer Mod.dll",
 	"EntryMethod": "Randomizer_Mod.Main.Load"
 }
