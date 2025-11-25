@@ -1,6 +1,6 @@
 # Swap Bros Mod
 
-This mod allows you to instantly swap bros at the press of a button, filter the bros you can spawn as, or always spawn as a single bro.
+This mod allows you to instantly swap bros at the press of a button, filter the bros you can spawn as, or choose to always spawn as a specific bro.
 
 ## Installation Instructions
 
