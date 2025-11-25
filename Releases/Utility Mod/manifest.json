@@ -4,7 +4,8 @@
   "website_url": "https://github.com/alexneargarder/BroforceMods",
   "description": "This mod adds a few quality of life features.",
   "dependencies": [
-    "UMM-UMM-1.0.1"
+    "UMM-UMM-1.0.2",
+    "RocketLib-RocketLib-2.4.1"
   ],
   "author": "AlexN"
 }

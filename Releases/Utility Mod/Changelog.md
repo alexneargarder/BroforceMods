@@ -1,4 +1,4 @@
-## v2.4.0 (unreleased)
+## v2.4.0
 - Added option to set keybindings for pretty much all toggles and buttons.
 - Added ability to go to level without being on the world map.
 - Added option to go to level immediately when the game starts.
@@ -7,7 +7,6 @@
 - Added test dummy for checking dps.
 - Added system for making level edits, saving them, and reapplying them to campaign levels.
 - Added system for saving and loading settings profiles for Utility Mod.
-
 
 ## v2.3.2
 - Added option for skipping cutscenes that destroy the mod window, this is enabled by default.
