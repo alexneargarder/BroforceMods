@@ -1,3 +1,7 @@
+# Randomizer Mod
+
+This mod allows you to randomize the enemies in the game into other enemies or even bosses.
+
 ## Installation Instructions
 
 Detailed installation instructions can be found [here](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447).
@@ -8,19 +12,27 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 ## Features
 
-![Features](https://i.imgur.com/3wsX0Kb.png)
+![Features](https://raw.githubusercontent.com/alexneargarder/BroforceMods/refs/heads/master/Screenshots/Randomizer%20Mod/Menu.png)
 
 The main feature of this mod is the ability to randomize every enemy in the game into either any other enemy or a boss. There are a lot of customization options in the settings for specifying what enemies are allowed to turn into and the chance they have of doing so. I'll explain these settings below.
 
-**Allow Enemies to become Worms** - This toggle allows you to remove the worms from the pool of available enemies to randomize into. You can also enable / disable specific worms if there's a particular one you want to remove from the pool.
+**Allow Enemies to become other Normal Enemies** - This toggle allows you to remove normal enemies from the pool of available enemies to randomize into. You can also enable / disable specific enemies if there's a particular one you want to remove from the pool.
 
-**Allow Enemies to become Bosses** and **Allow Enemies to become Large Bosses** work the same way as the worm toggles.
+**Allow Enemies to become Worms**, **Allow Enemies to become Bosses**, **Allow Enemies to become Large Bosses**, and **Allow Enemies to become Vehicles** work the same way as the worm toggles.
+
+**Randomize Ammo Crates** - This allows any ammo crate to turn into any of the enable options.
+
+**Convert Wooden Boxes to Ammo Crates** - This allows wooden boxes to have a chance of being randomized into one of the enabled ammo crates. The chance can be controlled by the slider below.
+
+**Unlock All Flex Powers** - This unlocks all flex powers so the flex power crates aren't useless in the first few levels where you haven't unlocked any flex powers normally.
 
 **Killing bosses triggers level finish** - The bosses and large bosses pretty much all have a trigger on death to make the level end. The only exceptions to this are the Satan boss and the Large Alien Worm. So by default when you spawn them in other levels, they can be killed to end the level early. If you feel that makes the game too easy you can disable it, I think it's pretty funny though.
 
 **Enable Satan Death Field** - Normally after you kill second-stage satan, his head floats up in the air, and then you walk into a cutscene which triggers his death field to start expanding. Since there's no cutscene trigger he doesn't spawn a death field by default when you kill him in other levels but I went ahead and added this option which will have him start his deathfield immediately after his head stops moving for some extra chaos.
 
 **Enable Summoned Enemy Randomization** - If you have enemy randomization turned on, that will randomize all the enemies that start on the map, but any enemies which are summoned by either parachute, doors, trucks, or other enemies such as the warlocks and boomers, will not be randomized. This option will allow you to have those enemies be randomized as well.
+
+**Scale UI with Window Width** - If enabled, makes the buttons in this UI wider or smaller depending on how wide you have the UMM window set to.
 
 **Randomized Enemy Percent** - This is the percent chance for any enemy to be randomized. This applies to summoned enemies as well. This doesn't determine what they are going to turn into, just that they will be randomized. The other sliders determine the chance they have of turning into a specific enemy type.
 
@@ -32,11 +44,15 @@ The main feature of this mod is the ability to randomize every enemy in the game
 
 **Large Boss Chance** - This is the chance for an enemy to turn into a Large Boss.
 
+**Vehicle Chance** - This is teh chance for an enemy to turn into a Vehicle.
+
+**Ammo Chance** - This is the chance for a given ammo crate to be randomized into one of the enabled options.
+
+**Wooden Box to Ammo Chance** - This is the chance for wooden boxes to turn into one of the enabled ammo crates, but this only happens if the **Convert Wooden Boxes to Ammo Crates** is enabled.
+
 ## Gameplay
 
 Here's what the game looks like with the mod installed, if this looks chaotic remember that you can adjust the settings to make it less difficult.
-
-[![Randomizer Mod Gameplay](https://img.youtube.com/vi/ez1u6rKUsTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=ez1u6rKUsTs "Randomizer Mod Gameplay")
 
 [Watch on YouTube](https://www.youtube.com/watch?v=ez1u6rKUsTs)
 
