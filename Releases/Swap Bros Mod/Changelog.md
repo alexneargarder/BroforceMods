@@ -1,4 +1,4 @@
-## v2.1.4 (unreleased)
+## v2.1.4
 - Changes for BroMaker update.
 - Fix not handling only custom characters in Iron Bro setting for BroMaker.
 
