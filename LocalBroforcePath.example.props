@@ -17,6 +17,9 @@
     <!-- REQUIRED: Broforce installation directory -->
     <BroforcePath>C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
 
+    <!-- Library path for DLL references -->
+    <LibPath>$(MSBuildThisFileDirectory)libs</LibPath>
+
     <!-- For Thunderstore/r2modman installs, use profile path instead: -->
     <!-- <BroforcePath>C:\Users\YourName\AppData\Roaming\r2modmanPlus-local\Broforce\profiles\Default\UMM</BroforcePath> -->
 

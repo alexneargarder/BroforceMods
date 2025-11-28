@@ -32,16 +32,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>..\..\libs\Core Libs\0Harmony.dll</HintPath>
+      <HintPath>$(LibPath)\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\libs\Core Libs\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(LibPath)\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="BroMakerLib">
       <HintPath>$(BroMakerLibPath)</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\..\libs\Extra Libs\Newtonsoft.Json.dll</HintPath>
+      <HintPath>$(LibPath)\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="RocketLib">
       <HintPath>$(RocketLibPath)</HintPath>
@@ -53,32 +53,32 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="UnityEngine">
-      <HintPath>..\..\libs\Core Libs\UnityEngine.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AudioModule">
-      <HintPath>..\..\libs\Extra Libs\UnityEngine.AudioModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.AudioModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\libs\Core Libs\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>..\..\libs\Core Libs\UnityEngine.IMGUIModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.IMGUIModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.ParticlesLegacyModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\libs\Extra Libs\UnityEngine.ParticlesLegacyModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.ParticlesLegacyModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>..\..\libs\Extra Libs\UnityEngine.PhysicsModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>..\..\libs\Core Libs\UnityEngine.TextRenderingModule.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.TextRenderingModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>..\..\libs\Core Libs\UnityEngine.UI.dll</HintPath>
+      <HintPath>$(LibPath)\UnityEngine.UI.dll</HintPath>
     </Reference>
     <Reference Include="UnityModManager">
-      <HintPath>..\..\libs\Core Libs\UnityModManager.dll</HintPath>
+      <HintPath>$(LibPath)\UnityModManager.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
