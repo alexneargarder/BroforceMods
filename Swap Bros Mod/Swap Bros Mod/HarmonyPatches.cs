@@ -140,13 +140,10 @@ namespace Swap_Bros_Mod
                         }
                         return;
                     }
-                    else
+                    // Ensure we aren't overwriting forced bros, even if always chosen is enabled
+                    else if ( !Main.settings.ignoreForcedBros && Map.MapData != null && ( Map.MapData.forcedBro != HeroType.Random || ( Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 ) ) )
                     {
-                        // Ensure we aren't overwriting forced bros, even if always chosen is enabled
-                        if ( !Main.settings.ignoreForcedBros && Map.MapData != null && ( Map.MapData.forcedBro != HeroType.Random || ( Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 ) ) )
-                        {
-                            return;
-                        }
+                        return;
                     }
 
                     // If we're in IronBro and don't want to force spawn a bro we haven't unlocked

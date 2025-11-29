@@ -1,3 +1,6 @@
+## v2.1.5
+- Fix bug with errors being thrown sometimes when enabling / disabling BroMaker bros.
+
 ## v2.1.4
 - Changes for BroMaker update.
 - Fix not handling only custom characters in Iron Bro setting for BroMaker.
