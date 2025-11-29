@@ -59,7 +59,6 @@ namespace Swap_Bros_Mod
         public static string[] previousSelection = new string[] { "", "", "", "" };
         public static int maxBroNum = 40;
         public static bool isHardcore = false;
-        public static bool loadedCustomBros = false;
 
         public static bool changingEnabledBros = false;
         public static float displayWarningTime = 0f;
@@ -752,25 +751,21 @@ namespace Swap_Bros_Mod
             }
 
             broList = currentBroList.ToArray();
-            // Don't modify currently selected bros if BroMaker is enabled and custom bros haven't yet been loaded
-            if ( !Main.settings.enableBromaker || ( Main.settings.enableBromaker && !Main.loadedCustomBros ) )
+            // Ensure currently selected bros are all still valid
+            for ( int i = 0; i < 4; ++i )
             {
-                // Ensure currently selected bros are all still valid
-                for ( int i = 0; i < 4; ++i )
+                if ( previousSelection[i] != string.Empty )
                 {
-                    if ( previousSelection[i] != string.Empty )
-                    {
-                        settings.selGridInt[i] = currentBroList.IndexOf( previousSelection[i] );
-                        if ( settings.selGridInt[i] == -1 )
-                        {
-                            settings.selGridInt[i] = 0;
-                        }
-                    }
-
-                    if ( settings.selGridInt[i] >= currentBroList.Count() || settings.selGridInt[i] < 0 )
+                    settings.selGridInt[i] = currentBroList.IndexOf( previousSelection[i] );
+                    if ( settings.selGridInt[i] == -1 )
                     {
                         settings.selGridInt[i] = 0;
                     }
+                }
+
+                if ( settings.selGridInt[i] >= currentBroList.Count() || settings.selGridInt[i] < 0 )
+                {
+                    settings.selGridInt[i] = 0;
                 }
             }
 
@@ -844,16 +839,6 @@ namespace Swap_Bros_Mod
 
         public static void LoadCustomBros()
         {
-            if ( !loadedCustomBros && !BroSpawnManager.Initialized )
-            {
-                BroSpawnManager.RegisterOnInitializeCallback( () =>
-                {
-                    Main.LoadCustomBros();
-                    Main.CreateBroList();
-                } );
-                return;
-            }
-            loadedCustomBros = true;
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
                 allCustomBros = BroSpawnManager.GetAllSpawnableBrosNames();
