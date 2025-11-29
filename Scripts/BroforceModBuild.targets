@@ -17,6 +17,7 @@
     <LaunchBroforceOnBuild Condition="'$(LaunchBroforceOnBuild)' == ''">false</LaunchBroforceOnBuild>
     <VerboseBuildOutput Condition="'$(VerboseBuildOutput)' == ''">false</VerboseBuildOutput>
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
+    <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
