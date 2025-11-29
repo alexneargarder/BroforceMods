@@ -59,6 +59,7 @@ namespace Swap_Bros_Mod
         public static string[] previousSelection = new string[] { "", "", "", "" };
         public static int maxBroNum = 40;
         public static bool isHardcore = false;
+        public static bool loadedCustomBros = false;
 
         public static bool changingEnabledBros = false;
         public static float displayWarningTime = 0f;
@@ -117,10 +118,7 @@ namespace Swap_Bros_Mod
                 }
             }
 
-            int[] previousSelGridInts = new int[4];
-            settings.selGridInt.CopyTo( previousSelGridInts, 0 );
             CreateBroList();
-            settings.selGridInt = previousSelGridInts;
 
             // Initialize enabled bro list
             if ( settings.enabledBros == null || settings.enabledBros.Count() == 0 )
@@ -629,14 +627,16 @@ namespace Swap_Bros_Mod
         {
             creatingBroList = true;
             brosRemoved = false;
-            if ( currentBroList != null )
+
+            for ( int i = 0; i < 4; ++i )
             {
-                for ( int i = 0; i < 4; ++i )
+                if ( currentBroList != null && settings.selGridInt[i] > 0 && settings.selGridInt[i] < currentBroList.Count() )
                 {
-                    if ( settings.selGridInt[i] > 0 && settings.selGridInt[i] < currentBroList.Count() )
-                    {
-                        previousSelection[i] = currentBroList[settings.selGridInt[i]];
-                    }
+                    previousSelection[i] = currentBroList[settings.selGridInt[i]];
+                }
+                else
+                {
+                    previousSelection[i] = string.Empty;
                 }
             }
             // If in IronBro and not ignoring unlocked characters, only show unlocked ones
@@ -752,12 +752,25 @@ namespace Swap_Bros_Mod
             }
 
             broList = currentBroList.ToArray();
-            for ( int i = 0; i < 4; ++i )
+            // Don't modify currently selected bros if BroMaker is enabled and custom bros haven't yet been loaded
+            if ( !Main.settings.enableBromaker || ( Main.settings.enableBromaker && !Main.loadedCustomBros ) )
             {
-                settings.selGridInt[i] = currentBroList.IndexOf( previousSelection[i] );
-                if ( settings.selGridInt[i] == -1 )
+                // Ensure currently selected bros are all still valid
+                for ( int i = 0; i < 4; ++i )
                 {
-                    settings.selGridInt[i] = 0;
+                    if ( previousSelection[i] != string.Empty )
+                    {
+                        settings.selGridInt[i] = currentBroList.IndexOf( previousSelection[i] );
+                        if ( settings.selGridInt[i] == -1 )
+                        {
+                            settings.selGridInt[i] = 0;
+                        }
+                    }
+
+                    if ( settings.selGridInt[i] >= currentBroList.Count() || settings.selGridInt[i] < 0 )
+                    {
+                        settings.selGridInt[i] = 0;
+                    }
                 }
             }
 
@@ -831,6 +844,16 @@ namespace Swap_Bros_Mod
 
         public static void LoadCustomBros()
         {
+            if ( !loadedCustomBros && !BroSpawnManager.Initialized )
+            {
+                BroSpawnManager.RegisterOnInitializeCallback( () =>
+                {
+                    Main.LoadCustomBros();
+                    Main.CreateBroList();
+                } );
+                return;
+            }
+            loadedCustomBros = true;
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
                 allCustomBros = BroSpawnManager.GetAllSpawnableBrosNames();
