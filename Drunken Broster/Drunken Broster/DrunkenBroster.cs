@@ -217,6 +217,15 @@ namespace Drunken_Broster
             {
                 this.setRumbleTraverse = Traverse.Create( this.player ).Method( "SetRumble", new Type[] { typeof( float ) } );
             }
+
+            // Check if infinite drunk trigger is active
+            bool infiniteDrunk = CustomTriggerStateManager.Get<bool>( "DrunkenBroster_InfiniteDrunk", false );
+
+            // Immediately become drunk on spawn if infinite drunk is active
+            if ( infiniteDrunk )
+            {
+                this.BecomeDrunk();
+            }
         }
 
         protected override void Update()
@@ -264,7 +273,12 @@ namespace Drunken_Broster
             // Count down to becoming sober
             if ( this.drunk )
             {
-                this.drunkCounter -= this.t;
+                bool infiniteDrunk = CustomTriggerStateManager.Get<bool>( "DrunkenBroster_InfiniteDrunk", false );
+                if ( !infiniteDrunk )
+                {
+                    this.drunkCounter -= this.t;
+                }
+
                 // If drunk counter has run out, try to start becoming sober animation
                 if ( this.drunkCounter <= 0 )
                 {
@@ -381,12 +395,8 @@ namespace Drunken_Broster
 
         public override void RegisterCustomTriggers()
         {
-            CustomTriggerManager.RegisterCustomTrigger(
-                typeof( Triggers.DrunkenBrosterMeleePoolAction ),
-                typeof( Triggers.DrunkenBrosterMeleePoolActionInfo ),
-                "Drunken Broster - Set Melee Item Pool",
-                "Custom Bros"
-            );
+            CustomTriggerManager.RegisterCustomTrigger( typeof( Triggers.DrunkenBrosterMeleePoolAction ), typeof( Triggers.DrunkenBrosterMeleePoolActionInfo ), "Drunken Broster - Set Melee Item Pool", "Custom Bros" );
+            CustomTriggerManager.RegisterCustomTrigger( typeof( Triggers.DrunkenBrosterBecomeDrunkAction ), typeof( Triggers.DrunkenBrosterBecomeDrunkActionInfo ), "Drunken Broster - Become Drunk", "Custom Bros" );
         }
 
         public override void BeforePrefabSetup()
@@ -3288,6 +3298,45 @@ namespace Drunken_Broster
         protected override void OnDestroy()
         {
             DrunkenCameraManager.UnregisterDrunk( this, true );
+        }
+
+        public static void ForceAllDrunk()
+        {
+            for ( int i = 0; i < 4; i++ )
+            {
+                if ( HeroController.PlayerIsAlive( i ) )
+                {
+                    try
+                    {
+                        if ( HeroController.players[i].character is DrunkenBroster db )
+                        {
+                            if ( !db.drunk )
+                            {
+                                db.PressSpecial();
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        public static void ForceAllSoberUp()
+        {
+            for ( int i = 0; i < 4; i++ )
+            {
+                if ( HeroController.PlayerIsAlive( i ) )
+                {
+                    try
+                    {
+                        if ( HeroController.players[i].character is DrunkenBroster db && db.drunk )
+                        {
+                            db.drunkCounter = 0.1f;
+                        }
+                    }
+                    catch { }
+                }
+            }
         }
         #endregion
 

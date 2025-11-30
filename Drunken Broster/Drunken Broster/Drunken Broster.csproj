@@ -87,6 +87,8 @@
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="Triggers\DrunkenBrosterMeleePoolAction.cs" />
     <Compile Include="Triggers\DrunkenBrosterMeleePoolActionInfo.cs" />
+    <Compile Include="Triggers\DrunkenBrosterBecomeDrunkAction.cs" />
+    <Compile Include="Triggers\DrunkenBrosterBecomeDrunkActionInfo.cs" />
     <Compile Include="MeleeItems\AcidEggProjectile.cs" />
     <Compile Include="MeleeItems\AlienEggProjectile.cs" />
     <Compile Include="MeleeItems\BeehiveProjectile.cs" />
