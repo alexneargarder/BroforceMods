@@ -50,6 +50,7 @@ namespace Swap_Bros_Mod
         public static List<string> allUnfinished = new List<string> { "Chev Brolios", "Casey Broback", "The Scorpion Bro" };
         public static List<string> allCustomBros = new List<string>();
         public static List<string> actuallyAllCustomBros = new List<string>();
+        public static int customBroCount = 0;
         public static List<string> allBros = new List<string>();
         public static int numCustomBros = 0;
 
@@ -829,11 +830,11 @@ namespace Swap_Bros_Mod
         {
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
-                return BroSpawnManager.GetAllSpawnableBrosNames().Count() != allCustomBros.Count();
+                return BroSpawnManager.GetAllSpawnableBrosNames().Count() != customBroCount;
             }
             else
             {
-                return BroSpawnManager.GetAllUnlockedBrosNames().Count() != allCustomBros.Count();
+                return BroSpawnManager.GetAllUnlockedBrosNames().Count() != customBroCount;
             }
         }
 
@@ -850,6 +851,7 @@ namespace Swap_Bros_Mod
                 actuallyAllCustomBros = allCustomBros;
             }
 
+            customBroCount = allCustomBros.Count();
         }
 
         public static bool IsBroCustom( int index )
@@ -1089,18 +1091,19 @@ namespace Swap_Bros_Mod
                     return;
                 }
 
-                // Update list based on current game mode
-                if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
+                // Update list if BroMaker is enabled and the custom bro count has changed
+                if ( settings.enableBromaker && CustomCountChanged() )
+                {
+                    LoadCustomBros();
+                    CreateBroList();
+                }
+                // Update list if in IronBro mode and the number of unlocked bros has changed
+                else if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
                 {
                     if ( GetHardcoreCount() != currentBroList.Count )
                     {
                         CreateBroList();
                     }
-                }
-                else if ( settings.enableBromaker && CustomCountChanged() )
-                {
-                    LoadCustomBros();
-                    CreateBroList();
                 }
             }
             catch ( Exception ex )

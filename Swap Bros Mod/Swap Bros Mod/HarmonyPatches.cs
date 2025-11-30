@@ -262,7 +262,7 @@ namespace Swap_Bros_Mod
                         return;
                     }
 
-                    // If our list of IronBro characters is out of date, update it
+                    // If our list of characters is out of date, update it
                     Main.EnsureBroListUpdated();
 
                     int targetIndex = Main.settings.selGridInt[curPlayer];
