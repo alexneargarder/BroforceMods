@@ -1,5 +1,6 @@
 ## v2.1.5
 - Fix bug with errors being thrown sometimes when enabling / disabling BroMaker bros.
+- Fix not tracking custom bro unlock changes.
 
 ## v2.1.4
 - Changes for BroMaker update.
