@@ -58,6 +58,6 @@
   },
   "unlockConfig": {
     "method": "RescueCount",
-    "RescueCountRequired": 2
+    "RescueCountRequired": 5
   }
 }

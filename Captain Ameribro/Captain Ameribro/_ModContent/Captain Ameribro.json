@@ -45,6 +45,6 @@
     "method": "RescueOrLevel",
     "unlockLevelPath": "CaptainAmeribro.bfc",
     "unlockLevelName": "Behind Enemy Lines",
-    "RescueCountRequired": 20
+    "RescueCountRequired": 5
   }
 }
