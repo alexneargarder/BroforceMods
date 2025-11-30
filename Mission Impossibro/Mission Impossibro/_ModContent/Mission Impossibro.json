@@ -40,5 +40,9 @@
     "fireRate": 0.3,
     "canChimneyFlip": true,
     "originalSpecialAmmo": 2
+  },
+  "unlockConfig": {
+    "method": "RescueCount",
+    "RescueCountRequired": 5
   }
 }

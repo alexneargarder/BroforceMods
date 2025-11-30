@@ -45,5 +45,9 @@
     "canChimneyFlip": true,
     "originalSpecialAmmo": 1,
     "gunSpriteHangingFrame": 9
+  },
+  "unlockConfig": {
+    "method": "RescueCount",
+    "RescueCountRequired": 5
   }
 }
