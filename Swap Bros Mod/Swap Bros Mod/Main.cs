@@ -856,7 +856,7 @@ namespace Swap_Bros_Mod
 
         public static bool IsBroCustom( int index )
         {
-            return actuallyAllCustomBros.Contains( currentBroList[index] );
+            return actuallyAllCustomBros.Count() > 0 && actuallyAllCustomBros.Contains( currentBroList[index] );
         }
 
         public static string GetSelectedBroName( int playerNum )
