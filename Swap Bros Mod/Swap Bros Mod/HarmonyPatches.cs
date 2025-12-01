@@ -10,7 +10,7 @@ namespace Swap_Bros_Mod
         [HarmonyPatch( typeof( Player ), "SpawnHero" )]
         static class Player_SpawnHero_Patch
         {
-            static void Prefix( Player __instance, ref HeroType nextHeroType )
+            public static void Prefix( Player __instance, ref HeroType nextHeroType )
             {
                 if ( !Main.enabled )
                     return;
