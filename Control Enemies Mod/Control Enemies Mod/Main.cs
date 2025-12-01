@@ -909,7 +909,7 @@ namespace Control_Enemies_Mod
         public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
         public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
         public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
-        public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat, pigAvatarMat, bruiserAvatarMat;
+        public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat, pigAvatarMat, bruiserAvatarMat, satanAvatarMat;
         public static bool[] specialWasDown = { false, false, false, false };
         public static bool[] holdingSpecial = { false, false, false, false };
         public static bool[] holdingSpecial2 = { false, false, false, false };
@@ -1122,6 +1122,7 @@ namespace Control_Enemies_Mod
             cr666AvatarMat = ResourcesController.GetMaterial( directoryPath, "avatar_CR666.png" );
             pigAvatarMat = ResourcesController.GetMaterial( directoryPath, "avatar_pig.png" );
             bruiserAvatarMat = ResourcesController.GetMaterial( directoryPath, "avatar_bruiser.png" );
+            satanAvatarMat = ResourcesController.GetMaterial( directoryPath, "avatar_satan.png" );
 
             // Create ghost prefab
             if ( ghostPrefab == null )
@@ -1540,6 +1541,10 @@ namespace Control_Enemies_Mod
                 case UnitType.Pig:
                 case UnitType.RottenPig:
                     HeroController.players[playerNum].hud.SetAvatar( pigAvatarMat );
+                    break;
+                case UnitType.SatanMiniboss:
+                case UnitType.Satan:
+                    HeroController.players[playerNum].hud.SetAvatar( satanAvatarMat );
                     break;
                 default:
                     HeroController.players[playerNum].hud.SetAvatar( mookAvatarMat );
