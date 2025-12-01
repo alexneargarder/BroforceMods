@@ -12,7 +12,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 ## Features
 
-![Features](https://i.imgur.com/WscETOb.png)
+![Features](https://raw.githubusercontent.com/alexneargarder/BroforceMods/refs/heads/master/Screenshots/Control%20Enemies%20Mod/Menu.png)
 
 ## Gameplay
 
@@ -31,7 +31,7 @@ This video shows a great challenge run Bralef did playing only as a pig.
 ## Credits
 
 - Thanks to FishTsar for making the ghost sprites.
-- Thanks to BruxelasCouveRocko for making the Mook and CR666 avatars.
+- Thanks to BruxelasCouveRocko for making the Mook, Satan, and CR666 avatars.
 - Thanks to 07Vojkan09 for making the Bruiser and Pig avatars.
 
 ## Source Code
