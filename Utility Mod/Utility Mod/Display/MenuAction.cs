@@ -37,6 +37,8 @@ namespace Utility_Mod
         SetSpecificLevel,
         ClearStartingLevel,
         GoToStartingLevel,
+        GoToCustomCampaignLevel,
+        SetSpecificCustomCampaignLevel,
 
         // Context Actions
         GrabEnemy,
@@ -94,6 +96,10 @@ namespace Utility_Mod
         // For go to level actions
         public int? CampaignIndex { get; set; }
         public int? LevelIndex { get; set; }
+
+        // For custom campaign actions
+        public string CustomCampaignName { get; set; }
+        public bool? CustomCampaignIsPublished { get; set; }
 
         // For context actions - store the target object
         [System.Xml.Serialization.XmlIgnore]
@@ -308,6 +314,34 @@ namespace Utility_Mod
                 Id = "action_startinglevel_goto",
                 DisplayName = "Go to Starting Level",
                 Type = MenuActionType.GoToStartingLevel
+            };
+        }
+
+        // Constructor for go to custom campaign level action
+        public static MenuAction CreateGoToCustomCampaignLevel( string campaignName, string displayName, int levelIndex, bool isPublished )
+        {
+            return new MenuAction
+            {
+                Id = $"action_gotocustomlevel_{campaignName}_{levelIndex}",
+                DisplayName = $"{displayName} - Level {levelIndex + 1}",
+                Type = MenuActionType.GoToCustomCampaignLevel,
+                CustomCampaignName = campaignName,
+                CustomCampaignIsPublished = isPublished,
+                LevelIndex = levelIndex
+            };
+        }
+
+        // Constructor for set specific custom campaign level as starting level action
+        public static MenuAction CreateSetSpecificCustomCampaignLevelAsStarting( string campaignName, string displayName, int levelIndex, bool isPublished )
+        {
+            return new MenuAction
+            {
+                Id = $"action_startinglevel_setcustom_{campaignName}_{levelIndex}",
+                DisplayName = $"Set Starting: {displayName} - Level {levelIndex + 1}",
+                Type = MenuActionType.SetSpecificCustomCampaignLevel,
+                CustomCampaignName = campaignName,
+                CustomCampaignIsPublished = isPublished,
+                LevelIndex = levelIndex
             };
         }
 
@@ -724,12 +758,36 @@ namespace Utility_Mod
                     break;
 
                 case MenuActionType.ClearStartingLevel:
+                    Main.settings.isCustomCampaignStarting = false;
+                    Main.settings.customCampaignWorkshopId = "";
                     Main.settings.campaignNum = 0;
                     Main.settings.levelNum = 0;
                     break;
 
                 case MenuActionType.GoToStartingLevel:
-                    Main.GoToLevel( Main.settings.campaignNum, Main.settings.levelNum );
+                    if ( Main.settings.isCustomCampaignStarting )
+                    {
+                        if ( !string.IsNullOrEmpty( Main.settings.customCampaignWorkshopId ) )
+                        {
+                            Main.GoToOnlineCampaignLevel( Main.settings.customCampaignWorkshopId, Main.settings.levelNum );
+                        }
+                        else
+                        {
+                            Main.GoToLevel( -1, Main.settings.levelNum, Main.settings.customCampaignName, Main.settings.customCampaignIsPublished );
+                        }
+                    }
+                    else
+                    {
+                        Main.GoToLevel( Main.settings.campaignNum, Main.settings.levelNum );
+                    }
+                    break;
+
+                case MenuActionType.GoToCustomCampaignLevel:
+                    ExecuteGoToCustomCampaignLevel();
+                    break;
+
+                case MenuActionType.SetSpecificCustomCampaignLevel:
+                    ExecuteSetSpecificCustomCampaignLevelAsStarting();
                     break;
 
                 // Context Actions
@@ -935,27 +993,50 @@ namespace Utility_Mod
 
         private void ExecuteSetCurrentLevelAsStarting()
         {
-            // Get current campaign and level
-            string campaignName = GameState.Instance?.campaignName;
             int levelNum = LevelSelectionController.CurrentLevelNum;
 
-            if ( campaignName != null )
+            // Check if we're in an online campaign (not downloaded locally)
+            if ( LevelSelectionController.isOnlineCampaign )
             {
-                // Find the campaign index
-                int campaignIndex = -1;
-                for ( int i = 0; i < Main.actualCampaignNames.Length; i++ )
-                {
-                    if ( Main.actualCampaignNames[i] == campaignName )
-                    {
-                        campaignIndex = i;
-                        break;
-                    }
-                }
+                Main.settings.isCustomCampaignStarting = true;
+                Main.settings.customCampaignWorkshopId = GameState.Instance.customLevelID;
+                Main.settings.customCampaignName = LevelSelectionController.currentWorkshopLevel?.name ?? "Online Campaign";
+                Main.settings.levelNum = levelNum;
+            }
+            // Check if we're in a local custom campaign
+            else if ( LevelSelectionController.loadCustomCampaign )
+            {
+                Main.settings.isCustomCampaignStarting = true;
+                Main.settings.customCampaignWorkshopId = "";
+                Main.settings.customCampaignName = LevelSelectionController.campaignToLoad;
+                Main.settings.customCampaignIsPublished = LevelSelectionController.loadPublishedCampaign;
+                Main.settings.levelNum = levelNum;
+            }
+            else
+            {
+                // Built-in campaign
+                string campaignName = GameState.Instance?.campaignName;
 
-                if ( campaignIndex >= 0 )
+                if ( campaignName != null )
                 {
-                    Main.settings.campaignNum = campaignIndex;
-                    Main.settings.levelNum = levelNum;
+                    // Find the campaign index
+                    int campaignIndex = -1;
+                    for ( int i = 0; i < Main.actualCampaignNames.Length; i++ )
+                    {
+                        if ( Main.actualCampaignNames[i] == campaignName )
+                        {
+                            campaignIndex = i;
+                            break;
+                        }
+                    }
+
+                    if ( campaignIndex >= 0 )
+                    {
+                        Main.settings.isCustomCampaignStarting = false;
+                        Main.settings.customCampaignWorkshopId = "";
+                        Main.settings.campaignNum = campaignIndex;
+                        Main.settings.levelNum = levelNum;
+                    }
                 }
             }
         }
@@ -964,6 +1045,8 @@ namespace Utility_Mod
         {
             if ( CampaignIndex.HasValue && LevelIndex.HasValue )
             {
+                Main.settings.isCustomCampaignStarting = false;
+                Main.settings.customCampaignWorkshopId = "";
                 Main.settings.campaignNum = CampaignIndex.Value;
                 Main.settings.levelNum = LevelIndex.Value;
             }
@@ -977,6 +1060,25 @@ namespace Utility_Mod
             }
         }
 
+        private void ExecuteGoToCustomCampaignLevel()
+        {
+            if ( !string.IsNullOrEmpty( CustomCampaignName ) && LevelIndex.HasValue && CustomCampaignIsPublished.HasValue )
+            {
+                Main.GoToLevel( -1, LevelIndex.Value, CustomCampaignName, CustomCampaignIsPublished.Value );
+            }
+        }
+
+        private void ExecuteSetSpecificCustomCampaignLevelAsStarting()
+        {
+            if ( !string.IsNullOrEmpty( CustomCampaignName ) && LevelIndex.HasValue && CustomCampaignIsPublished.HasValue )
+            {
+                Main.settings.isCustomCampaignStarting = true;
+                Main.settings.customCampaignWorkshopId = "";
+                Main.settings.customCampaignName = CustomCampaignName;
+                Main.settings.customCampaignIsPublished = CustomCampaignIsPublished.Value;
+                Main.settings.levelNum = LevelIndex.Value;
+            }
+        }
 
         private void ExecuteGrabEnemy( Vector3 position )
         {

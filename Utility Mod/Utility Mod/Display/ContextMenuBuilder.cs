@@ -21,6 +21,16 @@ namespace Utility_Mod
         private static string profileToOverwrite = "";
         private static System.Action<string> profileNameCallback = null;
 
+        private static List<CustomCampaignInfo> cachedCustomCampaigns = null;
+
+        private class CustomCampaignInfo
+        {
+            public string FileName;
+            public string DisplayName;
+            public bool IsPublished;
+            public int LevelCount;
+        }
+
         #endregion
 
         #region Constructor
@@ -28,6 +38,77 @@ namespace Utility_Mod
         public ContextMenuBuilder( ContextMenuManager manager )
         {
             this.manager = manager;
+        }
+
+        #endregion
+
+        #region Custom Campaign Helpers
+
+        private List<CustomCampaignInfo> GetAvailableCustomCampaigns()
+        {
+            if ( cachedCustomCampaigns == null )
+                RefreshCustomCampaignCache();
+            return cachedCustomCampaigns;
+        }
+
+        public static void RefreshCustomCampaignCache()
+        {
+            cachedCustomCampaigns = new List<CustomCampaignInfo>();
+
+            try
+            {
+                // Find published campaigns (.bfg)
+                var publishedFiles = FileIO.FindPublishedCampaignFiles();
+                if ( publishedFiles != null )
+                {
+                    foreach ( var file in publishedFiles )
+                    {
+                        try
+                        {
+                            var campaign = FileIO.LoadPublishedCampaignFromDisk( file, ".bfg" );
+                            if ( campaign != null )
+                            {
+                                cachedCustomCampaigns.Add( new CustomCampaignInfo
+                                {
+                                    FileName = file,
+                                    DisplayName = campaign.header?.name ?? file,
+                                    IsPublished = true,
+                                    LevelCount = campaign.Length
+                                } );
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // Find unpublished campaigns (.bfc)
+                var unpublishedFiles = FileIO.FindCampaignFiles();
+                if ( unpublishedFiles != null )
+                {
+                    foreach ( var file in unpublishedFiles )
+                    {
+                        try
+                        {
+                            var campaign = FileIO.LoadCampaignFromDisk( file );
+                            if ( campaign != null )
+                            {
+                                cachedCustomCampaigns.Add( new CustomCampaignInfo
+                                {
+                                    FileName = file,
+                                    DisplayName = campaign.header?.name ?? file,
+                                    IsPublished = false,
+                                    LevelCount = campaign.Length
+                                } );
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch ( Exception ex )
+            {
+                Main.mod.Logger.Error( $"Error refreshing custom campaign cache: {ex.Message}" );
+            }
         }
 
         #endregion
@@ -786,8 +867,20 @@ namespace Utility_Mod
             string currentCampaignDisplay = "Unknown";
             int currentLevelNum = LevelSelectionController.CurrentLevelNum + 1; // Convert to 1-based
 
-            // Find the matching campaign display name
-            if ( GameState.Instance != null && !string.IsNullOrEmpty( GameState.Instance.campaignName ) )
+            // Check for online campaign first
+            if ( LevelSelectionController.isOnlineCampaign )
+            {
+                currentCampaignDisplay = LevelSelectionController.currentWorkshopLevel?.name ?? "Online Campaign";
+            }
+            // Check for local custom campaign
+            else if ( LevelSelectionController.loadCustomCampaign )
+            {
+                currentCampaignDisplay = LevelSelectionController.currentCampaign?.header?.name
+                    ?? LevelSelectionController.campaignToLoad
+                    ?? "Custom Campaign";
+            }
+            // Built-in campaign
+            else if ( GameState.Instance != null && !string.IsNullOrEmpty( GameState.Instance.campaignName ) )
             {
                 // Look for matching campaign in actualCampaignNames
                 for ( int i = 0; i < Main.actualCampaignNames.Length && i < Main.campaignDisplayNames.Length; i++ )
@@ -806,7 +899,7 @@ namespace Utility_Mod
 
             // Go to Level submenu
             MenuItem goToLevelMenu = new MenuItem( "Go to Level" );
-            BuildGoToLevelSubmenu( goToLevelMenu );
+            BuildCampaignLevelList( goToLevelMenu, false );
             parentMenu.AddSubItem( goToLevelMenu );
 
             // Starting Level submenu
@@ -865,19 +958,54 @@ namespace Utility_Mod
             } );
         }
 
-        public void BuildGoToLevelSubmenu( MenuItem parentMenu )
+        private void BuildCampaignLevelList( MenuItem parentMenu, bool isStartingLevelMenu )
         {
-            // Add all campaigns using the same display names as the mod UI
-            for ( int i = 0; i < Main.campaignDisplayNames.Length; i++ )
-            {
-                int campaignIndex = i; // Capture for closure
-                MenuItem campaignMenu = new MenuItem( Main.campaignDisplayNames[i] );
+            const int whiteHouseIndex = 15;
 
-                // Add levels for this campaign
-                int levelCount = manager.GetLevelCountForCampaign( i );
-                for ( int j = 0; j < levelCount; j++ )
+            // Add campaigns 0-15 (Campaign 1 through White House)
+            for ( int i = 0; i <= whiteHouseIndex && i < Main.campaignDisplayNames.Length; i++ )
+            {
+                BuildCampaignSubmenu( parentMenu, i, isStartingLevelMenu );
+            }
+
+            // Add Custom Campaigns submenu after White House
+            BuildCustomCampaignsSubmenu( parentMenu, isStartingLevelMenu );
+
+            // Add campaigns 16+ (Alien Challenge through Muscle Temple 5)
+            for ( int i = whiteHouseIndex + 1; i < Main.campaignDisplayNames.Length; i++ )
+            {
+                BuildCampaignSubmenu( parentMenu, i, isStartingLevelMenu );
+            }
+        }
+
+        private void BuildCampaignSubmenu( MenuItem parentMenu, int campaignIndex, bool isStartingLevelMenu )
+        {
+            MenuItem campaignMenu = new MenuItem( Main.campaignDisplayNames[campaignIndex] );
+
+            int levelCount = manager.GetLevelCountForCampaign( campaignIndex );
+            for ( int j = 0; j < levelCount; j++ )
+            {
+                int levelIndex = j;
+
+                if ( isStartingLevelMenu )
                 {
-                    int levelIndex = j; // Capture for closure
+                    var action = MenuAction.CreateSetSpecificLevelAsStarting( campaignIndex, levelIndex );
+
+                    bool isCurrentStartingLevel = !Main.settings.isCustomCampaignStarting &&
+                        campaignIndex == Main.settings.campaignNum && levelIndex == Main.settings.levelNum;
+
+                    campaignMenu.AddSubItem( new MenuItem( ( isCurrentStartingLevel ? "✓ " : "" ) + $"Level {j + 1}", () =>
+                    {
+                        Main.settings.isCustomCampaignStarting = false;
+                        manager.ExecuteAction( action );
+                        manager.CloseMenu();
+                    } )
+                    {
+                        MenuAction = action
+                    } );
+                }
+                else
+                {
                     var action = MenuAction.CreateGoToLevel( campaignIndex, levelIndex );
                     campaignMenu.AddSubItem( new MenuItem( $"Level {j + 1}", () =>
                     {
@@ -887,9 +1015,76 @@ namespace Utility_Mod
                         MenuAction = action
                     } );
                 }
-
-                parentMenu.AddSubItem( campaignMenu );
             }
+
+            parentMenu.AddSubItem( campaignMenu );
+        }
+
+        private void BuildCustomCampaignsSubmenu( MenuItem parentMenu, bool isStartingLevelMenu )
+        {
+            MenuItem customCampaignsMenu = new MenuItem( "Custom Campaigns" );
+
+            var customCampaigns = GetAvailableCustomCampaigns();
+
+            foreach ( var campaign in customCampaigns )
+            {
+                string fileName = campaign.FileName;
+                string displayName = campaign.DisplayName;
+                bool isPublished = campaign.IsPublished;
+                int levelCount = campaign.LevelCount;
+
+                if ( levelCount <= 0 )
+                    continue;
+
+                MenuItem campaignMenu = new MenuItem( displayName );
+
+                for ( int j = 0; j < levelCount; j++ )
+                {
+                    int levelIndex = j;
+
+                    if ( isStartingLevelMenu )
+                    {
+                        var action = MenuAction.CreateSetSpecificCustomCampaignLevelAsStarting( fileName, displayName, levelIndex, isPublished );
+
+                        // Add checkmark if this is the current starting level
+                        bool isCurrentStartingLevel = Main.settings.isCustomCampaignStarting &&
+                            Main.settings.customCampaignName == fileName &&
+                            Main.settings.levelNum == levelIndex;
+
+                        campaignMenu.AddSubItem( new MenuItem( ( isCurrentStartingLevel ? "✓ " : "" ) + $"Level {j + 1}", () =>
+                        {
+                            manager.ExecuteAction( action );
+                            manager.CloseMenu();
+                        } )
+                        {
+                            MenuAction = action
+                        } );
+                    }
+                    else
+                    {
+                        var action = MenuAction.CreateGoToCustomCampaignLevel( fileName, displayName, levelIndex, isPublished );
+                        campaignMenu.AddSubItem( new MenuItem( $"Level {j + 1}", () =>
+                        {
+                            manager.ExecuteAction( action );
+                        } )
+                        {
+                            MenuAction = action
+                        } );
+                    }
+                }
+
+                customCampaignsMenu.AddSubItem( campaignMenu );
+            }
+
+            // Add separator and Refresh option at the bottom
+            customCampaignsMenu.AddSeparator();
+            customCampaignsMenu.AddSubItem( new MenuItem( "Refresh", () =>
+            {
+                RefreshCustomCampaignCache();
+                manager.CloseMenu();
+            } ) );
+
+            parentMenu.AddSubItem( customCampaignsMenu );
         }
 
         public void BuildStartingLevelSubmenu( MenuItem parentMenu )
@@ -909,41 +1104,20 @@ namespace Utility_Mod
             parentMenu.AddSeparator();
 
             // Current starting level with dropdown selector
-            string currentCampaignName = Main.settings.campaignNum < Main.campaignDisplayNames.Length
-                ? Main.campaignDisplayNames[Main.settings.campaignNum]
-                : $"Campaign {Main.settings.campaignNum + 1}";
-
-            MenuItem setStartingLevelMenu = new MenuItem( $"Starting Level: {currentCampaignName} - Level {Main.settings.levelNum + 1}" );
-
-            // Build dropdown-style submenu for all campaigns
-            for ( int i = 0; i < Main.campaignDisplayNames.Length; i++ )
+            string currentCampaignName;
+            if ( Main.settings.isCustomCampaignStarting )
             {
-                int campaignIndex = i; // Capture for closure
-                MenuItem campaignMenu = new MenuItem( Main.campaignDisplayNames[i] );
-
-                // Add levels for this campaign
-                int levelCount = manager.GetLevelCountForCampaign( i );
-                for ( int j = 0; j < levelCount; j++ )
-                {
-                    int levelIndex = j; // Capture for closure
-                    var action = MenuAction.CreateSetSpecificLevelAsStarting( campaignIndex, levelIndex );
-
-                    // Add checkmark if this is the current starting level
-                    bool isCurrentStartingLevel = ( campaignIndex == Main.settings.campaignNum && levelIndex == Main.settings.levelNum );
-
-                    campaignMenu.AddSubItem( new MenuItem( ( isCurrentStartingLevel ? "✓ " : "" ) + $"Level {j + 1}", () =>
-                    {
-                        manager.ExecuteAction( action );
-                        manager.CloseMenu();
-                    } )
-                    {
-                        MenuAction = action
-                    } );
-                }
-
-                setStartingLevelMenu.AddSubItem( campaignMenu );
+                currentCampaignName = Main.settings.customCampaignName;
+            }
+            else
+            {
+                currentCampaignName = Main.settings.campaignNum < Main.campaignDisplayNames.Length
+                    ? Main.campaignDisplayNames[Main.settings.campaignNum]
+                    : $"Campaign {Main.settings.campaignNum + 1}";
             }
 
+            MenuItem setStartingLevelMenu = new MenuItem( $"Starting Level: {currentCampaignName} - Level {Main.settings.levelNum + 1}" );
+            BuildCampaignLevelList( setStartingLevelMenu, true );
             parentMenu.AddSubItem( setStartingLevelMenu );
 
             parentMenu.AddSeparator();

@@ -426,7 +426,23 @@ namespace Utility_Mod
                 if ( !Main.loadedLevel && Main.settings.goToLevelOnStartup )
                 {
                     Main.loadedLevel = true;
-                    Main.GoToLevel( Main.campaignNum.indexNumber, Main.levelNum.indexNumber );
+                    if ( Main.settings.isCustomCampaignStarting )
+                    {
+                        if ( !string.IsNullOrEmpty( Main.settings.customCampaignWorkshopId ) )
+                        {
+                            // Online campaign - async download required
+                            Main.GoToOnlineCampaignLevel( Main.settings.customCampaignWorkshopId, Main.settings.levelNum );
+                        }
+                        else
+                        {
+                            // Local custom campaign
+                            Main.GoToLevel( -1, Main.settings.levelNum, Main.settings.customCampaignName, Main.settings.customCampaignIsPublished );
+                        }
+                    }
+                    else
+                    {
+                        Main.GoToLevel( Main.settings.campaignNum, Main.settings.levelNum );
+                    }
                 }
 
                 Main.loadedLevel = true;
