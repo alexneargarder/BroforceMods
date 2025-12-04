@@ -446,3 +446,6 @@ Settings.xml*
 .devenv/**
 .devenv.flake.nix
 .direnv/
+
+# Local convenience folders
+ModContents/
