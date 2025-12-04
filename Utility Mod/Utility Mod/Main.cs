@@ -9,6 +9,7 @@ using RocketLib.Utils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityModManagerNet;
+using Steamworks;
 
 
 namespace Utility_Mod
@@ -270,6 +271,9 @@ namespace Utility_Mod
             RocketLibUtils.MakeObjectUnpausable( contextMenuGO );
             contextMenuGO.AddComponent<ContextMenuManager>();
             UnityEngine.Object.DontDestroyOnLoad( contextMenuGO );
+
+            // Cache custom campaigns list
+            ContextMenuBuilder.RefreshCustomCampaignCache();
 
             // Initialize Unity log capture if enabled
             if ( settings.captureUnityLogs )
@@ -2937,7 +2941,7 @@ namespace Utility_Mod
             lastCampaignNum = campaignNum.indexNumber;
         }
 
-        public static void GoToLevel( int campaignIndex, int levelIndex )
+        public static void GoToLevel( int campaignIndex, int levelIndex, string customCampaignName = null, bool customCampaignIsPublished = false )
         {
             if ( !Main.settings.cameraShake )
             {
@@ -2965,20 +2969,105 @@ namespace Utility_Mod
             LevelSelectionController.ResetLevelAndGameModeToDefault();
             GameState.Instance.ResetToDefault();
 
-            if ( campaignIndex >= 0 && campaignIndex < actualCampaignNames.Length )
+            bool isCustomCampaign = !string.IsNullOrEmpty( customCampaignName );
+
+            if ( isCustomCampaign )
             {
-                GameState.Instance.campaignName = actualCampaignNames[campaignIndex];
+                // Custom campaign setup
+                LevelSelectionController.loadCustomCampaign = true;
+                LevelSelectionController.loadPublishedCampaign = customCampaignIsPublished;
+                LevelSelectionController.campaignToLoad = customCampaignName;
+
+                if ( customCampaignIsPublished )
+                    LevelSelectionController.currentCampaign = FileIO.LoadPublishedCampaignFromDisk( customCampaignName, ".bfg" );
+                else
+                    LevelSelectionController.currentCampaign = FileIO.LoadCampaignFromDisk( customCampaignName );
+
                 LevelSelectionController.CurrentLevelNum = levelIndex;
+                GameState.Instance.returnToWorldMap = false;
             }
             else
             {
-                GameState.Instance.campaignName = actualCampaignNames[0];
-                LevelSelectionController.CurrentLevelNum = 0;
+                // Built-in campaign setup
+                if ( campaignIndex >= 0 && campaignIndex < actualCampaignNames.Length )
+                {
+                    GameState.Instance.campaignName = actualCampaignNames[campaignIndex];
+                    LevelSelectionController.CurrentLevelNum = levelIndex;
+                }
+                else
+                {
+                    GameState.Instance.campaignName = actualCampaignNames[0];
+                    LevelSelectionController.CurrentLevelNum = 0;
+                }
+                GameState.Instance.returnToWorldMap = true;
             }
 
             GameState.Instance.loadMode = MapLoadMode.Campaign;
             GameState.Instance.gameMode = GameMode.Campaign;
-            GameState.Instance.returnToWorldMap = true;
+            GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
+            GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+
+            GameModeController.LoadNextScene( GameState.Instance );
+        }
+
+        private static int pendingOnlineLevelIndex = 0;
+
+        public static void GoToOnlineCampaignLevel( string workshopId, int levelIndex )
+        {
+            if ( !Main.settings.cameraShake )
+            {
+                PlayerOptions.Instance.cameraShakeAmount = 0f;
+            }
+
+            // Setup player 1 if they haven't yet joined
+            if ( !HeroController.IsPlayerPlaying( 0 ) )
+            {
+                PlayerProgress.currentWorldMapSaveSlot = 0;
+                GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[0];
+
+                int playerNumber = 0;
+                PID pid = PID.MyID;
+                string playerName = PlayerOptions.Instance.playerName;
+                int controllerJoin = settings.goToLevelControllerNum;
+
+                HeroController.PIDS[playerNumber] = pid;
+                HeroController.playerControllerIDs[playerNumber] = controllerJoin;
+                HeroController.SetPlayerName( playerNumber, playerName );
+                HeroController.SetIsPlaying( playerNumber, true );
+            }
+
+            LevelSelectionController.ResetLevelAndGameModeToDefault();
+            GameState.Instance.ResetToDefault();
+
+            // Set up for online campaign
+            LevelSelectionController.isOnlineCampaign = true;
+            LevelSelectionController.loadCustomCampaign = true;
+            GameState.Instance.customLevelID = workshopId;
+
+            // Subscribe to download completion
+            SteamController.LevelLoadCompleteEvent += OnOnlineCampaignLoaded;
+            pendingOnlineLevelIndex = levelIndex;
+
+            // Trigger async download
+            var fileId = new PublishedFileId_t( ulong.Parse( workshopId ) );
+            SteamController.LoadLevel( fileId );
+        }
+
+        private static void OnOnlineCampaignLoaded( Campaign campaign )
+        {
+            SteamController.LevelLoadCompleteEvent -= OnOnlineCampaignLoaded;
+
+            if ( campaign == null )
+            {
+                mod.Logger.Error( "Failed to download online campaign" );
+                return;
+            }
+
+            LevelSelectionController.currentCampaign = campaign;
+            LevelSelectionController.CurrentLevelNum = pendingOnlineLevelIndex;
+            GameState.Instance.returnToWorldMap = false;
+            GameState.Instance.loadMode = MapLoadMode.Campaign;
+            GameState.Instance.gameMode = campaign.header.gameMode;
             GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
             GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
 

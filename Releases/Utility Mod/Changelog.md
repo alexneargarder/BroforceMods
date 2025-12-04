@@ -1,3 +1,7 @@
+## v2.4.1 (unreleased)
+- Added option to go to custom campaigns from right click menu.
+- Added option to go to custom campaign on startup.
+
 ## v2.4.0
 - Added option to set keybindings for pretty much all toggles and buttons.
 - Added ability to go to level without being on the world map.

@@ -87,6 +87,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(LibPath)\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(LibPath)\Assembly-CSharp-firstpass.dll</HintPath>
+    </Reference>
     <Reference Include="BitCode.AssetManagement">
       <HintPath>$(LibPath)\BitCode.AssetManagement.dll</HintPath>
     </Reference>

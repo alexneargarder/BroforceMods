@@ -47,6 +47,10 @@ namespace Utility_Mod
         public int levelNum = 0;
         public bool goToLevelOnStartup = false;
         public int goToLevelControllerNum = 0;
+        public bool isCustomCampaignStarting = false;
+        public string customCampaignName = "";
+        public bool customCampaignIsPublished = false;
+        public string customCampaignWorkshopId = "";
 
         // Cheat Options
         public bool invulnerable = false;
