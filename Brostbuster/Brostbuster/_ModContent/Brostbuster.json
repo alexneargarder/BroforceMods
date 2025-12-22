@@ -48,7 +48,8 @@
       "y": 15
     },
     "anim": "Intro_Bro_Rambro",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/Brostbuster.wav"
   },
   "beforeAwake": {
     "speed": 120,

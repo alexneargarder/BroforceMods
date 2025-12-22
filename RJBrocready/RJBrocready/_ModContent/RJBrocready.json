@@ -45,7 +45,8 @@
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_Rambro",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/R J Brocready.wav"
   },
   "beforeAwake": {
     "speed": 130,
