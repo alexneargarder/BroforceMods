@@ -28,7 +28,8 @@
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_Rambro",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/Drunken Broster.wav"
   },
   "beforeAwake": {
     "speed": 130,

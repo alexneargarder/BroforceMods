@@ -36,7 +36,8 @@
     },
     "spritePath": "cutscene.png",
     "anim": "Intro_Bro_BroDredd",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/Imperator Furibrosa.wav"
   },
 
   "beforeAwake": {

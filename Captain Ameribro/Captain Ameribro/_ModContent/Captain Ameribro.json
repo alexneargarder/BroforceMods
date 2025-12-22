@@ -31,7 +31,8 @@
     },
     "spritePath": "captainAmeribroCutscene.png",
     "anim": "Intro_Bro_BroDredd",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/Captain Ameribro.wav"
   },
   "beforeAwake": {
     "speed": 130,

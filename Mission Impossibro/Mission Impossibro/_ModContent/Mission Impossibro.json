@@ -33,7 +33,8 @@
       "y": -17
     },
     "anim": "Intro_Bro_BroDredd",
-    "playCutsceneOnFirstSpawn": true
+    "playCutsceneOnFirstSpawn": true,
+    "barkPath": "sounds/Mission Impossibro.wav"
   },
   "beforeAwake": {
     "speed": 130,
