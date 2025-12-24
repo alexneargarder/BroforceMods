@@ -1,10 +1,15 @@
 {
-	"Id": "Swap Bros Mod",
-	"DisplayName": "Swap Bros",
-	"Author": "AlexN",
-	"Version": "2.1.4",
-	"Requirements": [ "RocketLib" ],
-	"LoadAfter": [ "RocketLib", "BroMaker" ],
-	"AssemblyName": "Swap Bros Mod.dll",
-	"EntryMethod": "Swap_Bros_Mod.Main.Load"
+  "Id": "Swap Bros Mod",
+  "DisplayName": "Swap Bros",
+  "Author": "AlexN",
+  "Version": "2.1.5",
+  "Requirements": [
+    "RocketLib"
+  ],
+  "LoadAfter": [
+    "RocketLib",
+    "BroMaker"
+  ],
+  "AssemblyName": "Swap Bros Mod.dll",
+  "EntryMethod": "Swap_Bros_Mod.Main.Load"
 }

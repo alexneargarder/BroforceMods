@@ -1,10 +1,11 @@
 {
   "name": "Swap_Bros",
   "author": "AlexN",
-  "version_number": "2.1.4",
+  "version_number": "2.1.5",
   "website_url": "https://github.com/alexneargarder/BroforceMods",
   "description": "This mod allows you to instantly swap bros at the press of a button, filter the bros you can spawn as, or always spawn as a single bro.",
   "dependencies": [
-    "UMM-UMM-1.0.2"
+    "UMM-UMM-1.0.2",
+    "RocketLib-RocketLib-2.4.2"
   ]
 }
