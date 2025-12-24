@@ -1,9 +1,7 @@
-## v2.1.6 (unreleased)
-- Handle BroMaker custom bro unlocks better
-
-## v2.1.5
+## v2.1.5 (unreleased)
 - Fix bug with errors being thrown sometimes when enabling / disabling BroMaker bros.
-- Fix not tracking custom bro unlock changes.
+- Handle BroMaker custom bro unlocks better.
+- Switch to using RocketLib for keybindings.
 
 ## v2.1.4
 - Changes for BroMaker update.

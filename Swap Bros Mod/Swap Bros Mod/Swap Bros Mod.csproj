@@ -49,6 +49,9 @@
     <Reference Include="BroMakerLib">
       <HintPath>$(BroMakerLibPath)</HintPath>
     </Reference>
+    <Reference Include="RocketLib">
+      <HintPath>$(RocketLibPath)</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(LibPath)\Newtonsoft.Json.dll</HintPath>
     </Reference>

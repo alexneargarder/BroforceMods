@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,32 +6,18 @@ using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.Loaders;
 using BroMakerLib.Storages;
 using HarmonyLib;
+using RocketLib;
+using RocketLib.Utils;
 using UnityEngine;
 using UnityModManagerNet;
 using BSett = BroMakerLib.Settings;
 
 namespace Swap_Bros_Mod
 {
-    public enum DPAD
-    {
-        LEFT,
-        RIGHT,
-        UP,
-        DOWN,
-        NONE
-    }
-
-    public class KeyBind
-    {
-        public KeyCode kc;
-        public bool waitingForInput = false;
-        public string DPADString = "NONE";
-        public DPAD DPADKey = DPAD.NONE;
-        public string joystick = "NONE";
-    }
-
     public static class Main
     {
+        public static KeyBindingForPlayers swapLeftKey;
+        public static KeyBindingForPlayers swapRightKey;
         public static UnityModManager.ModEntry mod;
         public static bool enabled;
         public static float cooldown = 0;
@@ -92,6 +77,8 @@ namespace Swap_Bros_Mod
             {
                 mod.Logger.Error( e.ToString() );
             }
+
+            LoadKeyBinding();
 
             // Check if bromaker is available unless it was manually toggled already
             if ( settings.enableBromakerDefault && !settings.enableBromaker )
@@ -323,23 +310,10 @@ namespace Swap_Bros_Mod
                 if ( settings.showSettings[i] )
                 {
                     GUILayout.BeginHorizontal();
-                    if ( GUILayout.Button(
-                        new GUIContent( "Swap Bro Left: " + ( settings.swapLeftKeys[i].waitingForInput ? "Press Any Key/Button" : ( settings.swapLeftKeys[i].DPADKey == DPAD.NONE ? settings.swapLeftKeys[i].kc.ToString() : "DPAD " + settings.swapLeftKeys[i].DPADString ) ),
-                        "Set a key for swapping bros, or press Delete to unbind" )
-                        ) && !InputReader.IsBlocked )
-                    {
-                        settings.swapLeftKeys[i].waitingForInput = true;
-                        UnityModManager.UI.Instance.StartCoroutine( BindKey( settings.swapLeftKeys[i], i ) );
-                    }
-
-                    if ( GUILayout.Button(
-                        new GUIContent( "Swap Bro Right: " + ( settings.swapRightKeys[i].waitingForInput ? "Press Any Key/Button" : ( settings.swapRightKeys[i].DPADKey == DPAD.NONE ? settings.swapRightKeys[i].kc.ToString() : "DPAD " + settings.swapRightKeys[i].DPADString ) ),
-                        "Set a key for swapping bros, or press Delete to unbind" )
-                        ) && !InputReader.IsBlocked )
-                    {
-                        settings.swapRightKeys[i].waitingForInput = true;
-                        UnityModManager.UI.Instance.StartCoroutine( BindKey( settings.swapRightKeys[i], i ) );
-                    }
+                    GUILayout.Label( "Swap Bro Left: ", GUILayout.ExpandWidth( false ) );
+                    swapLeftKey.OnGUI( out _, false, true, ref previousToolTip, i, true, false, false );
+                    GUILayout.Label( "Swap Bro Right: ", GUILayout.ExpandWidth( false ) );
+                    swapRightKey.OnGUI( out _, false, true, ref previousToolTip, i, true, false, false );
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
@@ -513,101 +487,6 @@ namespace Swap_Bros_Mod
             GUILayout.EndHorizontal();
         }
 
-        public static string[] axis6 = { "Joy1 Axis 6", "Joy2 Axis 6", "Joy3 Axis 6", "Joy4 Axis 6" };
-        public static string[] axis7 = { "Joy1 Axis 7", "Joy2 Axis 7", "Joy3 Axis 7", "Joy4 Axis 7" };
-        public static void CheckDPADDirection( ref KeyBind kb )
-        {
-            for ( int i = 0; i < 4; ++i )
-            {
-                float x = Input.GetAxis( axis6[i] );
-                float y = Input.GetAxis( axis7[i] );
-
-                if ( x < -0.8 )
-                {
-                    kb.DPADString = "Joy" + ( i + 1 ) + " LEFT";
-                    kb.DPADKey = DPAD.LEFT;
-                    kb.joystick = "Joy" + ( i + 1 ) + " Axis 6";
-                    return;
-                }
-                else if ( x > 0.8 )
-                {
-                    kb.DPADString = "Joy" + ( i + 1 ) + " RIGHT";
-                    kb.DPADKey = DPAD.RIGHT;
-                    kb.joystick = "Joy" + ( i + 1 ) + " Axis 6";
-                    return;
-                }
-                else if ( y < -0.8 )
-                {
-                    kb.DPADString = "Joy" + ( i + 1 ) + " DOWN";
-                    kb.DPADKey = DPAD.DOWN;
-                    kb.joystick = "Joy" + ( i + 1 ) + " Axis 7";
-                    return;
-                }
-                else if ( y > 0.8 )
-                {
-                    kb.DPADString = "Joy" + ( i + 1 ) + " UP";
-                    kb.DPADKey = DPAD.UP;
-                    kb.joystick = "Joy" + ( i + 1 ) + " Axis 7";
-                    return;
-                }
-            }
-            kb.DPADString = "NONE";
-            kb.DPADKey = DPAD.NONE;
-            kb.joystick = "NONE";
-        }
-
-        private static IEnumerator BindKey( KeyBind kb, int player )
-        {
-            InputReader.IsBlocked = true;
-            yield return new WaitForSeconds( 0.2f );
-            KeyCode[] keyCodes = Enum.GetValues( typeof( KeyCode ) ).Cast<KeyCode>().ToArray();
-            bool exit = false;
-            while ( !exit )
-            {
-                foreach ( KeyCode keyCode in keyCodes )
-                {
-                    if ( Input.GetKeyUp( keyCode ) )
-                    {
-                        if ( keyCode == KeyCode.Delete )
-                        {
-                            kb.kc = KeyCode.None;
-                        }
-                        else
-                        {
-                            kb.kc = keyCode;
-                        }
-                        kb.waitingForInput = false;
-                        kb.DPADKey = DPAD.NONE;
-                        exit = true;
-                    }
-                }
-                CheckDPADDirection( ref kb );
-                if ( kb.DPADKey != DPAD.NONE )
-                {
-                    kb.kc = KeyCode.None;
-                    kb.waitingForInput = false;
-                    exit = true;
-                }
-                yield return null;
-            }
-            InputReader.IsBlocked = false;
-        }
-
-        public static bool WasKeyPressed( KeyBind kb )
-        {
-            if ( kb.kc != KeyCode.None )
-            {
-                return Input.GetKeyUp( kb.kc );
-            }
-            else if ( kb.DPADKey != DPAD.NONE )
-            {
-                float x = Input.GetAxis( kb.joystick );
-
-                return ( x < -0.8 && ( kb.DPADKey == DPAD.LEFT || kb.DPADKey == DPAD.DOWN ) ) || ( x > 0.8 && ( kb.DPADKey == DPAD.RIGHT || kb.DPADKey == DPAD.DOWN ) );
-            }
-            return false;
-        }
-
         static void OnSaveGUI( UnityModManager.ModEntry modEntry )
         {
             settings.Save( modEntry );
@@ -617,6 +496,12 @@ namespace Swap_Bros_Mod
         {
             enabled = value;
             return true;
+        }
+
+        public static void LoadKeyBinding()
+        {
+            swapLeftKey = AllModKeyBindings.LoadKeyBinding( "Swap Bros Mod", "Swap Left" );
+            swapRightKey = AllModKeyBindings.LoadKeyBinding( "Swap Bros Mod", "Swap Right" );
         }
 
         public static void Log( String str )

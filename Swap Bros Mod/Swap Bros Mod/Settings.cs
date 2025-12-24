@@ -23,8 +23,6 @@ namespace Swap_Bros_Mod
 
         public int[] selGridInt = { 0, 0, 0, 0 };
         public bool[] showSettings = { true, false, false, false };
-        public KeyBind[] swapLeftKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
-        public KeyBind[] swapRightKeys = { new KeyBind(), new KeyBind(), new KeyBind(), new KeyBind() };
 
         public List<string> enabledBros = new List<string>();
         public bool filterBros = false;
