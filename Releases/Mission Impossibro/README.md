@@ -19,6 +19,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 - Thanks to Gorzon for making BroMaker.
 - Thanks to BruxelasCouveRocko for making all the sprites.
 - Thanks to FishTsar for adjusting a couple sprites.
+- Thanks to Joonas Turner for recording the announcer voiceline for Mission Impossibro's cutscene.
 
 ## Source Code
 
