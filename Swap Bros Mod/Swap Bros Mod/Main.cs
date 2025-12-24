@@ -7,7 +7,6 @@ using BroMakerLib.Loaders;
 using BroMakerLib.Storages;
 using HarmonyLib;
 using RocketLib;
-using RocketLib.Utils;
 using UnityEngine;
 using UnityModManagerNet;
 using BSett = BroMakerLib.Settings;
@@ -800,6 +799,11 @@ namespace Swap_Bros_Mod
         public static bool CheckIfCustomBroJustUnlocked( int playerNum )
         {
             return LoadHero.willPlayCutscene[playerNum];
+        }
+
+        public static bool CheckIfForcedCustomBro()
+        {
+            return BroSpawnManager.ForceCustomThisLevel;
         }
 
         public static void MakeCustomBroSpawn( int curPlayer, string name )
