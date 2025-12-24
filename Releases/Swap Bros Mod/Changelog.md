@@ -1,4 +1,4 @@
-## v2.1.5 (unreleased)
+## v2.1.5
 - Fix bug with errors being thrown sometimes when enabling / disabling BroMaker bros.
 - Handle BroMaker custom bro unlocks better.
 - Switch to using RocketLib for keybindings.
