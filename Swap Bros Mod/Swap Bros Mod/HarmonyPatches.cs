@@ -25,6 +25,12 @@ namespace Swap_Bros_Mod
 
                     int curPlayer = __instance.playerNum;
 
+                    // Give BroMaker unlocks priority over everything else
+                    if ( Main.settings.enableBromaker && Main.CheckIfCustomBroJustUnlocked( curPlayer ) )
+                    {
+                        return;
+                    }
+
                     if ( !Main.settings.alwaysChosen )
                     {
                         if ( GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked )
@@ -249,8 +255,8 @@ namespace Swap_Bros_Mod
                 }
 
                 int curPlayer = __instance.playerNum;
-                bool leftPressed = Main.wasKeyPressed( Main.settings.swapLeftKeys[__instance.playerNum] );
-                bool rightPressed = Main.wasKeyPressed( Main.settings.swapRightKeys[__instance.playerNum] );
+                bool leftPressed = Main.WasKeyPressed( Main.settings.swapLeftKeys[__instance.playerNum] );
+                bool rightPressed = Main.WasKeyPressed( Main.settings.swapRightKeys[__instance.playerNum] );
 
                 if ( ( ( ( leftPressed || rightPressed ) && Main.cooldown == 0f && __instance.IsAlive() ) || ( Main.settings.clickingEnabled && Main.switched[curPlayer] ) ) && __instance.character.pilottedUnit == null )
                 {

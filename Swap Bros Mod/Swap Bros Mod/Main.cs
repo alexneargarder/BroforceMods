@@ -53,6 +53,7 @@ namespace Swap_Bros_Mod
         public static int customBroCount = 0;
         public static List<string> allBros = new List<string>();
         public static int numCustomBros = 0;
+        public static bool firstCustomBroLoad = true;
 
         public static List<string> currentBroList = new List<string>();
         public static List<string> currentBroListUnseen = new List<string>();
@@ -592,7 +593,7 @@ namespace Swap_Bros_Mod
             InputReader.IsBlocked = false;
         }
 
-        public static bool wasKeyPressed( KeyBind kb )
+        public static bool WasKeyPressed( KeyBind kb )
         {
             if ( kb.kc != KeyCode.None )
             {
@@ -840,6 +841,21 @@ namespace Swap_Bros_Mod
 
         public static void LoadCustomBros()
         {
+            if ( Main.firstCustomBroLoad )
+            {
+                Main.firstCustomBroLoad = false;
+                // If bro is unlocked and we're filtering bros, add it to the enabled list
+                BroSpawnManager.RegisterNotifyBroUnlocked( ( string broName, StoredHero bro ) =>
+                {
+                    if ( settings.filterBros && !settings.enabledBros.Contains( broName ) )
+                    {
+                        settings.enabledBros.Add( broName );
+                        LoadCustomBros();
+                        CreateBroList();
+                        CreateFilteredBroList();
+                    }
+                } );
+            }
             if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
             {
                 allCustomBros = BroSpawnManager.GetAllSpawnableBrosNames();
@@ -894,6 +910,11 @@ namespace Swap_Bros_Mod
             }
 
             return false;
+        }
+
+        public static bool CheckIfCustomBroJustUnlocked( int playerNum )
+        {
+            return LoadHero.willPlayCutscene[playerNum];
         }
 
         public static void MakeCustomBroSpawn( int curPlayer, string name )
