@@ -31,6 +31,12 @@ namespace Swap_Bros_Mod
                         return;
                     }
 
+                    // Give BroMaker forced bros priority over everything else
+                    if ( Main.settings.enableBromaker && Main.CheckIfForcedCustomBro() )
+                    {
+                        return;
+                    }
+
                     if ( !Main.settings.alwaysChosen )
                     {
                         if ( GameState.Instance.hardCoreMode && !Main.settings.ignoreCurrentUnlocked )
@@ -41,7 +47,7 @@ namespace Swap_Bros_Mod
                         // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
                         if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
                         {
-                            // Check if map has a forced bro
+                            // Check if ignore is enabled and map has a forced bro
                             if ( !Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random )
                             {
                                 nextHeroType = Map.MapData.forcedBro;
@@ -53,14 +59,9 @@ namespace Swap_Bros_Mod
                                     nextHero = 0;
                                 }
 
-                                if ( Main.settings.enableBromaker )
-                                {
-                                    Main.DisableCustomBroSpawning( curPlayer );
-                                }
-
                                 Main.settings.selGridInt[curPlayer] = nextHero;
                             }
-                            // Check if map has multiple forced bros
+                            // Check if ignore is disabled and map has multiple forced bros
                             else if ( !Main.settings.ignoreForcedBros && Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 )
                             {
                                 string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range( 0, Main.currentBroListUnseen.Count() )];
@@ -72,11 +73,6 @@ namespace Swap_Bros_Mod
                                 if ( nextHero == -1 )
                                 {
                                     nextHero = 0;
-                                }
-
-                                if ( Main.settings.enableBromaker )
-                                {
-                                    Main.DisableCustomBroSpawning( curPlayer );
                                 }
 
                                 Main.settings.selGridInt[curPlayer] = nextHero;
