@@ -19,6 +19,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 - Thanks to Gorzon for making BroMaker.
 - Thanks to BruxelasCouveRocko for making all of the sprites.
 - Thanks to Bralef for the idea for the mod.
+- Thanks to Joonas Turner for recording the announcer voiceline for Furibrosa's cutscene.
 
 ## Source Code
 
