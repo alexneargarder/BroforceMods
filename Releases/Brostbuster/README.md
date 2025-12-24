@@ -19,6 +19,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 - Thanks to Gorzon for making BroMaker.
 - Thanks to BruxelasCouveRocko for making most of the sprites.
 - Thanks to FishTsar for making the Slimer sprites and making some changes to the ghost trap sprites.
+- Thanks to Joonas Turner for recording the announcer voiceline for Brostbuster's cutscene.
 
 ## Source Code
 
