@@ -18,6 +18,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 - Thanks to Gorzon for making BroMaker.
 - Thanks to BruxelasCouveRocko for making all of the sprites.
+- Thanks to Joonas Turner for recording the announcer voiceline for RJBrocready's cutscene.
 
 ## Source Code
 
