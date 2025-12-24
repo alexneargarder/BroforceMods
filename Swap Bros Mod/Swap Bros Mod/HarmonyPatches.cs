@@ -255,8 +255,8 @@ namespace Swap_Bros_Mod
                 }
 
                 int curPlayer = __instance.playerNum;
-                bool leftPressed = Main.WasKeyPressed( Main.settings.swapLeftKeys[__instance.playerNum] );
-                bool rightPressed = Main.WasKeyPressed( Main.settings.swapRightKeys[__instance.playerNum] );
+                bool leftPressed = Main.swapLeftKey.IsDown( __instance.playerNum );
+                bool rightPressed = Main.swapRightKey.IsDown( __instance.playerNum );
 
                 if ( ( ( ( leftPressed || rightPressed ) && Main.cooldown == 0f && __instance.IsAlive() ) || ( Main.settings.clickingEnabled && Main.switched[curPlayer] ) ) && __instance.character.pilottedUnit == null )
                 {
