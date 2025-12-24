@@ -19,6 +19,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 - Thanks to Gorzon for making BroMaker. He turned my Captain Ameribro idea into something much greater and put in a ton of work to make all this possible.
 - Thanks to FishTsar for making all the sprites. They all turned out many times better than anything I could have done by myself.
 - Thanks to BruxelasCouveRocko for drawing the cutscene animation. It ties the whole mod together.
+- Thanks to Joonas Turner for recording the announcer voiceline for Captain Ameribro's cutscene.
 
 ## Source Code
 

@@ -1,0 +1,12 @@
+{
+  "name": "Captain_Ameribro",
+  "author": "AlexN",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/alexneargarder/BroforceMods",
+  "description": "Captain Ameribro Joins the Battle!",
+  "dependencies": [
+    "UMM-UMM-1.0.2",
+    "RocketLib-RocketLib-2.4.1",
+    "BroMaker-BroMaker-2.6.0"
+  ]
+}
