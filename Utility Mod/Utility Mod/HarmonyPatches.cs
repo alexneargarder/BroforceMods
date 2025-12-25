@@ -310,7 +310,7 @@ namespace Utility_Mod
                     return true;
                 }
 
-                if ( doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss )
+                if ( doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss || doodad.type == DoodadType.Vehicle )
                 {
                     return false;
                 }
