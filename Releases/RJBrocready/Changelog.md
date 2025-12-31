@@ -1,4 +1,4 @@
-## v1.1.0 (unreleased)
+## v1.1.0
 - Changes for BroMaker update.
 - Added option to not carry over death in IronBro mode.
 - Allow special to hit nearby enemies.
