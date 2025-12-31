@@ -1,4 +1,4 @@
-## v1.1.0 (unreleased)
+## v1.1.0
 - Changes for BroMaker update.
 - Fixed shield being unable to be consumed by worm tunnels.
 - Allow shield to be used by other characters.
