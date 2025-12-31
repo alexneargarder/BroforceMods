@@ -3,7 +3,7 @@
   "BroMakerVersion": "2.6.0",
   "Name": "Mission Impossibro",
   "Author": "AlexN",
-  "CustomBros":[
+  "CustomBros": [
     "Mission Impossibro.json"
   ],
   "Assemblies": [

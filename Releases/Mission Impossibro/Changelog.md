@@ -1,4 +1,4 @@
-## v1.1.0 (unreleased)
+## v1.1.0
 - Changes for BroMaker update.
 - Added option to set keybinding to toggle grapple.
 - Added option to disable jump from toggling grapple.
