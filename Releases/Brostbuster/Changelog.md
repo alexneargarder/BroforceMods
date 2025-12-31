@@ -1,4 +1,4 @@
-## v1.1.0 (unreleased)
+## v1.1.0
 - Changes for BroMaker update.
 - Shorten proton charge up when resuming firing.
 - Allow ghost trap to capture projectiles and grenades.
