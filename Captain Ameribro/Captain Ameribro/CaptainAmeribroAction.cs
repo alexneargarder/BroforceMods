@@ -27,7 +27,8 @@ namespace Captain_Ameribro
         public static Shield shieldPrefab = CustomProjectile.CreatePrefab<Shield>( new List<Type>() { typeof( SphereCollider ) } );
         protected override void ExecuteAction( bool isLevelStart )
         {
-            Vector3 spawnPoint = Map.GetBlockCenter( this.info.SpawnPoint );
+            GridPoint realPoint = new GridPoint( this.info.SpawnPoint.collumn - Map.lastXLoadOffset, this.info.SpawnPoint.row - Map.lastYLoadOffset );
+            Vector3 spawnPoint = Map.GetBlockCenter( realPoint );
 
             Shield shield = ProjectileController.SpawnProjectileLocally( shieldPrefab, null, spawnPoint.x, spawnPoint.y, 0f, 0f, false, 0, false, false, 0f ) as Shield;
             shield.Setup( null );
