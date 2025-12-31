@@ -51,8 +51,10 @@ namespace Furibrosa
                 }
             }
 
-            Vector3 spawnPoint = Map.GetBlockCenter( this.info.SpawnPoint );
-            Vector3 targetPoint = Map.GetBlockCenter( this.info.TargetPoint );
+            GridPoint realPoint = new GridPoint( this.info.SpawnPoint.collumn - Map.lastXLoadOffset, this.info.SpawnPoint.row - Map.lastYLoadOffset );
+            Vector3 spawnPoint = Map.GetBlockCenter( realPoint );
+            realPoint = new GridPoint( this.info.TargetPoint.collumn - Map.lastXLoadOffset, this.info.TargetPoint.row - Map.lastYLoadOffset );
+            Vector3 targetPoint = Map.GetBlockCenter( realPoint );
             float direction = Mathf.Sign( targetPoint.x - spawnPoint.x );
 
             WarRig currentWarRig = UnityEngine.Object.Instantiate<WarRig>( Furibrosa.warRigPrefab, spawnPoint, Quaternion.identity );
