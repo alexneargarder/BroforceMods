@@ -8,9 +8,9 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 ## Gameplay
 
-[![Drunken Broster Gameplay](https://img.youtube.com/vi/PLACEHOLDER/maxresdefault.jpg)](https://www.youtube.com/watch?v=PLACEHOLDER "Drunken Broster Gameplay")
+[![Drunken Broster Gameplay](https://img.youtube.com/vi/QyxI-LNhn6k/maxresdefault.jpg)](https://www.youtube.com/watch?v=QyxI-LNhn6k "Drunken Broster Gameplay")
 
-[Watch on YouTube](https://www.youtube.com/watch?v=PLACEHOLDER)
+[Watch on YouTube](https://www.youtube.com/watch?v=QyxI-LNhn6k)
 
 **For more detailed information on his abilities, see [this guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3271295894) made by Colonel Mustache.**
 
@@ -20,6 +20,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 - Thanks to BruxelasCouveRocko for making most of the sprites.
 - Thanks to 07Vojkan09 for making the avatar.
 - Thanks to FishTsar for making the melee projectile sprites.
+- Thanks to ChuckTheNorris3 for helping edit the trailer video.
 - Thanks to Joonas Turner for recording the announcer voiceline for Drunken Broster's cutscene.
 
 ## Source Code

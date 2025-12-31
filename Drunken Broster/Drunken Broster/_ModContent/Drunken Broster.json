@@ -38,7 +38,9 @@
     "originalSpecialAmmo": 2
   },
   "unlockConfig": {
-    "method": "RescueCount",
+    "method": "RescueOrLevel",
+    "unlockLevelPath": "Drunken Broster.bfc",
+    "unlockLevelName": "Eight Drunken Gods",
     "RescueCountRequired": 5
   }
 }
