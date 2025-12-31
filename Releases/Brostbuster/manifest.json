@@ -6,7 +6,7 @@
   "description": "Brostbuster Joins the Battle!",
   "dependencies": [
     "UMM-UMM-1.0.2",
-    "RocketLib-RocketLib-2.4.1",
-    "BroMaker-BroMaker-2.6.0"
+    "RocketLib-RocketLib-2.4.2",
+    "BroMaker-BroMaker-2.6.1"
   ]
 }
