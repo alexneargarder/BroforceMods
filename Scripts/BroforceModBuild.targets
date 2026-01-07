@@ -10,7 +10,20 @@
           Condition="Exists('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')" />
 
   <PropertyGroup>
-    <BroforcePath Condition="'$(BroforcePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
+    <!-- Windows default -->
+    <BroforcePath Condition="'$(BroforcePath)' == '' AND '$(OS)' == 'Windows_NT'">C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
+    <!-- Linux default -->
+    <BroforcePath Condition="'$(BroforcePath)' == '' AND '$(OS)' != 'Windows_NT'">$(HOME)/.steam/steam/steamapps/common/Broforce</BroforcePath>
+    <!-- Linux: Point to Mono reference assemblies for .NET Framework 3.5 -->
+    <FrameworkPathOverride Condition="'$(FrameworkPathOverride)' == '' AND '$(OS)' != 'Windows_NT'">$(MSBuildExtensionsPath)/../2.0-api</FrameworkPathOverride>
+  </PropertyGroup>
+
+  <!-- Linux: Add .NET Framework 3.5 reference assemblies via NuGet (for .NET SDK MSBuild / Rider) -->
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
     <UseHardLinksForInstall Condition="'$(UseHardLinksForInstall)' == ''">false</UseHardLinksForInstall>
     <ModContentFolder Condition="'$(ModContentFolder)' == ''">_ModContent</ModContentFolder>
     <CloseBroforceOnBuild Condition="'$(CloseBroforceOnBuild)' == ''">true</CloseBroforceOnBuild>
@@ -21,6 +34,7 @@
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
+    <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
   </PropertyGroup>
 
   <Target Name="KillGameProcess" BeforeTargets="Build"
@@ -29,6 +43,14 @@
           IgnoreExitCode="true"
           ContinueOnError="true" />
     <Message Text="Closed Broforce" Importance="high" Condition="'$(MSBuildLastTaskResult)' == 'true' AND '$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="KillGameProcessLinux" BeforeTargets="Build"
+          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
+    <Exec Command="pkill -9 -x 'Broforce.x86_64' 2>/dev/null || pkill -9 -x Broforce 2>/dev/null || true"
+          IgnoreExitCode="true"
+          ContinueOnError="true" />
+    <Message Text="Closed Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
   <Target Name="DetectProjectType" BeforeTargets="InstallToGame">
@@ -40,8 +62,8 @@
       <InstallFolderName Condition="'$(InstallFolderName)' == ''">$(ProjectName)</InstallFolderName>
       <IsModProject Condition="Exists('$(ProjectDir)$(ModContentFolder)\Info.json')">true</IsModProject>
       <IsBroProject Condition="'@(ModJsonFiles->Count())' != '0'">true</IsBroProject>
-      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)\Mods\$(InstallFolderName)\</InstallPath>
-      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)\BroMaker_Storage\$(InstallFolderName)\</InstallPath>
+      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)/Mods/$(InstallFolderName)/</InstallPath>
+      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)/BroMaker_Storage/$(InstallFolderName)/</InstallPath>
     </PropertyGroup>
 
     <Error Text="Could not determine project type. $(ModContentFolder) folder must contain either Info.json (for mods) or *.mod.json (for bros)."
@@ -108,6 +130,12 @@
           Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
     <Exec Command="start steam://rungameid/274190" />
     <Message Text="Launching Broforce via Steam" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <Target Name="LaunchGameLinux" AfterTargets="InstallToGame"
+          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
+    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf || xdg-open steam://rungameid/274190" />
+    <Message Text="Launching Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
   <Target Name="CleanInstall" DependsOnTargets="DetectProjectType">

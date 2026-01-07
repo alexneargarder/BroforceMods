@@ -62,10 +62,12 @@ namespace Furibrosa
             {
                 currentWarRig.SetToGround();
             }
+
             currentWarRig.SetTarget( summoner, targetPoint.x, new Vector3( direction, currentWarRig.transform.localScale.y, currentWarRig.transform.localScale.z ), direction, true );
             currentWarRig.gameObject.SetActive( true );
 
-            summoner?.currentWarRig = currentWarRig;
+            if ( summoner != null )
+                summoner.currentWarRig = currentWarRig;
 
             this.state = TriggerActionState.Done;
         }
