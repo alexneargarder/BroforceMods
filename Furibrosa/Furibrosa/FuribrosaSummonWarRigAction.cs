@@ -11,8 +11,8 @@ namespace Furibrosa
 
         public override void ShowGUI( LevelEditorGUI gui )
         {
-            ShowGridPointOption( gui, this.SpawnPoint, "Set Spawn Point" );
-            ShowGridPointOption( gui, this.TargetPoint, "Set Target Point" );
+            ShowGridPointOption( gui, SpawnPoint, "Set Spawn Point" );
+            ShowGridPointOption( gui, TargetPoint, "Set Target Point" );
 
             GUILayout.Space( 5 );
 
@@ -51,14 +51,14 @@ namespace Furibrosa
                 }
             }
 
-            GridPoint realPoint = new GridPoint( this.info.SpawnPoint.collumn - Map.lastXLoadOffset, this.info.SpawnPoint.row - Map.lastYLoadOffset );
+            GridPoint realPoint = new GridPoint( info.SpawnPoint.collumn - Map.lastXLoadOffset, info.SpawnPoint.row - Map.lastYLoadOffset );
             Vector3 spawnPoint = Map.GetBlockCenter( realPoint );
-            realPoint = new GridPoint( this.info.TargetPoint.collumn - Map.lastXLoadOffset, this.info.TargetPoint.row - Map.lastYLoadOffset );
+            realPoint = new GridPoint( info.TargetPoint.collumn - Map.lastXLoadOffset, info.TargetPoint.row - Map.lastYLoadOffset );
             Vector3 targetPoint = Map.GetBlockCenter( realPoint );
             float direction = Mathf.Sign( targetPoint.x - spawnPoint.x );
 
-            WarRig currentWarRig = UnityEngine.Object.Instantiate<WarRig>( Furibrosa.warRigPrefab, spawnPoint, Quaternion.identity );
-            if ( this.info.StartOnGround )
+            WarRig currentWarRig = Object.Instantiate<WarRig>( Furibrosa.warRigPrefab, spawnPoint, Quaternion.identity );
+            if ( info.StartOnGround )
             {
                 currentWarRig.SetToGround();
             }
@@ -69,7 +69,7 @@ namespace Furibrosa
             if ( summoner != null )
                 summoner.currentWarRig = currentWarRig;
 
-            this.state = TriggerActionState.Done;
+            state = TriggerActionState.Done;
         }
 
         public override void Update()
