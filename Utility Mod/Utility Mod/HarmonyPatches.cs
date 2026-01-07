@@ -880,5 +880,29 @@ namespace Utility_Mod
                 return !Main.settings.disablePlayerBubbles;
             }
         }
+
+        // Force cursor visibility using the game's own ForceMouse mechanism
+        [HarmonyPatch( typeof( ShowMouseController ), "Update" )]
+        static class ShowMouseController_Update_Patch
+        {
+            static bool wasShowCursorEnabled = false;
+
+            static void Prefix()
+            {
+                if ( !Main.enabled )
+                    return;
+
+                if ( Main.settings.showCursor )
+                {
+                    ShowMouseController.ForceMouse = true;
+                    wasShowCursorEnabled = true;
+                }
+                else if ( wasShowCursorEnabled )
+                {
+                    ShowMouseController.ForceMouse = false;
+                    wasShowCursorEnabled = false;
+                }
+            }
+        }
     }
 }

@@ -452,18 +452,10 @@ namespace Utility_Mod
                 catch { }
             }
 
-            if ( settings.showCursor )
-            {
-                Cursor.visible = true;
-            }
         }
 
         static void OnLateUpdate( UnityModManager.ModEntry modEntry, float dt )
         {
-            if ( settings.showCursor )
-            {
-                Cursor.visible = true;
-            }
         }
         #endregion
 
