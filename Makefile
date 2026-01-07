@@ -1,7 +1,13 @@
 # BroforceMods Makefile
 # Minimal MSBuild wrapper - leverages Scripts/BroforceModBuild.targets for installation
 
-MSBUILD := /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
+# Detect OS and set MSBuild path
+ifeq ($(OS),Windows_NT)
+    MSBUILD := /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
+else
+    MSBUILD := msbuild
+endif
+
 MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo
 
 # LAUNCH variable controls both kill and launch behavior
