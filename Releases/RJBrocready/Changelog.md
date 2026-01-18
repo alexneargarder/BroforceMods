@@ -1,3 +1,6 @@
+## v1.1.1
+- Fix linux compatibility issue.
+
 ## v1.1.0
 - Changes for BroMaker update.
 - Added option to not carry over death in IronBro mode.
