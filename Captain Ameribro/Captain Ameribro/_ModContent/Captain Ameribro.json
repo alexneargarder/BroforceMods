@@ -5,7 +5,7 @@
     "BetterAnimation": true,
     "Sprite": "captainAmeribroMain.png",
     "GunSprite": "captainAmeribroGun.png",
-    "SpecialIcons": "CaptainAmeribroSpecial.png",
+    "SpecialIcons": "captainAmeribroSpecial.png",
     "Avatar": "captainAmeribroAvatar.png",
     "GunSpriteOffset":
     {
