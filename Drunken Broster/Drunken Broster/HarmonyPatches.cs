@@ -6,7 +6,7 @@ namespace Drunken_Broster
     public class HarmonyPatches
     {
         [HarmonyPatch( typeof( Doodad ), "IsPointInRange" )]
-        static class Doodad_IsPointInRange_Patch
+        public static class Doodad_IsPointInRange_Patch
         {
             public static void Postfix( Doodad __instance, ref float x, ref float y, ref float range, ref bool __result )
             {
@@ -19,7 +19,7 @@ namespace Drunken_Broster
         }
 
         [HarmonyPatch( typeof( HellLostSoul ), "CanHitEnemyInDive" )]
-        static class HellLostSoul_CanHitEnemyInDive_Patch
+        public static class HellLostSoul_CanHitEnemyInDive_Patch
         {
             public static bool Prefix( HellLostSoul __instance, ref bool __result )
             {
@@ -35,7 +35,7 @@ namespace Drunken_Broster
 
         // Check if friendly facehugger has completed insemination
         [HarmonyPatch( typeof( AlienFaceHugger ), "DisconnectFaceHugger" )]
-        static class AlienFaceHugger_DisconnectFaceHugger_Patch
+        public static class AlienFaceHugger_DisconnectFaceHugger_Patch
         {
             public static void Postfix( AlienFaceHugger __instance )
             {
@@ -50,7 +50,7 @@ namespace Drunken_Broster
         [HarmonyPatch( typeof( AlienXenomorph ), "Start" )]
         public static class AlienXenomorph_Start_Patch
         {
-            public static bool nextAlienFriendly = false;
+            public static bool nextAlienFriendly;
 
             public static void Postfix( AlienXenomorph __instance )
             {

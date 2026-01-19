@@ -6,6 +6,7 @@ using HarmonyLib;
 using Rogueforce;
 using UnityEngine;
 using Utility;
+using Random = UnityEngine.Random;
 
 namespace Drunken_Broster.MeleeItems
 {
@@ -14,37 +15,37 @@ namespace Drunken_Broster.MeleeItems
         public AudioClip[] pulseSounds;
         public AudioClip[] burstSounds;
         protected Shrapnel[] shrapnelPrefabs = new Shrapnel[3];
-        protected int frame = 0;
-        protected float counter = 0;
+        protected int frame;
+        protected float counter;
         protected float frameRate = 0.06f;
-        protected int cycle = 0;
-        protected bool exploded = false;
+        protected int cycle;
+        protected bool exploded;
         protected float r = 90f;
-        protected float rI = 0f;
+        protected float rI;
         protected float rotationSpeedMultiplier = 1.5f;
         protected BloodColor bloodColor = BloodColor.Green;
         protected float explodeRange = 40f;
         public GibHolder openedEggGibHolder;
         protected AlienFaceHugger faceHugger;
-        protected bool createdFaceHugger = false;
+        protected bool createdFaceHugger;
         protected float spawnFacehuggerTimer = 0.2f;
 
         protected override void Awake()
         {
-            if ( this.Sprite == null )
+            if ( Sprite == null )
             {
-                this.SpriteLowerLeftPixel = new Vector2( 0, 32 );
-                this.SpritePixelDimensions = new Vector2( 32, 32 );
-                this.SpriteWidth = 22;
-                this.SpriteHeight = 22;
-                this.SpriteOffset = new Vector3( 0, 5, 0 );
+                SpriteLowerLeftPixel = new Vector2( 0, 32 );
+                SpritePixelDimensions = new Vector2( 32, 32 );
+                SpriteWidth = 22;
+                SpriteHeight = 22;
+                SpriteOffset = new Vector3( 0, 5, 0 );
             }
 
-            this.projectileSize = 8f;
+            projectileSize = 8f;
 
-            this.damage = 5;
-            this.damageInternal = this.damage;
-            this.fullDamage = this.damage;
+            damage = 5;
+            damageInternal = damage;
+            fullDamage = damage;
 
             base.Awake();
         }
@@ -54,147 +55,147 @@ namespace Drunken_Broster.MeleeItems
             base.PrefabSetup();
 
             AlienEggBlock prefab = Map.Instance.activeTheme.blockAlienEgg as AlienEggBlock;
-            this.openedEggGibHolder = prefab.openedEggGibHolder;
+            openedEggGibHolder = prefab.openedEggGibHolder;
 
-            this.pulseSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_pulse", 2 );
+            pulseSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_pulse", 2 );
 
-            this.burstSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_burst", 3 );
+            burstSounds = ResourcesController.GetAudioClipArray( SoundPath, "egg_burst", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
         {
-            this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 200f ) * this.rotationSpeedMultiplier;
+            rI = -Mathf.Sign( xI ) * ( 200f + Random.value * 200f ) * rotationSpeedMultiplier;
 
             base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
 
-            this.CreateFaceHugger();
+            CreateFaceHugger();
         }
 
         protected void CreateFaceHugger()
         {
-            if ( this.createdFaceHugger )
+            if ( createdFaceHugger )
             {
                 return;
             }
 
-            this.createdFaceHugger = true;
+            createdFaceHugger = true;
 
-            this.faceHugger = Map.SpawnFaceHugger( this.X, this.Y, 0f, 0f ) as AlienFaceHugger;
-            this.faceHugger.RegisterUnit();
-            Registry.RegisterDeterminsiticGameObject( this.faceHugger.gameObject );
-            this.faceHugger.transform.parent = base.transform;
-            this.faceHugger.ForceStart();
-            this.faceHugger.gameObject.SetActive( false );
-            this.faceHugger.playerNum = 5;
-            this.faceHugger.firingPlayerNum = 5;
-            this.faceHugger.gameObject.name = "friend";
+            faceHugger = Map.SpawnFaceHugger( X, Y, 0f, 0f ) as AlienFaceHugger;
+            faceHugger.RegisterUnit();
+            Registry.RegisterDeterminsiticGameObject( faceHugger.gameObject );
+            faceHugger.transform.parent = transform;
+            faceHugger.ForceStart();
+            faceHugger.gameObject.SetActive( false );
+            faceHugger.playerNum = 5;
+            faceHugger.firingPlayerNum = 5;
+            faceHugger.gameObject.name = "friend";
         }
 
         protected override void SetRotation()
         {
             // Don't rotate based on momentum
-            if ( this.xI > 0f )
+            if ( xI > 0f )
             {
-                base.transform.localScale = new Vector3( -1f, 1f, 1f );
+                transform.localScale = new Vector3( -1f, 1f, 1f );
             }
             else
             {
-                base.transform.localScale = new Vector3( 1f, 1f, 1f );
+                transform.localScale = new Vector3( 1f, 1f, 1f );
             }
 
-            base.transform.eulerAngles = new Vector3( 0f, 0f, this.r );
+            transform.eulerAngles = new Vector3( 0f, 0f, r );
         }
 
         protected override void Update()
         {
-            this.ApplyGravity();
+            ApplyGravity();
 
             // Change frames
-            this.counter += this.t;
-            if ( this.counter > this.frameRate )
+            counter += t;
+            if ( counter > frameRate )
             {
-                this.counter -= this.frameRate;
-                ++this.frame;
-                this.ChangeFrame();
+                counter -= frameRate;
+                ++frame;
+                ChangeFrame();
             }
 
-            this.r += this.rI * this.t;
+            r += rI * t;
 
-            this.SetRotation();
+            SetRotation();
 
             base.Update();
 
-            if ( this.spawnFacehuggerTimer > 0 )
+            if ( spawnFacehuggerTimer > 0 )
             {
-                this.spawnFacehuggerTimer -= this.t;
-                if ( this.spawnFacehuggerTimer <= 0 )
+                spawnFacehuggerTimer -= t;
+                if ( spawnFacehuggerTimer <= 0 )
                 {
                     try
                     {
-                        this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
+                        MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
                     }
                     catch ( Exception ex )
                     {
                         BMLogger.ExceptionLog( ex );
                     }
-                    this.Death();
+                    Death();
                 }
             }
         }
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 500f * this.t;
+            yI -= 500f * t;
         }
 
         protected void ChangeFrame()
         {
-            if ( this.frame == 1 )
+            if ( frame == 1 )
             {
                 if ( sound == null )
                 {
                     sound = Sound.GetInstance();
                 }
 
-                sound?.PlaySoundEffectAt( this.pulseSounds, 0.4f, base.transform.position );
+                sound?.PlaySoundEffectAt( pulseSounds, 0.4f, transform.position );
             }
-            if ( this.frame >= 5 )
+            if ( frame >= 5 )
             {
-                this.frame = 0;
-                ++this.cycle;
+                frame = 0;
+                ++cycle;
             }
-            this.Sprite.SetLowerLeftPixel_X( 32f * this.frame );
+            Sprite.SetLowerLeftPixel_X( 32f * frame );
         }
 
         protected override void TryHitUnitsAtSpawn()
         {
-            if ( this.firedBy != null && this.firedBy.GetComponent<TestVanDammeAnim>() != null && this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
+            if ( firedBy != null && firedBy.GetComponent<TestVanDammeAnim>() != null && firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
             {
-                if ( HitUnits( this.firedBy, this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit, this.playerNum, this.damageInternal * 2, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI ) )
+                if ( HitUnits( firedBy, firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit, playerNum, damageInternal * 2, damageType, ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), X - ( ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( xI ) ), Y, xI, yI ) )
                 {
-                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                    global::UnityEngine.Object.Destroy( base.gameObject );
-                    this.hasHit = true;
+                    MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                    Destroy( gameObject );
+                    hasHit = true;
                 }
             }
-            else if ( HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal * 2, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI ) )
+            else if ( HitUnits( firedBy, firedBy, playerNum, damageInternal * 2, damageType, ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), X - ( ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( xI ) ), Y, xI, yI ) )
             {
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                global::UnityEngine.Object.Destroy( base.gameObject );
-                this.hasHit = true;
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                hasHit = true;
             }
         }
 
         protected override void HitUnits()
         {
-            if ( HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI ) )
+            if ( HitUnits( firedBy, firedBy, playerNum, damageInternal, damageType, projectileSize, projectileSize / 2f, X, Y, xI, yI ) )
             {
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                global::UnityEngine.Object.Destroy( base.gameObject );
-                this.hasHit = true;
-                if ( this.giveDeflectAchievementOnMookKill )
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                hasHit = true;
+                if ( giveDeflectAchievementOnMookKill )
                 {
-                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, playerNum );
                 }
             }
         }
@@ -226,22 +227,20 @@ namespace Drunken_Broster.MeleeItems
                             }
                             if ( unit.health <= 0 )
                             {
-                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y, false );
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y );
                             }
                             else
                             {
                                 // Check if can inseminate
                                 if ( unit.IsNotReplicantHero && unit.CanInseminate( xI, yI ) )
                                 {
-                                    this.Death();
+                                    Death();
                                     // Directly inseminate rather than damaging unit
-                                    unit.Inseminate( this.faceHugger, xI, yI );
+                                    unit.Inseminate( faceHugger, xI, yI );
                                     return false;
                                 }
-                                else
-                                {
-                                    Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y, false );
-                                }
+
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( damage, playerNum ), damageType, xI, yI, (int)Mathf.Sign( xI ), false, x, y );
                             }
                             bloodColor = unit.bloodColor;
                             flag = true;
@@ -259,39 +258,39 @@ namespace Drunken_Broster.MeleeItems
         protected void LaunchFaceHugger()
         {
             // Ensure facehugger has been created
-            this.CreateFaceHugger();
+            CreateFaceHugger();
 
-            this.faceHugger.SetXY( base.X, base.Y );
-            this.faceHugger.transform.parent = null;
-            this.faceHugger.gameObject.SetActive( true );
-            this.faceHugger.transform.rotation = Quaternion.identity;
-            this.faceHugger.playerNum = 5;
-            this.faceHugger.firingPlayerNum = 5;
-            Traverse trav = Traverse.Create( this.faceHugger );
+            faceHugger.SetXY( X, Y );
+            faceHugger.transform.parent = null;
+            faceHugger.gameObject.SetActive( true );
+            faceHugger.transform.rotation = Quaternion.identity;
+            faceHugger.playerNum = 5;
+            faceHugger.firingPlayerNum = 5;
+            Traverse trav = Traverse.Create( faceHugger );
             trav.Field( "usingSpecial" ).SetValue( true );
             trav.Method( "UseSpecial" ).GetValue();
-            this.faceHugger.xI = this.xI;
-            this.faceHugger.yI = this.yI + 65;
-            EffectsController.CreateSlimeParticles( BloodColor.Green, base.X, base.Y, 45, 8f, 8f, 140f, this.faceHugger.xI * 0.5f, this.faceHugger.yI * 0.5f );
+            faceHugger.xI = xI;
+            faceHugger.yI = yI + 65;
+            EffectsController.CreateSlimeParticles( BloodColor.Green, X, Y, 45, 8f, 8f, 140f, faceHugger.xI * 0.5f, faceHugger.yI * 0.5f );
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
         {
-            if ( this.exploded )
+            if ( exploded )
             {
                 return;
             }
-            this.exploded = true;
+            exploded = true;
 
             if ( sound == null )
             {
                 sound = Sound.GetInstance();
             }
-            sound?.PlaySoundEffectAt( this.burstSounds, 0.55f, base.transform.position );
+            sound?.PlaySoundEffectAt( burstSounds, 0.55f, transform.position );
 
-            this.LaunchFaceHugger();
-            EffectsController.CreateGibs( this.openedEggGibHolder, base.X, base.Y, 10f, 10f, 0f, 0f );
-            Block.MakeAlienBlockCollapseEffects( base.X, base.Y, xI, yI, true );
+            LaunchFaceHugger();
+            EffectsController.CreateGibs( openedEggGibHolder, X, Y, 10f, 10f, 0f, 0f );
+            Block.MakeAlienBlockCollapseEffects( X, Y, xI, yI );
         }
 
     }

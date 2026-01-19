@@ -10,17 +10,17 @@ namespace Drunken_Broster.Triggers
             RunAtLevelStart = false;
         }
 
-        public bool resetToDefault = false;
-        public bool enableTire = false;
-        public bool enableAcidEgg = false;
-        public bool enableBeehive = false;
-        public bool enableBottle = false;
-        public bool enableCrate = false;
-        public bool enableCoconut = false;
-        public bool enableExplosiveBarrel = false;
-        public bool enableSoccerBall = false;
-        public bool enableAlienEgg = false;
-        public bool enableSkull = false;
+        public bool resetToDefault;
+        public bool enableTire;
+        public bool enableAcidEgg;
+        public bool enableBeehive;
+        public bool enableBottle;
+        public bool enableCrate;
+        public bool enableCoconut;
+        public bool enableExplosiveBarrel;
+        public bool enableSoccerBall;
+        public bool enableAlienEgg;
+        public bool enableSkull;
 
         public override void ShowGUI( LevelEditorGUI gui )
         {

@@ -11,43 +11,42 @@ namespace Drunken_Broster.MeleeItems
         public RealisticAngryBeeSimulator beeSimulator;
         public RealisticFlySimulatorClass[] flies;
         protected float r = 90f;
-        protected float rI = 0f;
+        protected float rI;
         protected float rotationSpeedMultiplier = 1.25f;
-        protected bool madeEffects = false;
+        protected bool madeEffects;
         public AudioClip[] deathSounds;
 
         protected override void Awake()
         {
-            this.SpriteHeight = 14f;
-            this.SpriteWidth = 14f;
+            SpriteHeight = 14f;
+            SpriteWidth = 14f;
 
-            this.damage = 5;
-            this.damageInternal = this.damage;
-            this.fullDamage = this.damage;
+            damage = 5;
+            damageInternal = damage;
+            fullDamage = damage;
 
-            this.projectileSize = 10f;
+            projectileSize = 10f;
 
             DoodadBeehive beehive = Map.Instance.activeTheme.blockBeeHive as DoodadBeehive;
-            this.gibHolder = beehive.gibHolder;
+            gibHolder = beehive.gibHolder;
 
-            if ( this.beeSimulator == null )
+            if ( beeSimulator == null )
             {
                 RealisticFlySimulatorClass flyPrefab = beehive.GetComponentInChildren<RealisticFlySimulatorClass>();
 
-                this.beeSimulator = UnityEngine.Object.Instantiate( beehive.GetComponentInChildren<RealisticAngryBeeSimulator>() );
-                this.beeSimulator.transform.parent = this.transform;
-                this.beeSimulator.gameObject.SetActive( false );
+                beeSimulator = Instantiate( beehive.GetComponentInChildren<RealisticAngryBeeSimulator>(), transform, true );
+                beeSimulator.gameObject.SetActive( false );
 
-                this.flies = new RealisticFlySimulatorClass[18];
+                flies = new RealisticFlySimulatorClass[18];
                 for ( int i = 0; i < 18; ++i )
                 {
-                    this.flies[i] = UnityEngine.Object.Instantiate( flyPrefab );
-                    this.flies[i].transform.parent = this.beeSimulator.transform;
-                    this.flies[i].optionalFollowTransform = this.beeSimulator.transform;
-                    this.flies[i].gameObject.SetActive( false );
+                    flies[i] = Instantiate( flyPrefab );
+                    flies[i].transform.parent = beeSimulator.transform;
+                    flies[i].optionalFollowTransform = beeSimulator.transform;
+                    flies[i].gameObject.SetActive( false );
                 }
 
-                this.beeSimulator.flies = this.flies;
+                beeSimulator.flies = flies;
             }
 
             base.Awake();
@@ -57,12 +56,12 @@ namespace Drunken_Broster.MeleeItems
         {
             base.PrefabSetup();
 
-            this.deathSounds = ResourcesController.GetAudioClipArray( SoundPath, "beeHiveSmash", 3 );
+            deathSounds = ResourcesController.GetAudioClipArray( SoundPath, "beeHiveSmash", 3 );
         }
 
         public override void Fire( float newX, float newY, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
         {
-            this.rI = -Mathf.Sign( xI ) * ( 200f + UnityEngine.Random.value * 200f ) * this.rotationSpeedMultiplier;
+            rI = -Mathf.Sign( xI ) * ( 200f + Random.value * 200f ) * rotationSpeedMultiplier;
 
             base.Fire( newX, newY, xI, yI, _zOffset, playerNum, FiredBy );
         }
@@ -70,78 +69,78 @@ namespace Drunken_Broster.MeleeItems
         protected override void SetRotation()
         {
             // Don't rotate based on momentum
-            if ( this.xI > 0f )
+            if ( xI > 0f )
             {
-                base.transform.localScale = new Vector3( -1f, 1f, 1f );
+                transform.localScale = new Vector3( -1f, 1f, 1f );
             }
             else
             {
-                base.transform.localScale = new Vector3( 1f, 1f, 1f );
+                transform.localScale = new Vector3( 1f, 1f, 1f );
             }
 
-            base.transform.eulerAngles = new Vector3( 0f, 0f, this.r );
+            transform.eulerAngles = new Vector3( 0f, 0f, r );
         }
 
         protected override void Update()
         {
-            this.ApplyGravity();
+            ApplyGravity();
 
-            this.r += this.rI * this.t;
+            r += rI * t;
 
-            this.SetRotation();
+            SetRotation();
 
             base.Update();
         }
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 500f * this.t;
+            yI -= 500f * t;
         }
 
         protected override void HitUnits()
         {
-            if ( this.reversing )
+            if ( reversing )
             {
-                if ( Map.HitLivingUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 2f, this.projectileSize + 1f, base.X, base.Y, this.xI, this.yI, false, false, true, false ) )
+                if ( Map.HitLivingUnits( firedBy ?? this, playerNum, damageInternal, damageType, projectileSize - 2f, projectileSize + 1f, X, Y, xI, yI, false, false ) )
                 {
-                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                    global::UnityEngine.Object.Destroy( base.gameObject );
-                    this.hasHit = true;
-                    if ( this.giveDeflectAchievementOnMookKill )
+                    MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                    Destroy( gameObject );
+                    hasHit = true;
+                    if ( giveDeflectAchievementOnMookKill )
                     {
-                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, playerNum );
                     }
                 }
             }
-            else if ( Map.HitUnits( this.firedBy, this.firedBy, this.playerNum, this.damageInternal, this.damageType, this.projectileSize - 2f, this.projectileSize + 1f, base.X, base.Y, this.xI, this.yI, false, false, false, false ) )
+            else if ( Map.HitUnits( firedBy, firedBy, playerNum, damageInternal, damageType, projectileSize - 2f, projectileSize + 1f, X, Y, xI, yI, false, false, false, false ) )
             {
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                global::UnityEngine.Object.Destroy( base.gameObject );
-                this.hasHit = true;
-                if ( this.giveDeflectAchievementOnMookKill )
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                hasHit = true;
+                if ( giveDeflectAchievementOnMookKill )
                 {
-                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, playerNum );
                 }
             }
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
         {
-            if ( this.madeEffects )
+            if ( madeEffects )
             {
                 return;
             }
-            this.madeEffects = true;
+            madeEffects = true;
 
-            if ( this.sound == null )
+            if ( sound == null )
             {
-                this.sound = Sound.GetInstance();
+                sound = Sound.GetInstance();
             }
-            this.sound?.PlaySoundEffectAt( this.deathSounds, 0.4f, base.transform.position );
+            sound?.PlaySoundEffectAt( deathSounds, 0.4f, transform.position );
 
-            EffectsController.CreateGibs( this.gibHolder, base.transform.position.x, base.transform.position.y, 140f, 170f, 0f, 140f );
-            EffectsController.CreateDustParticles( base.transform.position.x, base.transform.position.y, 140, 6f, 130f, 0f, 100f, new Color( 0.854901969f, 0.65882355f, 0.172549024f, 0.9f ) );
-            this.beeSimulator.Restart();
+            EffectsController.CreateGibs( gibHolder, transform.position.x, transform.position.y, 140f, 170f, 0f, 140f );
+            EffectsController.CreateDustParticles( transform.position.x, transform.position.y, 140, 6f, 130f, 0f, 100f, new Color( 0.854901969f, 0.65882355f, 0.172549024f, 0.9f ) );
+            beeSimulator.Restart();
         }
 
     }

@@ -47,7 +47,7 @@
 
   <Target Name="KillGameProcessLinux" BeforeTargets="Build"
           Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="pkill -9 -x 'Broforce.x86_64' 2>/dev/null || pkill -9 -x Broforce 2>/dev/null || true"
+    <Exec Command="pkill -9 -x 'Broforce.x86_64' 2>/dev/null || pkill -9 -x Broforce 2>/dev/null || pkill -9 -f 'Broforce_beta.exe' 2>/dev/null || true"
           IgnoreExitCode="true"
           ContinueOnError="true" />
     <Message Text="Closed Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />

@@ -8,20 +8,20 @@ namespace Drunken_Broster.MeleeItems
     public class CrateProjectile : CustomProjectile
     {
         public Shrapnel[] shrapnelPrefabs;
-        protected bool madeEffects = false;
+        protected bool madeEffects;
 
         protected override void Awake()
         {
-            if ( !this.RanSetup )
+            if ( !RanSetup )
             {
-                this.SpriteWidth = 12f;
-                this.SpriteHeight = 12f;
+                SpriteWidth = 12f;
+                SpriteHeight = 12f;
             }
 
-            this.projectileSize = 12f;
-            this.damage = 16;
-            this.damageInternal = this.damage;
-            this.fullDamage = this.damage;
+            projectileSize = 12f;
+            damage = 16;
+            damageInternal = damage;
+            fullDamage = damage;
 
             base.Awake();
         }
@@ -39,33 +39,33 @@ namespace Drunken_Broster.MeleeItems
             shrapnelPrefabs[2] = crateBlock.shrapnelBitPrefab3;
 
             // Store wood smash sounds
-            this.soundHolder.deathSounds = crateBlock.soundHolder.deathSounds;
+            soundHolder.deathSounds = crateBlock.soundHolder.deathSounds;
         }
 
         protected override void SetRotation()
         {
             // Don't rotate based on momentum
-            if ( this.xI > 0f )
+            if ( xI > 0f )
             {
-                base.transform.localScale = new Vector3( -1f, 1f, 1f );
+                transform.localScale = new Vector3( -1f, 1f, 1f );
             }
             else
             {
-                base.transform.localScale = new Vector3( 1f, 1f, 1f );
+                transform.localScale = new Vector3( 1f, 1f, 1f );
             }
 
-            base.transform.eulerAngles = new Vector3( 0f, 0f, 0f );
+            transform.eulerAngles = new Vector3( 0f, 0f, 0f );
         }
 
         protected override void Update()
         {
-            this.ApplyGravity();
+            ApplyGravity();
             base.Update();
         }
 
         protected virtual void ApplyGravity()
         {
-            this.yI -= 500f * this.t;
+            yI -= 500f * t;
         }
 
         public bool HitUnits( MonoBehaviour damageSender, int playerNum, int damage, int corpseDamage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool penetrates, bool knock, bool canGib, bool hitDead, MonoBehaviour avoidID = null )
@@ -95,11 +95,11 @@ namespace Drunken_Broster.MeleeItems
                             }
                             if ( !canGib && unit.health <= 0 )
                             {
-                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                                Map.KnockAndDamageUnit( damageSender, unit, 0, damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y );
                             }
                             else if ( unit.health <= 0 )
                             {
-                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( corpseDamage, playerNum ), damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                                Map.KnockAndDamageUnit( damageSender, unit, ValueOrchestrator.GetModifiedDamage( corpseDamage, playerNum ), damageType, xI, 1.25f * yI, (int)Mathf.Sign( xI ), knock, x, y );
                             }
                             else
                             {
@@ -109,7 +109,7 @@ namespace Drunken_Broster.MeleeItems
                                 {
                                     damage = unit.health;
                                 }
-                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y );
                             }
                             result = true;
                             if ( flag )
@@ -125,27 +125,27 @@ namespace Drunken_Broster.MeleeItems
 
         protected override void HitUnits()
         {
-            if ( this.reversing )
+            if ( reversing )
             {
-                if ( HitUnits( this.firedBy ?? this, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, false, false ) )
+                if ( HitUnits( firedBy ?? this, playerNum, damageInternal, damageInternal, damageType, projectileSize - 4f, projectileSize / 2f, X, Y, xI, 50f, false, false, false, false ) )
                 {
-                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                    global::UnityEngine.Object.Destroy( base.gameObject );
-                    this.hasHit = true;
-                    if ( this.giveDeflectAchievementOnMookKill )
+                    MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                    Destroy( gameObject );
+                    hasHit = true;
+                    if ( giveDeflectAchievementOnMookKill )
                     {
-                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                        AchievementManager.AwardAchievement( Achievement.bronald_bradman, playerNum );
                     }
                 }
             }
-            else if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, this.projectileSize - 4f, this.projectileSize / 2f, base.X, base.Y, this.xI, 50f, false, false, false, true ) )
+            else if ( HitUnits( firedBy, playerNum, damageInternal, damageInternal, damageType, projectileSize - 4f, projectileSize / 2f, X, Y, xI, 50f, false, false, false, true ) )
             {
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                global::UnityEngine.Object.Destroy( base.gameObject );
-                this.hasHit = true;
-                if ( this.giveDeflectAchievementOnMookKill )
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                hasHit = true;
+                if ( giveDeflectAchievementOnMookKill )
                 {
-                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, this.playerNum );
+                    AchievementManager.AwardAchievement( Achievement.bronald_bradman, playerNum );
                 }
             }
         }
@@ -153,35 +153,35 @@ namespace Drunken_Broster.MeleeItems
         // Don't apply double damage to units unlike base implementation
         protected override void TryHitUnitsAtSpawn()
         {
-            if ( this.firedBy != null && this.firedBy.GetComponent<TestVanDammeAnim>() != null && this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
+            if ( firedBy != null && firedBy.GetComponent<TestVanDammeAnim>() != null && firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit != null )
             {
-                if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), this.projectileSize / 2f, base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI, false, false, false, false, this.firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit ) )
+                if ( HitUnits( firedBy, playerNum, damageInternal, damageInternal, damageType, ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), projectileSize / 2f, X - ( ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( xI ) ), Y, xI, yI, false, false, false, false, firedBy.GetComponent<TestVanDammeAnim>().inseminatorUnit ) )
                 {
-                    this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                    global::UnityEngine.Object.Destroy( base.gameObject );
-                    this.hasHit = true;
+                    MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                    Destroy( gameObject );
+                    hasHit = true;
                 }
             }
-            else if ( HitUnits( this.firedBy, this.playerNum, this.damageInternal, this.damageInternal, this.damageType, ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ), this.projectileSize / 2f, base.X - ( ( this.playerNum < 0 ) ? 0f : ( this.projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( this.xI ) ), base.Y, this.xI, this.yI, false, false, false, false ) )
+            else if ( HitUnits( firedBy, playerNum, damageInternal, damageInternal, damageType, ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ), projectileSize / 2f, X - ( ( playerNum < 0 ) ? 0f : ( projectileSize * 0.5f ) ) * (float)( (int)Mathf.Sign( xI ) ), Y, xI, yI, false, false, false, false ) )
             {
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                global::UnityEngine.Object.Destroy( base.gameObject );
-                this.hasHit = true;
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                hasHit = true;
             }
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 hitPoint )
         {
-            if ( this.madeEffects )
+            if ( madeEffects )
             {
                 return;
             }
-            this.madeEffects = true;
+            madeEffects = true;
 
-            this.PlayDeathSound();
-            EffectsController.CreateShrapnel( this.shrapnelPrefabs[0], base.X, base.Y, 12f, 150f, 7f, 0f, 120f );
-            EffectsController.CreateShrapnel( this.shrapnelPrefabs[1], base.X, base.Y, 12f, 150f, 8f, 0f, 120f );
-            EffectsController.CreateShrapnel( this.shrapnelPrefabs[2], base.X, base.Y, 12f, 150f, 8f, 0f, 120f );
+            PlayDeathSound();
+            EffectsController.CreateShrapnel( shrapnelPrefabs[0], X, Y, 12f, 150f, 7f, 0f, 120f );
+            EffectsController.CreateShrapnel( shrapnelPrefabs[1], X, Y, 12f, 150f, 8f, 0f, 120f );
+            EffectsController.CreateShrapnel( shrapnelPrefabs[2], X, Y, 12f, 150f, 8f, 0f, 120f );
         }
 
 

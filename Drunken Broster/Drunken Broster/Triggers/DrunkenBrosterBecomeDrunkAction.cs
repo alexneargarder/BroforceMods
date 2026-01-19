@@ -19,7 +19,7 @@ namespace Drunken_Broster.Triggers
                 DrunkenBroster.ForceAllDrunk();
             }
 
-            this.state = TriggerActionState.Done;
+            state = TriggerActionState.Done;
         }
 
         public override void Update() { }
