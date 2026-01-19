@@ -7,22 +7,22 @@ namespace Drunken_Broster.MeleeItems
     {
         protected override void Awake()
         {
-            if ( this.sprite == null )
+            if ( sprite == null )
             {
-                this.SpriteLowerLeftPixel = new Vector2( 0, 10 );
-                this.SpritePixelDimensions = new Vector2( 10, 10 );
-                this.spriteWidth = 10f;
-                this.spriteHeight = 10f;
+                SpriteLowerLeftPixel = new Vector2( 0, 10 );
+                SpritePixelDimensions = new Vector2( 10, 10 );
+                spriteWidth = 10f;
+                spriteHeight = 10f;
             }
 
             base.Awake();
 
-            this.size = 5f;
-            this.bounceM = 1.2f;
-            this.bounceGroundDamage = 3;
-            this.hitUnitForce = 0.75f;
-            this.bounceOffEnemies = true;
-            this.rotationSpeedMultiplier = 6f;
+            size = 5f;
+            bounceM = 1.2f;
+            bounceGroundDamage = 3;
+            hitUnitForce = 0.75f;
+            bounceOffEnemies = true;
+            rotationSpeedMultiplier = 6f;
         }
 
         public override void PrefabSetup()
@@ -30,37 +30,37 @@ namespace Drunken_Broster.MeleeItems
             base.PrefabSetup();
 
             // Load death sound
-            this.soundHolder.deathSounds = new AudioClip[1];
-            this.soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( SoundPath, "tireDeath.wav" );
+            soundHolder.deathSounds = new AudioClip[1];
+            soundHolder.deathSounds[0] = ResourcesController.GetAudioClip( SoundPath, "tireDeath.wav" );
 
-            this.bounceSounds = ResourcesController.GetAudioClipArray( SoundPath, "soccerBounce", 3, 1 );
+            bounceSounds = ResourcesController.GetAudioClipArray( SoundPath, "soccerBounce", 3, 1 );
         }
 
         protected override void HitUnits()
         {
-            if ( Mathf.Abs( this.xI ) > 80f && Map.HitUnits( this, this.playerNum, this.damage, this.damage, this.damageType, this.size + 1f, this.size + 4f, this.X, this.Y, this.xI * this.hitUnitForce, this.yI * this.hitUnitForce, true, true, false, this.alreadyHitUnits, false, false ) )
+            if ( Mathf.Abs( xI ) > 80f && Map.HitUnits( this, playerNum, damage, damage, damageType, size + 1f, size + 4f, X, Y, xI * hitUnitForce, yI * hitUnitForce, true, true, false, alreadyHitUnits, false, false ) )
             {
-                EffectsController.CreateProjectilePopWhiteEffect( base.X, base.Y - this.size * 0.5f );
-                this.PlayHitSound();
-                this.hitDelay = 0.1f;
-                if ( this.bounceOffEnemies )
+                EffectsController.CreateProjectilePopWhiteEffect( X, Y - size * 0.5f );
+                PlayHitSound();
+                hitDelay = 0.1f;
+                if ( bounceOffEnemies )
                 {
-                    float previousBounceM = this.bounceM;
-                    this.bounceM *= 0.3f;
-                    this.Bounce( true, false );
-                    this.bounceM = previousBounceM;
+                    float previousBounceM = bounceM;
+                    bounceM *= 0.3f;
+                    Bounce( true, false );
+                    bounceM = previousBounceM;
                 }
             }
         }
 
         protected override void PlayBounceSound( bool bounceX, bool bounceY )
         {
-            if ( bounceX && Mathf.Abs( this.xI ) < 50 )
+            if ( bounceX && Mathf.Abs( xI ) < 50 )
             {
                 return;
             }
 
-            if ( bounceY && Mathf.Abs( this.yI ) < 50 )
+            if ( bounceY && Mathf.Abs( yI ) < 50 )
             {
                 return;
             }
@@ -83,31 +83,31 @@ namespace Drunken_Broster.MeleeItems
             {
                 volume *= Mathf.Abs( yI ) / 150f;
             }
-            sound?.PlaySoundEffectAt( this.bounceSounds, volume, base.transform.position );
+            sound?.PlaySoundEffectAt( bounceSounds, volume, transform.position );
         }
 
         public override void Death()
         {
-            if ( !this.dontMakeEffects )
+            if ( !dontMakeEffects )
             {
-                this.MakeEffects();
+                MakeEffects();
             }
-            this.DestroyGrenade();
+            DestroyGrenade();
         }
 
         protected override void MakeEffects()
         {
             float speed = 80f;
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( 0, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( 0, -speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, 0 ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, 0 ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( speed, -speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, speed ) );
-            EffectsController.CreateSmoke( base.X, base.Y - 3f, 0f, new Vector3( -speed, -speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( 0, speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( 0, -speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( speed, 0 ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( -speed, 0 ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( speed, speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( speed, -speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( -speed, speed ) );
+            EffectsController.CreateSmoke( X, Y - 3f, 0f, new Vector3( -speed, -speed ) );
             //this.CreateGibs( this.xI, this.yI );
-            this.PlayDeathSound();
+            PlayDeathSound();
         }
     }
 }

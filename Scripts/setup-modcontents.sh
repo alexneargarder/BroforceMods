@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Setup script to create symlinks for all _ModContent folders
 # Creates ModContents/<ModName> -> <ModName>/<ModName>/_ModContent

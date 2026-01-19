@@ -5,7 +5,7 @@ namespace Drunken_Broster.Triggers
 {
     public class DrunkenBrosterBecomeDrunkActionInfo : CustomTriggerActionInfo
     {
-        public bool becomeSober = false;
+        public bool becomeSober;
 
         public override void ShowGUI( LevelEditorGUI gui )
         {

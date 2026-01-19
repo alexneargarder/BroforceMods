@@ -8,15 +8,15 @@ namespace Drunken_Broster
     {
         private static readonly List<DrunkenBroster> drunkBros = new List<DrunkenBroster>();
 
-        private static float cameraTiltTime = 0f;
-        private static float currentTilt = 0f;
-        private static float targetTilt = 0f;
+        private static float cameraTiltTime;
+        private static float currentTilt;
+        private static float targetTilt;
         private static float currentMaxTilt = 5f;
         private static float currentTiltSpeed = 1.5f;
-        private static bool isSoberingUp = false;
+        private static bool isSoberingUp;
 
         private static Vector3 originalCameraRotation;
-        private static bool hasSavedRotation = false;
+        private static bool hasSavedRotation;
 
         private static float lastUpdateTime = -1f;
 
@@ -33,7 +33,7 @@ namespace Drunken_Broster
                 drunkBros.Add( bro );
 
                 // Save original camera rotation on first drunk bro
-                if ( !hasSavedRotation && CameraController.MainCam != null )
+                if ( !hasSavedRotation && CameraController.MainCam )
                 {
                     originalCameraRotation = CameraController.MainCam.transform.eulerAngles;
                     hasSavedRotation = true;
