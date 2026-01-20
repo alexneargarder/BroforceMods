@@ -21,8 +21,7 @@
     <!-- For UMM installs without r2modman: -->
     <!-- <BroforcePath>C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath> -->
 
-    <!-- Library Paths -->
-    <!-- LibPath default is set in BroforceModBuild.targets, uncomment to override -->
+    <!-- LibPath (uncomment to override - default points to BroforceMods/libs) -->
     <!-- <LibPath>$(MSBuildThisFileDirectory)../BroforceMods/libs</LibPath> -->
 
     <!-- Point these to your installed mods (Thunderstore structure) -->
@@ -32,7 +31,7 @@
     <!-- <BroMakerLibPath>$(MSBuildThisFileDirectory)../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath> -->
     <!-- <RocketLibPath>$(MSBuildThisFileDirectory)../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath> -->
 
-    <!-- Build Options (defaults are set in BroforceModBuild.targets) -->
+    <!-- Build Options (uncomment to override - values shown are defaults) -->
     <!-- <CloseBroforceOnBuild>true</CloseBroforceOnBuild> -->
     <!-- <LaunchBroforceOnBuild>false</LaunchBroforceOnBuild> -->
     <!-- <UseHardLinksForInstall>false</UseHardLinksForInstall> -->
