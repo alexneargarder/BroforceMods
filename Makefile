@@ -1,36 +1,10 @@
 # BroforceMods Makefile
-# Minimal MSBuild wrapper - leverages Scripts/BroforceModBuild.targets for installation
 
-# Detect OS and set MSBuild path
-ifeq ($(OS),Windows_NT)
-    MSBUILD := /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
-else
-    MSBUILD := msbuild
-endif
+PROJECT_NAME := BroforceMods
+SOLUTION := BroforceMods.sln
 
-MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo
-
-# LAUNCH variable controls both kill and launch behavior
-# Usage: make furibrosa LAUNCH=no
-ifeq ($(LAUNCH),no)
-	LAUNCH_FLAGS := /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
-else
-	LAUNCH_FLAGS := /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=true
-endif
-
-# Default target shows help
-.DEFAULT_GOAL := help
-
-.PHONY: help
-help:
-	@echo "BroforceMods Build System"
-	@echo ""
-	@echo "Main targets:"
-	@echo "  make build              Build all projects (kill game, build, launch)"
-	@echo "  make build-no-launch    Build all without disrupting running game"
-	@echo "  make clean              Clean all projects"
-	@echo "  make rebuild            Clean and rebuild all"
-	@echo ""
+# Custom help text for individual projects
+define EXTRA_HELP
 	@echo "Individual projects:"
 	@echo "  make brostbuster        make mission-impossibro"
 	@echo "  make captain-ameribro   make randomizer"
@@ -38,30 +12,10 @@ help:
 	@echo "  make drunken-broster    make swap-bros"
 	@echo "  make furibrosa          make unity-inspector"
 	@echo "  make ironbro-multiplayer make utility-mod"
-	@echo ""
-	@echo "Options:"
-	@echo "  LAUNCH=no               Don't kill or launch game"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make furibrosa              Kill game, build, launch"
-	@echo "  make furibrosa LAUNCH=no    Build without disrupting running game"
-	@echo "  make build-no-launch        Build all without disrupting game"
+endef
+export EXTRA_HELP
 
-.PHONY: build
-build:
-	"$(MSBUILD)" BroforceMods.sln $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=true
-
-.PHONY: build-no-launch
-build-no-launch:
-	"$(MSBUILD)" BroforceMods.sln $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
-
-.PHONY: clean
-clean:
-	"$(MSBUILD)" BroforceMods.sln /t:Clean $(MSBUILD_FLAGS)
-
-.PHONY: rebuild
-rebuild: clean
-	"$(MSBUILD)" BroforceMods.sln $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
+include Scripts/Makefile.common
 
 # Individual project targets
 .PHONY: brostbuster
