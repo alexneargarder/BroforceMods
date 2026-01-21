@@ -1,0 +1,75 @@
+# Makefile.common - Shared build infrastructure for Broforce mods
+# Source: Broforce-Templates/Scripts/Makefile.common
+# Synced to repos via sync-targets.sh
+
+# Required variables (must be set before including this file):
+#   PROJECT_NAME - Display name for help text
+#   SOLUTION     - Solution or project file to build
+#
+# Optional variables:
+#   EXTRA_HELP   - Additional help text to display
+
+# MSBuild configuration - override with: make MSBUILD="/path/to/msbuild" build
+# Detect if running in WSL (Windows Subsystem for Linux)
+IS_WSL := $(shell grep -qi microsoft /proc/version 2>/dev/null && echo 1)
+
+ifdef IS_WSL
+    # WSL: Use Windows MSBuild via /mnt/c path (override if your VS installation differs)
+    MSBUILD ?= /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
+else
+    # Native Linux/macOS/Windows: Use msbuild from PATH
+    MSBUILD ?= msbuild
+endif
+
+MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo
+
+# LAUNCH variable controls both kill and launch behavior
+# Usage: make build LAUNCH=no
+ifeq ($(LAUNCH),no)
+    LAUNCH_FLAGS := /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
+else
+    LAUNCH_FLAGS := /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=true
+endif
+
+# Default target shows help
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help:
+	@echo "$(PROJECT_NAME) Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  make build              Build (kill game, build, launch)"
+	@echo "  make build-no-launch    Build without disrupting running game"
+	@echo "  make clean              Clean build artifacts"
+	@echo "  make rebuild            Clean and rebuild"
+ifdef EXTRA_HELP
+	@echo ""
+	@$(EXTRA_HELP)
+endif
+	@echo ""
+	@echo "Options:"
+	@echo "  LAUNCH=no               Don't kill or launch game"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make build              Standard build with game launch"
+	@echo "  make build LAUNCH=no    Build without disrupting running game"
+
+# Build targets - can be overridden by setting CUSTOM_BUILD=1 before including
+ifndef CUSTOM_BUILD
+.PHONY: build
+build:
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS)
+
+.PHONY: build-no-launch
+build-no-launch:
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
+
+.PHONY: clean
+clean:
+	"$(MSBUILD)" $(SOLUTION) /t:Clean $(MSBUILD_FLAGS)
+
+.PHONY: rebuild
+rebuild: clean
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
+endif
