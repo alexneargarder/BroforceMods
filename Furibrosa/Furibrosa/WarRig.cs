@@ -324,7 +324,7 @@ namespace Furibrosa
             dashSpeedM = 1.5f;
 
             // Setup audio
-            if ( vehicleEngineAudio == null )
+            if ( !vehicleEngineAudio )
             {
                 vehicleEngineAudio = gameObject.AddComponent<AudioSource>();
                 vehicleEngineAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -336,7 +336,7 @@ namespace Furibrosa
                 vehicleEngineAudio.volume = vehicleEngineVolume;
             }
 
-            if ( vehicleHornAudio == null )
+            if ( !vehicleHornAudio )
             {
                 vehicleHornAudio = gameObject.AddComponent<AudioSource>();
                 vehicleHornAudio.rolloffMode = AudioRolloffMode.Linear;
@@ -349,7 +349,7 @@ namespace Furibrosa
             }
 
             // Make sure gib holder exists
-            if ( gibs == null )
+            if ( !gibs )
             {
                 InitializeGibs();
             }
@@ -369,7 +369,7 @@ namespace Furibrosa
 
             DeactivateGun();
             GameObject platformObject = gameObject.FindChildOfName( "Platform" );
-            if ( platformObject != null )
+            if ( platformObject )
             {
                 platform = platformObject.GetComponent<BoxCollider>();
                 platform.center = new Vector3( -9f, 44f, -4.5f );
@@ -522,7 +522,7 @@ namespace Furibrosa
             }
 
             // Check if pilot unit was destroyed (in case they dropped out)
-            if ( pilotted && pilotUnit == null )
+            if ( pilotted && !pilotUnit )
             {
                 DisChargePilot( 0f, false, null );
             }
@@ -3274,10 +3274,10 @@ namespace Furibrosa
                 chargeTime = 0f;
                 chargeFramerate = 0.09f;
 
-                if ( pilotUnit != null )
+                if ( pilotUnit )
                 {
                     Furibrosa furibrosa = pilotUnit as Furibrosa;
-                    if ( furibrosa != null && currentPrimaryState != furibrosa.currentState )
+                    if ( furibrosa && currentPrimaryState != furibrosa.currentState )
                     {
                         if ( currentPrimaryState == PrimaryState.Switching )
                         {
@@ -3295,7 +3295,7 @@ namespace Furibrosa
                     }
 
                     // Remove invulnerability in case we received it while piloting vehicle
-                    if ( furibrosa != null )
+                    if ( furibrosa )
                     {
                         furibrosa.ClearInvulnerability();
                     }
@@ -3324,6 +3324,8 @@ namespace Furibrosa
                         bro.player.hud.SetGrenadeMaterials( bro.heroType );
                         bro.player.hud.SetGrenades( bro.SpecialAmmo );
                     }
+                    // Needed to ensure the icons always reappear, since if the remaining specials of the war rig match the remaining specials of the bro, no update happens.
+                    Traverse.Create( bro.player.hud ).Method( "FlashSpecialIconsNormal" ).GetValue();
 
                     pilotUnit.GetComponent<Renderer>().enabled = true;
                     pilotUnit.DischargePilotingUnit( X, Mathf.Clamp( Y + 32f, -6f, 100000f ), xI + ( ( !stunPilot ) ? 0f : ( ( float )( Random.Range( 0, 2 ) * 2 - 1 ) * disChargeYI * 0.3f ) ), disChargeYI + 100f + ( ( pilotUnit.playerNum >= 0 ) ? 0f : ( disChargeYI * 0.5f ) ), stunPilot );

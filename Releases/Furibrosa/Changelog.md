@@ -1,3 +1,6 @@
+## v1.1.1 (unreleased)
+- Fix special icons sometimes not returning after leaving war rig.
+
 ## v1.1.0
 - Changes for BroMaker update.
 - Improved pickup animation.
