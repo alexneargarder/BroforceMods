@@ -7,7 +7,9 @@ using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using RocketLib;
+using RocketLib.CustomTriggers;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Furibrosa
 {
@@ -35,6 +37,7 @@ namespace Furibrosa
             FlareGun = 1,
             Switching = 2
         }
+
         public PrimaryState currentState = PrimaryState.Crossbow;
         public PrimaryState nextState;
         public static Bolt boltPrefab, explosiveBoltPrefab;
@@ -46,8 +49,7 @@ namespace Furibrosa
         protected Material flareGunMat, flareGunNormalMat, flareGunHoldingMat;
         protected float gunFramerate = 0f;
         public static FuriosaFlare flarePrefab;
-        [SaveableSetting]
-        public static bool doubleTapSwitch = true;
+        [SaveableSetting] public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
         protected bool randomizedWeapon = false;
         public const float crossbowDelay = 0.65f;
@@ -77,15 +79,15 @@ namespace Furibrosa
         #region General
         protected override void Awake()
         {
-            this.gameObject.layer = 19;
+            gameObject.layer = 19;
             base.Awake();
         }
 
         public override void PreloadAssets()
         {
-            CustomHero.PreloadSprites( DirectoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" } );
+            PreloadSprites( DirectoryPath, new List<string> { "gunSpriteCrossbow.png", "gunSpriteCrossbowHolding.png", "gunSpriteFlareGun.png", "gunSpriteFlareGunHolding.png", "special.png", "gunSpriteHolding.png", "vehicleSprite.png", "vehicleCrossbow.png", "vehicleFlareGun.png", "vehicleCrossbow.png", "vehicleWheels.png", "vehicleBumper.png", "vehicleLongSmokestacks.png", "vehicleShortSmokestacks.png", "vehicleFrontSmokestacks.png", "vehicleSpecial.png", "boltExplosive.png", "bolt.png", "harpoon.png" } );
 
-            CustomHero.PreloadSounds( SoundPath, new List<string> { "crossbowShot1.wav", "crossbowShot2.wav", "crossbowShot3.wav", "crossbowShot4.wav", "flareShot1.wav", "flareShot2.wav", "flareShot3.wav", "flareShot4.wav", "charged.wav", "weaponSwap.wav", "meleeSwing1.wav", "meleeSwing2.wav", "meleeSwing3.wav", "vehicleIdleLoop.wav", "vehicleBoost.wav", "vehicleHornMedium.wav", "vehicleHornLong.wav", "vehicleHit1.wav", "vehicleHit2.wav", "vehicleHit3.wav", "harpoon.wav" } );
+            PreloadSounds( SoundPath, new List<string> { "crossbowShot1.wav", "crossbowShot2.wav", "crossbowShot3.wav", "crossbowShot4.wav", "flareShot1.wav", "flareShot2.wav", "flareShot3.wav", "flareShot4.wav", "charged.wav", "weaponSwap.wav", "meleeSwing1.wav", "meleeSwing2.wav", "meleeSwing3.wav", "vehicleIdleLoop.wav", "vehicleBoost.wav", "vehicleHornMedium.wav", "vehicleHornLong.wav", "vehicleHit1.wav", "vehicleHit2.wav", "vehicleHit3.wav", "harpoon.wav" } );
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -96,27 +98,27 @@ namespace Furibrosa
 
         public override void RegisterCustomTriggers()
         {
-            RocketLib.CustomTriggers.CustomTriggerManager.RegisterCustomTrigger( typeof( FuribrosaSummonWarRigAction ), typeof( FuribrosaSummonWarRigActionInfo ), "Furibrosa - Summon War Rig", "Custom Bros" );
+            CustomTriggerManager.RegisterCustomTrigger( typeof( FuribrosaSummonWarRigAction ), typeof( FuribrosaSummonWarRigActionInfo ), "Furibrosa - Summon War Rig", "Custom Bros" );
         }
 
         protected override void Start()
         {
             base.Start();
 
-            this.meleeType = MeleeType.Disembowel;
+            meleeType = MeleeType.Disembowel;
 
-            this.crossbowMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbow.png" ) );
-            this.crossbowNormalMat = this.crossbowMat;
-            this.crossbowHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbowHolding.png" ) );
+            crossbowMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbow.png" ) );
+            crossbowNormalMat = crossbowMat;
+            crossbowHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbowHolding.png" ) );
 
-            this.flareGunMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGun.png" ) );
-            this.flareGunNormalMat = this.flareGunMat;
-            this.flareGunHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGunHolding.png" ) );
+            flareGunMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGun.png" ) );
+            flareGunNormalMat = flareGunMat;
+            flareGunHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGunHolding.png" ) );
 
-            this.gunSprite.gameObject.layer = 19;
-            this.gunSprite.meshRender.material = this.crossbowMat;
+            gunSprite.gameObject.layer = 19;
+            gunSprite.meshRender.material = crossbowMat;
 
-            this.originalSpecialMat = ResourcesController.GetMaterial( DirectoryPath, "special.png" );
+            originalSpecialMat = ResourcesController.GetMaterial( DirectoryPath, "special.png" );
 
             if ( boltPrefab == null )
             {
@@ -124,7 +126,7 @@ namespace Furibrosa
                 boltPrefab.gameObject.SetActive( false );
                 boltPrefab.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Predabro ) as Predabro ).projectile.soundHolder;
                 boltPrefab.Setup( false );
-                UnityEngine.Object.DontDestroyOnLoad( boltPrefab );
+                DontDestroyOnLoad( boltPrefab );
             }
 
             if ( explosiveBoltPrefab == null )
@@ -133,7 +135,7 @@ namespace Furibrosa
                 explosiveBoltPrefab.gameObject.SetActive( false );
                 explosiveBoltPrefab.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Predabro ) as Predabro ).projectile.soundHolder;
                 explosiveBoltPrefab.Setup( true );
-                UnityEngine.Object.DontDestroyOnLoad( explosiveBoltPrefab );
+                DontDestroyOnLoad( explosiveBoltPrefab );
             }
 
             if ( flarePrefab == null )
@@ -142,18 +144,18 @@ namespace Furibrosa
                 {
                     if ( InstantiationController.PrefabList[i] != null && InstantiationController.PrefabList[i].name == "Bullet Flare" )
                     {
-                        Flare originalFlare = ( UnityEngine.Object.Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject ).GetComponent<Flare>();
+                        Flare originalFlare = ( Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject ).GetComponent<Flare>();
                         flarePrefab = originalFlare.gameObject.AddComponent<FuriosaFlare>();
                         flarePrefab.Setup( originalFlare );
                         flarePrefab.gameObject.SetActive( false );
-                        UnityEngine.Object.DontDestroyOnLoad( flarePrefab );
+                        DontDestroyOnLoad( flarePrefab );
                         break;
                     }
                 }
             }
 
             holdingArm = new GameObject( "FuribrosaArm", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
-            holdingArm.transform.parent = this.transform;
+            holdingArm.transform.parent = transform;
             holdingArm.gameObject.SetActive( false );
             holdingArm.material = ResourcesController.GetMaterial( DirectoryPath, "gunSpriteHolding.png" );
             SpriteSM holdingArmSprite = holdingArm.gameObject.GetComponent<SpriteSM>();
@@ -182,11 +184,12 @@ namespace Furibrosa
             // Randomize starting weapon
             if ( !randomizedWeapon )
             {
-                if ( UnityEngine.Random.value >= 0.5f )
+                if ( Random.value >= 0.5f )
                 {
-                    this.nextState = PrimaryState.FlareGun;
-                    this.SwitchWeapon();
+                    nextState = PrimaryState.FlareGun;
+                    SwitchWeapon();
                 }
+
                 randomizedWeapon = true;
             }
         }
@@ -200,7 +203,7 @@ namespace Furibrosa
                 {
                     if ( InstantiationController.PrefabList[i] != null && InstantiationController.PrefabList[i].name == "ZMookArmouredGuy" )
                     {
-                        warRig = UnityEngine.Object.Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject;
+                        warRig = Instantiate( InstantiationController.PrefabList[i], Vector3.zero, Quaternion.identity ) as GameObject;
                     }
                 }
 
@@ -213,59 +216,60 @@ namespace Furibrosa
                 {
                     throw new Exception( "Mech Prefab not found" );
                 }
-                UnityEngine.Object.DontDestroyOnLoad( warRigPrefab );
+
+                DontDestroyOnLoad( warRigPrefab );
             }
         }
 
         public override void BeforePrefabSetup()
         {
-            this.SoundHolderVoiceType = SoundHolderVoiceTypes.Female;
+            SoundHolderVoiceType = SoundHolderVoiceTypes.Female;
         }
 
         public override void AfterPrefabSetup()
         {
             // Load Audio
-            this.crossbowSounds = new AudioClip[4];
-            this.crossbowSounds[0] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot1.wav" );
-            this.crossbowSounds[1] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot2.wav" );
-            this.crossbowSounds[2] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot3.wav" );
-            this.crossbowSounds[3] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot4.wav" );
+            crossbowSounds = new AudioClip[4];
+            crossbowSounds[0] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot1.wav" );
+            crossbowSounds[1] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot2.wav" );
+            crossbowSounds[2] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot3.wav" );
+            crossbowSounds[3] = ResourcesController.GetAudioClip( SoundPath, "crossbowShot4.wav" );
 
-            this.flareSounds = new AudioClip[4];
-            this.flareSounds[0] = ResourcesController.GetAudioClip( SoundPath, "flareShot1.wav" );
-            this.flareSounds[1] = ResourcesController.GetAudioClip( SoundPath, "flareShot2.wav" );
-            this.flareSounds[2] = ResourcesController.GetAudioClip( SoundPath, "flareShot3.wav" );
-            this.flareSounds[3] = ResourcesController.GetAudioClip( SoundPath, "flareShot4.wav" );
+            flareSounds = new AudioClip[4];
+            flareSounds[0] = ResourcesController.GetAudioClip( SoundPath, "flareShot1.wav" );
+            flareSounds[1] = ResourcesController.GetAudioClip( SoundPath, "flareShot2.wav" );
+            flareSounds[2] = ResourcesController.GetAudioClip( SoundPath, "flareShot3.wav" );
+            flareSounds[3] = ResourcesController.GetAudioClip( SoundPath, "flareShot4.wav" );
 
-            this.chargeSound = ResourcesController.GetAudioClip( SoundPath, "charged.wav" );
+            chargeSound = ResourcesController.GetAudioClip( SoundPath, "charged.wav" );
 
-            this.swapSound = ResourcesController.GetAudioClip( SoundPath, "weaponSwap.wav" );
+            swapSound = ResourcesController.GetAudioClip( SoundPath, "weaponSwap.wav" );
 
-            this.meleeSwingSounds = new AudioClip[3];
-            this.meleeSwingSounds[0] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing1.wav" );
-            this.meleeSwingSounds[1] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing2.wav" );
-            this.meleeSwingSounds[2] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing3.wav" );
+            meleeSwingSounds = new AudioClip[3];
+            meleeSwingSounds[0] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing1.wav" );
+            meleeSwingSounds[1] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing2.wav" );
+            meleeSwingSounds[2] = ResourcesController.GetAudioClip( SoundPath, "meleeSwing3.wav" );
         }
 
         protected override void Update()
         {
             base.Update();
-            if ( this.acceptedDeath )
+            if ( acceptedDeath )
             {
-                if ( this.health <= 0 && !this.WillReviveAlready )
+                if ( health <= 0 && !WillReviveAlready )
                 {
                     return;
                 }
                 // Revived
                 else
                 {
-                    this.acceptedDeath = false;
+                    acceptedDeath = false;
                 }
             }
 
-            if ( this.invulnerable )
+            if ( invulnerable )
             {
-                this.wasInvulnerable = true;
+                wasInvulnerable = true;
             }
 
             // Switch Weapon Pressed
@@ -275,62 +279,62 @@ namespace Furibrosa
             }
 
             // Check if invulnerability ran out
-            if ( this.wasInvulnerable && !this.invulnerable )
+            if ( wasInvulnerable && !invulnerable )
             {
                 // Fix any not currently displayed textures
-                this.wasInvulnerable = false;
-                base.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
-                this.crossbowNormalMat.SetColor( "_TintColor", Color.gray );
-                this.crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
-                this.flareGunNormalMat.SetColor( "_TintColor", Color.gray );
-                this.flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
-                this.holdingArm.material.SetColor( "_TintColor", Color.gray );
+                wasInvulnerable = false;
+                GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
+                crossbowNormalMat.SetColor( "_TintColor", Color.gray );
+                crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
+                flareGunNormalMat.SetColor( "_TintColor", Color.gray );
+                flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
+                holdingArm.material.SetColor( "_TintColor", Color.gray );
             }
 
-            if ( this.holdingSpecial )
+            if ( holdingSpecial )
             {
-                if ( this.special )
+                if ( special )
                 {
-                    this.holdingSpecialTime += this.t;
-                    if ( this.holdingSpecialTime > 0.2f )
+                    holdingSpecialTime += t;
+                    if ( holdingSpecialTime > 0.2f )
                     {
                         GoPastFuriosa();
                     }
                 }
                 else
                 {
-                    this.holdingSpecial = false;
+                    holdingSpecial = false;
                 }
             }
 
             // Handle death
-            if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
+            if ( actionState == ActionState.Dead && !acceptedDeath )
             {
-                if ( !this.WillReviveAlready )
+                if ( !WillReviveAlready )
                 {
-                    this.acceptedDeath = true;
+                    acceptedDeath = true;
                 }
             }
 
             // Release unit if getting on helicopter
-            if ( this.isOnHelicopter )
+            if ( isOnHelicopter )
             {
-                this.ReleaseUnit( false );
+                ReleaseUnit( false );
             }
 
             // Smoothly interpolate holding offsets
-            if ( this.grabbedUnit != null && this.isInterpolating )
+            if ( grabbedUnit != null && isInterpolating )
             {
-                this.holdingXOffset = Mathf.Lerp( this.holdingXOffset, this.targetHoldingXOffset, Time.deltaTime * this.interpolationSpeed );
-                this.holdingYOffset = Mathf.Lerp( this.holdingYOffset, this.targetHoldingYOffset, Time.deltaTime * this.interpolationSpeed );
+                holdingXOffset = Mathf.Lerp( holdingXOffset, targetHoldingXOffset, Time.deltaTime * interpolationSpeed );
+                holdingYOffset = Mathf.Lerp( holdingYOffset, targetHoldingYOffset, Time.deltaTime * interpolationSpeed );
 
                 // Check if we're close enough to stop interpolating
-                if ( Mathf.Abs( this.holdingXOffset - this.targetHoldingXOffset ) < 0.01f &&
-                     Mathf.Abs( this.holdingYOffset - this.targetHoldingYOffset ) < 0.01f )
+                if ( Mathf.Abs( holdingXOffset - targetHoldingXOffset ) < 0.01f &&
+                     Mathf.Abs( holdingYOffset - targetHoldingYOffset ) < 0.01f )
                 {
-                    this.holdingXOffset = this.targetHoldingXOffset;
-                    this.holdingYOffset = this.targetHoldingYOffset;
-                    this.isInterpolating = false;
+                    holdingXOffset = targetHoldingXOffset;
+                    holdingYOffset = targetHoldingYOffset;
+                    isInterpolating = false;
                 }
             }
         }
@@ -339,42 +343,43 @@ namespace Furibrosa
         {
             base.LateUpdate();
 
-            if ( this.acceptedDeath )
+            if ( acceptedDeath )
             {
                 return;
             }
 
-            if ( this.grabbedUnit != null )
+            if ( grabbedUnit != null )
             {
-                if ( this.grabbedUnit.health > 0 && this.health > 0 )
+                if ( grabbedUnit.health > 0 && health > 0 )
                 {
-                    this.grabbedUnit.X = base.X + base.transform.localScale.x * this.holdingXOffset;
-                    this.grabbedUnit.Y = base.Y + this.holdingYOffset;
-                    if ( this.currentState == PrimaryState.Crossbow )
+                    grabbedUnit.X = X + transform.localScale.x * holdingXOffset;
+                    grabbedUnit.Y = Y + holdingYOffset;
+                    if ( currentState == PrimaryState.Crossbow )
                     {
-                        this.grabbedUnit.zOffset = -0.95f;
+                        grabbedUnit.zOffset = -0.95f;
                     }
-                    else if ( this.currentState == PrimaryState.FlareGun )
+                    else if ( currentState == PrimaryState.FlareGun )
                     {
-                        this.grabbedUnit.zOffset = -2;
+                        grabbedUnit.zOffset = -2;
                     }
-                    this.grabbedUnit.transform.localScale = base.transform.localScale;
-                    this.unitWasGrabbed = true;
+
+                    grabbedUnit.transform.localScale = transform.localScale;
+                    unitWasGrabbed = true;
                 }
                 else
                 {
-                    this.ReleaseUnit( false );
+                    ReleaseUnit( false );
                 }
             }
             // Unit was grabbed but no longer exists, switch to normal materials
-            else if ( this.unitWasGrabbed )
+            else if ( unitWasGrabbed )
             {
-                this.unitWasGrabbed = false;
+                unitWasGrabbed = false;
                 grabbedUnits.RemoveWhere( unit => unit == null );
-                this.grabbedUnit = null;
-                this.gunSprite.gameObject.layer = 19;
-                this.SwitchToNormalMaterials();
-                this.ChangeFrame();
+                grabbedUnit = null;
+                gunSprite.gameObject.layer = 19;
+                SwitchToNormalMaterials();
+                ChangeFrame();
             }
         }
 
@@ -388,36 +393,37 @@ namespace Furibrosa
             if ( doubleTapSwitch != ( doubleTapSwitch = GUILayout.Toggle( doubleTapSwitch, "Double Tap Down to Switch Weapons" ) ) )
             {
                 // Settings changed, update json
-                this.SaveSettings();
+                SaveSettings();
             }
         }
 
         public override void Death( float xI, float yI, DamageObject damage )
         {
-            this.ReleaseUnit( false );
+            ReleaseUnit( false );
             base.Death( xI, yI, damage );
         }
 
         protected override void OnDestroy()
         {
-            this.ReleaseUnit( false );
+            ReleaseUnit( false );
             base.OnDestroy();
         }
 
         public override void RecallBro()
         {
             // Release unit if despawning
-            this.ReleaseUnit( false );
+            ReleaseUnit( false );
 
             base.RecallBro();
         }
 
         protected override void ChangeFrame()
         {
-            if ( !this.randomizedWeapon && this.isOnHelicopter )
+            if ( !randomizedWeapon && isOnHelicopter )
             {
-                this.randomizedWeapon = true;
+                randomizedWeapon = true;
             }
+
             base.ChangeFrame();
         }
         #endregion
@@ -426,75 +432,79 @@ namespace Furibrosa
         protected override void SetGunPosition( float xOffset, float yOffset )
         {
             base.SetGunPosition( xOffset, yOffset );
-            if ( this.grabbedUnit != null )
+            if ( grabbedUnit != null )
             {
-                if ( !this.isInterpolating )
+                if ( !isInterpolating )
                 {
-                    this.holdingXOffset = 11f + xOffset;
-                    this.holdingYOffset = 4.5f + yOffset;
+                    holdingXOffset = 11f + xOffset;
+                    holdingYOffset = 4.5f + yOffset;
                 }
-                this.holdingArm.transform.localPosition = this.gunSprite.transform.localPosition + new Vector3( 0f, 0f, 0.1f );
-                this.holdingArm.transform.localScale = this.gunSprite.transform.localScale;
+
+                holdingArm.transform.localPosition = gunSprite.transform.localPosition + new Vector3( 0f, 0f, 0.1f );
+                holdingArm.transform.localScale = gunSprite.transform.localScale;
             }
         }
 
         protected override void StartFiring()
         {
-            this.chargeTime = 0f;
-            this.chargeCounter = 0;
-            this.charged = false;
+            chargeTime = 0f;
+            chargeCounter = 0;
+            charged = false;
             base.StartFiring();
         }
 
         protected override void ReleaseFire()
         {
-            if ( this.fireDelay < 0.2f )
+            if ( fireDelay < 0.2f )
             {
-                this.releasedFire = true;
+                releasedFire = true;
             }
+
             base.ReleaseFire();
         }
 
         protected override void RunFiring()
         {
-            if ( this.health <= 0 )
+            if ( health <= 0 )
             {
                 return;
             }
 
-            if ( this.currentState == PrimaryState.Crossbow )
+            if ( currentState == PrimaryState.Crossbow )
             {
-                if ( this.fireDelay > 0f )
+                if ( fireDelay > 0f )
                 {
-                    this.fireDelay -= this.t;
+                    fireDelay -= t;
                 }
-                if ( this.fireDelay <= 0f )
+
+                if ( fireDelay <= 0f )
                 {
-                    if ( this.fire )
+                    if ( fire )
                     {
-                        this.StopRolling();
-                        this.chargeTime += this.t;
+                        StopRolling();
+                        chargeTime += t;
                     }
-                    else if ( this.releasedFire )
+                    else if ( releasedFire )
                     {
-                        this.UseFire();
-                        this.SetGestureAnimation( GestureElement.Gestures.None );
+                        UseFire();
+                        SetGestureAnimation( GestureElement.Gestures.None );
                     }
                 }
             }
-            else if ( this.currentState == PrimaryState.FlareGun )
+            else if ( currentState == PrimaryState.FlareGun )
             {
-                if ( this.fireDelay > 0f )
+                if ( fireDelay > 0f )
                 {
-                    this.fireDelay -= this.t;
+                    fireDelay -= t;
                 }
-                if ( this.fireDelay <= 0f )
+
+                if ( fireDelay <= 0f )
                 {
-                    if ( this.fire || this.releasedFire )
+                    if ( fire || releasedFire )
                     {
-                        this.UseFire();
-                        this.SetGestureAnimation( GestureElement.Gestures.None );
-                        this.releasedFire = false;
+                        UseFire();
+                        SetGestureAnimation( GestureElement.Gestures.None );
+                        releasedFire = false;
                     }
                 }
             }
@@ -502,200 +512,205 @@ namespace Furibrosa
 
         protected override void UseFire()
         {
-            if ( this.doingMelee )
+            if ( doingMelee )
             {
-                this.CancelMelee();
+                CancelMelee();
             }
-            this.releasedFire = false;
+
+            releasedFire = false;
             if ( Connect.IsOffline )
             {
-                this.syncedDirection = (int)base.transform.localScale.x;
+                syncedDirection = ( int )transform.localScale.x;
             }
-            this.FireWeapon( 0f, 0f, 0f, 0 );
-            Map.DisturbWildLife( base.X, base.Y, 60f, base.playerNum );
+
+            FireWeapon( 0f, 0f, 0f, 0 );
+            Map.DisturbWildLife( X, Y, 60f, playerNum );
         }
 
         protected override void FireWeapon( float x, float y, float xSpeed, float ySpeed )
         {
             // Fire crossbow
-            if ( this.currentState == PrimaryState.Crossbow )
+            if ( currentState == PrimaryState.Crossbow )
             {
                 // Fire explosive bolt
-                if ( this.charged )
+                if ( charged )
                 {
-                    x = base.X + base.transform.localScale.x * 8f;
-                    y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 500 + ( this.xI / 2 );
+                    x = X + transform.localScale.x * 8f;
+                    y = Y + 8f;
+                    xSpeed = transform.localScale.x * 500 + ( xI / 2 );
                     ySpeed = 0;
-                    this.gunFrame = 3;
-                    this.SetGunSprite( this.gunFrame, 0 );
-                    this.TriggerBroFireEvent();
-                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform );
-                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally( explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum ) as Bolt;
-
+                    gunFrame = 3;
+                    SetGunSprite( gunFrame, 0 );
+                    TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, transform );
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally( explosiveBoltPrefab, this, x, y, xSpeed, ySpeed, playerNum ) as Bolt;
                 }
                 // Fire normal bolt
                 else
                 {
-                    x = base.X + base.transform.localScale.x * 8f;
-                    y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 400 + ( this.xI / 2 );
+                    x = X + transform.localScale.x * 8f;
+                    y = Y + 8f;
+                    xSpeed = transform.localScale.x * 400 + ( xI / 2 );
                     ySpeed = 0;
-                    this.gunFrame = 3;
-                    this.SetGunSprite( this.gunFrame, 0 );
-                    this.TriggerBroFireEvent();
-                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform );
-                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally( boltPrefab, this, x, y, xSpeed, ySpeed, base.playerNum ) as Bolt;
+                    gunFrame = 3;
+                    SetGunSprite( gunFrame, 0 );
+                    TriggerBroFireEvent();
+                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, transform );
+                    Bolt firedBolt = ProjectileController.SpawnProjectileLocally( boltPrefab, this, x, y, xSpeed, ySpeed, playerNum ) as Bolt;
                 }
-                this.PlayCrossbowSound( base.transform.position );
-                this.fireDelay = crossbowDelay;
+
+                PlayCrossbowSound( transform.position );
+                fireDelay = crossbowDelay;
             }
-            else if ( this.currentState == PrimaryState.FlareGun )
+            else if ( currentState == PrimaryState.FlareGun )
             {
                 Projectile flare = null;
-                if ( this.attachedToZipline == null )
+                if ( attachedToZipline == null )
                 {
-                    x = base.X + base.transform.localScale.x * 12f;
-                    y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 450;
-                    ySpeed = UnityEngine.Random.Range( 15, 50 );
-                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform );
-                    flare = ProjectileController.SpawnProjectileLocally( flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum );
+                    x = X + transform.localScale.x * 12f;
+                    y = Y + 8f;
+                    xSpeed = transform.localScale.x * 450;
+                    ySpeed = Random.Range( 15, 50 );
+                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, transform );
+                    flare = ProjectileController.SpawnProjectileLocally( flarePrefab, this, x, y, xSpeed, ySpeed, playerNum );
                 }
                 // Move position of shot if attached to a zipline
                 else
                 {
-                    x = base.X + base.transform.localScale.x * 4f;
-                    y = base.Y + 8f;
-                    xSpeed = base.transform.localScale.x * 450;
-                    ySpeed = UnityEngine.Random.Range( 15, 50 );
-                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, base.transform );
-                    flare = ProjectileController.SpawnProjectileLocally( flarePrefab, this, x, y, xSpeed, ySpeed, base.playerNum );
+                    x = X + transform.localScale.x * 4f;
+                    y = Y + 8f;
+                    xSpeed = transform.localScale.x * 450;
+                    ySpeed = Random.Range( 15, 50 );
+                    EffectsController.CreateMuzzleFlashEffect( x, y, -25f, xSpeed * 0.15f, ySpeed, transform );
+                    flare = ProjectileController.SpawnProjectileLocally( flarePrefab, this, x, y, xSpeed, ySpeed, playerNum );
                 }
-                this.gunFrame = 3;
-                this.PlayFlareSound( base.transform.position );
-                this.fireDelay = flaregunDelay;
+
+                gunFrame = 3;
+                PlayFlareSound( transform.position );
+                fireDelay = flaregunDelay;
             }
         }
 
         public void PlayChargeSound( Vector3 position )
         {
-            this.sound.PlaySoundEffectAt( this.chargeSound, 0.35f, position, 1f, true, false, true, 0f );
+            sound.PlaySoundEffectAt( chargeSound, 0.35f, position, 1f, true, false, true, 0f );
         }
 
         public void PlayCrossbowSound( Vector3 position )
         {
-            this.sound.PlaySoundEffectAt( this.crossbowSounds, 0.35f, position, 1f, true, false, true, 0f );
+            sound.PlaySoundEffectAt( crossbowSounds, 0.35f, position, 1f, true, false, true, 0f );
         }
 
         public void PlayFlareSound( Vector3 position )
         {
-            this.sound.PlaySoundEffectAt( this.flareSounds, 0.75f, position, 1f, true, false, true, 0f );
+            sound.PlaySoundEffectAt( flareSounds, 0.75f, position, 1f, true, false, true, 0f );
         }
 
         public void PlaySwapSound( Vector3 position )
         {
-            this.sound.PlaySoundEffectAt( this.swapSound, 0.35f, position, 1f, true, false, true, 0f );
+            sound.PlaySoundEffectAt( swapSound, 0.35f, position, 1f, true, false, true, 0f );
         }
 
         protected override void RunGun()
         {
-            if ( this.currentState == PrimaryState.Crossbow )
+            if ( currentState == PrimaryState.Crossbow )
             {
-                if ( this.fire )
+                if ( fire )
                 {
-                    if ( this.chargeTime > 0.2f )
+                    if ( chargeTime > 0.2f )
                     {
                         // Starting charge
-                        if ( this.chargeCounter == 0 )
+                        if ( chargeCounter == 0 )
                         {
-                            this.gunCounter += this.t;
-                            if ( this.gunCounter < 1f && this.gunCounter > 0.08f )
+                            gunCounter += t;
+                            if ( gunCounter < 1f && gunCounter > 0.08f )
                             {
-                                this.gunCounter -= 0.08f;
-                                ++this.gunFrame;
-                                if ( this.gunFrame > 5 )
+                                gunCounter -= 0.08f;
+                                ++gunFrame;
+                                if ( gunFrame > 5 )
                                 {
-                                    ++this.chargeCounter;
-                                    this.gunFramerate = 0.09f;
+                                    ++chargeCounter;
+                                    gunFramerate = 0.09f;
                                 }
                             }
                         }
                         // Holding pattern
                         else
                         {
-                            this.gunCounter += this.t;
-                            if ( this.gunCounter > this.gunFramerate )
+                            gunCounter += t;
+                            if ( gunCounter > gunFramerate )
                             {
-                                this.gunCounter -= this.gunFramerate;
-                                ++this.gunFrame;
-                                if ( this.gunFrame > 9 )
+                                gunCounter -= gunFramerate;
+                                ++gunFrame;
+                                if ( gunFrame > 9 )
                                 {
-                                    this.gunFrame = 6;
-                                    if ( !this.charged )
+                                    gunFrame = 6;
+                                    if ( !charged )
                                     {
-                                        ++this.chargeCounter;
-                                        if ( this.chargeCounter > 1 )
+                                        ++chargeCounter;
+                                        if ( chargeCounter > 1 )
                                         {
-                                            this.PlayChargeSound( base.transform.position );
-                                            this.charged = true;
-                                            this.gunFramerate = 0.04f;
+                                            PlayChargeSound( transform.position );
+                                            charged = true;
+                                            gunFramerate = 0.04f;
                                         }
                                     }
                                 }
                             }
                         }
+
                         // Don't use SetGunSprite to avoid issues when on zipline
-                        this.gunSprite.SetLowerLeftPixel( ( this.gunFrame + 14 ) * this.gunSpritePixelWidth, this.gunSpritePixelHeight );
+                        gunSprite.SetLowerLeftPixel( ( gunFrame + 14 ) * gunSpritePixelWidth, gunSpritePixelHeight );
                     }
                 }
-                else if ( !this.WallDrag && this.gunFrame > 0 )
+                else if ( !WallDrag && gunFrame > 0 )
                 {
-                    this.gunCounter += this.t;
-                    if ( this.gunCounter > 0.045f )
+                    gunCounter += t;
+                    if ( gunCounter > 0.045f )
                     {
-                        this.gunCounter -= 0.045f;
-                        this.gunFrame--;
-                        this.SetGunSprite( this.gunFrame, 0 );
+                        gunCounter -= 0.045f;
+                        gunFrame--;
+                        SetGunSprite( gunFrame, 0 );
                     }
                 }
             }
             // Animate flaregun
-            else if ( this.currentState == PrimaryState.FlareGun )
+            else if ( currentState == PrimaryState.FlareGun )
             {
-                if ( this.gunFrame > 0 )
+                if ( gunFrame > 0 )
                 {
-                    this.gunCounter += this.t;
-                    if ( this.gunCounter > 0.0334f )
+                    gunCounter += t;
+                    if ( gunCounter > 0.0334f )
                     {
-                        this.gunCounter -= 0.0334f;
-                        --this.gunFrame;
+                        gunCounter -= 0.0334f;
+                        --gunFrame;
                     }
                 }
-                this.SetGunSprite( this.gunFrame, 0 );
+
+                SetGunSprite( gunFrame, 0 );
             }
             // Animate switching
             else
             {
-                this.gunCounter += this.t;
-                if ( this.gunCounter > 0.07f )
+                gunCounter += t;
+                if ( gunCounter > 0.07f )
                 {
-                    this.gunCounter -= 0.07f;
-                    ++this.gunFrame;
+                    gunCounter -= 0.07f;
+                    ++gunFrame;
 
-                    if ( this.gunFrame == 3 )
+                    if ( gunFrame == 3 )
                     {
-                        this.PlaySwapSound( base.transform.position );
+                        PlaySwapSound( transform.position );
                     }
                 }
 
-                if ( this.gunFrame > 5 )
+                if ( gunFrame > 5 )
                 {
-                    this.SwitchWeapon();
+                    SwitchWeapon();
                 }
                 else
                 {
-                    this.SetGunSprite( 25 + this.gunFrame, 0 );
+                    SetGunSprite( 25 + gunFrame, 0 );
                 }
             }
         }
@@ -703,81 +718,86 @@ namespace Furibrosa
         public override void StartPilotingUnit( Unit pilottedUnit )
         {
             // Finish switching weapon
-            if ( this.currentState == PrimaryState.Switching )
+            if ( currentState == PrimaryState.Switching )
             {
-                this.SwitchWeapon();
+                SwitchWeapon();
             }
 
             // Make sure to release any held units
-            this.ReleaseUnit( false );
+            ReleaseUnit( false );
 
             // Ensure we don't double fire when exiting units
-            this.fire = this.wasFire = false;
+            fire = wasFire = false;
             base.StartPilotingUnit( pilottedUnit );
         }
 
         protected void StartSwitchingWeapon()
         {
-            if ( !this.usingSpecial && this.currentState != PrimaryState.Switching && this.attachedToZipline == null )
+            if ( !usingSpecial && currentState != PrimaryState.Switching && attachedToZipline == null )
             {
-                this.CancelMelee();
-                this.SetGestureAnimation( GestureElement.Gestures.None );
-                if ( this.currentState == PrimaryState.Crossbow )
+                CancelMelee();
+                SetGestureAnimation( GestureElement.Gestures.None );
+                if ( currentState == PrimaryState.Crossbow )
                 {
-                    this.nextState = PrimaryState.FlareGun;
+                    nextState = PrimaryState.FlareGun;
                 }
                 else
                 {
-                    this.nextState = PrimaryState.Crossbow;
+                    nextState = PrimaryState.Crossbow;
                 }
-                this.currentState = PrimaryState.Switching;
-                this.gunFrame = 0;
-                this.gunCounter = 0f;
-                this.fireDelay = 0f;
-                this.RunGun();
+
+                currentState = PrimaryState.Switching;
+                gunFrame = 0;
+                gunCounter = 0f;
+                fireDelay = 0f;
+                RunGun();
             }
         }
 
         public void SwitchWeapon()
         {
-            this.gunFrame = 0;
-            this.gunCounter = 0f;
-            this.currentState = this.nextState;
-            if ( this.currentState == PrimaryState.FlareGun )
+            gunFrame = 0;
+            gunCounter = 0f;
+            currentState = nextState;
+            if ( currentState == PrimaryState.FlareGun )
             {
-                this.gunSprite.meshRender.material = this.flareGunMat;
+                gunSprite.meshRender.material = flareGunMat;
             }
             else
             {
-                this.gunSprite.meshRender.material = this.crossbowMat;
+                gunSprite.meshRender.material = crossbowMat;
             }
-            if ( this.grabbedUnit != null )
+
+            if ( grabbedUnit != null )
             {
-                this.holdingArm.gameObject.SetActive( true );
+                holdingArm.gameObject.SetActive( true );
             }
-            this.SetGunSprite( 0, 0 );
+
+            SetGunSprite( 0, 0 );
         }
 
         protected override void CheckInput()
         {
             base.CheckInput();
-            if ( !acceptedDeath && base.actionState != ActionState.Dead && doubleTapSwitch && this.down && !this.wasDown && base.actionState != ActionState.ClimbingLadder )
+            if ( !acceptedDeath && actionState != ActionState.Dead && doubleTapSwitch && down && !wasDown && actionState != ActionState.ClimbingLadder )
             {
-                if ( Time.realtimeSinceStartup - this.lastDownPressTime < 0.2f )
+                if ( Time.realtimeSinceStartup - lastDownPressTime < 0.2f )
                 {
-                    this.StartSwitchingWeapon();
+                    StartSwitchingWeapon();
                 }
-                this.lastDownPressTime = Time.realtimeSinceStartup;
+
+                lastDownPressTime = Time.realtimeSinceStartup;
             }
         }
 
         public override void AttachToZipline( ZipLine zipLine )
         {
             // Finish weapon switch animation if attaching to zipline
-            if ( this.currentState == PrimaryState.Switching )
+            if ( currentState == PrimaryState.Switching )
             {
-                this.SwitchWeapon();
+                SwitchWeapon();
             }
+
             base.AttachToZipline( zipLine );
         }
         #endregion
@@ -787,167 +807,172 @@ namespace Furibrosa
         {
             base.SetMeleeType();
             // Set dashing melee to true if we're jumping and dashing so that we can transition to dashing on landing
-            if ( this.jumpingMelee && ( this.right || this.left ) )
+            if ( jumpingMelee && ( right || left ) )
             {
-                this.dashingMelee = true;
+                dashingMelee = true;
             }
         }
 
         protected override void StartCustomMelee()
         {
             // Throwback mook instead of doing melee
-            if ( this.grabbedUnit != null )
+            if ( grabbedUnit != null )
             {
-                this.ReleaseUnit( true );
+                ReleaseUnit( true );
                 return;
             }
 
-            if ( this.CanStartNewMelee() )
+            if ( CanStartNewMelee() )
             {
-                base.frame = 1;
-                base.counter = -0.05f;
-                this.AnimateMelee();
+                frame = 1;
+                counter = -0.05f;
+                AnimateMelee();
             }
-            else if ( this.CanStartMeleeFollowUp() )
+            else if ( CanStartMeleeFollowUp() )
             {
-                this.meleeFollowUp = true;
-            }
-            if ( !this.jumpingMelee )
-            {
-                this.dashingMelee = true;
-                this.xI = (float)base.Direction * this.speed;
+                meleeFollowUp = true;
             }
 
-            this.throwingMook = ( this.nearbyMook != null && this.nearbyMook.CanBeThrown() );
-
-            if ( !this.doingMelee )
+            if ( !jumpingMelee )
             {
-                this.StartMeleeCommon();
+                dashingMelee = true;
+                xI = ( float )Direction * speed;
+            }
+
+            throwingMook = ( nearbyMook != null && nearbyMook.CanBeThrown() );
+
+            if ( !doingMelee )
+            {
+                StartMeleeCommon();
             }
         }
 
         protected override void AnimateCustomMelee()
         {
-            this.AnimateMeleeCommon();
-            if ( !this.throwingMook )
+            AnimateMeleeCommon();
+            if ( !throwingMook )
             {
-                base.frameRate = 0.07f;
-            }
-            this.sprite.SetLowerLeftPixel( ( 25 + base.frame ) * this.spritePixelWidth, 9 * this.spritePixelHeight );
-            if ( base.frame == 2 )
-            {
-                this.sound.PlaySoundEffectAt( this.meleeSwingSounds, 0.3f, base.transform.position, 1f, true, false, true, 0f );
-            }
-            else if ( base.frame == 3 )
-            {
-                base.counter -= 0.066f;
-                this.GrabUnit();
-            }
-            else if ( base.frame > 3 && !this.meleeHasHit )
-            {
-                this.GrabUnit();
+                frameRate = 0.07f;
             }
 
-            if ( this.meleeHasHit && this.grabbedUnit != null )
+            sprite.SetLowerLeftPixel( ( 25 + frame ) * spritePixelWidth, 9 * spritePixelHeight );
+            if ( frame == 2 )
             {
-                switch ( base.frame )
+                sound.PlaySoundEffectAt( meleeSwingSounds, 0.3f, transform.position, 1f, true, false, true, 0f );
+            }
+            else if ( frame == 3 )
+            {
+                counter -= 0.066f;
+                GrabUnit();
+            }
+            else if ( frame > 3 && !meleeHasHit )
+            {
+                GrabUnit();
+            }
+
+            if ( meleeHasHit && grabbedUnit != null )
+            {
+                switch ( frame )
                 {
                     case 3:
-                        this.targetHoldingXOffset = 5f;
-                        this.targetHoldingYOffset = 1f;
-                        this.isInterpolating = true;
+                        targetHoldingXOffset = 5f;
+                        targetHoldingYOffset = 1f;
+                        isInterpolating = true;
                         break;
                     case 4:
-                        this.targetHoldingXOffset = 7f;
-                        this.targetHoldingYOffset = 2f;
-                        this.isInterpolating = true;
+                        targetHoldingXOffset = 7f;
+                        targetHoldingYOffset = 2f;
+                        isInterpolating = true;
                         break;
                     case 5:
-                        this.targetHoldingXOffset = 9f;
-                        this.targetHoldingYOffset = 3f;
-                        this.isInterpolating = true;
+                        targetHoldingXOffset = 9f;
+                        targetHoldingYOffset = 3f;
+                        isInterpolating = true;
                         break;
                     case 6:
-                        this.targetHoldingXOffset = 11f;
-                        this.targetHoldingYOffset = 4.5f;
-                        this.isInterpolating = true;
+                        targetHoldingXOffset = 11f;
+                        targetHoldingYOffset = 4.5f;
+                        isInterpolating = true;
                         break;
                 }
             }
             // Cancel melee early when punching
-            else if ( base.frame == 5 )
+            else if ( frame == 5 )
             {
-                base.frame = 0;
-                this.CancelMelee();
+                frame = 0;
+                CancelMelee();
             }
 
-            if ( base.frame >= 7 )
+            if ( frame >= 7 )
             {
-                base.frame = 0;
-                this.CancelMelee();
+                frame = 0;
+                CancelMelee();
             }
         }
 
         protected override void RunCustomMeleeMovement()
         {
-            if ( this.jumpingMelee )
+            if ( jumpingMelee )
             {
-                this.ApplyFallingGravity();
-                if ( this.yI < this.maxFallSpeed )
+                ApplyFallingGravity();
+                if ( yI < maxFallSpeed )
                 {
-                    this.yI = this.maxFallSpeed;
+                    yI = maxFallSpeed;
                 }
             }
-            else if ( this.dashingMelee )
+            else if ( dashingMelee )
             {
-                if ( base.frame <= 1 )
+                if ( frame <= 1 )
                 {
-                    this.xI = 0f;
-                    this.yI = 0f;
+                    xI = 0f;
+                    yI = 0f;
                 }
-                else if ( base.frame <= 3 )
+                else if ( frame <= 3 )
                 {
-                    if ( this.meleeChosenUnit == null )
+                    if ( meleeChosenUnit == null )
                     {
-                        if ( !this.isInQuicksand )
+                        if ( !isInQuicksand )
                         {
-                            this.xI = this.speed * 1f * base.transform.localScale.x;
+                            xI = speed * 1f * transform.localScale.x;
                         }
-                        this.yI = 0f;
+
+                        yI = 0f;
                     }
-                    else if ( !this.isInQuicksand )
+                    else if ( !isInQuicksand )
                     {
-                        this.xI = this.speed * 0.5f * base.transform.localScale.x + ( this.meleeChosenUnit.X - base.X ) * 2f;
+                        xI = speed * 0.5f * transform.localScale.x + ( meleeChosenUnit.X - X ) * 2f;
                     }
                 }
-                else if ( base.frame <= 5 )
+                else if ( frame <= 5 )
                 {
-                    if ( !this.isInQuicksand )
+                    if ( !isInQuicksand )
                     {
-                        this.xI = this.speed * 0.3f * base.transform.localScale.x;
+                        xI = speed * 0.3f * transform.localScale.x;
                     }
-                    this.ApplyFallingGravity();
+
+                    ApplyFallingGravity();
                 }
                 else
                 {
-                    this.ApplyFallingGravity();
+                    ApplyFallingGravity();
                 }
             }
-            else if ( base.Y > this.groundHeight + 1f )
+            else if ( Y > groundHeight + 1f )
             {
-                this.CancelMelee();
+                CancelMelee();
             }
         }
 
         protected override void CancelMelee()
         {
-            this.targetHoldingXOffset = 11f;
-            this.targetHoldingYOffset = 4.5f;
-            this.isInterpolating = true;
-            if ( this.grabbedUnit != null )
+            targetHoldingXOffset = 11f;
+            targetHoldingYOffset = 4.5f;
+            isInterpolating = true;
+            if ( grabbedUnit != null )
             {
-                this.SwitchToHoldingMaterials();
+                SwitchToHoldingMaterials();
             }
+
             base.CancelMelee();
         }
 
@@ -957,6 +982,7 @@ namespace Furibrosa
             {
                 return null;
             }
+
             float num = xRange;
             Unit unit = null;
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
@@ -976,36 +1002,38 @@ namespace Furibrosa
                     }
                 }
             }
+
             if ( unit != null )
             {
                 return unit;
             }
+
             return null;
         }
 
         protected void GrabUnit()
         {
             bool flag;
-            Map.DamageDoodads( 3, DamageType.Knock, base.X + (float)( base.Direction * 4 ), base.Y, 0f, 0f, 6f, base.playerNum, out flag, null );
-            this.KickDoors( 24f );
-            Unit unit = GetNextClosestUnit( this.playerNum, base.transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 22f, 14f, base.X - base.transform.localScale.x * 4, base.Y + base.height / 2f, new List<Unit>() );
+            Map.DamageDoodads( 3, DamageType.Knock, X + ( float )( Direction * 4 ), Y, 0f, 0f, 6f, playerNum, out flag, null );
+            KickDoors( 24f );
+            Unit unit = GetNextClosestUnit( playerNum, transform.localScale.x > 0 ? DirectionEnum.Right : DirectionEnum.Left, 22f, 14f, X - transform.localScale.x * 4, Y + height / 2f, new List<Unit>() );
             if ( unit != null )
             {
                 // Pickup unit if not heavy and not a dog and not on the ground
                 if ( !unit.IsHeavy() && unit.actionState != ActionState.Fallen && !( unit is MookDog || ( unit is AlienMosquito && !( unit is HellLostSoul ) ) ) )
                 {
-                    this.meleeHasHit = true;
-                    this.grabbedUnit = unit;
-                    Furibrosa.grabbedUnits.Add( unit );
+                    meleeHasHit = true;
+                    grabbedUnit = unit;
+                    grabbedUnits.Add( unit );
                     unit.Panic( 1000f, true );
-                    unit.playerNum = this.playerNum;
-                    this.gunSprite.gameObject.layer = 28;
-                    this.doRollOnLand = false;
+                    unit.playerNum = playerNum;
+                    gunSprite.gameObject.layer = 28;
+                    doRollOnLand = false;
                     // Initialize holding offsets to prevent jumping
-                    this.holdingXOffset = 5f;
-                    this.holdingYOffset = 1f;
-                    this.targetHoldingXOffset = 5f;
-                    this.targetHoldingYOffset = 1f;
+                    holdingXOffset = 5f;
+                    holdingYOffset = 1f;
+                    targetHoldingXOffset = 5f;
+                    targetHoldingYOffset = 1f;
                     if ( unit is MookJetpack )
                     {
                         MookJetpack mookJetpack = unit as MookJetpack;
@@ -1018,89 +1046,92 @@ namespace Furibrosa
                 // Punch unit
                 else
                 {
-                    this.meleeHasHit = true;
-                    Map.KnockAndDamageUnit( this, unit, 5, DamageType.Knock, 200f, 100f, (int)Mathf.Sign( base.transform.localScale.x ), true, base.X, base.Y, false );
-                    this.sound.PlaySoundEffectAt( this.soundHolder.alternateMeleeHitSound, 0.3f, base.transform.position, 1f, true, false, false, 0f );
-                    EffectsController.CreateProjectilePopWhiteEffect( base.X + ( this.width + 4f ) * base.transform.localScale.x, base.Y + this.height + 4f );
+                    meleeHasHit = true;
+                    Map.KnockAndDamageUnit( this, unit, 5, DamageType.Knock, 200f, 100f, ( int )Mathf.Sign( transform.localScale.x ), true, X, Y, false );
+                    sound.PlaySoundEffectAt( soundHolder.alternateMeleeHitSound, 0.3f, transform.position, 1f, true, false, false, 0f );
+                    EffectsController.CreateProjectilePopWhiteEffect( X + ( width + 4f ) * transform.localScale.x, Y + height + 4f );
                 }
             }
             // Try hit terrain
             else
             {
-                this.meleeHasHit = this.TryMeleeTerrain( 4, 4 );
+                meleeHasHit = TryMeleeTerrain( 4, 4 );
             }
         }
 
         protected void ReleaseUnit( bool throwUnit )
         {
-            if ( this.grabbedUnit != null )
+            if ( grabbedUnit != null )
             {
-                this.unitWasGrabbed = false;
-                this.grabbedUnit.playerNum = -1;
+                unitWasGrabbed = false;
+                grabbedUnit.playerNum = -1;
                 if ( grabbedUnit is Mook )
                 {
                     Mook grabbedMook = grabbedUnit as Mook;
                     grabbedMook.blindTime = 0;
                     if ( throwUnit )
                     {
-                        this.ThrowBackMook( grabbedMook );
+                        ThrowBackMook( grabbedMook );
                     }
                 }
                 else if ( grabbedUnit is Animal )
                 {
                     Animal grabbedAnimal = grabbedUnit as Animal;
                     Traverse.Create( grabbedUnit ).SetFieldValue( "blindTime", 0f );
-                    grabbedAnimal.xIBlast = base.transform.localScale.x * 450f;
+                    grabbedAnimal.xIBlast = transform.localScale.x * 450f;
                     grabbedAnimal.yI = 300f;
                 }
-                this.gunSprite.gameObject.layer = 19;
-                Furibrosa.grabbedUnits.Remove( grabbedUnit );
-                this.grabbedUnit = null;
-                this.SwitchToNormalMaterials();
-                this.ChangeFrame();
+
+                gunSprite.gameObject.layer = 19;
+                grabbedUnits.Remove( grabbedUnit );
+                grabbedUnit = null;
+                SwitchToNormalMaterials();
+                ChangeFrame();
             }
-            this.doRollOnLand = true;
+
+            doRollOnLand = true;
         }
 
         protected void SwitchToHoldingMaterials()
         {
-            this.crossbowMat = this.crossbowHoldingMat;
-            this.flareGunMat = this.flareGunHoldingMat;
-            if ( this.currentState == PrimaryState.Crossbow )
+            crossbowMat = crossbowHoldingMat;
+            flareGunMat = flareGunHoldingMat;
+            if ( currentState == PrimaryState.Crossbow )
             {
-                this.gunSprite.meshRender.material = this.crossbowMat;
+                gunSprite.meshRender.material = crossbowMat;
             }
-            else if ( this.currentState == PrimaryState.FlareGun )
+            else if ( currentState == PrimaryState.FlareGun )
             {
-                this.gunSprite.meshRender.material = this.flareGunMat;
+                gunSprite.meshRender.material = flareGunMat;
             }
-            this.holdingArm.gameObject.SetActive( true );
+
+            holdingArm.gameObject.SetActive( true );
         }
 
         protected void SwitchToNormalMaterials()
         {
-            this.crossbowMat = this.crossbowNormalMat;
-            this.holdingArm.gameObject.SetActive( false );
-            this.flareGunMat = this.flareGunNormalMat;
-            if ( this.currentState == PrimaryState.Crossbow )
+            crossbowMat = crossbowNormalMat;
+            holdingArm.gameObject.SetActive( false );
+            flareGunMat = flareGunNormalMat;
+            if ( currentState == PrimaryState.Crossbow )
             {
-                this.gunSprite.meshRender.material = this.crossbowMat;
+                gunSprite.meshRender.material = crossbowMat;
             }
-            else if ( this.currentState == PrimaryState.FlareGun )
+            else if ( currentState == PrimaryState.FlareGun )
             {
-                this.gunSprite.meshRender.material = this.flareGunMat;
+                gunSprite.meshRender.material = flareGunMat;
             }
         }
 
         public override void Damage( int damage, DamageType damageType, float xI, float yI, int direction, MonoBehaviour damageSender, float hitX, float hitY )
         {
             // Check if we're holding a unit as a shield and facing the explosion
-            if ( ( damageType == DamageType.Explosion || damageType == DamageType.Fire || damageType == DamageType.Acid ) && this.grabbedUnit != null && direction != base.transform.localScale.x )
+            if ( ( damageType == DamageType.Explosion || damageType == DamageType.Fire || damageType == DamageType.Acid ) && grabbedUnit != null && direction != transform.localScale.x )
             {
-                Unit previousUnit = this.grabbedUnit;
-                this.ReleaseUnit( false );
+                Unit previousUnit = grabbedUnit;
+                ReleaseUnit( false );
                 previousUnit.Damage( damage * 2, damageType, xI, yI, direction, damageSender, hitX, hitY );
-                this.Knock( damageType, xI, yI, false );
+                Knock( damageType, xI, yI, false );
             }
             else
             {
@@ -1111,14 +1142,16 @@ namespace Furibrosa
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
             // Don't allow flexing during melee
-            if ( this.doingMelee )
+            if ( doingMelee )
             {
                 return;
             }
+
             if ( gesture == GestureElement.Gestures.Flex )
             {
-                this.ReleaseUnit( false );
+                ReleaseUnit( false );
             }
+
             base.SetGestureAnimation( gesture );
         }
         #endregion
@@ -1127,73 +1160,75 @@ namespace Furibrosa
         // Clear reference to current War Rig
         protected void ClearCurrentWarRig()
         {
-            this.currentWarRig = null;
+            currentWarRig = null;
         }
 
         Vector3 DetermineWarRigSpawn()
         {
             // Facing right
-            if ( base.transform.localScale.x > 0 )
+            if ( transform.localScale.x > 0 )
             {
-                return new Vector3( SortOfFollow.GetScreenMinX() - 65f, base.Y, 0f );
+                return new Vector3( SortOfFollow.GetScreenMinX() - 65f, Y, 0f );
             }
             // Facing left
             else
             {
-                return new Vector3( SortOfFollow.GetScreenMaxX() + 65f, base.Y, 0f );
+                return new Vector3( SortOfFollow.GetScreenMaxX() + 65f, Y, 0f );
             }
         }
 
         protected override void UseSpecial()
         {
-            if ( this.SpecialAmmo > 0 && this.specialGrenade != null )
+            if ( SpecialAmmo > 0 && specialGrenade != null )
             {
-                this.SpecialAmmo--;
+                SpecialAmmo--;
                 // Only clear reference, don't destroy existing War Rigs
-                this.ClearCurrentWarRig();
-                this.currentWarRig = UnityEngine.Object.Instantiate<WarRig>( warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity );
-                this.currentWarRig.SetTarget( this, base.X + base.transform.localScale.x * 10f, new Vector3( base.transform.localScale.x, this.currentWarRig.transform.localScale.y, this.currentWarRig.transform.localScale.z ), base.transform.localScale.x );
-                this.currentWarRig.gameObject.SetActive( true );
-                if ( this.special )
+                ClearCurrentWarRig();
+                currentWarRig = Instantiate<WarRig>( warRigPrefab, DetermineWarRigSpawn(), Quaternion.identity );
+                currentWarRig.SetTarget( this, X + transform.localScale.x * 10f, new Vector3( transform.localScale.x, currentWarRig.transform.localScale.y, currentWarRig.transform.localScale.z ), transform.localScale.x );
+                currentWarRig.gameObject.SetActive( true );
+                if ( special )
                 {
-                    this.holdingSpecial = true;
-                    this.holdingSpecialTime = 0f;
+                    holdingSpecial = true;
+                    holdingSpecialTime = 0f;
                 }
             }
             else
             {
-                HeroController.FlashSpecialAmmo( base.playerNum );
-                this.ActivateGun();
+                HeroController.FlashSpecialAmmo( playerNum );
+                ActivateGun();
             }
-            this.pressSpecialFacingDirection = 0;
+
+            pressSpecialFacingDirection = 0;
         }
 
         // Makes the War Rig continue moving past where Furiosa summoned it to
         public void GoPastFuriosa()
         {
-            this.currentWarRig.keepGoingBeyondTarget = true;
+            currentWarRig.keepGoingBeyondTarget = true;
 
-            if ( this.currentWarRig.summonedDirection == 1 )
+            if ( currentWarRig.summonedDirection == 1 )
             {
-                this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
+                currentWarRig.secondTargetX = SortOfFollow.GetScreenMaxX() - 20f;
             }
             else
             {
-                this.currentWarRig.secondTargetX = SortOfFollow.GetScreenMinX() + 20f;
+                currentWarRig.secondTargetX = SortOfFollow.GetScreenMinX() + 20f;
             }
-            this.holdingSpecial = false;
+
+            holdingSpecial = false;
         }
 
         public void ClearInvulnerability()
         {
-            this.invulnerableTime = 0;
-            this.invulnerable = false;
-            base.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
-            this.crossbowNormalMat.SetColor( "_TintColor", Color.gray );
-            this.crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
-            this.flareGunNormalMat.SetColor( "_TintColor", Color.gray );
-            this.flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
-            this.holdingArm.material.SetColor( "_TintColor", Color.gray );
+            invulnerableTime = 0;
+            invulnerable = false;
+            GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
+            crossbowNormalMat.SetColor( "_TintColor", Color.gray );
+            crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
+            flareGunNormalMat.SetColor( "_TintColor", Color.gray );
+            flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
+            holdingArm.material.SetColor( "_TintColor", Color.gray );
         }
         #endregion
     }

@@ -47,7 +47,9 @@ namespace Furibrosa
                             break;
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
             }
 

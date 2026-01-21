@@ -13,6 +13,7 @@ namespace Furibrosa
                 {
                     return false;
                 }
+
                 return true;
             }
         }
@@ -26,6 +27,7 @@ namespace Furibrosa
                 {
                     return false;
                 }
+
                 return true;
             }
         }
@@ -39,6 +41,7 @@ namespace Furibrosa
                 {
                     return false;
                 }
+
                 return true;
             }
         }
@@ -53,6 +56,7 @@ namespace Furibrosa
                     __result = __instance.Y;
                     return false;
                 }
+
                 return true;
             }
         }
@@ -66,6 +70,7 @@ namespace Furibrosa
                 {
                     return false;
                 }
+
                 return true;
             }
         }
@@ -80,6 +85,7 @@ namespace Furibrosa
                     __result = true;
                     return false;
                 }
+
                 return true;
             }
         }
