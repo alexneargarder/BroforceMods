@@ -5,7 +5,7 @@
     "BetterAnimation": true,
     "Sprite": ["sprite.png", "thingSprite.png"],
     "GunSprite": "gunSprite.png",
-    "SpecialIcons": ["special.png", "thingSpecial.png"],
+    "SpecialIcons": [["special.png"], ["thingSpecial.png"]],
     "Avatar": ["avatar.png", "thingAvatar.png"],
     "GunSpriteOffset": [
       {

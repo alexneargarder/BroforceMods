@@ -1,5 +1,6 @@
-## v1.1.1
+## v1.1.1 (unreleased)
 - Fix linux compatibility issue.
+- Update variant icons to work with new BroMaker update.
 
 ## v1.1.0
 - Changes for BroMaker update.
