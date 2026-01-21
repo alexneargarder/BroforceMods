@@ -7,57 +7,58 @@ namespace Furibrosa
         public void Setup( Flare otherFlare )
         {
             // Copied values
-            this.blastForce = otherFlare.blastForce; ;
-            this.hitUnitsSize = otherFlare.hitUnitsSize;
-            this.fire1 = otherFlare.fire1;
-            this.fire2 = otherFlare.fire2;
-            this.fire3 = otherFlare.fire3;
-            this.smoke1 = otherFlare.smoke1;
-            this.smoke2 = otherFlare.smoke2;
-            this.smoke3 = otherFlare.smoke3;
-            this.explosion = otherFlare.explosion;
-            this.trailType = otherFlare.trailType;
-            this.z = otherFlare.z;
-            this.shrapnel = otherFlare.shrapnel;
-            this.shrapnelSpark = otherFlare.shrapnelSpark;
-            this.flickPuff = otherFlare.flickPuff;
-            this.life = otherFlare.life;
-            this.projectileSize = otherFlare.projectileSize;
-            this.fullLife = 1;
-            this.fadeDamage = otherFlare.fadeDamage;
-            this.damageType = otherFlare.damageType;
-            this.playerNum = otherFlare.playerNum;
-            this.soundHolder = otherFlare.soundHolder;
-            this.canHitGrenades = otherFlare.canHitGrenades;
-            this.affectScenery = otherFlare.affectScenery;
-            this.soundVolume = otherFlare.soundVolume;
-            this.firedBy = otherFlare.firedBy;
-            this.seed = otherFlare.seed;
-            this.random = new Randomf( UnityEngine.Random.Range( 0, 10000 ) );
-            this.sparkCount = otherFlare.sparkCount;
-            this.isDamageable = otherFlare.isDamageable;
-            this.horizontalProjectile = otherFlare.horizontalProjectile;
-            this.isWideProjectile = otherFlare.isWideProjectile;
-            this.zOffset = ( 1f - UnityEngine.Random.value * 2f ) * 0.04f;
-            this.canReflect = otherFlare.canReflect;
-            this.startProjectileSpeed = 400f;
-            this.heldDelay = 0;
-            this.canMakeEffectsMoreThanOnce = false;
-            this.whitePopEffect = otherFlare.whitePopEffect;
-            this.doubleSpeed = otherFlare.doubleSpeed;
-            this.giveDeflectAchievementOnMookKill = otherFlare.giveDeflectAchievementOnMookKill;
-            this.health = 3;
-            this.maxHealth = -1;
+            blastForce = otherFlare.blastForce;
+            ;
+            hitUnitsSize = otherFlare.hitUnitsSize;
+            fire1 = otherFlare.fire1;
+            fire2 = otherFlare.fire2;
+            fire3 = otherFlare.fire3;
+            smoke1 = otherFlare.smoke1;
+            smoke2 = otherFlare.smoke2;
+            smoke3 = otherFlare.smoke3;
+            explosion = otherFlare.explosion;
+            trailType = otherFlare.trailType;
+            z = otherFlare.z;
+            shrapnel = otherFlare.shrapnel;
+            shrapnelSpark = otherFlare.shrapnelSpark;
+            flickPuff = otherFlare.flickPuff;
+            life = otherFlare.life;
+            projectileSize = otherFlare.projectileSize;
+            fullLife = 1;
+            fadeDamage = otherFlare.fadeDamage;
+            damageType = otherFlare.damageType;
+            playerNum = otherFlare.playerNum;
+            soundHolder = otherFlare.soundHolder;
+            canHitGrenades = otherFlare.canHitGrenades;
+            affectScenery = otherFlare.affectScenery;
+            soundVolume = otherFlare.soundVolume;
+            firedBy = otherFlare.firedBy;
+            seed = otherFlare.seed;
+            random = new Randomf( Random.Range( 0, 10000 ) );
+            sparkCount = otherFlare.sparkCount;
+            isDamageable = otherFlare.isDamageable;
+            horizontalProjectile = otherFlare.horizontalProjectile;
+            isWideProjectile = otherFlare.isWideProjectile;
+            zOffset = ( 1f - Random.value * 2f ) * 0.04f;
+            canReflect = otherFlare.canReflect;
+            startProjectileSpeed = 400f;
+            heldDelay = 0;
+            canMakeEffectsMoreThanOnce = false;
+            whitePopEffect = otherFlare.whitePopEffect;
+            doubleSpeed = otherFlare.doubleSpeed;
+            giveDeflectAchievementOnMookKill = otherFlare.giveDeflectAchievementOnMookKill;
+            health = 3;
+            maxHealth = -1;
 
-            UnityEngine.Object.Destroy( otherFlare );
+            Destroy( otherFlare );
 
-            this.damage = this.damageInternal = this.fullDamage = Furibrosa.flaregunDamage;
-            this.range = 9f;
+            damage = damageInternal = fullDamage = Furibrosa.flaregunDamage;
+            range = 9f;
         }
 
         public override void Fire( float x, float y, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
         {
-            this.gameObject.SetActive( true );
+            gameObject.SetActive( true );
             base.Fire( x, y, xI, yI, _zOffset, playerNum, FiredBy );
         }
     }
