@@ -1,3 +1,6 @@
+## v1.0.3 (unreleased)
+- Updated to work with new RocketLib version.
+
 ## v1.0.2
 - Updated to work with new RocketLib version.
 - Fixed elite bruiser not dealing damage when doing elbow slam.

@@ -2360,8 +2360,8 @@ namespace Control_Enemies_Mod
                     bool special3Down = Main.special3[playerNum].IsDown();
 
                     Main.HandleSpecial( ref special, ref Main.specialWasDown[playerNum], ref Main.holdingSpecial[playerNum], character, playerNum );
-                    Main.HandleButton( special2Down, ref Main.holdingSpecial2[playerNum], ref Main.special2[playerNum].wasDown, Main.PressSpecial2, Main.ReleaseSpecial2, character, playerNum );
-                    Main.HandleButton( special3Down, ref Main.holdingSpecial3[playerNum], ref Main.special3[playerNum].wasDown, Main.PressSpecial3, Main.ReleaseSpecial3, character, playerNum );
+                    Main.HandleButton( special2Down, ref Main.holdingSpecial2[playerNum], ref Main.special2WasDown[playerNum], Main.PressSpecial2, Main.ReleaseSpecial2, character, playerNum );
+                    Main.HandleButton( special3Down, ref Main.holdingSpecial3[playerNum], ref Main.special3WasDown[playerNum], Main.PressSpecial3, Main.ReleaseSpecial3, character, playerNum );
 
                     // Override special with our own variable so we can disable specials that don't work
                     special = Main.holdingSpecial[playerNum];
