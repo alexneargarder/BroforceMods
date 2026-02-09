@@ -28,6 +28,8 @@ namespace Control_Enemies_Mod
         public static KeyBindingForPlayers swapEnemiesRight;
         public static KeyBindingForPlayers special2;
         public static KeyBindingForPlayers special3;
+        public static bool[] special2WasDown = new bool[4];
+        public static bool[] special3WasDown = new bool[4];
         public static bool isBroMakerInstalled = false;
         public static bool isSwapBrosModInstalled = false;
 

@@ -31,6 +31,12 @@ else
     LAUNCH_FLAGS := /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=true
 endif
 
+# For solution builds: extract first .csproj to use for single launch at end
+# (avoids launching once per project in multi-project solutions)
+# Format: Project("{GUID}") = "Name", "Path\To\Project.csproj", "{GUID}"
+LAUNCH_PROJECT ?= $(shell grep -m1 '\.csproj"' "$(SOLUTION)" 2>/dev/null | sed 's/.*= "[^"]*", "\([^"]*\)".*/\1/; s/\\/\//g')
+IS_SOLUTION := $(filter %.sln,$(SOLUTION))
+
 # Default target shows help
 .DEFAULT_GOAL := help
 
@@ -59,7 +65,16 @@ endif
 ifndef CUSTOM_BUILD
 .PHONY: build
 build:
+ifeq ($(LAUNCH),no)
 	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS)
+else ifdef IS_SOLUTION
+	@# Solution build: build all with launch disabled, then trigger launch via one project
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false
+	"$(MSBUILD)" "$(LAUNCH_PROJECT)" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true
+else
+	@# Single project build: normal behavior
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS)
+endif
 
 .PHONY: build-no-launch
 build-no-launch:
