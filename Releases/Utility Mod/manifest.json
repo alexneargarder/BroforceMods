@@ -1,11 +1,11 @@
 {
   "name": "Utility_Mod",
-  "version_number": "2.4.0",
+  "version_number": "2.4.1",
   "website_url": "https://github.com/alexneargarder/BroforceMods",
   "description": "This mod adds a few quality of life features.",
   "dependencies": [
-    "UMM-UMM-1.0.2",
-    "RocketLib-RocketLib-2.4.1"
+    "UMM-UMM-1.1.0",
+    "RocketLib-RocketLib-2.4.3"
   ],
   "author": "AlexN"
 }

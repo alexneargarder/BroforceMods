@@ -1,10 +1,14 @@
 {
-	"Id": "Utility Mod",
-	"DisplayName": "Utility Mod",
-	"Author": "AlexN",
-	"Version": "2.4.0",
-	"Requirements": [ "RocketLib" ],
-	"LoadAfter": [ "RocketLib" ],
-	"AssemblyName": "Utility Mod.dll",
-	"EntryMethod": "Utility_Mod.Main.Load"
+  "Id": "Utility Mod",
+  "DisplayName": "Utility Mod",
+  "Author": "AlexN",
+  "Version": "2.4.1",
+  "Requirements": [
+    "RocketLib"
+  ],
+  "LoadAfter": [
+    "RocketLib"
+  ],
+  "AssemblyName": "Utility Mod.dll",
+  "EntryMethod": "Utility_Mod.Main.Load"
 }

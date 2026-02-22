@@ -1,4 +1,4 @@
-## v2.4.1 (unreleased)
+## v2.4.1
 - Added option to go to custom campaigns from right click menu.
 - Added option to go to custom campaign on startup.
 - Prevent vehicles from spawning when enemy spawns are disabled.
