@@ -3303,6 +3303,24 @@ namespace Control_Enemies_Mod
                 }
             }
         }
+        
+        // Don't allow window to affect player to avoid players being sucked into win portal if they can't win currently
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "CanBeAffectedByWind" )]
+        public static class TestVanDammeAnim_CanBeAffectedByWind_Patch
+        {
+            public static void Postfix( TestVanDammeAnim __instance, ref bool __result )
+            {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                if ( Main.openedPortal && __instance.playerNum >= 0 && __instance.playerNum < 4 && !ScoreManager.CanWin( __instance.playerNum ) )
+                {
+                    __result = false;
+                }
+            }
+        }
         #endregion
     }
 }
