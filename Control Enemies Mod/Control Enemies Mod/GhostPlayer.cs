@@ -60,6 +60,10 @@ namespace Control_Enemies_Mod
         protected float screenMinX, screenMaxX, screenMinY, screenMaxY;
         protected bool usingController;
         protected int controllerNum;
+        protected bool wasLeft, wasRight;
+        protected float leftTapTime, rightTapTime;
+        protected const float minDashTapTime = 0.33f;
+        protected bool dashing;
 
         // Possession
         TestVanDammeAnim characterToPossess;
@@ -236,8 +240,32 @@ namespace Control_Enemies_Mod
 
             if ( state == GhostState.Idle || state == GhostState.Reviving )
             {
-                // Check sprint manually since it's not detected by GetInput
-                sprint = InputReader.GetDashStart( player.controllerNum );
+                sprint = sprint || InputReader.GetDashStart( player.controllerNum );
+
+                if ( left && !wasLeft )
+                {
+                    if ( !dashing && !right && Time.time - leftTapTime < minDashTapTime )
+                    {
+                        dashing = true;
+                    }
+                    leftTapTime = Time.time;
+                }
+
+                if ( right && !wasRight )
+                {
+                    if ( !dashing && !left && Time.time - rightTapTime < minDashTapTime )
+                    {
+                        dashing = true;
+                    }
+                    rightTapTime = Time.time;
+                }
+
+                if ( !left && !right )
+                {
+                    dashing = false;
+                }
+
+                sprint = sprint || dashing;
 
                 // Use actual axes rather than just cardinal directions
                 if ( usingController )
@@ -531,6 +559,9 @@ namespace Control_Enemies_Mod
                     state = GhostState.Idle;
                 }
             }
+
+            wasLeft = left;
+            wasRight = right;
         }
 
         public void ConstrainToScreen()
