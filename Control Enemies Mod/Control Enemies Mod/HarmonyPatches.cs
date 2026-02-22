@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -7,17 +8,18 @@ using HarmonyLib;
 using Localisation;
 using RocketLib.Utils;
 using UnityEngine;
-using static RocketLib.Utils.UnitTypes;
 using Net = Networking.Networking;
+using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace Control_Enemies_Mod
 {
-    public class HarmonyPatches
+    public static class HarmonyPatches
     {
         #region General Patches
         // Disable AI of enemy we're controlling
         [HarmonyPatch( typeof( PolymorphicAI ), "Update" )]
-        static class PolymorphicAI_Update_Patch
+        public static class PolymorphicAI_Update_Patch
         {
             public static bool Prefix( PolymorphicAI __instance )
             {
@@ -36,6 +38,7 @@ namespace Control_Enemies_Mod
                     {
                         __instance.mentalState = MentalState.Alerted;
                     }
+
                     return false;
                 }
 
@@ -45,7 +48,7 @@ namespace Control_Enemies_Mod
 
         // Disable AI of enemy we're controlling
         [HarmonyPatch( typeof( PolymorphicAI ), "LateUpdate" )]
-        static class PolymorphicAI_LateUpdate_Patch
+        public static class PolymorphicAI_LateUpdate_Patch
         {
             public static bool Prefix( PolymorphicAI __instance )
             {
@@ -64,6 +67,7 @@ namespace Control_Enemies_Mod
                     {
                         __instance.mentalState = MentalState.Alerted;
                     }
+
                     return false;
                 }
 
@@ -73,7 +77,7 @@ namespace Control_Enemies_Mod
 
         // Disable AI of enemy we're controlling
         [HarmonyPatch( typeof( TestVanDammeAnim ), "GetEnemyMovement" )]
-        static class TestVanDammeAnim_GetEnemyMovement_Patch
+        public static class TestVanDammeAnim_GetEnemyMovement_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -86,7 +90,8 @@ namespace Control_Enemies_Mod
                 {
                     return false;
                 }
-                else if ( __instance.name == "p" )
+
+                if ( __instance.name == "p" )
                 {
                     __instance.left = __instance.right = false;
                     return false;
@@ -98,7 +103,7 @@ namespace Control_Enemies_Mod
 
         // Disable taunting for mooks
         [HarmonyPatch( typeof( TestVanDammeAnim ), "SetGestureAnimation" )]
-        static class TestVanDammeAnim_SetGestureAnimation_Patch
+        public static class TestVanDammeAnim_SetGestureAnimation_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance, ref GestureElement.Gestures gesture )
             {
@@ -120,7 +125,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( TestVanDammeAnim ), "Death", new Type[] { typeof( float ), typeof( float ), typeof( DamageObject ) } )]
         public static class TestVanDammeAnim_Death_Patch
         {
-            public static bool outOfBounds = false;
+            public static bool outOfBounds;
 
             public static void Prefix( TestVanDammeAnim __instance, ref float xI, ref float yI, ref DamageObject damage )
             {
@@ -177,7 +182,7 @@ namespace Control_Enemies_Mod
 
         // Check if player died by falling out of bounds, which doesn't call the death function
         [HarmonyPatch( typeof( TestVanDammeAnim ), "Gib" )]
-        static class TestVanDammeAnim_Gib_Patch
+        public static class TestVanDammeAnim_Gib_Patch
         {
             public static void Prefix( TestVanDammeAnim __instance, ref DamageType damageType )
             {
@@ -200,6 +205,7 @@ namespace Control_Enemies_Mod
                             {
                                 TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                             }
+
                             typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                         }
                     }
@@ -215,7 +221,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( TestVanDammeAnim ), "ReduceLives" )]
         public static class TestVanDammeAnim_ReduceLives_Patch
         {
-            public static bool ignoreNextLifeLoss = false;
+            public static bool ignoreNextLifeLoss;
 
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -232,16 +238,16 @@ namespace Control_Enemies_Mod
                 else if ( __instance.name == "c" && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum] )
                 {
                     bool chestBurstDeath = false;
-                    if ( __instance is AlienFaceHugger )
+                    if ( __instance is AlienFaceHugger faceHugger )
                     {
-                        AlienFaceHugger faceHugger = __instance as AlienFaceHugger;
                         if ( faceHugger.insemenationCompleted && faceHugger.layEggsInsideBros )
                         {
                             chestBurstDeath = true;
                             AlienXenomorph_Start_Patch.controlNextAlien = true;
-                            AlienXenomorph_Start_Patch.controllerPlayerNum = __instance.playerNum;
+                            AlienXenomorph_Start_Patch.controllerPlayerNum = faceHugger.playerNum;
                         }
                     }
+
                     // If we're respawning from corpse and didn't die from out of bounds or if we're spawning from a chestburster
                     if ( ( Main.settings.respawnFromCorpse && !TestVanDammeAnim_Death_Patch.outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) || chestBurstDeath )
                     {
@@ -264,7 +270,8 @@ namespace Control_Enemies_Mod
                         return false;
                     }
                     // Don't lose life if the setting is enabled and we're controlling a character
-                    else if ( !Main.settings.loseLifeOnDeath && Main.previousCharacter[__instance.playerNum] != null )
+
+                    if ( !Main.settings.loseLifeOnDeath && Main.previousCharacter[__instance.playerNum] != null )
                     {
                         ignoreNextLifeLoss = true;
                     }
@@ -275,7 +282,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( Mook ), "NotifyDeathType" )]
-        static class Mook_NotifyDeathType_Patch
+        public static class Mook_NotifyDeathType_Patch
         {
             public static void Prefix( Mook __instance, DeathType ___deathType )
             {
@@ -295,7 +302,7 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( Player ), "RemoveLife" )]
         public static class Player_RemoveLife_Patch
         {
-            public static bool allowLifeLoss = false;
+            public static bool allowLifeLoss;
 
             public static bool Prefix( Player __instance )
             {
@@ -330,7 +337,8 @@ namespace Control_Enemies_Mod
                         return false;
                     }
                     // Disable life loss for heros if they have infinite lives
-                    else if ( Main.settings.heroLives == 0 && __instance.playerNum == Main.currentHeroNum )
+
+                    if ( Main.settings.heroLives == 0 && __instance.playerNum == Main.currentHeroNum )
                     {
                         allowLifeLoss = false;
                         return false;
@@ -352,7 +360,7 @@ namespace Control_Enemies_Mod
 
         // Prevent HeroController from knowing our mook is dead to prevent us from respawning
         [HarmonyPatch( typeof( Player ), "IsAlive" )]
-        static class Player_IsAlive_Patch
+        public static class Player_IsAlive_Patch
         {
             public static bool Prefix( Player __instance, ref bool __result )
             {
@@ -366,7 +374,8 @@ namespace Control_Enemies_Mod
                     __result = false;
                     return false;
                 }
-                else if ( Main.countdownToRespawn[__instance.playerNum] > 0 )
+
+                if ( Main.countdownToRespawn[__instance.playerNum] > 0 )
                 {
                     __result = true;
                     return false;
@@ -378,7 +387,7 @@ namespace Control_Enemies_Mod
 
         // Prevent HeroController from knowing our mook is dead to prevent us from respawning
         [HarmonyPatch( typeof( PlayerHUD ), "SetAvatarDead" )]
-        static class PlayerHUD_SetAvatarDead_Patch
+        public static class PlayerHUD_SetAvatarDead_Patch
         {
             public static bool Prefix( PlayerHUD __instance, int ___playerNum, ref bool ___SetToDead )
             {
@@ -399,14 +408,14 @@ namespace Control_Enemies_Mod
 
         // Ensure heavy units are allowed on the helicopter
         [HarmonyPatch( typeof( TestVanDammeAnim ), "IsOverFinish" )]
-        static class TestVanDammeAnim_IsOverFinish_Patch
+        public static class TestVanDammeAnim_IsOverFinish_Patch
         {
-            public static LayerMask victoryLayer = 1 << LayerMask.NameToLayer( "Finish" );
+            public static readonly LayerMask victoryLayer = 1 << LayerMask.NameToLayer( "Finish" );
 
-            public static float AttachToHelicopter( TestVanDammeAnim __instance, float ladderXPos, Helicopter helicopter )
+            public static float AttachToHelicopter( TestVanDammeAnim __instance, Helicopter helicopter )
             {
                 helicopter.attachedHeroes.Add( __instance );
-                ladderXPos = helicopter.transform.position.x + 13f;
+                float ladderXPos = helicopter.transform.position.x + 13f;
                 helicopter.Leave();
                 __instance.transform.parent = helicopter.ladderHolder;
                 float x = helicopter.transform.position.x;
@@ -420,6 +429,7 @@ namespace Control_Enemies_Mod
                     __instance.transform.localScale = new Vector3( 1f, 1f, 1f );
                     __instance.X = x - 5f;
                 }
+
                 __instance.transform.position = new Vector3( Mathf.Round( __instance.X ), Mathf.Round( __instance.Y ), -50f );
                 return ladderXPos;
             }
@@ -442,6 +452,7 @@ namespace Control_Enemies_Mod
                     {
                         character.GetComponent<AudioSource>().Stop();
                     }
+
                     character.enabled = false;
                     if ( array[0].transform.parent != null )
                     {
@@ -449,17 +460,19 @@ namespace Control_Enemies_Mod
                         if ( component != null || Map.MapData.onlyTriggersCanWinLevel )
                         {
                             Helicopter component2 = array[0].transform.parent.GetComponent<Helicopter>();
-                            ladderXPos = AttachToHelicopter( character, ladderXPos, component2 );
-                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>( PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>( HeroController.Instance.AttachHeroToHelicopter ), character.transform.localPosition, character.transform.localScale.x, character, component2, false, false );
+                            ladderXPos = AttachToHelicopter( character, component2 );
+                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>( PID.TargetAll, HeroController.Instance.AttachHeroToHelicopter, character.transform.localPosition, character.transform.localScale.x, character, component2, false );
                             __result = true;
                         }
+
                         Helicopter component3 = array[0].transform.parent.GetComponent<Helicopter>();
                         if ( component3 != null )
                         {
-                            ladderXPos = AttachToHelicopter( character, ladderXPos, component3 );
-                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>( PID.TargetAll, new RpcSignature<Vector3, float, TestVanDammeAnim, Helicopter, bool>( HeroController.Instance.AttachHeroToHelicopter ), character.transform.localPosition, character.transform.localScale.x, character, component3, true, false );
+                            ladderXPos = AttachToHelicopter( character, component3 );
+                            Net.RPC<Vector3, float, TestVanDammeAnim, Helicopter, bool>( PID.TargetAll, HeroController.Instance.AttachHeroToHelicopter, character.transform.localPosition, character.transform.localScale.x, character, component3, true );
                         }
                     }
+
                     Traverse trav = Traverse.Create( character );
                     trav.Field( "jumpTime" ).SetValue( 0.07f );
                     trav.Field( "doubleJumpsLeft" ).SetValue( 0 );
@@ -467,6 +480,7 @@ namespace Control_Enemies_Mod
                     {
                         typeof( TestVanDammeAnim ).GetMethod( "SuckIntoPortal", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( character, null );
                     }
+
                     GameModeController.LevelFinish( LevelResult.Success );
                     Map.StartLevelEndExplosionsOverNetwork();
                     character.isOnHelicopter = true;
@@ -491,6 +505,7 @@ namespace Control_Enemies_Mod
                         {
                             IsOverFinish( __instance, ref ladderXPos, ref __result );
                         }
+
                         return false;
                     }
                 }
@@ -502,7 +517,8 @@ namespace Control_Enemies_Mod
                         return false;
                     }
                     // Don't allow player into portal if they don't have the required score
-                    else if ( Main.openedPortal && __instance.playerNum == Main.currentHeroNum && !ScoreManager.CanWin( __instance.playerNum ) )
+
+                    if ( Main.openedPortal && __instance.playerNum == Main.currentHeroNum && !ScoreManager.CanWin( __instance.playerNum ) )
                     {
                         IsOverFinish( __instance, ref ladderXPos, ref __result, false );
                         return false;
@@ -515,7 +531,7 @@ namespace Control_Enemies_Mod
 
         // Clear previous character when rescuing a bro
         [HarmonyPatch( typeof( TestVanDammeAnim ), "RecallBro" )]
-        static class TestVanDammeAnim_RecallBro_Patch
+        public static class TestVanDammeAnim_RecallBro_Patch
         {
             public static void Prefix( TestVanDammeAnim __instance )
             {
@@ -533,7 +549,7 @@ namespace Control_Enemies_Mod
 
         // Prevent enemies from trying to show the start bubble
         [HarmonyPatch( typeof( TestVanDammeAnim ), "ShowStartBubble" )]
-        static class TestVanDammeAnim_ShowStartBubble_Patch
+        public static class TestVanDammeAnim_ShowStartBubble_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -549,7 +565,7 @@ namespace Control_Enemies_Mod
 
         // Prevent enemies from trying to show the start bubble
         [HarmonyPatch( typeof( TestVanDammeAnim ), "RestartBubble", new Type[] { typeof( float ) } )]
-        static class TestVanDammeAnim_RestartBubble_float_Patch
+        public static class TestVanDammeAnim_RestartBubble_float_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -565,7 +581,7 @@ namespace Control_Enemies_Mod
 
         // Prevent enemies from trying to show the start bubble
         [HarmonyPatch( typeof( TestVanDammeAnim ), "RestartBubble", new Type[] { } )]
-        static class TestVanDammeAnim_RestartBubble_Patch
+        public static class TestVanDammeAnim_RestartBubble_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -581,7 +597,7 @@ namespace Control_Enemies_Mod
 
         // Use different avatar for players who are controlling enemies
         [HarmonyPatch( typeof( HeroController ), "SwitchAvatarMaterial" )]
-        static class HeroController_SwitchAvatarMaterial_Patch
+        public static class HeroController_SwitchAvatarMaterial_Patch
         {
             public static bool Prefix( ref SpriteSM sprite, ref bool __result )
             {
@@ -624,20 +640,19 @@ namespace Control_Enemies_Mod
                                 return false;
                             }
                         }
+
                         return true;
                     }
                     // Replace all other avatars with ghosts
-                    else
-                    {
-                        sprite.GetComponent<Renderer>().material = Main.ghostAvatarMat;
-                        return false;
-                    }
+
+                    sprite.GetComponent<Renderer>().material = Main.ghostAvatarMat;
+                    return false;
                 }
 
                 PlayerHUD hud = sprite.gameObject.GetComponent<PlayerHUD>();
                 if ( hud != null )
                 {
-                    int playerNum = (int)Traverse.Create( hud ).Field( "playerNum" ).GetValue();
+                    int playerNum = ( int )Traverse.Create( hud ).Field( "playerNum" ).GetValue();
 
                     // If we're assigning an avatar to a player who is an enemy, use a different avatar instead of the bro one
                     if ( Main.currentlyEnemy[playerNum] )
@@ -653,7 +668,7 @@ namespace Control_Enemies_Mod
 
         // Refresh all settings
         [HarmonyPatch( typeof( Map ), "Start" )]
-        static class Map_Start_Patch
+        public static class Map_Start_Patch
         {
             public static void Prefix( Map __instance )
             {
@@ -667,14 +682,14 @@ namespace Control_Enemies_Mod
                 // Randomize hero num among starting players
                 if ( Main.settings.competitiveModeEnabled && Main.currentHeroNum == -1 )
                 {
-                    Main.currentHeroNum = UnityEngine.Random.Range( 0, HeroController.NumberOfPlayers() );
+                    Main.currentHeroNum = Random.Range( 0, HeroController.NumberOfPlayers() );
                 }
             }
         }
 
         // Remove buggy animation when wall climbing
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AnimateWallAnticipation" )]
-        static class TestVanDammeAnim_AnimateWallAnticipation_Patch
+        public static class TestVanDammeAnim_AnimateWallAnticipation_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -695,7 +710,7 @@ namespace Control_Enemies_Mod
 
         // Remove buggy animation when wall climbing
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AnimateWallClimb" )]
-        static class TestVanDammeAnim_AnimateWallClimb_Patch
+        public static class TestVanDammeAnim_AnimateWallClimb_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -716,7 +731,7 @@ namespace Control_Enemies_Mod
 
         // Remove buggy animation when wall climbing
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AnimateWallDrag" )]
-        static class TestVanDammeAnim_AnimateWallDrag_Patch
+        public static class TestVanDammeAnim_AnimateWallDrag_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -737,7 +752,7 @@ namespace Control_Enemies_Mod
 
         // Make sure enemies don't play confused noise when dancing
         [HarmonyPatch( typeof( TestVanDammeAnim ), "PlayStunnedSound" )]
-        static class TestVanDammeAnim_PlayStunnedSound_Patch
+        public static class TestVanDammeAnim_PlayStunnedSound_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance, ref float ___stunVocalDelay )
             {
@@ -750,7 +765,7 @@ namespace Control_Enemies_Mod
                 if ( __instance.name == "c" && Main.holdingGesture[__instance.playerNum] )
                 {
                     __instance.PlayLaughterSound();
-                    ___stunVocalDelay = 0.4f + UnityEngine.Random.Range( 0.3f, 0.9f );
+                    ___stunVocalDelay = 0.4f + Random.Range( 0.3f, 0.9f );
                     return false;
                 }
 
@@ -760,7 +775,7 @@ namespace Control_Enemies_Mod
 
         // Disable grenadier mook throwing back grenade crashing the game
         [HarmonyPatch( typeof( TestVanDammeAnim ), "ThrowBackGrenade" )]
-        static class TestVanDammeAnim_ThrowBackGrenade_Patch
+        public static class TestVanDammeAnim_ThrowBackGrenade_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -781,12 +796,13 @@ namespace Control_Enemies_Mod
 
         #region Enemy Specific Patches
         // Fix controlled enemies taking fall damage
+
         #region FallDamagePatches
         // Disable fall damage for mooks
         [HarmonyPatch( typeof( Mook ), "FallDamage" )]
-        static class Mook_FallDamage_Patch
+        public static class Mook_FallDamage_Patch
         {
-            public static bool Prefix( Mook __instance, ref float yI )
+            public static bool Prefix( Mook __instance )
             {
                 if ( !Main.enabled || !Main.settings.disableFallDamage )
                 {
@@ -804,9 +820,9 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for bruisers
         [HarmonyPatch( typeof( MookBigGuy ), "FallDamage" )]
-        static class MookBigGuy_FallDamage_Patch
+        public static class MookBigGuy_FallDamage_Patch
         {
-            public static bool Prefix( MookBigGuy __instance, ref float yI )
+            public static bool Prefix( MookBigGuy __instance )
             {
                 if ( !Main.enabled || !Main.settings.disableFallDamage )
                 {
@@ -824,7 +840,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for aliens
         [HarmonyPatch( typeof( Alien ), "FallDamage" )]
-        static class Alien_FallDamage_Patch
+        public static class Alien_FallDamage_Patch
         {
             public static bool Prefix( Alien __instance, ref float yI )
             {
@@ -844,7 +860,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for AlienFaceHugger
         [HarmonyPatch( typeof( AlienFaceHugger ), "FallDamage" )]
-        static class AlienFaceHugger_FallDamage_Patch
+        public static class AlienFaceHugger_FallDamage_Patch
         {
             public static bool Prefix( AlienFaceHugger __instance, ref float yI )
             {
@@ -864,7 +880,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for AlienMelter
         [HarmonyPatch( typeof( AlienMelter ), "FallDamage" )]
-        static class AlienMelter_FallDamage_Patch
+        public static class AlienMelter_FallDamage_Patch
         {
             public static bool Prefix( AlienMelter __instance, ref float yI )
             {
@@ -884,7 +900,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for Animal
         [HarmonyPatch( typeof( Animal ), "FallDamage" )]
-        static class Animal_FallDamage_Patch
+        public static class Animal_FallDamage_Patch
         {
             public static bool Prefix( Animal __instance, ref float yI )
             {
@@ -904,7 +920,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for MookArmouredGuy
         [HarmonyPatch( typeof( MookArmouredGuy ), "FallDamage" )]
-        static class MookArmouredGuy_FallDamage_Patch
+        public static class MookArmouredGuy_FallDamage_Patch
         {
             public static bool Prefix( MookArmouredGuy __instance, ref float yI )
             {
@@ -924,7 +940,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for MookDog
         [HarmonyPatch( typeof( MookDog ), "FallDamage" )]
-        static class MookDog_FallDamage_Patch
+        public static class MookDog_FallDamage_Patch
         {
             public static bool Prefix( MookDog __instance, ref float yI )
             {
@@ -944,7 +960,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for MookHellBigGuy
         [HarmonyPatch( typeof( MookHellBigGuy ), "FallDamage" )]
-        static class MookHellBigGuy_FallDamage_Patch
+        public static class MookHellBigGuy_FallDamage_Patch
         {
             public static bool Prefix( MookHellBigGuy __instance, ref float yI )
             {
@@ -964,7 +980,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for MookHellBoomer
         [HarmonyPatch( typeof( MookHellBoomer ), "FallDamage" )]
-        static class MookHellBoomer_FallDamage_Patch
+        public static class MookHellBoomer_FallDamage_Patch
         {
             public static bool Prefix( MookHellBoomer __instance, ref float yI )
             {
@@ -984,7 +1000,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for MookSuicide
         [HarmonyPatch( typeof( MookSuicide ), "FallDamage" )]
-        static class MookSuicide_FallDamage_Patch
+        public static class MookSuicide_FallDamage_Patch
         {
             public static bool Prefix( MookSuicide __instance, ref float yI )
             {
@@ -1004,7 +1020,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for SkinnedMook
         [HarmonyPatch( typeof( SkinnedMook ), "FallDamage" )]
-        static class MSkinnedMook_FallDamage_Patch
+        public static class MSkinnedMook_FallDamage_Patch
         {
             public static bool Prefix( SkinnedMook __instance, ref float yI )
             {
@@ -1024,7 +1040,7 @@ namespace Control_Enemies_Mod
 
         // Disable fall damage for Villager
         [HarmonyPatch( typeof( Villager ), "FallDamage" )]
-        static class Villager_FallDamage_Patch
+        public static class Villager_FallDamage_Patch
         {
             public static bool Prefix( Villager __instance, ref float yI )
             {
@@ -1044,11 +1060,12 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Allow controlled enemies to fire offscreen
+
         #region UseFirePatches
-        public static bool overrideNextVisibilityCheck = false;
+        public static bool overrideNextVisibilityCheck;
 
         [HarmonyPatch( typeof( SetResolutionCamera ), "IsItVisible" )]
-        static class SetResolutionCamera_IsItVisible_Patch
+        public static class SetResolutionCamera_IsItVisible_Patch
         {
             public static bool Prefix( SetResolutionCamera __instance, ref bool __result )
             {
@@ -1069,7 +1086,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( SortOfFollow ), "IsItSortOfVisible", new Type[] { typeof( float ), typeof( float ), typeof( float ), typeof( float ) } )]
-        static class SortOfFollow_IsItSortOfVisible_Patch
+        public static class SortOfFollow_IsItSortOfVisible_Patch
         {
             public static bool Prefix( SortOfFollow __instance, ref bool __result )
             {
@@ -1090,7 +1107,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( Mook ), "UseFire" )]
-        static class Mook_UseFire_Patch
+        public static class Mook_UseFire_Patch
         {
             public static void Prefix( Mook __instance )
             {
@@ -1107,7 +1124,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookArmouredGuy ), "UseFire" )]
-        static class MookArmouredGuy_UseFire_Patch
+        public static class MookArmouredGuy_UseFire_Patch
         {
             public static void Prefix( MookArmouredGuy __instance )
             {
@@ -1124,7 +1141,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookBigGuy ), "UseFire" )]
-        static class MookBigGuy_UseFire_Patch
+        public static class MookBigGuy_UseFire_Patch
         {
             public static void Prefix( MookBigGuy __instance )
             {
@@ -1141,7 +1158,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookHellBoomer ), "UseFire" )]
-        static class MookHellBoomer_UseFire_Patch
+        public static class MookHellBoomer_UseFire_Patch
         {
             public static void Prefix( MookHellBoomer __instance )
             {
@@ -1158,7 +1175,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookJetpackBazooka ), "UseFire" )]
-        static class MookJetpackBazooka_UseFire_Patch
+        public static class MookJetpackBazooka_UseFire_Patch
         {
             public static void Prefix( MookJetpackBazooka __instance )
             {
@@ -1175,7 +1192,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookBigGuyElite ), "UseFire" )]
-        static class MookBigGuyElite_UseFire_Patch
+        public static class MookBigGuyElite_UseFire_Patch
         {
             public static void Prefix( MookBigGuyElite __instance )
             {
@@ -1192,7 +1209,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookBazooka ), "UseFire" )]
-        static class MookBazooka_UseFire_Patch
+        public static class MookBazooka_UseFire_Patch
         {
             public static void Prefix( MookBazooka __instance )
             {
@@ -1210,9 +1227,10 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Allow enemies to use doors
+
         #region CanPassThroughBarriers
         [HarmonyPatch( typeof( Mook ), "CanPassThroughBarriers" )]
-        static class Mook_CanPassThroughBarriers_Patch
+        public static class Mook_CanPassThroughBarriers_Patch
         {
             public static bool Prefix( Mook __instance, ref bool __result )
             {
@@ -1232,7 +1250,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookDog ), "CanPassThroughBarriers" )]
-        static class MookDog_CanPassThroughBarriers_Patch
+        public static class MookDog_CanPassThroughBarriers_Patch
         {
             public static bool Prefix( MookDog __instance, ref bool __result )
             {
@@ -1253,10 +1271,11 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix various death functions
+
         #region Death Fixes
         // Fix suicide mook death being ignored
         [HarmonyPatch( typeof( MookSuicide ), "Gib" )]
-        static class MookSuicide_Gib_Patch
+        public static class MookSuicide_Gib_Patch
         {
             public static void Prefix( MookSuicide __instance, ref DamageType damageType )
             {
@@ -1278,6 +1297,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1286,7 +1306,7 @@ namespace Control_Enemies_Mod
 
         // Fix jetpack mook deaths being ignored
         [HarmonyPatch( typeof( MookJetpack ), "Gib" )]
-        static class MookJetpack_Gib_Patch
+        public static class MookJetpack_Gib_Patch
         {
             public static void Prefix( MookJetpack __instance, ref DamageType damageType )
             {
@@ -1308,6 +1328,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1316,7 +1337,7 @@ namespace Control_Enemies_Mod
 
         // Fix alien melter deaths being ignored
         [HarmonyPatch( typeof( AlienMelter ), "Gib" )]
-        static class AlienMelter_Gib_Patch
+        public static class AlienMelter_Gib_Patch
         {
             public static void Prefix( AlienMelter __instance, ref DamageType damageType )
             {
@@ -1338,6 +1359,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1346,7 +1368,7 @@ namespace Control_Enemies_Mod
 
         // Fix alien mosquito deaths being ignored
         [HarmonyPatch( typeof( AlienMosquito ), "Gib" )]
-        static class AlienMosquito_Gib_Patch
+        public static class AlienMosquito_Gib_Patch
         {
             public static void Prefix( AlienMosquito __instance, ref DamageType damageType )
             {
@@ -1368,6 +1390,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1376,7 +1399,7 @@ namespace Control_Enemies_Mod
 
         // Fix undead suicide mook deaths being ignored
         [HarmonyPatch( typeof( MookSuicideUndead ), "Gib" )]
-        static class MookSuicideUndead_Gib_Patch
+        public static class MookSuicideUndead_Gib_Patch
         {
             public static void Prefix( MookSuicideUndead __instance, ref DamageType damageType )
             {
@@ -1398,6 +1421,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1406,7 +1430,7 @@ namespace Control_Enemies_Mod
 
         // Fix villager deaths being ignored
         [HarmonyPatch( typeof( Villager ), "Death" )]
-        static class Villager_Death_Patch
+        public static class Villager_Death_Patch
         {
             public static void Prefix( Villager __instance, ref DamageObject damage )
             {
@@ -1428,6 +1452,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damage.damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1436,7 +1461,7 @@ namespace Control_Enemies_Mod
 
         // Fix villager deaths being ignored
         [HarmonyPatch( typeof( Villager ), "Gib", new Type[] { typeof( DamageType ), typeof( float ), typeof( float ) } )]
-        static class Villager_Gib_Patch
+        public static class Villager_Gib_Patch
         {
             public static void Prefix( Villager __instance, ref DamageType damageType )
             {
@@ -1458,6 +1483,7 @@ namespace Control_Enemies_Mod
                         {
                             TestVanDammeAnim_Death_Patch.outOfBounds = damageType == DamageType.OutOfBounds;
                         }
+
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
                 }
@@ -1466,7 +1492,7 @@ namespace Control_Enemies_Mod
 
         // Fix villager deaths being ignored
         [HarmonyPatch( typeof( Villager ), "Gib", new Type[] { } )]
-        static class Villager_Gib2_Patch
+        public static class Villager_Gib2_Patch
         {
             public static void Prefix( Villager __instance )
             {
@@ -1492,7 +1518,7 @@ namespace Control_Enemies_Mod
 
         // Make sure we leave satan when he dies
         [HarmonyPatch( typeof( SatanMiniboss ), "StartDeathRattle" )]
-        static class SatanMiniboss_StartDeathRattle_Patch
+        public static class SatanMiniboss_StartDeathRattle_Patch
         {
             public static void Prefix( SatanMiniboss __instance )
             {
@@ -1523,9 +1549,10 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Disable explosive deaths when recalling
+
         #region Explosive Deaths
         [HarmonyPatch( typeof( MookSuicide ), "MakeEffects" )]
-        static class MookSuicide_MakeEffects_Patch
+        public static class MookSuicide_MakeEffects_Patch
         {
             public static bool Prefix( MookSuicide __instance, bool ___recalling )
             {
@@ -1545,7 +1572,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( MookSuicideUndead ), "MakeEffects" )]
-        static class MookSuicideUndead_MakeEffects_Patch
+        public static class MookSuicideUndead_MakeEffects_Patch
         {
             public static bool Prefix( MookSuicideUndead __instance, bool ___recalling )
             {
@@ -1566,9 +1593,10 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Make sure suicide deaths are counted as suicides
+
         #region Suicide Deaths
         [HarmonyPatch( typeof( HellLostSoul ), "MakeEffects" )]
-        static class HellLostSoul_MakeEffects_Patch
+        public static class HellLostSoul_MakeEffects_Patch
         {
             public static void Prefix( HellLostSoul __instance, bool ___diving )
             {
@@ -1586,7 +1614,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( AlienMosquito ), "MakeEffects" )]
-        static class AlienMosquito_MakeEffects_Patch
+        public static class AlienMosquito_MakeEffects_Patch
         {
             public static void Prefix( AlienMosquito __instance, bool ___diving )
             {
@@ -1605,11 +1633,12 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Make spawned helldogs friendly
+
         #region HellDog
         [HarmonyPatch( typeof( HellDogEgg ), "MakeEffects" )]
         public static class HellDogEgg_MakeEffects_Patch
         {
-            public static bool nextDogFriendly = false;
+            public static bool nextDogFriendly;
             public static int playerNum = -1;
 
             public static void Prefix( HellDogEgg __instance )
@@ -1629,7 +1658,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( HellDog ), "GrowFromEgg" )]
-        static class HellDog_GrowFromEgg_Patch
+        public static class HellDog_GrowFromEgg_Patch
         {
             public static void Prefix( HellDog __instance )
             {
@@ -1650,12 +1679,13 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Become xenomorph when facehugging enemy
+
         #region Facehugger
         [HarmonyPatch( typeof( AlienXenomorph ), "Start" )]
         public static class AlienXenomorph_Start_Patch
         {
             public static int controllerPlayerNum = -1;
-            public static bool controlNextAlien = false;
+            public static bool controlNextAlien;
 
             public static void Postfix( AlienXenomorph __instance )
             {
@@ -1676,6 +1706,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.StartControllingUnit( controllerPlayerNum, __instance, true );
                     }
+
                     controlNextAlien = false;
                     Main.countdownToRespawn[controllerPlayerNum] = -1f;
                 }
@@ -1687,6 +1718,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.ReaffirmControl( playerNum );
                     }
+
                     __instance.SpecialAmmo = 0;
                 }
             }
@@ -1694,12 +1726,13 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix issues with jetpack
+
         #region Jetpack Mooks
         // Prevent Jetpack mooks from automatically flying up
         [HarmonyPatch( typeof( MookJetpack ), "StartJetPacks" )]
         public static class MookJetpack_StartJetPacks_Patch
         {
-            public static bool allowJetpack = false;
+            public static bool allowJetpack;
 
             public static bool Prefix( MookJetpack __instance, ref float ___jetpacksDelay )
             {
@@ -1715,12 +1748,9 @@ namespace Control_Enemies_Mod
                         ___jetpacksDelay = 1000000f;
                         return false;
                     }
-                    else
-                    {
-                        allowJetpack = false;
-                        ___jetpacksDelay = 0f;
-                        return true;
-                    }
+
+                    allowJetpack = false;
+                    ___jetpacksDelay = 0f;
                 }
 
                 return true;
@@ -1729,7 +1759,7 @@ namespace Control_Enemies_Mod
 
         // Change Jetpack Mook's jetpackHeight as you're playing them to make the jetpack more useful
         [HarmonyPatch( typeof( MookJetpack ), "Land" )]
-        static class MookJetpack_Land_Patch
+        public static class MookJetpack_Land_Patch
         {
             public static void Postfix( MookJetpack __instance )
             {
@@ -1747,10 +1777,11 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix warlock summoning
+
         #region Warlock
         // Fix warlocks being unable to fire unless they've seen an enemy
         [HarmonyPatch( typeof( PolymorphicAI ), "GetSeenPlayerNum" )]
-        static class PolymorphicAI_GetSeenPlayerNum_Patch
+        public static class PolymorphicAI_GetSeenPlayerNum_Patch
         {
             public static void Postfix( PolymorphicAI __instance, ref int __result )
             {
@@ -1777,7 +1808,7 @@ namespace Control_Enemies_Mod
 
         // Fix warlock mooks damaging the player if they're controlling the warlock
         [HarmonyPatch( typeof( WarlockPortal ), "SpawnUnit" )]
-        static class WarlockPortal_SpawnUnit_Patch
+        public static class WarlockPortal_SpawnUnit_Patch
         {
             public static void Postfix( WarlockPortal __instance )
             {
@@ -1795,10 +1826,11 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix issues with controlling mechs
+
         #region Mech
         // Take control of discharged unit if the mech is being controlled
         [HarmonyPatch( typeof( MookArmouredGuy ), "DisChargePilotRPC" )]
-        static class MookArmouredGuy_DisChargePilotRPC_Patch
+        public static class MookArmouredGuy_DisChargePilotRPC_Patch
         {
             public static void Prefix( MookArmouredGuy __instance )
             {
@@ -1818,7 +1850,7 @@ namespace Control_Enemies_Mod
                         Main.LeaveUnit( __instance, playerNum, true );
                         // Force IsAlive to be true
                         Main.countdownToRespawn[playerNum] = 1f;
-                        Main.StartControllingUnit( playerNum, pilotUnit, true, false, false );
+                        Main.StartControllingUnit( playerNum, pilotUnit, true, false );
                         Main.countdownToRespawn[playerNum] = 0f;
                         // Make sure unit isn't a child of the mech anymore
                         pilotUnit.transform.parent = Map.Instance.transform;
@@ -1829,7 +1861,7 @@ namespace Control_Enemies_Mod
 
         // Patched to remove damage to controlled mooks who are discharged
         [HarmonyPatch( typeof( Mook ), "DischargePilotingUnit" )]
-        static class Mook_DischargePilotingUnit_Patch
+        public static class Mook_DischargePilotingUnit_Patch
         {
             public static bool Prefix( Mook __instance, ref float x, ref float y, ref float xI, ref float yI, ref bool stunUnit, ref float ___ignoreHighFivePressTime, ref float ___jumpTime, ref float ___stunTime )
             {
@@ -1841,12 +1873,13 @@ namespace Control_Enemies_Mod
                 // Prevent mook from taking damage if it's a player controlled enemy
                 if ( __instance.name == "c" )
                 {
-                    __instance.SetInvulnerable( 0.1f, false, false );
+                    __instance.SetInvulnerable( 0.1f, false );
                     if ( __instance.gunSprite != null )
                     {
                         __instance.gunSprite.enabled = true;
                         __instance.gunSprite.GetComponent<Renderer>().enabled = true;
                     }
+
                     __instance.GetComponent<Renderer>().enabled = true;
                     ___ignoreHighFivePressTime = 0.1f;
                     ___jumpTime = 0.13f;
@@ -1865,6 +1898,7 @@ namespace Control_Enemies_Mod
                         __instance.xIBlast = xI * 0.5f;
                         __instance.xI = xI * 0.5f;
                     }
+
                     __instance.ShowStartBubble();
                     __instance.gameObject.SetActive( true );
                     if ( stunUnit )
@@ -1887,9 +1921,10 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Make enemies spawned by Mook General friendly
+
         #region Mook General
         [HarmonyPatch( typeof( MookGeneral ), "SpawnMook" )]
-        static class MookGeneral_SpawnMook_Patch
+        public static class MookGeneral_SpawnMook_Patch
         {
             public static bool Prefix( MookGeneral __instance, ref Mook prefab, ref float x, ref float y )
             {
@@ -1912,9 +1947,10 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix suicide mooks being unable to wall climb
+
         #region Suicide Mook
         [HarmonyPatch( typeof( MookSuicide ), "Start" )]
-        static class MookSuicide_Start_Patch
+        public static class MookSuicide_Start_Patch
         {
             public static void Postfix( MookSuicide __instance, ref float ___halfWidth )
             {
@@ -1933,19 +1969,22 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix RC Car not checking input
+
         #region RCCar
         // Get base method of TestVanDammeAnim CheckInput
         [HarmonyPatch]
-        static class RemoteControlExplosiveCar_CheckInput_Patch
+        public static class RemoteControlExplosiveCar_CheckInput_Patch
         {
             [HarmonyReversePatch]
             [HarmonyPatch( typeof( TestVanDammeAnim ), "CheckInput" )]
             [MethodImpl( MethodImplOptions.NoInlining )]
-            static void CheckInput( RemoteControlExplosiveCar instance ) { }
+            public static void CheckInput( RemoteControlExplosiveCar instance )
+            {
+            }
 
             // Make sure we check input for controlled RC Cars
             [HarmonyPatch( typeof( RemoteControlExplosiveCar ), "CheckInput" )]
-            static void Prefix( RemoteControlExplosiveCar __instance )
+            public static void Prefix( RemoteControlExplosiveCar __instance )
             {
                 if ( !Main.enabled )
                 {
@@ -1971,7 +2010,8 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( RemoteControlExplosiveCar ), "Explode" )]
         public static class RemoteControlExplosiveCar_Explode_Patch
         {
-            public static bool manualActivation = false;
+            public static bool manualActivation;
+
             public static void Prefix( RemoteControlExplosiveCar __instance )
             {
                 if ( !Main.enabled )
@@ -1994,34 +2034,36 @@ namespace Control_Enemies_Mod
         #endregion
 
         // Fix skinless mook dying immediately
+
         #region Skinless Mook
         // Prevent SkinnedMook from dying on spawn in non-Hell levels when player-controlled
         [HarmonyPatch( typeof( SkinnedMook ), "Start" )]
-        static class SkinnedMook_Start_Patch
+        public static class SkinnedMook_Start_Patch
         {
-            static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
+            public static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
             {
-                var codeMatcher = new CodeMatcher( instructions, generator );
+                var instructionList = instructions.ToList();
+                var codeMatcher = new CodeMatcher( instructionList, generator );
 
                 MethodInfo deathRPCMethod = AccessTools.Method( typeof( Unit ), "DeathRPC", new Type[] { typeof( float ), typeof( float ), typeof( float ), typeof( float ) } );
 
                 FieldInfo playerNumField = AccessTools.Field( typeof( NetworkedUnit ), "_playerNum" );
 
                 codeMatcher.MatchStartForward(
-                        new CodeMatch( OpCodes.Ldarg_0 ),
-                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
-                        new CodeMatch( OpCodes.Ldc_R4, 0f ),
-                        new CodeMatch( OpCodes.Ldarg_0 ),
-                        new CodeMatch( OpCodes.Call ),
-                        new CodeMatch( OpCodes.Ldarg_0 ),
-                        new CodeMatch( OpCodes.Call ),
-                        new CodeMatch( i => i.Calls( deathRPCMethod ) )
-                    );
+                    new CodeMatch( OpCodes.Ldarg_0 ),
+                    new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                    new CodeMatch( OpCodes.Ldc_R4, 0f ),
+                    new CodeMatch( OpCodes.Ldarg_0 ),
+                    new CodeMatch( OpCodes.Call ),
+                    new CodeMatch( OpCodes.Ldarg_0 ),
+                    new CodeMatch( OpCodes.Call ),
+                    new CodeMatch( i => i.Calls( deathRPCMethod ) )
+                );
 
                 if ( !codeMatcher.IsValid )
                 {
                     Main.mod.Logger.Log( "SkinnedMook.Start transpiler: Could not find DeathRPC call" );
-                    return instructions;
+                    return instructionList;
                 }
 
                 Label skipDeathLabel = generator.DefineLabel();
@@ -2045,9 +2087,9 @@ namespace Control_Enemies_Mod
         #region Spawning As Enemy Patches
         // Automatic spawn
         [HarmonyPatch( typeof( Player ), "SpawnHero" )]
-        static class Player_SpawnHero_Patch
+        public static class Player_SpawnHero_Patch
         {
-            static void Prefix( Player __instance, ref HeroType nextHeroType )
+            public static void Prefix( Player __instance )
             {
                 if ( !Main.enabled )
                 {
@@ -2058,7 +2100,7 @@ namespace Control_Enemies_Mod
 
                 if ( Main.settings.spawnAsEnemyEnabled )
                 {
-                    Main.willReplaceBro[__instance.playerNum] = ( Main.settings.spawnAsEnemyChance > 0 && Main.settings.spawnAsEnemyChance >= UnityEngine.Random.value * 100f );
+                    Main.willReplaceBro[__instance.playerNum] = ( Main.settings.spawnAsEnemyChance > 0 && Main.settings.spawnAsEnemyChance >= Random.value * 100f );
 
                     // Disable BroMaker if it's installed
                     if ( Main.willReplaceBro[__instance.playerNum] )
@@ -2066,10 +2108,9 @@ namespace Control_Enemies_Mod
                         Main.DisableBroMaker( __instance.playerNum );
                     }
                 }
-
-                return;
             }
-            static void Postfix( Player __instance )
+
+            public static void Postfix( Player __instance )
             {
                 if ( !Main.enabled )
                 {
@@ -2088,8 +2129,9 @@ namespace Control_Enemies_Mod
                         if ( !Main.settings.alwaysChosen )
                         {
                             // Randomize unit
-                            Main.settings.selGridInt[__instance.playerNum] = UnityEngine.Random.Range( 0, Main.currentUnitList.Length );
+                            Main.settings.selGridInt[__instance.playerNum] = Random.Range( 0, Main.currentUnitList.Length );
                         }
+
                         GameObject obj = Main.SpawnUnit( Main.GetSelectedUnit( __instance.playerNum ), new Vector3( 0f, 0f, 0f ) );
                         TestVanDammeAnim newUnit = obj.GetComponent<TestVanDammeAnim>();
                         Main.StartControllingUnit( __instance.playerNum, newUnit, false, false, true );
@@ -2124,9 +2166,9 @@ namespace Control_Enemies_Mod
 
         // Fix vanilla bro being visible for 1 frame in certain spawning situations
         [HarmonyPatch( typeof( Player ), "InstantiateHero" )]
-        static class Player_InstantiateHero_Patch
+        public static class Player_InstantiateHero_Patch
         {
-            static void Postfix( Player __instance, ref TestVanDammeAnim __result )
+            public static void Postfix( Player __instance, ref TestVanDammeAnim __result )
             {
                 // If mod is disabled or if we aren't loading a custom character don't disable
                 if ( !Main.enabled || !Main.willReplaceBro[__instance.playerNum] )
@@ -2139,9 +2181,9 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( Map ), "AddBroToHeroTransport" )]
-        static class Map_AddBroToHeroTransport_Patch
+        public static class Map_AddBroToHeroTransport_Patch
         {
-            static bool Prefix( Map __instance, ref TestVanDammeAnim Bro )
+            public static bool Prefix( ref TestVanDammeAnim Bro )
             {
                 // If mod is disabled or if we aren't loading a custom character don't disable
                 return !Main.enabled || !( Bro.playerNum >= 0 && Bro.playerNum < 4 && Main.willReplaceBro[Bro.playerNum] );
@@ -2149,9 +2191,9 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( Player ), "WorkOutSpawnPosition" )]
-        static class Player_WorkOutSpawnPosition_Patch
+        public static class Player_WorkOutSpawnPosition_Patch
         {
-            static void Prefix( Player __instance, ref TestVanDammeAnim bro )
+            public static void Prefix( Player __instance )
             {
                 if ( !Main.enabled )
                 {
@@ -2168,9 +2210,9 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( Player ), "WorkOutSpawnScenario" )]
         public static class Player_WorkOutSpawnScenario_Patch
         {
-            public static bool forceCheckpointSpawn = false;
+            public static bool forceCheckpointSpawn;
 
-            static void Postfix( Player __instance, ref Player.SpawnType __result )
+            public static void Postfix( Player __instance, ref Player.SpawnType __result )
             {
                 if ( !Main.enabled )
                 {
@@ -2223,6 +2265,7 @@ namespace Control_Enemies_Mod
                         {
                             Main.OverrideSpawn( __instance.playerNum );
                         }
+
                         forceCheckpointSpawn = false;
                     }
                 }
@@ -2236,7 +2279,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( HeroTransport ), "ReleaseBros" )]
-        static class HeroTransport_ReleaseBros_Patch
+        public static class HeroTransport_ReleaseBros_Patch
         {
             public static void Postfix( HeroTransport __instance )
             {
@@ -2262,7 +2305,7 @@ namespace Control_Enemies_Mod
         // Check for swap button being pressed
         // Check for special 2 and 3 buttons
         [HarmonyPatch( typeof( Player ), "GetInput" )]
-        static class Player_GetInput_Patch
+        public static class Player_GetInput_Patch
         {
             public static void Postfix( Player __instance, ref bool up, ref bool down, ref bool left, ref bool right, ref bool fire, ref bool buttonJump, ref bool special, ref bool highFive, ref bool buttonGesture, ref bool sprint )
             {
@@ -2279,12 +2322,11 @@ namespace Control_Enemies_Mod
 
                     if ( ( ( ( leftPressed || rightPressed ) && Main.currentSpawnCooldown[playerNum] <= 0f && __instance.IsAlive() ) || ( Main.settings.clickingSwapEnabled && Main.switched[playerNum] ) ) && __instance.character.pilottedUnit == null )
                     {
-                        float X, Y, XI, YI;
                         Vector3 vec = __instance.GetCharacterPosition();
-                        X = vec.x;
-                        Y = vec.y;
-                        XI = (float)Traverse.Create( __instance.character ).Field( "xI" ).GetValue();
-                        YI = (float)Traverse.Create( __instance.character ).Field( "yI" ).GetValue();
+                        float X = vec.x;
+                        float Y = vec.y;
+                        float XI = ( float )Traverse.Create( __instance.character ).Field( "xI" ).GetValue();
+                        float YI = ( float )Traverse.Create( __instance.character ).Field( "yI" ).GetValue();
 
                         if ( Main.settings.clickingSwapEnabled && Main.switched[playerNum] )
                         {
@@ -2304,15 +2346,17 @@ namespace Control_Enemies_Mod
                                     newUnit.xI += 30f;
                                     newUnit.Y += 10f;
                                 }
+
                                 Main.switched[playerNum] = false;
                             }
                             catch ( Exception ex )
                             {
                                 Main.Log( "Exception switching unit: " + ex.ToString() );
                             }
+
                             return;
                         }
-                        else
+
                         {
                             if ( leftPressed )
                             {
@@ -2393,13 +2437,12 @@ namespace Control_Enemies_Mod
                     }
                     #endregion
                 }
-                return;
             }
         }
 
         // Don't let enemies have their playernum overwritten
         [HarmonyPatch( typeof( TestVanDammeAnim ), "Start" )]
-        static class TestVanDammeAnim_Start_Patch
+        public static class TestVanDammeAnim_Start_Patch
         {
             public static void Postfix( TestVanDammeAnim __instance )
             {
@@ -2417,6 +2460,7 @@ namespace Control_Enemies_Mod
                         {
                             Main.ReaffirmControl( playerNum );
                         }
+
                         __instance.SpecialAmmo = 0;
                     }
                 }
@@ -2424,15 +2468,16 @@ namespace Control_Enemies_Mod
                 {
                     if ( Main.waitingToBecomeEnemy.Count > 0 )
                     {
-                        int chosenPlayer = Main.waitingToBecomeEnemy[UnityEngine.Random.Range( 0, Main.waitingToBecomeEnemy.Count )];
+                        int chosenPlayer = Main.waitingToBecomeEnemy[Random.Range( 0, Main.waitingToBecomeEnemy.Count )];
                         if ( chosenPlayer == Main.currentHeroNum )
                         {
                             Main.waitingToBecomeEnemy.Remove( chosenPlayer );
                             return;
                         }
+
                         if ( !( __instance.playerNum >= 0 && __instance.playerNum < 4 ) && __instance.name != "c" && __instance.name != "Hobro" )
                         {
-                            Main.StartControllingUnit( chosenPlayer, __instance, false, true, false );
+                            Main.StartControllingUnit( chosenPlayer, __instance );
                         }
                     }
                 }
@@ -2441,7 +2486,7 @@ namespace Control_Enemies_Mod
 
         // Don't let enemies have their playernum overwritten
         [HarmonyPatch( typeof( Alien ), "Start" )]
-        static class Alien_Start_Patch
+        public static class Alien_Start_Patch
         {
             public static void Postfix( Alien __instance )
             {
@@ -2457,6 +2502,7 @@ namespace Control_Enemies_Mod
                     {
                         Main.ReaffirmControl( playerNum );
                     }
+
                     __instance.SpecialAmmo = 0;
                 }
             }
@@ -2466,7 +2512,7 @@ namespace Control_Enemies_Mod
         #region Competitive Mode Patches
         // Allow players to kill each other
         [HarmonyPatch( typeof( GameModeController ), "DoesPlayerNumDamage" )]
-        static class GameModeController_DoesPlayerNumDamage_Patch
+        public static class GameModeController_DoesPlayerNumDamage_Patch
         {
             public static void Postfix( GameModeController __instance, ref int fromNum, ref int toNum, ref bool __result )
             {
@@ -2509,14 +2555,13 @@ namespace Control_Enemies_Mod
                             __result = false;
                         }
                     }
-
                 }
             }
         }
 
         // Make camera focus on hero
         [HarmonyPatch( typeof( Player ), "HasFollowPosition" )]
-        static class Player_HasFollowPosition_Patch
+        public static class Player_HasFollowPosition_Patch
         {
             public static bool Prefix( Player __instance, ref bool __result )
             {
@@ -2537,7 +2582,7 @@ namespace Control_Enemies_Mod
 
         // Hide ghost players from enemies
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AlertNearbyMooks" )]
-        static class TestVanDammeAnim_AlertNearbyMooks_Patch
+        public static class TestVanDammeAnim_AlertNearbyMooks_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -2557,7 +2602,7 @@ namespace Control_Enemies_Mod
 
         // Hide ghost players from enemies
         [HarmonyPatch( typeof( TestVanDammeAnim ), "IsInStealthMode" )]
-        static class TestVanDammeAnim_IsInStealthMode_Patch
+        public static class TestVanDammeAnim_IsInStealthMode_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance, ref bool __result )
             {
@@ -2578,7 +2623,7 @@ namespace Control_Enemies_Mod
 
         // Hide ghost players from enemies
         [HarmonyPatch( typeof( Map ), "DisturbWildLife" )]
-        static class Map_DisturbWildLife_Patch
+        public static class Map_DisturbWildLife_Patch
         {
             public static bool Prefix( Map __instance, ref int playerNum )
             {
@@ -2598,7 +2643,7 @@ namespace Control_Enemies_Mod
 
         // Hide ghost players from enemies
         [HarmonyPatch( typeof( Map ), "BotherNearbyMooks" )]
-        static class Map_BotherNearbyMooks_Patch
+        public static class Map_BotherNearbyMooks_Patch
         {
             public static bool Prefix( Map __instance, ref int playerNum )
             {
@@ -2618,7 +2663,7 @@ namespace Control_Enemies_Mod
 
         // Ensure players have the correct number of lives
         [HarmonyPatch( typeof( Player ), "Start" )]
-        static class Player_Start_Patch
+        public static class Player_Start_Patch
         {
             public static void Postfix( Player __instance )
             {
@@ -2671,7 +2716,7 @@ namespace Control_Enemies_Mod
 
         // Fix avatars flashing for ghost players
         [HarmonyPatch( typeof( HeroController ), "FlashAvatar" )]
-        static class HeroController_FlashAvatar_Patch
+        public static class HeroController_FlashAvatar_Patch
         {
             public static bool Prefix( ref int playerNum )
             {
@@ -2686,7 +2731,7 @@ namespace Control_Enemies_Mod
 
         // Fix avatars flashing for ghost players
         [HarmonyPatch( typeof( PlayerHUD ), "FlashAvatar" )]
-        static class PlayerHUD_FlashAvatar_Patch
+        public static class PlayerHUD_FlashAvatar_Patch
         {
             public static bool Prefix( PlayerHUD __instance, int ___playerNum )
             {
@@ -2701,7 +2746,7 @@ namespace Control_Enemies_Mod
 
         // Fix ghosts being left over when player drops out of the game
         [HarmonyPatch( typeof( HeroController ), "DropoutRPC" )]
-        static class HeroController_DropoutRPC_Patch
+        public static class HeroController_DropoutRPC_Patch
         {
             public static void Prefix( ref int playerNum )
             {
@@ -2713,7 +2758,7 @@ namespace Control_Enemies_Mod
                 // Delete ghost if bro is dropping out of the game
                 if ( Main.settings.competitiveModeEnabled && Main.currentGhosts[playerNum] != null )
                 {
-                    UnityEngine.Object.Destroy( Main.currentGhosts[playerNum].gameObject );
+                    Object.Destroy( Main.currentGhosts[playerNum].gameObject );
                     Main.previousCharacter[playerNum] = null;
                     Main.currentlyEnemy[playerNum] = false;
                     Main.currentGhosts[playerNum] = null;
@@ -2723,7 +2768,7 @@ namespace Control_Enemies_Mod
 
         // Disable rescuing prisoners for ghost players
         [HarmonyPatch( typeof( TestVanDammeAnim ), "CheckRescues" )]
-        static class TestVanDammeAnim_CheckRescues_Patch
+        public static class TestVanDammeAnim_CheckRescues_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -2738,7 +2783,7 @@ namespace Control_Enemies_Mod
 
         // Disable highfives with ghost players
         [HarmonyPatch( typeof( HeroController ), "IsAnotherPlayerNearby" )]
-        static class HeroController_IsAnotherPlayerNearby_Patch
+        public static class HeroController_IsAnotherPlayerNearby_Patch
         {
             public static bool Prefix( HeroController __instance, ref bool __result )
             {
@@ -2754,7 +2799,7 @@ namespace Control_Enemies_Mod
 
         // Include ghost controlled mooks as mooks
         [HarmonyPatch( typeof( Map ), "GetNearbyMook" )]
-        static class Map_GetNearbyMook_Patch
+        public static class Map_GetNearbyMook_Patch
         {
             public static bool Prefix( Map __instance, ref float xRange, ref float yRange, ref float x, ref float y, ref int direction, ref bool canBeDead, ref Mook __result )
             {
@@ -2771,7 +2816,7 @@ namespace Control_Enemies_Mod
                     if ( !( unit == null ) && ( unit.playerNum < 0 || unit.name == "c" ) && ( canBeDead || unit.health > 0 ) )
                     {
                         float num = unit.X - x;
-                        if ( Tools.FastAbsWithinRange( num, xRange ) && Mathf.Sign( num ) == (float)direction )
+                        if ( Tools.FastAbsWithinRange( num, xRange ) && Mathf.Sign( num ) == ( float )direction )
                         {
                             float num2 = unit.Y - y;
                             if ( Tools.FastAbsWithinRange( num2, yRange ) )
@@ -2790,13 +2835,14 @@ namespace Control_Enemies_Mod
                         }
                     }
                 }
+
                 return false;
             }
         }
 
         // Include ghost controlled mooks as mooks
         [HarmonyPatch( typeof( Map ), "GetNearbyMookVertical" )]
-        static class Map_GetNearbyMookVertical_Patch
+        public static class Map_GetNearbyMookVertical_Patch
         {
             public static bool Prefix( Map __instance, ref float xRange, ref float yRange, ref float x, ref float y, ref int direction, ref bool canBeDead, ref Mook __result )
             {
@@ -2810,6 +2856,7 @@ namespace Control_Enemies_Mod
                     __result = null;
                     return false;
                 }
+
                 float nearestDist = Mathf.Max( xRange, yRange ) + 1f;
                 for ( int i = Map.units.Count - 1; i >= 0; i-- )
                 {
@@ -2820,7 +2867,7 @@ namespace Control_Enemies_Mod
                         if ( Tools.FastAbsWithinRange( num, xRange ) )
                         {
                             float num2 = unit.Y - y;
-                            if ( Tools.FastAbsWithinRange( num2, yRange ) && Mathf.Sign( num2 ) == (float)direction )
+                            if ( Tools.FastAbsWithinRange( num2, yRange ) && Mathf.Sign( num2 ) == ( float )direction )
                             {
                                 Mook component = unit.GetComponent<Mook>();
                                 if ( component != null )
@@ -2843,7 +2890,7 @@ namespace Control_Enemies_Mod
 
         // Prevent rescues from going to ghost players that have died
         [HarmonyPatch( typeof( HeroController ), "MayIRescueThisBro" )]
-        static class HeroController_MayIRescueThisBro_Patch
+        public static class HeroController_MayIRescueThisBro_Patch
         {
             public static bool Prefix( HeroController __instance, ref int playerNum, ref RescueBro rescueBro, ref Ack ackRequest )
             {
@@ -2867,7 +2914,8 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( GameModeController ), "LevelFinish" )]
         public static class GameModeController_LevelFinish_Patch
         {
-            public static bool finishedThisLevel = false;
+            public static bool finishedThisLevel;
+
             public static void Prefix( GameModeController __instance, ref LevelResult result )
             {
                 if ( !Main.enabled || !Main.settings.competitiveModeEnabled )
@@ -2887,7 +2935,7 @@ namespace Control_Enemies_Mod
 
         // Make sure ghost controlled pigs can hit the player
         [HarmonyPatch( typeof( Animal ), "RunFalling" )]
-        static class Animal_RunFalling_Patch
+        public static class Animal_RunFalling_Patch
         {
             public static bool Prefix( Animal __instance )
             {
@@ -2902,11 +2950,12 @@ namespace Control_Enemies_Mod
                     {
                         __instance.invulnerable = true;
                         // Make sure we can hit players for competitive mode
-                        if ( Map.HitLivingUnits( __instance, __instance.playerNum, 3, DamageType.Crush, __instance.squashRange, __instance.X, __instance.Y + 2f, __instance.transform.localScale.x * 100f, 30f, false, true, true, false ) )
+                        if ( Map.HitLivingUnits( __instance, __instance.playerNum, 3, DamageType.Crush, __instance.squashRange, __instance.X, __instance.Y + 2f, __instance.transform.localScale.x * 100f, 30f, false, true ) )
                         {
                             __instance.PlaySpecialAttackSound( 0.25f );
                             __instance.yI = 160f;
                         }
+
                         __instance.invulnerable = false;
                         return false;
                     }
@@ -2918,7 +2967,7 @@ namespace Control_Enemies_Mod
 
         // Don't allow ghost players to activate checkpoints
         [HarmonyPatch( typeof( TestVanDammeAnim ), "CheckForCheckPoints" )]
-        static class TestVanDammeAnim_CheckForCheckPoints_Patch
+        public static class TestVanDammeAnim_CheckForCheckPoints_Patch
         {
             public static bool Prefix( TestVanDammeAnim __instance )
             {
@@ -2937,7 +2986,7 @@ namespace Control_Enemies_Mod
         }
 
         [HarmonyPatch( typeof( Map ), "CallInTransport_RPC" )]
-        static class Map_CallInTransport_RPC_Patch
+        public static class Map_CallInTransport_RPC_Patch
         {
             public static void Prefix( Map __instance, ref bool ArriveByHelicopter )
             {
@@ -2954,7 +3003,8 @@ namespace Control_Enemies_Mod
         [HarmonyPatch( typeof( Helicopter ), "Enter" )]
         public static class Helicopter_Enter_Patch
         {
-            public static bool helicopterDroppingOff = false;
+            public static bool helicopterDroppingOff;
+
             public static void Postfix( Helicopter __instance, ref Vector2 Target )
             {
                 if ( !Main.enabled || !Main.settings.competitiveModeEnabled )
@@ -2985,7 +3035,7 @@ namespace Control_Enemies_Mod
 
         // Create exit portal on level finish for alien levels that use elevators
         [HarmonyPatch( typeof( GiantElevator ), "StartMoving" )]
-        static class GiantElevator_StartMoving_Patch
+        public static class GiantElevator_StartMoving_Patch
         {
             public static bool Prefix( GiantElevator __instance, float ___floorY, bool ___hasDoneVictory )
             {
@@ -3023,7 +3073,7 @@ namespace Control_Enemies_Mod
 
         // Check if player that can win enter the portal
         [HarmonyPatch( typeof( TestVanDammeAnim ), "SuckIntoPortal" )]
-        static class TestVanDammeAnim_SuckIntoPortal_Patch
+        public static class TestVanDammeAnim_SuckIntoPortal_Patch
         {
             public static void Prefix( TestVanDammeAnim __instance )
             {
@@ -3042,7 +3092,7 @@ namespace Control_Enemies_Mod
 
         // Go to boss level for win attempt or return to level we were previously on after a failed attempt
         [HarmonyPatch( typeof( GameModeController ), "LoadNextScene" )]
-        static class GameModeController_LoadNextScene_Patch
+        public static class GameModeController_LoadNextScene_Patch
         {
             public static void Prefix( GameModeController __instance )
             {
@@ -3060,7 +3110,7 @@ namespace Control_Enemies_Mod
                     LevelSelectionController.ResetLevelAndGameModeToDefault();
                     GameState.Instance.ResetToDefault();
 
-                    int chosenBoss = UnityEngine.Random.Range( 0, 6 );
+                    int chosenBoss = Random.Range( 0, 6 );
 
                     switch ( chosenBoss )
                     {
@@ -3129,7 +3179,7 @@ namespace Control_Enemies_Mod
 
         // Handle winning / losing boss level
         [HarmonyPatch( typeof( GameModeController ), "DetermineLevelOutcome" )]
-        static class GameModeController_DetermineLevelOutcome_Patch
+        public static class GameModeController_DetermineLevelOutcome_Patch
         {
             public static void Prefix( GameModeController __instance, LevelResult ___levelResult )
             {
@@ -3149,7 +3199,6 @@ namespace Control_Enemies_Mod
                         // Return to main menu
                         Main.previousSceneName = GameState.Instance.sceneToLoad = LevelSelectionController.MainMenuScene;
                         Main.returnToPreviousLevel = true;
-
                     }
                     // Fail and return to previous level
                     else
@@ -3166,7 +3215,7 @@ namespace Control_Enemies_Mod
 
         // Show win screen if player won boss level
         [HarmonyPatch( typeof( LevelOverScreen ), "Show" )]
-        static class LevelOverScreen_Show_Patch
+        public static class LevelOverScreen_Show_Patch
         {
             public static PlayerScoreDisplay[] scoreDisplays;
 
@@ -3184,7 +3233,7 @@ namespace Control_Enemies_Mod
                     string text = string.Format( BitCode.Singleton<LanguageManager>.Instance.GetLocalisedString( "RESULT_PLAYER_WINS" ), HeroController.GetHeroColorName( Main.attemptingWin ) );
                     // Set herotype of winning hero so their avatar can be displayed
                     GameModeController.deathmatchHero[Main.attemptingWin] = HeroController.players[Main.attemptingWin].heroType;
-                    ScoreScreen.Appear( 20f, text, true, true, Main.attemptingWin, false );
+                    ScoreScreen.Appear( 20f, text, true, true, Main.attemptingWin );
                     for ( int i = 0; i < 4; ++i )
                     {
                         if ( HeroController.IsPlaying( i ) )
@@ -3192,15 +3241,17 @@ namespace Control_Enemies_Mod
                             ScoreManager.SetupFinalScoreSprites( i, scoreDisplays[i].deathObjectBase );
                         }
                     }
+
                     return false;
                 }
+
                 return true;
             }
         }
 
         // Check if weather is burning to set red player to different color
         [HarmonyPatch( typeof( WeatherController ), "SwitchWeather", new Type[] { typeof( WeatherType ), typeof( bool ) } )]
-        static class WeatherController_SwitchWeather_Patch
+        public static class WeatherController_SwitchWeather_Patch
         {
             public static void Prefix( WeatherController __instance, ref WeatherType newWeatherType )
             {
@@ -3222,7 +3273,7 @@ namespace Control_Enemies_Mod
 
         // Handle creating and loading saves
         [HarmonyPatch( typeof( SaveSlotsMenu ), "SelectSlot" )]
-        static class SaveSlotsMenu_SelectSlot_Patch
+        public static class SaveSlotsMenu_SelectSlot_Patch
         {
             public static void Prefix( SaveSlotsMenu __instance, ref int slot )
             {
