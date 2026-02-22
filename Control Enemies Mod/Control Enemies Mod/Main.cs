@@ -154,7 +154,7 @@ namespace Control_Enemies_Mod
 
             settings.disableFallDamage = GUILayout.Toggle( settings.disableFallDamage, new GUIContent( "Disable Fall Damage", "Disables fall damage for controlled enemies." ) );
 
-            settings.disableTaunting = GUILayout.Toggle( settings.disableTaunting, new GUIContent( "Disable Taunting", "Disables taunting for controlled enemies. They don't have animations so most enemies go invisible if you taunt." ) );
+            settings.disableTaunting = GUILayout.Toggle( settings.disableTaunting, new GUIContent( "Replace Flexing with Dancing", "Disables flexing for controlled enemies and uses their dance animation instead. Enemies don't have flex / taunt animations so most enemies go invisible if you flex." ) );
 
             settings.enableSprinting = GUILayout.Toggle( settings.enableSprinting, new GUIContent( "Enable Sprinting", "Allows controlled enemies to sprint." ) );
 
