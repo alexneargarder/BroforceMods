@@ -1,12 +1,12 @@
 {
   "name": "Furibrosa",
   "author": "AlexN",
-  "version_number": "1.1.0",
+  "version_number": "1.1.1",
   "website_url": "https://github.com/alexneargarder/BroforceMods",
   "description": "Furibrosa Joins the Battle!",
   "dependencies": [
-    "UMM-UMM-1.0.2",
-    "RocketLib-RocketLib-2.4.2",
-    "BroMaker-BroMaker-2.6.1"
+    "UMM-UMM-1.1.0",
+    "RocketLib-RocketLib-2.4.3",
+    "BroMaker-BroMaker-2.6.2"
   ]
 }

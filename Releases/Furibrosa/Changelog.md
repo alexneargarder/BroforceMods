@@ -1,4 +1,4 @@
-## v1.1.1 (unreleased)
+## v1.1.1
 - Fix special icons sometimes not returning after leaving war rig.
 
 ## v1.1.0
