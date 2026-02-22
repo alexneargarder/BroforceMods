@@ -28,9 +28,9 @@ namespace Control_Enemies_Mod
 
         public SaveGame()
         {
-            this.currentScore = new int[] { 0, 0, 0, 0 };
-            this.requiredScore = new int[] { 0, 0, 0, 0 };
-            this.currentHeroNum = 0;
+            currentScore = new int[] { 0, 0, 0, 0 };
+            requiredScore = new int[] { 0, 0, 0, 0 };
+            currentHeroNum = 0;
         }
 
         public int[] currentScore;
@@ -87,19 +87,20 @@ namespace Control_Enemies_Mod
         public int ghostLives = 4;
         public int extraLiveOnBossLevel = 1;
         public int startingHeroPlayer = 0;
+
         public float automaticallyFindEnemyCooldown = 3f;
+
         // Handicap Settings
-        public int[] livesHandicap = new int[] { 0, 0, 0, 0 };
-        public int[] scoreHandicap = new int[] { 0, 0, 0, 0 };
-        public int[] scoreIncreaseHandicap = new int[] { 0, 0, 0, 0 };
+        public int[] livesHandicap = { 0, 0, 0, 0 };
+        public int[] scoreHandicap = { 0, 0, 0, 0 };
+        public int[] scoreIncreaseHandicap = { 0, 0, 0, 0 };
 
         // Save info
-        public SaveGame[] saveGames = new SaveGame[] { new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame() };
+        public SaveGame[] saveGames = { new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame(), new SaveGame() };
 
         public override void Save( UnityModManager.ModEntry modEntry )
         {
             Save( this, modEntry );
         }
-
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using Rewired;
 using RocketLib.Utils;
 using UnityEngine;
 
@@ -23,18 +24,18 @@ namespace Control_Enemies_Mod
         public float spawnDelay = 0.25f;
         public GhostState state = GhostState.Idle;
         public Vector3 overrideSpawnPoint = Vector3.zero;
-        protected bool ableToRevive = false;
-        protected float forceReviveTime = 0f;
-        protected float startReviveFlashTime = 0f;
+        protected bool ableToRevive;
+        protected float forceReviveTime;
+        protected float startReviveFlashTime;
         public const float ghostSpawnOffset = 16f;
 
         // Animation
         public SpriteSM sprite;
-        public float currentTransparency = 0f;
+        public float currentTransparency;
         protected const float finalTransparency = 0.75f;
         public Color playerColor = new Color( 1f, 1f, 1f );
-        public int frame = 0;
-        protected float frameCounter = 0f;
+        public int frame;
+        protected float frameCounter;
         protected const float idleFramerate = 0.11f;
         protected float attackingFramerate = 0.08f;
         protected float dancingFramerate = 0.11f;
@@ -42,9 +43,11 @@ namespace Control_Enemies_Mod
         protected float reviveFramerate = 0.11f;
         protected const float spriteWidth = 32f;
         protected const float spriteHeight = 32f;
+
         protected Color reviveColor = new Color( 1f, 0.8431f, 0f );
+
         //protected Color[] playerColors = new Color[] { new Color(0.15f, 0.47f, 0.92f), new Color(1f, 0.17f, 0.17f), new Color(1f, 0.64f, 0f), new Color(0.56f, 0f, 1f) };
-        public static Color[] playerColors = new Color[] { new Color( 0f, 0.5f, 1f ), new Color( 1f, 0f, 0f ), new Color( 1f, 0.45f, 0f ), new Color( 0.55f, 0f, 1f ) };
+        public static Color[] playerColors = { new Color( 0f, 0.5f, 1f ), new Color( 1f, 0f, 0f ), new Color( 1f, 0.45f, 0f ), new Color( 0.55f, 0f, 1f ) };
         public static Color burningColor = new Color( 0.53f, 0.05f, 0.15f );
 
         // Movement
@@ -55,11 +58,11 @@ namespace Control_Enemies_Mod
         protected const float accelerationFactor = 3.5f;
         protected const float decelerationFactor = 1.5f;
         protected float screenMinX, screenMaxX, screenMinY, screenMaxY;
-        protected bool usingController = false;
-        protected int controllerNum = 0;
+        protected bool usingController;
+        protected int controllerNum;
 
         // Possession
-        TestVanDammeAnim characterToPossess = null;
+        TestVanDammeAnim characterToPossess;
         Vector3 frozenPosition = Vector3.zero;
         float frozenXI, frozenYI;
 
@@ -67,7 +70,7 @@ namespace Control_Enemies_Mod
         {
             try
             {
-                MeshRenderer renderer = this.gameObject.GetComponent<MeshRenderer>();
+                MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
 
                 string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
                 directoryPath = Path.Combine( directoryPath, "sprites" );
@@ -76,7 +79,7 @@ namespace Control_Enemies_Mod
 
                 renderer.material = material;
 
-                this.sprite = this.gameObject.GetComponent<SpriteSM>();
+                sprite = gameObject.GetComponent<SpriteSM>();
                 sprite.SetTextureDefaults();
                 sprite.SetSize( 32, 32 );
                 sprite.lowerLeftPixel = new Vector2( 0, 32 );
@@ -89,7 +92,7 @@ namespace Control_Enemies_Mod
                 sprite.UpdateUVs();
                 sprite.offset = new Vector3( 0f, 0f, 0f );
 
-                this.gameObject.layer = 28;
+                gameObject.layer = 28;
             }
             catch ( Exception ex )
             {
@@ -99,19 +102,19 @@ namespace Control_Enemies_Mod
 
         public virtual void Start()
         {
-            this.player = HeroController.players[playerNum];
-            this.playerColor = playerColors[playerNum];
+            player = HeroController.players[playerNum];
+            playerColor = playerColors[playerNum];
 
             // Change red player on burning levels to an easier to see color
             if ( Main.isBurning && playerNum == 1 )
             {
-                this.playerColor = burningColor;
+                playerColor = burningColor;
             }
 
-            if ( this.player.controllerNum > 3 )
+            if ( player.controllerNum > 3 )
             {
-                this.usingController = true;
-                controllerNum = this.player.controllerNum - 4;
+                usingController = true;
+                controllerNum = player.controllerNum - 4;
             }
         }
 
@@ -134,7 +137,6 @@ namespace Control_Enemies_Mod
                     start.y = SortOfFollow.GetScreenMinY() + 60 + ( SortOfFollow.GetScreenMaxY() - SortOfFollow.GetScreenMinY() ) / 2f;
                     start.x = SortOfFollow.GetScreenMinX() + 25 + ( ( SortOfFollow.GetScreenMaxX() - SortOfFollow.GetScreenMinX() - 50 ) / 4 ) * ( playerNum + 1 );
                 }
-
             }
             // Use overidden spawn point
             else
@@ -142,7 +144,8 @@ namespace Control_Enemies_Mod
                 start = overrideSpawnPoint;
                 start.y += ghostSpawnOffset;
             }
-            this.transform.position = start;
+
+            transform.position = start;
         }
 
         public virtual void Update()
@@ -152,48 +155,50 @@ namespace Control_Enemies_Mod
                 spawnDelay -= Time.deltaTime;
                 if ( spawnDelay <= 0 )
                 {
-                    this.SetSpawn();
+                    SetSpawn();
                 }
+
                 return;
             }
 
-            this.HandleTransparency();
+            HandleTransparency();
 
-            this.HandleInput();
+            HandleInput();
 
-            this.ConstrainToScreen();
+            ConstrainToScreen();
 
-            this.ChangeFrame();
+            ChangeFrame();
 
             // Countdown to player being forced to revive
-            if ( this.ableToRevive && this.state != GhostState.Reviving )
+            if ( ableToRevive && state != GhostState.Reviving )
             {
-                this.forceReviveTime -= Time.deltaTime;
-                if ( this.forceReviveTime <= 0 )
+                forceReviveTime -= Time.deltaTime;
+                if ( forceReviveTime <= 0 )
                 {
-                    this.StartReviving();
+                    StartReviving();
                 }
                 // Flash player
                 else
                 {
                     float num = 0.5f + Mathf.Sin( ( Time.time - startReviveFlashTime ) * 15f ) * 0.23f;
                     Color color = new Color( num, num, num, 1f );
-                    this.sprite.GetComponent<Renderer>().material.SetColor( "_TintColor", color );
+                    sprite.GetComponent<Renderer>().material.SetColor( "_TintColor", color );
                 }
             }
 
             // Make sure enemy we are attacking doesn't die
-            if ( this.state == GhostState.Attacking )
+            if ( state == GhostState.Attacking )
             {
                 if ( characterToPossess == null || !characterToPossess.IsAlive() || characterToPossess.health <= 0 )
                 {
-                    if ( this.characterToPossess != null )
+                    if ( characterToPossess != null )
                     {
-                        this.characterToPossess.name = "enemy";
+                        characterToPossess.name = "enemy";
                     }
-                    this.characterToPossess = null;
-                    this.state = GhostState.Idle;
-                    this.frame = 0;
+
+                    characterToPossess = null;
+                    state = GhostState.Idle;
+                    frame = 0;
                     SetFrame();
                 }
             }
@@ -201,7 +206,7 @@ namespace Control_Enemies_Mod
 
         public virtual void LateUpdate()
         {
-            if ( this.characterToPossess != null )
+            if ( characterToPossess != null )
             {
                 characterToPossess.X = frozenPosition.x;
                 characterToPossess.Y = frozenPosition.y;
@@ -229,225 +234,227 @@ namespace Control_Enemies_Mod
         {
             player.GetInput( ref up, ref down, ref left, ref right, ref fire, ref buttonJump, ref special, ref highfive, ref buttonGesture, ref sprint );
 
-            if ( state == GhostState.Idle || this.state == GhostState.Reviving )
+            if ( state == GhostState.Idle || state == GhostState.Reviving )
             {
                 // Check sprint manually since it's not detected by GetInput
-                this.sprint = InputReader.GetDashStart( player.controllerNum );
+                sprint = InputReader.GetDashStart( player.controllerNum );
 
                 // Use actual axes rather than just cardinal directions
-                if ( this.usingController )
+                if ( usingController )
                 {
-                    Rewired.Player player = Rewired.ReInput.players.GetPlayer( this.controllerNum );
+                    Rewired.Player player = ReInput.players.GetPlayer( controllerNum );
 
                     float upAmount = player.GetAxis( "Up" ) - player.GetAxis( "Down" );
                     float rightAmount = player.GetAxis( "Right" ) - player.GetAxis( "Left" );
 
-                    float speed = this.sprint ? sprintSpeed : normalSpeed;
+                    float speed = sprint ? sprintSpeed : normalSpeed;
 
                     if ( Mathf.Abs( yI ) < Mathf.Abs( upAmount * speed ) )
                     {
-                        this.yI += upAmount * speed * Time.deltaTime * accelerationFactor;
+                        yI += upAmount * speed * Time.deltaTime * accelerationFactor;
                     }
 
-                    if ( this.yI > speed )
+                    if ( yI > speed )
                     {
-                        this.yI = speed;
+                        yI = speed;
                     }
-                    else if ( this.yI < -speed )
+                    else if ( yI < -speed )
                     {
-                        this.yI = -speed;
+                        yI = -speed;
                     }
 
                     if ( Mathf.Abs( xI ) < Mathf.Abs( rightAmount * speed ) )
                     {
-                        this.xI += rightAmount * speed * Time.deltaTime * accelerationFactor;
+                        xI += rightAmount * speed * Time.deltaTime * accelerationFactor;
                     }
 
-                    if ( this.xI > speed )
+                    if ( xI > speed )
                     {
-                        this.xI = speed;
+                        xI = speed;
                     }
-                    else if ( this.xI < -speed )
+                    else if ( xI < -speed )
                     {
-                        this.xI = -speed;
+                        xI = -speed;
                     }
 
                     // Slow vertical momentum
-                    if ( !( this.up || this.down ) )
+                    if ( !( up || down ) )
                     {
-                        if ( this.yI > 0 )
+                        if ( yI > 0 )
                         {
-                            this.yI -= speed * Time.deltaTime * decelerationFactor;
-                            if ( this.yI < 0 )
+                            yI -= speed * Time.deltaTime * decelerationFactor;
+                            if ( yI < 0 )
                             {
-                                this.yI = 0;
+                                yI = 0;
                             }
                         }
-                        else if ( this.yI < 0 )
+                        else if ( yI < 0 )
                         {
-                            this.yI += speed * Time.deltaTime * decelerationFactor;
-                            if ( this.yI > 0 )
+                            yI += speed * Time.deltaTime * decelerationFactor;
+                            if ( yI > 0 )
                             {
-                                this.yI = 0;
+                                yI = 0;
                             }
                         }
                     }
 
                     // Go right
-                    if ( this.right )
+                    if ( right )
                     {
-                        if ( this.transform.localScale.x != 1 )
+                        if ( transform.localScale.x != 1 )
                         {
-                            this.transform.localScale = new Vector3( 1f, 1f, 1f );
+                            transform.localScale = new Vector3( 1f, 1f, 1f );
                         }
                     }
                     // Go left
-                    else if ( this.left )
+                    else if ( left )
                     {
-                        if ( this.transform.localScale.x != -1 )
+                        if ( transform.localScale.x != -1 )
                         {
-                            this.transform.localScale = new Vector3( -1f, 1f, 1f );
+                            transform.localScale = new Vector3( -1f, 1f, 1f );
                         }
                     }
                     // Slow horizontal momentum
                     else
                     {
-                        if ( this.xI > 0 )
+                        if ( xI > 0 )
                         {
-                            this.xI -= speed * Time.deltaTime * decelerationFactor;
-                            if ( this.xI < 0 )
+                            xI -= speed * Time.deltaTime * decelerationFactor;
+                            if ( xI < 0 )
                             {
-                                this.xI = 0;
+                                xI = 0;
                             }
                         }
-                        else if ( this.xI < 0 )
+                        else if ( xI < 0 )
                         {
-                            this.xI += speed * Time.deltaTime * decelerationFactor;
-                            if ( this.xI > 0 )
+                            xI += speed * Time.deltaTime * decelerationFactor;
+                            if ( xI > 0 )
                             {
-                                this.xI = 0;
+                                xI = 0;
                             }
                         }
                     }
                 }
                 else
                 {
-                    float speed = this.sprint ? sprintSpeed : normalSpeed;
+                    float speed = sprint ? sprintSpeed : normalSpeed;
 
                     // Go up
-                    if ( this.up )
+                    if ( up )
                     {
-                        this.yI += speed * Time.deltaTime * accelerationFactor;
-                        if ( this.yI > speed )
+                        yI += speed * Time.deltaTime * accelerationFactor;
+                        if ( yI > speed )
                         {
-                            this.yI = speed;
+                            yI = speed;
                         }
                     }
                     // Go down
-                    else if ( this.down )
+                    else if ( down )
                     {
-                        this.yI -= speed * Time.deltaTime * accelerationFactor;
-                        if ( this.yI < -speed )
+                        yI -= speed * Time.deltaTime * accelerationFactor;
+                        if ( yI < -speed )
                         {
-                            this.yI = -speed;
+                            yI = -speed;
                         }
                     }
                     // Slow vertical momentum
                     else
                     {
-                        if ( this.yI > 0 )
+                        if ( yI > 0 )
                         {
-                            this.yI -= speed * Time.deltaTime * decelerationFactor;
-                            if ( this.yI < 0 )
+                            yI -= speed * Time.deltaTime * decelerationFactor;
+                            if ( yI < 0 )
                             {
-                                this.yI = 0;
+                                yI = 0;
                             }
                         }
-                        else if ( this.yI < 0 )
+                        else if ( yI < 0 )
                         {
-                            this.yI += speed * Time.deltaTime * decelerationFactor;
-                            if ( this.yI > 0 )
+                            yI += speed * Time.deltaTime * decelerationFactor;
+                            if ( yI > 0 )
                             {
-                                this.yI = 0;
+                                yI = 0;
                             }
                         }
                     }
 
                     // Go right
-                    if ( this.right )
+                    if ( right )
                     {
-                        if ( this.transform.localScale.x != 1 )
+                        if ( transform.localScale.x != 1 )
                         {
-                            this.transform.localScale = new Vector3( 1f, 1f, 1f );
+                            transform.localScale = new Vector3( 1f, 1f, 1f );
                         }
-                        this.xI += speed * Time.deltaTime * accelerationFactor;
-                        if ( this.xI > speed )
+
+                        xI += speed * Time.deltaTime * accelerationFactor;
+                        if ( xI > speed )
                         {
-                            this.xI = speed;
+                            xI = speed;
                         }
                     }
                     // Go left
-                    else if ( this.left )
+                    else if ( left )
                     {
-                        if ( this.transform.localScale.x != -1 )
+                        if ( transform.localScale.x != -1 )
                         {
-                            this.transform.localScale = new Vector3( -1f, 1f, 1f );
+                            transform.localScale = new Vector3( -1f, 1f, 1f );
                         }
-                        this.xI -= speed * Time.deltaTime * accelerationFactor;
-                        if ( this.xI < -speed )
+
+                        xI -= speed * Time.deltaTime * accelerationFactor;
+                        if ( xI < -speed )
                         {
-                            this.xI = -speed;
+                            xI = -speed;
                         }
                     }
                     // Slow horizontal momentum
                     else
                     {
-                        if ( this.xI > 0 )
+                        if ( xI > 0 )
                         {
-                            this.xI -= speed * Time.deltaTime * decelerationFactor;
-                            if ( this.xI < 0 )
+                            xI -= speed * Time.deltaTime * decelerationFactor;
+                            if ( xI < 0 )
                             {
-                                this.xI = 0;
+                                xI = 0;
                             }
                         }
-                        else if ( this.xI < 0 )
+                        else if ( xI < 0 )
                         {
-                            this.xI += speed * Time.deltaTime * decelerationFactor;
-                            if ( this.xI > 0 )
+                            xI += speed * Time.deltaTime * decelerationFactor;
+                            if ( xI > 0 )
                             {
-                                this.xI = 0;
+                                xI = 0;
                             }
                         }
                     }
                 }
 
-                Vector3 position = this.transform.position;
+                Vector3 position = transform.position;
                 position.x += ( xI * Time.deltaTime );
                 position.y += ( yI * Time.deltaTime );
 
-                this.transform.position = position;
+                transform.position = position;
 
                 // Keep player next to ghost to make camera work
-                if ( this.state == GhostState.Reviving || this.ableToRevive )
+                if ( state == GhostState.Reviving || ableToRevive )
                 {
                     player.character.SetXY( position.x, position.y );
                 }
 
                 // Don't check inputs if we're reviving
-                if ( this.state != GhostState.Reviving )
+                if ( state != GhostState.Reviving )
                 {
                     // Try to find enemy to attack
                     if ( fire )
                     {
-                        if ( !this.ableToRevive )
+                        if ( !ableToRevive )
                         {
-                            this.TryToAttack();
+                            TryToAttack();
                             HeroController.SetAvatarAngry( playerNum, true );
                         }
                         // Start reviving
                         else
                         {
-                            this.StartReviving();
+                            StartReviving();
                         }
                     }
                     else
@@ -456,101 +463,101 @@ namespace Control_Enemies_Mod
                     }
 
                     // Start dancing
-                    if ( buttonGesture && this.state != GhostState.Attacking )
+                    if ( buttonGesture && state != GhostState.Attacking )
                     {
-                        this.frame = 0;
-                        this.state = GhostState.Taunting;
+                        frame = 0;
+                        state = GhostState.Taunting;
                     }
                 }
-
             }
             else if ( state == GhostState.Taunting )
             {
                 // Check facing
-                if ( this.right )
+                if ( right )
                 {
-                    if ( this.transform.localScale.x != 1 )
+                    if ( transform.localScale.x != 1 )
                     {
-                        this.transform.localScale = new Vector3( 1f, 1f, 1f );
+                        transform.localScale = new Vector3( 1f, 1f, 1f );
                     }
                 }
-                else if ( this.left )
+                else if ( left )
                 {
-                    if ( this.transform.localScale.x != -1 )
+                    if ( transform.localScale.x != -1 )
                     {
-                        this.transform.localScale = new Vector3( -1f, 1f, 1f );
+                        transform.localScale = new Vector3( -1f, 1f, 1f );
                     }
                 }
 
-                float speed = this.sprint ? sprintSpeed : normalSpeed;
+                float speed = sprint ? sprintSpeed : normalSpeed;
 
                 // Slow Down
-                if ( this.yI > 0 )
+                if ( yI > 0 )
                 {
-                    this.yI -= speed * Time.deltaTime * decelerationFactor;
-                    if ( this.yI < 0 )
+                    yI -= speed * Time.deltaTime * decelerationFactor;
+                    if ( yI < 0 )
                     {
-                        this.yI = 0;
+                        yI = 0;
                     }
                 }
-                else if ( this.yI < 0 )
+                else if ( yI < 0 )
                 {
-                    this.yI += speed * Time.deltaTime * decelerationFactor;
-                    if ( this.yI > 0 )
+                    yI += speed * Time.deltaTime * decelerationFactor;
+                    if ( yI > 0 )
                     {
-                        this.yI = 0;
+                        yI = 0;
                     }
                 }
-                if ( this.xI > 0 )
+
+                if ( xI > 0 )
                 {
-                    this.xI -= speed * Time.deltaTime * decelerationFactor;
-                    if ( this.xI < 0 )
+                    xI -= speed * Time.deltaTime * decelerationFactor;
+                    if ( xI < 0 )
                     {
-                        this.xI = 0;
+                        xI = 0;
                     }
                 }
-                else if ( this.xI < 0 )
+                else if ( xI < 0 )
                 {
-                    this.xI += speed * Time.deltaTime * decelerationFactor;
-                    if ( this.xI > 0 )
+                    xI += speed * Time.deltaTime * decelerationFactor;
+                    if ( xI > 0 )
                     {
-                        this.xI = 0;
+                        xI = 0;
                     }
                 }
 
                 if ( !buttonGesture )
                 {
-                    this.frame = 0;
-                    this.state = GhostState.Idle;
+                    frame = 0;
+                    state = GhostState.Idle;
                 }
             }
         }
 
         public void ConstrainToScreen()
         {
-            SetResolutionCamera.GetScreenExtents( ref this.screenMinX, ref this.screenMaxX, ref this.screenMinY, ref this.screenMaxY );
+            SetResolutionCamera.GetScreenExtents( ref screenMinX, ref screenMaxX, ref screenMinY, ref screenMaxY );
 
-            Vector3 position = this.transform.position;
+            Vector3 position = transform.position;
 
-            if ( position.x < this.screenMinX + 5f )
+            if ( position.x < screenMinX + 5f )
             {
-                position.x = this.screenMinX + 5f;
+                position.x = screenMinX + 5f;
             }
-            else if ( position.x > this.screenMaxX - 5f )
+            else if ( position.x > screenMaxX - 5f )
             {
-                position.x = this.screenMaxX - 5f;
+                position.x = screenMaxX - 5f;
             }
 
             if ( position.y < screenMinY + 10f )
             {
-                position.y = this.screenMinY + 10f;
+                position.y = screenMinY + 10f;
             }
             else if ( position.y > screenMaxY - 10f )
             {
-                position.y = this.screenMaxY - 10f;
+                position.y = screenMaxY - 10f;
             }
 
-            this.transform.position = position;
+            transform.position = position;
         }
 
         public void ChangeFrame()
@@ -571,8 +578,9 @@ namespace Control_Enemies_Mod
                             frame = 0;
                         }
 
-                        this.sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
+                        sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
                     }
+
                     break;
                 case GhostState.Attacking:
                     if ( frameCounter > attackingFramerate )
@@ -584,11 +592,12 @@ namespace Control_Enemies_Mod
                         if ( frame > 13 )
                         {
                             frame = 0;
-                            this.FinishAttack();
+                            FinishAttack();
                         }
 
-                        this.sprite.SetLowerLeftPixel( frame * spriteWidth, 2 * spriteHeight );
+                        sprite.SetLowerLeftPixel( frame * spriteWidth, 2 * spriteHeight );
                     }
+
                     break;
                 case GhostState.Taunting:
                     if ( frameCounter > dancingFramerate )
@@ -602,8 +611,9 @@ namespace Control_Enemies_Mod
                             frame = 4;
                         }
 
-                        this.sprite.SetLowerLeftPixel( frame * spriteWidth, 3 * spriteHeight );
+                        sprite.SetLowerLeftPixel( frame * spriteWidth, 3 * spriteHeight );
                     }
+
                     break;
                 case GhostState.Resurrecting:
                     if ( frameCounter > resurrectingFramerate )
@@ -615,13 +625,14 @@ namespace Control_Enemies_Mod
                         if ( frame > 15 )
                         {
                             frame = 0;
-                            this.state = GhostState.Idle;
-                            this.sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
+                            state = GhostState.Idle;
+                            sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
                             return;
                         }
 
-                        this.sprite.SetLowerLeftPixel( frame * spriteWidth, 4 * spriteHeight );
+                        sprite.SetLowerLeftPixel( frame * spriteWidth, 4 * spriteHeight );
                     }
+
                     break;
                 case GhostState.Reviving:
                     if ( frameCounter > reviveFramerate )
@@ -632,12 +643,13 @@ namespace Control_Enemies_Mod
 
                         if ( frame > 14 )
                         {
-                            this.ReviveCharacter();
+                            ReviveCharacter();
                             frame = 0;
                         }
 
-                        this.sprite.SetLowerLeftPixel( frame * spriteWidth, 5 * spriteHeight );
+                        sprite.SetLowerLeftPixel( frame * spriteWidth, 5 * spriteHeight );
                     }
+
                     break;
             }
         }
@@ -647,19 +659,19 @@ namespace Control_Enemies_Mod
             switch ( state )
             {
                 case GhostState.Idle:
-                    this.sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
+                    sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
                     break;
                 case GhostState.Attacking:
-                    this.sprite.SetLowerLeftPixel( frame * spriteWidth, 2 * spriteHeight );
+                    sprite.SetLowerLeftPixel( frame * spriteWidth, 2 * spriteHeight );
                     break;
                 case GhostState.Taunting:
-                    this.sprite.SetLowerLeftPixel( frame * spriteWidth, 3 * spriteHeight );
+                    sprite.SetLowerLeftPixel( frame * spriteWidth, 3 * spriteHeight );
                     break;
                 case GhostState.Resurrecting:
-                    this.sprite.SetLowerLeftPixel( frame * spriteWidth, 4 * spriteHeight );
+                    sprite.SetLowerLeftPixel( frame * spriteWidth, 4 * spriteHeight );
                     break;
                 case GhostState.Reviving:
-                    this.sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
+                    sprite.SetLowerLeftPixel( frame * spriteWidth, spriteHeight );
                     break;
             }
         }
@@ -670,6 +682,7 @@ namespace Control_Enemies_Mod
             {
                 return null;
             }
+
             float num = xRange;
             TestVanDammeAnim unit = null;
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
@@ -689,10 +702,12 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+
             if ( unit != null )
             {
                 return unit;
             }
+
             return null;
         }
 
@@ -703,20 +718,21 @@ namespace Control_Enemies_Mod
                 // Disable attacking
                 return;
             }
-            TestVanDammeAnim character = GetNextClosestUnit( playerNum, 15f, 10f, this.transform.position.x, this.transform.position.y );
+
+            TestVanDammeAnim character = GetNextClosestUnit( playerNum, 15f, 10f, transform.position.x, transform.position.y );
             if ( character != null )
             {
                 characterToPossess = character;
                 characterToPossess.name = "p";
-                this.transform.localScale = new Vector3( Mathf.Sign( characterToPossess.X - this.transform.position.x ), 1f, 1f );
-                this.frozenPosition = characterToPossess.transform.position;
-                this.frozenXI = characterToPossess.xI;
-                this.frozenYI = characterToPossess.yI;
-                this.transform.position = new Vector3( characterToPossess.X - base.transform.localScale.x * 11f, characterToPossess.Y + characterToPossess.height + 3f, 0f );
-                this.state = GhostState.Attacking;
-                this.frame = 0;
-                this.xI = 0;
-                this.yI = 0;
+                transform.localScale = new Vector3( Mathf.Sign( characterToPossess.X - transform.position.x ), 1f, 1f );
+                frozenPosition = characterToPossess.transform.position;
+                frozenXI = characterToPossess.xI;
+                frozenYI = characterToPossess.yI;
+                transform.position = new Vector3( characterToPossess.X - transform.localScale.x * 11f, characterToPossess.Y + characterToPossess.height + 3f, 0f );
+                state = GhostState.Attacking;
+                frame = 0;
+                xI = 0;
+                yI = 0;
             }
         }
 
@@ -725,32 +741,34 @@ namespace Control_Enemies_Mod
             // Make sure character is alive before finish possession
             if ( characterToPossess != null && characterToPossess.IsAlive() && characterToPossess.health > 0 )
             {
-                Main.StartControllingUnit( playerNum, characterToPossess, false, true, false );
+                Main.StartControllingUnit( playerNum, characterToPossess );
                 characterToPossess = null;
-                this.state = GhostState.Idle;
-                this.gameObject.SetActive( false );
+                state = GhostState.Idle;
+                gameObject.SetActive( false );
             }
             else
             {
-                if ( this.characterToPossess != null )
+                if ( characterToPossess != null )
                 {
-                    this.characterToPossess.name = "enemy";
+                    characterToPossess.name = "enemy";
                 }
-                this.characterToPossess = null;
-                this.state = GhostState.Idle;
-                this.frame = 0;
+
+                characterToPossess = null;
+                state = GhostState.Idle;
+                frame = 0;
                 SetFrame();
             }
         }
 
         public void SetCanReviveCharacter()
         {
-            this.state = GhostState.Idle;
-            if ( this.characterToPossess != null )
+            state = GhostState.Idle;
+            if ( characterToPossess != null )
             {
-                this.characterToPossess.name = "enemy";
-                this.characterToPossess = null;
+                characterToPossess.name = "enemy";
+                characterToPossess = null;
             }
+
             ableToRevive = true;
             forceReviveTime = 1.5f;
             startReviveFlashTime = Time.time;
@@ -759,43 +777,44 @@ namespace Control_Enemies_Mod
 
         public void StartReviving()
         {
-            this.ableToRevive = false;
-            this.state = GhostState.Reviving;
-            this.frame = 0;
+            ableToRevive = false;
+            state = GhostState.Reviving;
+            frame = 0;
             // Restore original tint
-            this.sprite.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
+            sprite.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
         }
 
         public void ReviveCharacter()
         {
-            this.player.character.transform.position = this.transform.position;
-            this.player.character.SetXY( this.transform.position.x, this.transform.position.y - 15f );
-            this.player.character.transform.localScale = this.transform.localScale;
-            this.gameObject.SetActive( false );
-            this.player.character.xI = this.xI;
-            this.player.character.yI = this.yI;
-            this.player.character.gameObject.SetActive( true );
+            player.character.transform.position = transform.position;
+            player.character.SetXY( transform.position.x, transform.position.y - 15f );
+            player.character.transform.localScale = transform.localScale;
+            gameObject.SetActive( false );
+            player.character.xI = xI;
+            player.character.yI = yI;
+            player.character.gameObject.SetActive( true );
             Main.SwitchToHeroAvatar( playerNum );
-            this.state = GhostState.Idle;
-            this.currentTransparency = finalTransparency;
-            this.sprite.SetColor( new Color( playerColor.r, playerColor.g, playerColor.b, currentTransparency ) );
+            state = GhostState.Idle;
+            currentTransparency = finalTransparency;
+            sprite.SetColor( new Color( playerColor.r, playerColor.g, playerColor.b, currentTransparency ) );
         }
 
         public void StartResurrecting()
         {
-            this.frame = 0;
-            this.state = GhostState.Resurrecting;
-            this.SetFrame();
+            frame = 0;
+            state = GhostState.Resurrecting;
+            SetFrame();
         }
 
         public void ReActivate()
         {
             if ( HeroController.players[playerNum].Lives <= 0 )
             {
-                this.playerColor = new Color( 1f, 1f, 1f, 1f );
-                this.sprite.SetColor( new Color( playerColor.r, playerColor.g, playerColor.b, currentTransparency ) );
+                playerColor = new Color( 1f, 1f, 1f, 1f );
+                sprite.SetColor( new Color( playerColor.r, playerColor.g, playerColor.b, currentTransparency ) );
             }
-            this.gameObject.SetActive( true );
+
+            gameObject.SetActive( true );
         }
     }
 }

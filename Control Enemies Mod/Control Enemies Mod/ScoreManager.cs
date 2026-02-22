@@ -4,24 +4,28 @@ using System.IO;
 using System.Reflection;
 using RocketLib.Utils;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Control_Enemies_Mod
 {
     public static class ScoreManager
     {
-        public static SpriteSM scorePrefab = null;
-        public static List<List<SpriteSM>> scoreSprites = new List<List<SpriteSM>>() { new List<SpriteSM>() { null, null, null, null } };
-        public static bool[] spriteSetup = new bool[] { false, false, false, false };
+        public static SpriteSM scorePrefab;
+        public static List<List<SpriteSM>> scoreSprites = new List<List<SpriteSM>> { new List<SpriteSM> { null, null, null, null } };
+        public static bool[] spriteSetup = { false, false, false, false };
+
         public static int[] currentScore
         {
             get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentScore;
             set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentScore = value;
         }
+
         public static int[] requiredScore
         {
             get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].requiredScore;
             set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].requiredScore = value;
         }
+
         public const float spriteWidth = 32f;
         public const float spriteHeight = 32f;
 
@@ -47,18 +51,19 @@ namespace Control_Enemies_Mod
             scorePrefab.UpdateUVs();
             scorePrefab.offset = new Vector3( 0f, 0f, 0f );
 
-            UnityEngine.Object.DontDestroyOnLoad( scorePrefab );
+            Object.DontDestroyOnLoad( scorePrefab );
         }
 
         public static void SetupSprites( int playerNum )
         {
             if ( !spriteSetup[playerNum] )
             {
-                int rows = (int)Mathf.Ceil( currentScore[playerNum] / 5f );
+                int rows = ( int )Mathf.Ceil( currentScore[playerNum] / 5f );
                 if ( rows == 0 )
                 {
                     rows = 1;
                 }
+
                 for ( int i = 0; i < rows; ++i )
                 {
                     SetupSprites( playerNum, i );
@@ -71,12 +76,12 @@ namespace Control_Enemies_Mod
             // Add another row
             if ( scoreSprites.Count < row + 1 )
             {
-                scoreSprites.Add( new List<SpriteSM>() { null, null, null, null } );
+                scoreSprites.Add( new List<SpriteSM> { null, null, null, null } );
             }
 
             PlayerHUD hud = HeroController.players[playerNum].hud;
 
-            SpriteSM sprite = UnityEngine.Object.Instantiate<SpriteSM>( scorePrefab, Vector3.zero, Quaternion.identity ).GetComponent<SpriteSM>();
+            SpriteSM sprite = Object.Instantiate<SpriteSM>( scorePrefab, Vector3.zero, Quaternion.identity ).GetComponent<SpriteSM>();
             scoreSprites[row][playerNum] = sprite;
             sprite.transform.parent = hud.transform;
             sprite.gameObject.layer = 17;
@@ -103,6 +108,7 @@ namespace Control_Enemies_Mod
             {
                 scoreForThisRow = currentScore[playerNum] - 5 * row;
             }
+
             if ( scoreForThisRow <= 0 )
             {
                 // Display 0 if on the first row
@@ -127,11 +133,12 @@ namespace Control_Enemies_Mod
 
         public static void UpdateScore( int playerNum )
         {
-            int rows = (int)Mathf.Ceil( currentScore[playerNum] / 5f );
+            int rows = ( int )Mathf.Ceil( currentScore[playerNum] / 5f );
             if ( rows == 0 )
             {
                 rows = 1;
             }
+
             for ( int i = 0; i < rows; ++i )
             {
                 // Need to add row or create sprite
@@ -150,6 +157,7 @@ namespace Control_Enemies_Mod
                     {
                         scoreForThisRow = currentScore[playerNum] - 5 * i;
                     }
+
                     if ( scoreForThisRow <= 0 )
                     {
                         // Display 0 if on the first row
@@ -173,27 +181,26 @@ namespace Control_Enemies_Mod
 
         public static bool CanWin( int playerNum )
         {
-            return currentScore[playerNum] >= ScoreManager.requiredScore[playerNum];
+            return currentScore[playerNum] >= requiredScore[playerNum];
         }
 
         public static void SetupFinalScoreSprites( int playerNum, Transform parentTransform )
         {
-            int rows = (int)Mathf.Ceil( currentScore[playerNum] / 5f );
+            int rows = ( int )Mathf.Ceil( currentScore[playerNum] / 5f );
             if ( rows == 0 )
             {
                 rows = 1;
             }
+
             for ( int i = 0; i < rows; ++i )
             {
                 // Add another row
                 if ( scoreSprites.Count < i + 1 )
                 {
-                    scoreSprites.Add( new List<SpriteSM>() { null, null, null, null } );
+                    scoreSprites.Add( new List<SpriteSM> { null, null, null, null } );
                 }
 
-                PlayerHUD hud = HeroController.players[playerNum].hud;
-
-                SpriteSM sprite = UnityEngine.Object.Instantiate<SpriteSM>( scorePrefab, Vector3.zero, Quaternion.identity ).GetComponent<SpriteSM>();
+                SpriteSM sprite = Object.Instantiate<SpriteSM>( scorePrefab, Vector3.zero, Quaternion.identity ).GetComponent<SpriteSM>();
                 sprite.transform.parent = parentTransform;
                 sprite.gameObject.layer = 17;
 
@@ -209,6 +216,7 @@ namespace Control_Enemies_Mod
                 {
                     scoreForThisRow = currentScore[playerNum] - 5 * i;
                 }
+
                 if ( scoreForThisRow <= 0 )
                 {
                     // Display 0 if on the first row

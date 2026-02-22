@@ -8,58 +8,58 @@ namespace Control_Enemies_Mod
         {
             // Assign values from plasma bullet
             PlasmaBullet otherProjectile = ellenRipbro.projectile as PlasmaBullet;
-            this.soundHolder = otherProjectile.soundHolder;
-            this.sparkWhite1 = otherProjectile.sparkWhite1;
-            this.blastForce = otherProjectile.blastForce;
-            this.fire1 = otherProjectile.fire1;
-            this.fire2 = otherProjectile.fire2;
-            this.fire3 = otherProjectile.fire3;
-            this.smoke1 = otherProjectile.smoke1;
-            this.smoke2 = otherProjectile.smoke2;
-            this.explosion = otherProjectile.explosion;
-            this.range = otherProjectile.range;
-            this.sparkBlue1 = otherProjectile.sparkBlue1;
-            this.sparkBlue2 = otherProjectile.sparkBlue2;
-            this.beamPuff = otherProjectile.beamPuff;
-            this.ballPuff = otherProjectile.ballPuff;
-            this.wobblePuff = otherProjectile.wobblePuff;
-            this.puffLife = 0.16f;
-            this.z = otherProjectile.z;
-            this.shrapnel = otherProjectile.shrapnel;
-            this.shrapnelSpark = otherProjectile.shrapnelSpark;
-            this.flickPuff = otherProjectile.flickPuff;
-            this.life = otherProjectile.life;
-            this.projectileSize = otherProjectile.projectileSize;
-            this.fullLife = 1;
-            this.fadeDamage = otherProjectile.fadeDamage;
-            this.damageType = otherProjectile.damageType;
-            this.playerNum = otherProjectile.playerNum;
-            this.soundHolder = otherProjectile.soundHolder;
-            this.canHitGrenades = otherProjectile.canHitGrenades;
-            this.affectScenery = otherProjectile.affectScenery;
-            this.soundVolume = otherProjectile.soundVolume;
-            this.firedBy = otherProjectile.firedBy;
-            this.seed = otherProjectile.seed;
-            this.random = new Randomf( UnityEngine.Random.Range( 0, 10000 ) );
-            this.sparkCount = otherProjectile.sparkCount;
-            this.isDamageable = otherProjectile.isDamageable;
-            this.horizontalProjectile = otherProjectile.horizontalProjectile;
-            this.isWideProjectile = otherProjectile.isWideProjectile;
-            this.zOffset = ( 1f - UnityEngine.Random.value * 2f ) * 0.04f;
-            this.canReflect = otherProjectile.canReflect;
-            this.startProjectileSpeed = 400f;
-            this.heldDelay = 0;
-            this.canMakeEffectsMoreThanOnce = false;
-            this.whitePopEffect = otherProjectile.whitePopEffect;
-            this.doubleSpeed = otherProjectile.doubleSpeed;
-            this.giveDeflectAchievementOnMookKill = otherProjectile.giveDeflectAchievementOnMookKill;
-            this.health = 3;
-            this.maxHealth = -1;
+            soundHolder = otherProjectile.soundHolder;
+            sparkWhite1 = otherProjectile.sparkWhite1;
+            blastForce = otherProjectile.blastForce;
+            fire1 = otherProjectile.fire1;
+            fire2 = otherProjectile.fire2;
+            fire3 = otherProjectile.fire3;
+            smoke1 = otherProjectile.smoke1;
+            smoke2 = otherProjectile.smoke2;
+            explosion = otherProjectile.explosion;
+            range = otherProjectile.range;
+            sparkBlue1 = otherProjectile.sparkBlue1;
+            sparkBlue2 = otherProjectile.sparkBlue2;
+            beamPuff = otherProjectile.beamPuff;
+            ballPuff = otherProjectile.ballPuff;
+            wobblePuff = otherProjectile.wobblePuff;
+            puffLife = 0.16f;
+            z = otherProjectile.z;
+            shrapnel = otherProjectile.shrapnel;
+            shrapnelSpark = otherProjectile.shrapnelSpark;
+            flickPuff = otherProjectile.flickPuff;
+            life = otherProjectile.life;
+            projectileSize = otherProjectile.projectileSize;
+            fullLife = 1;
+            fadeDamage = otherProjectile.fadeDamage;
+            damageType = otherProjectile.damageType;
+            playerNum = otherProjectile.playerNum;
+            soundHolder = otherProjectile.soundHolder;
+            canHitGrenades = otherProjectile.canHitGrenades;
+            affectScenery = otherProjectile.affectScenery;
+            soundVolume = otherProjectile.soundVolume;
+            firedBy = otherProjectile.firedBy;
+            seed = otherProjectile.seed;
+            random = new Randomf( Random.Range( 0, 10000 ) );
+            sparkCount = otherProjectile.sparkCount;
+            isDamageable = otherProjectile.isDamageable;
+            horizontalProjectile = otherProjectile.horizontalProjectile;
+            isWideProjectile = otherProjectile.isWideProjectile;
+            zOffset = ( 1f - Random.value * 2f ) * 0.04f;
+            canReflect = otherProjectile.canReflect;
+            startProjectileSpeed = 400f;
+            heldDelay = 0;
+            canMakeEffectsMoreThanOnce = false;
+            whitePopEffect = otherProjectile.whitePopEffect;
+            doubleSpeed = otherProjectile.doubleSpeed;
+            giveDeflectAchievementOnMookKill = otherProjectile.giveDeflectAchievementOnMookKill;
+            health = 3;
+            maxHealth = -1;
         }
 
         public override void Fire( float x, float y, float xI, float yI, float _zOffset, int playerNum, MonoBehaviour FiredBy )
         {
-            this.gameObject.SetActive( true );
+            gameObject.SetActive( true );
             base.Fire( x, y, xI, yI, _zOffset, playerNum, FiredBy );
         }
 
@@ -69,11 +69,10 @@ namespace Control_Enemies_Mod
             {
                 return null;
             }
+
             int num = 999999;
             float num2 = Mathf.Max( xRange, yRange );
-            float num3 = Mathf.Max( xRange, yRange );
             Unit unit = null;
-            Unit unit2 = null;
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
                 Unit unit3 = Map.units[i];
@@ -92,11 +91,12 @@ namespace Control_Enemies_Mod
                                 {
                                     // Check if unit is a facehugger that is facehugging our current unit
                                     AlienFaceHugger facehugger = unit3 as AlienFaceHugger;
-                                    if ( facehugger != null && (bool)facehugger.GetFieldValue( "connectedToFace" ) && facehugger.inseminatedUnit == this.firedBy )
+                                    if ( facehugger != null && ( bool )facehugger.GetFieldValue( "connectedToFace" ) && facehugger.inseminatedUnit == firedBy )
                                     {
                                         // Skip this facehugger since they're facehugging us
                                         continue;
                                     }
+
                                     unit = unit3;
                                     num2 = num4;
                                 }
@@ -105,37 +105,31 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+
             Vector3 vector = new Vector3( x, y + 5f, 0f );
             if ( unit != null && !Physics.Raycast( vector, unit.transform.position - vector, ( unit.transform.position - vector ).magnitude * 0.8f, Map.groundLayer ) )
             {
-                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
+                Map.KnockAndDamageUnit( damageSender, unit, damage, damageType, xI, yI, ( int )Mathf.Sign( xI ), knock, x, y );
                 return unit;
             }
-            if ( unit2 != null && !Physics.Raycast( vector, unit2.transform.position - vector, ( unit2.transform.position - vector ).magnitude * 0.8f, Map.groundLayer ) )
-            {
-                if ( !canGib )
-                {
-                    damage = 0;
-                }
-                Map.KnockAndDamageUnit( damageSender, unit2, damage, damageType, xI, yI, (int)Mathf.Sign( xI ), knock, x, y, false );
-                return unit2;
-            }
+
             return null;
         }
 
         protected override void TryHitUnitsAtSpawn()
         {
-            Unit hitUnit = HitClosestUnit( this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false );
+            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, xI, yI, false, false, true, false );
             if ( hitUnit != null )
             {
-                this.hasHit = true;
-                this.hasHitUnit = true;
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                if ( hitUnit is TestVanDammeAnim )
+                hasHit = true;
+                hasHitUnit = true;
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                if ( hitUnit is TestVanDammeAnim anim )
                 {
-                    Main.StartControllingUnit( playerNum, hitUnit as TestVanDammeAnim );
+                    Main.StartControllingUnit( playerNum, anim );
                 }
-                UnityEngine.Object.Destroy( base.gameObject );
+
+                Destroy( gameObject );
             }
         }
 
@@ -143,36 +137,37 @@ namespace Control_Enemies_Mod
         {
             float xI = this.xI;
             this.xI *= 0.3333334f;
-            Unit hitUnit = HitClosestUnit( this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false );
+            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, this.xI, yI, false, false, true, false );
             //if (Map.HitLivingUnits(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false))
             if ( hitUnit != null )
             {
-                this.hasHitUnit = true;
-                this.MakeEffects( false, base.X, base.Y, false, this.raycastHit.normal, this.raycastHit.point );
-                UnityEngine.Object.Destroy( base.gameObject );
-                Sound.GetInstance().PlaySoundEffectAt( this.soundHolder.hitSounds, 0.5f, base.transform.position, 0.95f + UnityEngine.Random.value * 0.15f, true, false, false, 0f );
-                if ( hitUnit is TestVanDammeAnim )
+                hasHitUnit = true;
+                MakeEffects( false, X, Y, false, raycastHit.normal, raycastHit.point );
+                Destroy( gameObject );
+                Sound.GetInstance().PlaySoundEffectAt( soundHolder.hitSounds, 0.5f, transform.position, 0.95f + Random.value * 0.15f );
+                if ( hitUnit is TestVanDammeAnim anim )
                 {
-                    Main.StartControllingUnit( playerNum, hitUnit as TestVanDammeAnim );
+                    Main.StartControllingUnit( playerNum, anim );
                 }
             }
+
             this.xI = xI;
         }
 
         protected override void MakeEffects( bool particles, float x, float y, bool useRayCast, Vector3 hitNormal, Vector3 point )
         {
-            if ( !this.hasHitUnit )
+            if ( !hasHitUnit )
             {
-                Unit hitUnit = HitClosestUnit( this, this.playerNum, 0, this.damageType, 16f, 16f, base.X, base.Y, 0f, 0f, false, false, true, false );
-                if ( hitUnit != null && hitUnit is TestVanDammeAnim )
+                Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, 16f, 16f, X, Y, 0f, 0f, false, false, true, false );
+                if ( hitUnit != null && hitUnit is TestVanDammeAnim anim )
                 {
-                    Main.StartControllingUnit( playerNum, hitUnit as TestVanDammeAnim );
+                    Main.StartControllingUnit( playerNum, anim );
                 }
             }
-            EffectsController.CreateShrapnel( this.sparkWhite1, x, y, 2f, 130f, 8f, this.xI * 0.2f, 50f );
-            this.hasHitUnit = true;
+
+            EffectsController.CreateShrapnel( sparkWhite1, x, y, 2f, 130f, 8f, xI * 0.2f, 50f );
+            hasHitUnit = true;
             EffectsController.CreateWhiteFlashPopSmall( x, y );
         }
-
     }
 }

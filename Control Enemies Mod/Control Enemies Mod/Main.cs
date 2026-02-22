@@ -12,6 +12,8 @@ using UnityEngine;
 using UnityModManagerNet;
 using static RocketLib.Utils.UnitTypes;
 using BSett = BroMakerLib.Settings;
+using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace Control_Enemies_Mod
 {
@@ -30,22 +32,21 @@ namespace Control_Enemies_Mod
         public static KeyBindingForPlayers special3;
         public static bool[] special2WasDown = new bool[4];
         public static bool[] special3WasDown = new bool[4];
-        public static bool isBroMakerInstalled = false;
-        public static bool isSwapBrosModInstalled = false;
+        public static bool isBroMakerInstalled;
 
         // UI
         public static GUIStyle headerStyle, buttonStyle, warningStyle, centeredTextStyle;
-        public static bool changingEnabledUnits = false;
-        public static bool creatingUnitList = false;
-        public static float displayWarningTime = 0f;
-        public static string[] swapBehaviorList = new string[] { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
-        public static string[] spawnBehaviorList = new string[] { "Spawn As Ghost", "Automatically Spawn as Enemies" };
+        public static bool changingEnabledUnits;
+        public static bool creatingUnitList;
+        public static float displayWarningTime;
+        public static string[] swapBehaviorList = { "Kill Enemy", "Stun Enemy", "Delete Enemy", "Do Nothing" };
+        public static string[] spawnBehaviorList = { "Spawn As Ghost", "Automatically Spawn as Enemies" };
         public static string[] fullUnitList = AllTestVanDammeAnimNames;
         public static bool[] filteredUnitList;
         public static string[] currentUnitList;
         public static string[] previousSelection = { "", "", "", "" };
 
-        static bool Load( UnityModManager.ModEntry modEntry )
+        public static bool Load( UnityModManager.ModEntry modEntry )
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
@@ -54,13 +55,14 @@ namespace Control_Enemies_Mod
             mod = modEntry;
             try
             {
-                settings = Settings.Load<Settings>( modEntry );
+                settings = UnityModManager.ModSettings.Load<Settings>( modEntry );
             }
             catch
             {
                 // Settings format changed
                 settings = new Settings();
             }
+
             var harmony = new Harmony( modEntry.Info.Id );
             var assembly = Assembly.GetExecutingAssembly();
             try
@@ -69,7 +71,7 @@ namespace Control_Enemies_Mod
             }
             catch ( Exception ex )
             {
-                Main.Log( "Exception patching: " + ex.ToString() );
+                Log( "Exception patching: " + ex.ToString() );
             }
 
             // Load keybinding
@@ -108,46 +110,51 @@ namespace Control_Enemies_Mod
                 headerStyle.fontStyle = FontStyle.Bold;
                 headerStyle.normal.textColor = new Color( 0.639216f, 0.909804f, 1f );
             }
+
             string previousToolTip = String.Empty;
 
             if ( GUILayout.Button( "General Options", headerStyle ) )
             {
                 settings.showGeneralOptions = !settings.showGeneralOptions;
             }
+
             if ( settings.showGeneralOptions )
             {
-                ShowGeneralOptions( modEntry, ref previousToolTip );
+                ShowGeneralOptions( ref previousToolTip );
             } // End General Options
 
             if ( GUILayout.Button( "Possession Options", headerStyle ) )
             {
                 settings.showPossessionOptions = !settings.showPossessionOptions;
             }
+
             if ( settings.showPossessionOptions )
             {
-                ShowPossessionModeOptions( modEntry, ref previousToolTip );
+                ShowPossessionModeOptions( ref previousToolTip );
             } // End Possession Options
 
             if ( GUILayout.Button( "Spawn As Enemy Options", headerStyle ) )
             {
                 settings.showSpawnAsEnemyOptions = !settings.showSpawnAsEnemyOptions;
             }
+
             if ( settings.showSpawnAsEnemyOptions )
             {
-                ShowSpawnAsEnemyOptions( modEntry, ref previousToolTip );
+                ShowSpawnAsEnemyOptions( ref previousToolTip );
             } // End Spawn As Enemy Options
 
             if ( GUILayout.Button( "Competitive Mode Options", headerStyle ) )
             {
                 settings.showCompetitiveOptions = !settings.showCompetitiveOptions;
             }
+
             if ( settings.showCompetitiveOptions )
             {
-                ShowCompetitiveModeOptions( modEntry, ref previousToolTip );
+                ShowCompetitiveModeOptions( ref previousToolTip );
             } // End Competitive Mode Options
         }
 
-        static void ShowGeneralOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
+        static void ShowGeneralOptions( ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
             settings.allowWallClimbing = GUILayout.Toggle( settings.allowWallClimbing, new GUIContent( "Enable Wall Climbing", "By default, enemies can't fully wall climb. If you enable this they will be able to, but they won't have animations." ) );
@@ -242,7 +249,7 @@ namespace Control_Enemies_Mod
             GUILayout.Space( 20 );
         }
 
-        static void ShowPossessionModeOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
+        static void ShowPossessionModeOptions( ref string previousToolTip )
         {
             GUILayout.BeginHorizontal();
             if ( settings.possessionModeEnabled != ( settings.possessionModeEnabled = GUILayout.Toggle( settings.possessionModeEnabled, new GUIContent( "Enable Possessing Enemies", "Allows players to press a button to fire a bullet that can take control of enemies. This cannot be enabled while playing the competitive mode." ) ) ) )
@@ -252,6 +259,7 @@ namespace Control_Enemies_Mod
                     settings.competitiveModeEnabled = false;
                 }
             }
+
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 700;
@@ -267,6 +275,7 @@ namespace Control_Enemies_Mod
                 GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 20 );
@@ -296,7 +305,7 @@ namespace Control_Enemies_Mod
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 700;
-            settings.leavingEnemy = (SwapBehavior)GUILayout.SelectionGrid( (int)settings.leavingEnemy, swapBehaviorList, 4 );
+            settings.leavingEnemy = ( SwapBehavior )GUILayout.SelectionGrid( ( int )settings.leavingEnemy, swapBehaviorList, 4 );
             GUILayout.EndHorizontal();
 
             if ( GUI.tooltip != previousToolTip )
@@ -312,7 +321,7 @@ namespace Control_Enemies_Mod
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 700;
-            settings.swappingEnemies = (SwapBehavior)GUILayout.SelectionGrid( (int)settings.swappingEnemies, swapBehaviorList, 4 );
+            settings.swappingEnemies = ( SwapBehavior )GUILayout.SelectionGrid( ( int )settings.swappingEnemies, swapBehaviorList, 4 );
             GUILayout.EndHorizontal();
 
             if ( GUI.tooltip != previousToolTip )
@@ -357,7 +366,7 @@ namespace Control_Enemies_Mod
             GUILayout.Space( 20 );
         }
 
-        static void ShowSpawnAsEnemyOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
+        static void ShowSpawnAsEnemyOptions( ref string previousToolTip )
         {
             if ( buttonStyle == null )
             {
@@ -391,6 +400,7 @@ namespace Control_Enemies_Mod
                     settings.competitiveModeEnabled = false;
                 }
             }
+
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 500;
@@ -410,6 +420,7 @@ namespace Control_Enemies_Mod
                 GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 20 );
@@ -446,6 +457,7 @@ namespace Control_Enemies_Mod
                 {
                     settings.showSettings[i] = !settings.showSettings[i];
                 }
+
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
 
@@ -458,8 +470,10 @@ namespace Control_Enemies_Mod
 
                     GUILayout.BeginHorizontal();
 
-                    if ( GUILayout.Button( changingEnabledUnits ? new GUIContent( "Save Changes", "" ) : new GUIContent( "Enter Filtering Mode",
-                                               "Enable or disable enemies for all players" ), GUILayout.ExpandWidth( false ), GUILayout.Width( 300 ) ) )
+                    if ( GUILayout.Button( changingEnabledUnits
+                            ? new GUIContent( "Save Changes", "" )
+                            : new GUIContent( "Enter Filtering Mode",
+                                "Enable or disable enemies for all players" ), GUILayout.ExpandWidth( false ), GUILayout.Width( 300 ) ) )
                     {
                         changingEnabledUnits = !changingEnabledUnits;
                         if ( changingEnabledUnits )
@@ -480,6 +494,7 @@ namespace Control_Enemies_Mod
                                     break;
                                 }
                             }
+
                             if ( atleastOne )
                             {
                                 displayWarningTime = 0f;
@@ -504,6 +519,7 @@ namespace Control_Enemies_Mod
                         {
                             GUI.Label( lastRect, GUI.tooltip );
                         }
+
                         previousToolTip = GUI.tooltip;
                     }
                     else
@@ -537,6 +553,7 @@ namespace Control_Enemies_Mod
 
                                 filteredUnitList[j] = GUILayout.Toggle( filteredUnitList[j], fullUnitList[j], buttonStyle, GUILayout.Height( 26 ), GUILayout.Width( 180 ) );
                             }
+
                             GUILayout.EndHorizontal();
                             GUILayout.Space( 20 );
                             GUILayout.BeginHorizontal();
@@ -547,6 +564,7 @@ namespace Control_Enemies_Mod
                                     filteredUnitList[j] = true;
                                 }
                             }
+
                             if ( GUILayout.Button( "Unselect All", GUILayout.Width( 200 ) ) )
                             {
                                 for ( int j = 0; j < filteredUnitList.Length; ++j )
@@ -554,6 +572,7 @@ namespace Control_Enemies_Mod
                                     filteredUnitList[j] = false;
                                 }
                             }
+
                             GUILayout.EndHorizontal();
                             GUILayout.EndVertical();
                         }
@@ -570,7 +589,7 @@ namespace Control_Enemies_Mod
                                 if ( settings.clickingSwapEnabled )
                                 {
                                     if ( settings.selGridInt[i] != ( settings.selGridInt[i] = GUILayout.SelectionGrid( settings.selGridInt[i], currentUnitList, 5, GUILayout.Height( 30 * Mathf.Ceil( currentUnitList.Length / 5.0f ) ) ) )
-                                        && ( Map.Instance != null ) )
+                                         && ( Map.Instance != null ) )
                                     {
                                         switched[i] = true;
                                     }
@@ -591,12 +610,13 @@ namespace Control_Enemies_Mod
                     GUILayout.Space( 10 );
                 }
             }
+
             GUILayout.EndVertical();
 
             GUILayout.Space( 15 );
         }
 
-        static void ShowCompetitiveModeOptions( UnityModManager.ModEntry modEntry, ref string previousToolTip )
+        static void ShowCompetitiveModeOptions( ref string previousToolTip )
         {
             if ( centeredTextStyle == null )
             {
@@ -625,6 +645,7 @@ namespace Control_Enemies_Mod
                 GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 25 );
@@ -636,26 +657,27 @@ namespace Control_Enemies_Mod
             lastRect.y += 20;
             lastRect.width += 600;
 
-            settings.spawnMode = (SpawnMode)GUILayout.SelectionGrid( (int)settings.spawnMode, spawnBehaviorList, 2 );
+            settings.spawnMode = ( SpawnMode )GUILayout.SelectionGrid( ( int )settings.spawnMode, spawnBehaviorList, 2 );
 
             if ( previousToolTip != GUI.tooltip )
             {
                 GUI.Label( lastRect, GUI.tooltip );
                 previousToolTip = GUI.tooltip;
             }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space( 30 );
 
-            settings.scoreToWin = RGUI.HorizontalSliderInt( "Score Required to Attempt a Win (0 = unlimited): ", "Sets the initial score players have to reach to be able to spawn a portal and go to the boss level in order to try and win.", settings.scoreToWin, 0, 10, 500 );
+            settings.scoreToWin = RGUI.HorizontalSliderInt( "Score Required to Attempt a Win (0 = unlimited): ", "Sets the initial score players have to reach to be able to spawn a portal and go to the boss level in order to try and win.", settings.scoreToWin, 0, 10 );
 
             GUILayout.Space( 15 );
 
-            settings.scoreIncrement = RGUI.HorizontalSliderInt( "Required Score Increase on Failed Win Attempt: ", "Sets the increase in score required to win when a player goes to the boss level and fails.", settings.scoreIncrement, 0, 10, 500 );
+            settings.scoreIncrement = RGUI.HorizontalSliderInt( "Required Score Increase on Failed Win Attempt: ", "Sets the increase in score required to win when a player goes to the boss level and fails.", settings.scoreIncrement, 0, 10 );
 
             GUILayout.Space( 15 );
 
-            settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt( "Extra Hero Lives for Win Attempts: ", "Gives the hero player extra lives when they go to the boss level and attempt to win.", settings.extraLiveOnBossLevel, 0, 10, 500 );
+            settings.extraLiveOnBossLevel = RGUI.HorizontalSliderInt( "Extra Hero Lives for Win Attempts: ", "Gives the hero player extra lives when they go to the boss level and attempt to win.", settings.extraLiveOnBossLevel, 0, 10 );
 
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
@@ -669,11 +691,11 @@ namespace Control_Enemies_Mod
 
             GUILayout.Space( 40 );
 
-            settings.heroLives = RGUI.HorizontalSliderInt( "Hero Lives at Level Start (0 = unlimited):   ", "Sets the lives the current hero player will have when they start the level.", settings.heroLives, 0, 10, 500 );
+            settings.heroLives = RGUI.HorizontalSliderInt( "Hero Lives at Level Start (0 = unlimited):   ", "Sets the lives the current hero player will have when they start the level.", settings.heroLives, 0, 10 );
 
             GUILayout.Space( 15 );
 
-            settings.ghostLives = RGUI.HorizontalSliderInt( "Ghost Lives at Level Start (0 = unlimited): ", "Sets the lives the ghost players will have when they start the level.", settings.ghostLives, 0, 10, 500 );
+            settings.ghostLives = RGUI.HorizontalSliderInt( "Ghost Lives at Level Start (0 = unlimited): ", "Sets the lives the ghost players will have when they start the level.", settings.ghostLives, 0, 10 );
 
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
@@ -687,7 +709,7 @@ namespace Control_Enemies_Mod
 
             GUILayout.Space( 40 );
 
-            settings.startingHeroPlayer = RGUI.HorizontalSliderInt( "Starting Hero Player (0 = Random): ", "Sets the starting hero player to the specified player number.", settings.startingHeroPlayer, 0, 4, 500 );
+            settings.startingHeroPlayer = RGUI.HorizontalSliderInt( "Starting Hero Player (0 = Random): ", "Sets the starting hero player to the specified player number.", settings.startingHeroPlayer, 0, 4 );
 
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
@@ -756,6 +778,7 @@ namespace Control_Enemies_Mod
             {
                 settings.livesHandicap = new int[] { 0, 0, 0, 0 };
             }
+
             GUILayout.EndHorizontal();
 
             if ( previousToolTip != GUI.tooltip )
@@ -803,6 +826,7 @@ namespace Control_Enemies_Mod
             {
                 settings.scoreHandicap = new int[] { 0, 0, 0, 0 };
             }
+
             GUILayout.EndHorizontal();
 
             if ( previousToolTip != GUI.tooltip )
@@ -850,6 +874,7 @@ namespace Control_Enemies_Mod
             {
                 settings.scoreIncreaseHandicap = new int[] { 0, 0, 0, 0 };
             }
+
             GUILayout.EndHorizontal();
 
             if ( previousToolTip != GUI.tooltip )
@@ -871,6 +896,7 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 800;
@@ -903,14 +929,13 @@ namespace Control_Enemies_Mod
 
         #region Modding
         // General options
-        public static List<Unit> currentUnit = new List<Unit>() { null, null, null, null };
-        public static UnitType[] currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
-        public static float[] currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
-        public static float[] currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
+        public static List<Unit> currentUnit = new List<Unit> { null, null, null, null };
+        public static UnitType[] currentUnitType = { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
+        public static float[] currentSpriteHeight = { 0f, 0f, 0f, 0f };
         public static bool[] currentlyEnemy = { false, false, false, false };
-        public static int[] previousPlayerNum = new int[] { -1, -1, -1, -1 };
-        public static TestVanDammeAnim[] previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
-        public static float[] countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
+        public static int[] previousPlayerNum = { -1, -1, -1, -1 };
+        public static TestVanDammeAnim[] previousCharacter = { null, null, null, null };
+        public static float[] countdownToRespawn = { 0f, 0f, 0f, 0f };
         public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat, pigAvatarMat, bruiserAvatarMat, satanAvatarMat;
         public static bool[] specialWasDown = { false, false, false, false };
         public static bool[] holdingSpecial = { false, false, false, false };
@@ -918,13 +943,13 @@ namespace Control_Enemies_Mod
         public static bool[] holdingSpecial3 = { false, false, false, false };
         public static bool[] holdingGesture = { false, false, false, false };
         public static bool up, left, down, right, fire, buttonJump, special, highfive, buttonGesture, sprint;
-        public static bool createdSandworms = false;
-        public static DeathType[] previousDeathType = new DeathType[] { DeathType.None, DeathType.None, DeathType.None, DeathType.None };
-        public static float[] previousJumpForce = new float[] { 0f, 0f, 0f, 0f };
+        public static bool createdSandworms;
+        public static DeathType[] previousDeathType = { DeathType.None, DeathType.None, DeathType.None, DeathType.None };
+        public static float[] previousJumpForce = { 0f, 0f, 0f, 0f };
 
         // Possessing Enemy
-        public static MindControlBullet bulletPrefab = null;
-        public static float[] fireDelay = new float[] { 0f, 0f, 0f, 0f };
+        public static MindControlBullet bulletPrefab;
+        public static float[] fireDelay = { 0f, 0f, 0f, 0f };
 
         // Spawning as Enemy
         public static bool[] switched = { false, false, false, false };
@@ -936,28 +961,29 @@ namespace Control_Enemies_Mod
         // Competitive Mode
         public static int currentHeroNum
         {
-            get => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum;
-            set => Main.settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum = value;
+            get => settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum;
+            set => settings.saveGames[PlayerProgress.currentWorldMapSaveSlot].currentHeroNum = value;
         }
+
         public static bool[] revealed = { false, false, false, false };
         public static float[] findNewEnemyCooldown = { 0f, 0f, 0f, 0f };
         public static List<int> waitingToBecomeEnemy = new List<int>();
-        public static GhostPlayer[] currentGhosts = new GhostPlayer[] { null, null, null, null };
-        public static Vector3[] ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
+        public static GhostPlayer[] currentGhosts = { null, null, null, null };
+        public static Vector3[] ghostSpawnPoint = { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
         public static GhostPlayer ghostPrefab;
-        public static bool everyoneDead = false;
-        public static bool openedPortal = false;
+        public static bool everyoneDead;
+        public static bool openedPortal;
         public static bool anyAttemptingWin = false;
-        public static bool onWinAttempt = false;
+        public static bool onWinAttempt;
         public static int attemptingWin = -1;
         public static bool returnToPreviousLevel = false;
-        public static bool playerWon = false;
+        public static bool playerWon;
         public static string previousSceneName;
         public static string previousCampaignName;
         public static int previousLevel;
-        public static float switchCounter = 0f;
-        public static float disableElevatorCounter = 0f;
-        public static bool isBurning = false;
+        public static float switchCounter;
+        public static float disableElevatorCounter;
+        public static bool isBurning;
         public static float brokenCheckTimer = 0.25f;
 
         #region General
@@ -1019,7 +1045,7 @@ namespace Control_Enemies_Mod
                             if ( settings.competitiveModeEnabled && HeroController.players[i] != null )
                             {
                                 HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                                HeroController.players[i].RespawnBro( false );
+                                HeroController.players[i].RespawnBro();
                             }
                             // Respawn from enemy corpse
                             else if ( HeroController.players[i].character != null && !HeroController.players[i].character.destroyed )
@@ -1050,6 +1076,7 @@ namespace Control_Enemies_Mod
                             FindNewEnemyOnMap( i );
                         }
                     }
+
                     currentSpawnCooldown[i] -= dt;
                 }
 
@@ -1083,10 +1110,10 @@ namespace Control_Enemies_Mod
                                 if ( i != currentHeroNum && HeroController.IsPlayerPlaying( i ) )
                                 {
                                     // If player is not respawning, isn't alive, and isn't a ghost, respawn them
-                                    if ( countdownToRespawn[i] <= 0f && !( HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf ) && !( Main.currentGhosts[i] != null && Main.currentGhosts[i].gameObject.activeSelf ) )
+                                    if ( countdownToRespawn[i] <= 0f && !( HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf ) && !( currentGhosts[i] != null && currentGhosts[i].gameObject.activeSelf ) )
                                     {
                                         HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                                        HeroController.players[i].RespawnBro( false );
+                                        HeroController.players[i].RespawnBro();
                                     }
                                 }
                             }
@@ -1099,7 +1126,7 @@ namespace Control_Enemies_Mod
             }
             catch ( Exception ex )
             {
-                Main.Log( "Exception in update: " + ex.ToString() );
+                Log( "Exception in update: " + ex.ToString() );
             }
         }
 
@@ -1113,6 +1140,7 @@ namespace Control_Enemies_Mod
             special2 = AllModKeyBindings.LoadKeyBinding( "Control Enemies Mod", "Special 2 Key" );
             special3 = AllModKeyBindings.LoadKeyBinding( "Control Enemies Mod", "Special 3 Key" );
         }
+
         public static void LoadSprites()
         {
             string directoryPath = Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
@@ -1132,13 +1160,14 @@ namespace Control_Enemies_Mod
                 ghostPrefab = new GameObject( "GhostPlayer", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ), typeof( GhostPlayer ) } ).GetComponent<GhostPlayer>();
                 ghostPrefab.gameObject.SetActive( false );
                 ghostPrefab.Setup();
-                UnityEngine.Object.DontDestroyOnLoad( ghostPrefab );
+                Object.DontDestroyOnLoad( ghostPrefab );
             }
         }
+
         public static void ClearVariables()
         {
             // General options
-            currentUnit = new List<Unit>() { null, null, null, null };
+            currentUnit = new List<Unit> { null, null, null, null };
             currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
             currentlyEnemy = new bool[] { false, false, false, false };
             previousPlayerNum = new int[] { -1, -1, -1, -1 };
@@ -1152,7 +1181,6 @@ namespace Control_Enemies_Mod
             HarmonyPatches.overrideNextVisibilityCheck = false;
             HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = false;
             createdSandworms = false;
-            currentSpriteWidth = new float[] { 0f, 0f, 0f, 0f };
             currentSpriteHeight = new float[] { 0f, 0f, 0f, 0f };
             previousDeathType = new DeathType[] { DeathType.None, DeathType.None, DeathType.None, DeathType.None };
             previousJumpForce = new float[] { 0f, 0f, 0f, 0f };
@@ -1180,7 +1208,7 @@ namespace Control_Enemies_Mod
             currentGhosts = new GhostPlayer[] { null, null, null, null };
             ghostSpawnPoint = new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
             HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = false;
-            ScoreManager.scoreSprites = new List<List<SpriteSM>>() { new List<SpriteSM>() { null, null, null, null } };
+            ScoreManager.scoreSprites = new List<List<SpriteSM>> { new List<SpriteSM> { null, null, null, null } };
             ScoreManager.spriteSetup = new bool[] { false, false, false, false };
             everyoneDead = false;
             openedPortal = false;
@@ -1197,7 +1225,7 @@ namespace Control_Enemies_Mod
             try
             {
                 TestVanDammeAnim currentCharacter = HeroController.players[playerNum].character;
-                if ( HeroController.players[playerNum].IsAlive() && unit != null && unit is TestVanDammeAnim && unit.IsAlive() )
+                if ( HeroController.players[playerNum].IsAlive() && unit != null && unit.IsAlive() )
                 {
                     // Don't allow swap while player is piloting another unit, unless they are a mech, in which case pilotted unit refers to the mook inside the mech
                     if ( currentCharacter != null && currentCharacter.pilottedUnit != null && !( currentCharacter is MookArmouredGuy ) )
@@ -1209,7 +1237,6 @@ namespace Control_Enemies_Mod
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
                     currentUnitType[playerNum] = unit.GetUnitType();
-                    currentSpriteWidth[playerNum] = currentUnitType[playerNum].GetSpriteWidth();
                     currentSpriteHeight[playerNum] = currentUnitType[playerNum].GetSpriteHeight();
                     previousDeathType[playerNum] = DeathType.None;
 
@@ -1223,11 +1250,13 @@ namespace Control_Enemies_Mod
                     {
                         disableWhenOffCamera.enabled = false;
                     }
+
                     unit.enabled = true;
                     if ( unit.enemyAI != null )
                     {
                         unit.enemyAI.enabled = true;
                     }
+
                     unit.SpecialAmmo = 0;
                     unit.canWallClimb = settings.allowWallClimbing;
                     unit.canDash = settings.enableSprinting;
@@ -1243,6 +1272,7 @@ namespace Control_Enemies_Mod
                             mech.GetComponent<Collider>().gameObject.layer = LayerMask.NameToLayer( "FriendlyBarriers" );
                         }
                     }
+
                     // Fix heavy units having too low of a jump
                     if ( settings.buffJumpForce )
                     {
@@ -1258,6 +1288,7 @@ namespace Control_Enemies_Mod
                                 break;
                         }
                     }
+
                     // Fix suicide mooks being unable to wall climb
                     switch ( currentUnitType[playerNum] )
                     {
@@ -1270,6 +1301,7 @@ namespace Control_Enemies_Mod
                             unit.soundHolder = ( HeroController.GetHeroPrefab( HeroType.Rambro ) as Rambro ).soundHolder;
                             break;
                     }
+
                     // Make sure held buttons aren't carried over
                     specialWasDown[playerNum] = false;
                     holdingSpecial[playerNum] = false;
@@ -1293,6 +1325,7 @@ namespace Control_Enemies_Mod
                             {
                                 currentCharacter.gameObject.SetActive( false );
                             }
+
                             if ( savePreviousCharacter )
                             {
                                 previousCharacter[playerNum] = currentCharacter;
@@ -1319,6 +1352,7 @@ namespace Control_Enemies_Mod
                 Log( "Exception playerNum " + playerNum + " controlling unit " + unit.name + ": " + ex.ToString() );
             }
         }
+
         public static void ReaffirmControl( int playerNum )
         {
             TestVanDammeAnim unit = HeroController.players[playerNum].character;
@@ -1329,14 +1363,16 @@ namespace Control_Enemies_Mod
             {
                 disableWhenOffCamera.enabled = false;
             }
-            if ( unit is Mook )
+
+            if ( unit is Mook mook )
             {
-                Mook mook = unit as Mook;
                 mook.firingPlayerNum = playerNum;
             }
+
             unit.canWallClimb = settings.allowWallClimbing;
             unit.canDash = settings.enableSprinting;
         }
+
         public static void SwitchUnit( TestVanDammeAnim previous, int playerNum, bool gentleLeave, bool erasePreviousCharacter )
         {
             previous.playerNum = previousPlayerNum[playerNum];
@@ -1345,6 +1381,7 @@ namespace Control_Enemies_Mod
             {
                 previousMook.firingPlayerNum = previousPlayerNum[playerNum];
             }
+
             Traverse previousTrav = Traverse.Create( previous );
             previousTrav.Field( "isHero" ).SetValue( false );
             previous.name = "Enemy";
@@ -1356,10 +1393,12 @@ namespace Control_Enemies_Mod
             {
                 disableWhenOffCamera.enabled = true;
             }
+
             if ( previous.GetUnitType() == UnitType.SuicideMook )
             {
                 previousTrav.SetFieldValue( "halfWidth", 4f );
             }
+
             // Fix heavy units having too low of a jump
             if ( settings.buffJumpForce )
             {
@@ -1377,34 +1416,36 @@ namespace Control_Enemies_Mod
 
             if ( erasePreviousCharacter )
             {
-                UnityEngine.Object.Destroy( previous.gameObject );
+                Object.Destroy( previous.gameObject );
             }
             else if ( !gentleLeave )
             {
                 switch ( settings.swappingEnemies )
                 {
                     case SwapBehavior.KillEnemy:
-                        if ( previous is Mook )
+                        if ( previous is Mook mook )
                         {
-                            ( previous as Mook ).Gib();
+                            mook.Gib();
                         }
                         else
                         {
                             typeof( TestVanDammeAnim ).GetMethod( "Gib", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( previous, new object[] { DamageType.InstaGib, 0f, 0f } );
                         }
+
                         EffectsController.CreateSlimeExplosion( previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor );
                         break;
                     case SwapBehavior.StunEnemy:
                         previous.Stun( 2f );
                         break;
                     case SwapBehavior.DeleteEnemy:
-                        UnityEngine.Object.Destroy( previous.gameObject );
+                        Object.Destroy( previous.gameObject );
                         break;
                     case SwapBehavior.Nothing:
                         break;
                 }
             }
         }
+
         public static void LeaveUnit( TestVanDammeAnim previous, int playerNum, bool onlyLeaveUnit, bool respawning = false )
         {
             try
@@ -1417,6 +1458,7 @@ namespace Control_Enemies_Mod
                     {
                         previousMook.firingPlayerNum = previousPlayerNum[playerNum];
                     }
+
                     Traverse previousTrav = Traverse.Create( previous );
                     previousTrav.Field( "isHero" ).SetValue( false );
                     previous.name = "Enemy";
@@ -1428,10 +1470,12 @@ namespace Control_Enemies_Mod
                     {
                         disableWhenOffCamera.enabled = true;
                     }
+
                     if ( previous.GetUnitType() == UnitType.SuicideMook )
                     {
                         previousTrav.SetFieldValue( "halfWidth", 4f );
                     }
+
                     // Fix heavy units having too low of a jump
                     if ( settings.buffJumpForce )
                     {
@@ -1462,6 +1506,7 @@ namespace Control_Enemies_Mod
                             {
                                 currentUnitType[playerNum] = UnitType.Bro;
                             }
+
                             originalCharacter.X = previous.X;
                             originalCharacter.Y = previous.Y;
                             originalCharacter.transform.localScale = new Vector3( Mathf.Sign( previous.transform.localScale.x ) * originalCharacter.transform.localScale.x, originalCharacter.transform.localScale.y, originalCharacter.transform.localScale.z );
@@ -1486,13 +1531,14 @@ namespace Control_Enemies_Mod
                                         {
                                             typeof( TestVanDammeAnim ).GetMethod( "Gib", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( previous, new object[] { DamageType.InstaGib, 0f, 0f } );
                                         }
+
                                         EffectsController.CreateSlimeExplosion( previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor );
                                         break;
                                     case SwapBehavior.StunEnemy:
                                         previous.Stun( 2f );
                                         break;
                                     case SwapBehavior.DeleteEnemy:
-                                        UnityEngine.Object.Destroy( previous.gameObject );
+                                        Object.Destroy( previous.gameObject );
                                         break;
                                     case SwapBehavior.Nothing:
                                         break;
@@ -1508,6 +1554,7 @@ namespace Control_Enemies_Mod
                                 {
                                     typeof( TestVanDammeAnim ).GetMethod( "Gib", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( previous, new object[] { DamageType.InstaGib, 0f, 0f } );
                                 }
+
                                 EffectsController.CreateSlimeExplosion( previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor );
                             }
 
@@ -1528,6 +1575,7 @@ namespace Control_Enemies_Mod
                 Log( "Exception leaving unit: " + ex.ToString() );
             }
         }
+
         public static void SwitchToEnemyAvatar( int playerNum, UnitType type )
         {
             switch ( type )
@@ -1553,6 +1601,7 @@ namespace Control_Enemies_Mod
                     break;
             }
         }
+
         public static void SwitchToHeroAvatar( int playerNum )
         {
             if ( isBroMakerInstalled && SetAvatarToSwitch( HeroController.players[playerNum].character ) )
@@ -1564,6 +1613,7 @@ namespace Control_Enemies_Mod
                 HeroController.players[playerNum].hud.SwitchAvatarAndGrenadeMaterial( HeroController.players[playerNum].heroType );
             }
         }
+
         public static void FixAvatar( int playerNum )
         {
             if ( HeroController.players[playerNum].character.name == "c" )
@@ -1596,6 +1646,7 @@ namespace Control_Enemies_Mod
 
             wasDown = actuallyDown;
         }
+
         public static void PressSpecial( TestVanDammeAnim character, int playerNum, ref bool down )
         {
             Traverse trav = Traverse.Create( character );
@@ -1617,9 +1668,11 @@ namespace Control_Enemies_Mod
                     {
                         down = false;
                     }
+
                     break;
             }
         }
+
         public static void ReleaseSpecial( TestVanDammeAnim character, int playerNum, ref bool down )
         {
             Traverse trav = Traverse.Create( character );
@@ -1639,13 +1692,14 @@ namespace Control_Enemies_Mod
                     break;
             }
         }
+
         public static void HandleButton( bool down, ref bool wasDown, ref bool holding, Action<TestVanDammeAnim> press, Action<TestVanDammeAnim> release, TestVanDammeAnim character, int playerNum )
         {
             // Pressed button
             if ( !wasDown && down )
             {
                 // Press and hold
-                if ( !Main.settings.extraControlsToggle )
+                if ( !settings.extraControlsToggle )
                 {
                     press( character );
                 }
@@ -1670,7 +1724,7 @@ namespace Control_Enemies_Mod
             else if ( wasDown && !down )
             {
                 // Releasing hold
-                if ( !Main.settings.extraControlsToggle )
+                if ( !settings.extraControlsToggle )
                 {
                     release( character );
                 }
@@ -1678,6 +1732,7 @@ namespace Control_Enemies_Mod
 
             wasDown = down;
         }
+
         public static void PressSpecial2( TestVanDammeAnim character )
         {
             Traverse trav = Traverse.Create( character );
@@ -1697,7 +1752,7 @@ namespace Control_Enemies_Mod
                 case UnitType.JetpackMook:
                 case UnitType.JetpackBazookaMook:
                     // if using toggle controls and mosquito is already flying, stop flying
-                    if ( settings.extraControlsToggle && (bool)trav.GetFieldValue( "jetpacksOn" ) )
+                    if ( settings.extraControlsToggle && ( bool )trav.GetFieldValue( "jetpacksOn" ) )
                     {
                         holdingSpecial2[character.playerNum] = false;
                         typeof( MookJetpack ).GetMethod( "StopJetpacks", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( character, new object[] { } );
@@ -1707,13 +1762,14 @@ namespace Control_Enemies_Mod
                         HarmonyPatches.MookJetpack_StartJetPacks_Patch.allowJetpack = true;
                         typeof( MookJetpack ).GetMethod( "StartJetPacks", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( character, new object[] { } );
                     }
+
                     break;
 
                 // Make flying enemies fly
                 case UnitType.Baneling:
                 case UnitType.LostSoul:
                     // if using toggle controls and mosquito is already flying, stop flying
-                    if ( settings.extraControlsToggle && (bool)trav.GetFieldValue( "flying" ) )
+                    if ( settings.extraControlsToggle && ( bool )trav.GetFieldValue( "flying" ) )
                     {
                         holdingSpecial2[character.playerNum] = false;
                         trav.SetFieldValue( "flying", false );
@@ -1722,6 +1778,7 @@ namespace Control_Enemies_Mod
                     {
                         trav.SetFieldValue( "flying", true );
                     }
+
                     break;
 
                 // Give DolphLundren his super jump special manually
@@ -1739,15 +1796,17 @@ namespace Control_Enemies_Mod
                         {
                             for ( int i = 0; i < 4; ++i )
                             {
-                                AlienSandWorm worm = UnityEngine.Object.Instantiate<GameObject>( Map.Instance.sharedObjectsReference.Asset.hellEnemies[7], new Vector3( -200f, -200f, 0f ), Quaternion.identity ).GetComponent<AlienSandWorm>();
+                                Object.Instantiate<GameObject>( Map.Instance.sharedObjectsReference.Asset.hellEnemies[7], new Vector3( -200f, -200f, 0f ), Quaternion.identity );
                             }
+
                             createdSandworms = true;
                         }
                     }
                     catch ( Exception ex )
                     {
-                        Main.Log( "Exception creating sandowrms: " + ex.ToString() );
+                        Log( "Exception creating sandowrms: " + ex.ToString() );
                     }
+
                     Traverse.Create( character ).SetFieldValue( "usingSpecial2", true );
                     break;
 
@@ -1756,9 +1815,11 @@ namespace Control_Enemies_Mod
                     {
                         Traverse.Create( character ).SetFieldValue( "usingSpecial2", true );
                     }
+
                     break;
             }
         }
+
         public static void ReleaseSpecial2( TestVanDammeAnim character )
         {
             Traverse trav = Traverse.Create( character );
@@ -1797,9 +1858,11 @@ namespace Control_Enemies_Mod
                     {
                         Traverse.Create( character ).SetFieldValue( "usingSpecial2", false );
                     }
+
                     break;
             }
         }
+
         public static void PressSpecial3( TestVanDammeAnim character )
         {
             Traverse trav = Traverse.Create( character );
@@ -1837,6 +1900,7 @@ namespace Control_Enemies_Mod
                         diveTarget += Vector3.down * 500f;
                         diveDirection += Vector3.down;
                     }
+
                     trav.SetFieldValue( "diveDelay", 0.65f );
                     trav.SetFieldValue( "diveDirection", diveDirection );
                     trav.SetFieldValue( "divingTarget", diveTarget );
@@ -1854,9 +1918,11 @@ namespace Control_Enemies_Mod
                     {
                         trav.SetFieldValue( "usingSpecial3", true );
                     }
+
                     break;
             }
         }
+
         public static void ReleaseSpecial3( TestVanDammeAnim character )
         {
             Traverse trav = Traverse.Create( character );
@@ -1886,15 +1952,17 @@ namespace Control_Enemies_Mod
                     {
                         trav.SetFieldValue( "usingSpecial3", false );
                     }
+
                     break;
             }
         }
 
         // BroMaker
-        private static string TryToUseBroMaker()
+        private static void TryToUseBroMaker()
         {
-            return BroMakerLib.Info.NAME;
+            _ = BroMakerLib.Info.NAME;
         }
+
         public static void CheckBroMakerAvailable()
         {
             try
@@ -1907,11 +1975,13 @@ namespace Control_Enemies_Mod
                 isBroMakerInstalled = false;
             }
         }
+
         public static void TryDisableBroMaker( int playerNum )
         {
             BSett.instance.disableSpawning = true;
             LoadHero.willReplaceBro[playerNum] = false;
         }
+
         public static void DisableBroMaker( int playerNum )
         {
             if ( isBroMakerInstalled )
@@ -1926,10 +1996,12 @@ namespace Control_Enemies_Mod
                 }
             }
         }
+
         public static void TryEnableBroMaker()
         {
             BSett.instance.disableSpawning = false;
         }
+
         public static void EnableBroMaker()
         {
             if ( isBroMakerInstalled )
@@ -1944,6 +2016,7 @@ namespace Control_Enemies_Mod
                 }
             }
         }
+
         public static bool TrySetAvatarToSwitch( TestVanDammeAnim character, int playerNum )
         {
             if ( character is ICustomHero )
@@ -1957,10 +2030,13 @@ namespace Control_Enemies_Mod
                 {
                     LoadHero.playerNum = character.playerNum;
                 }
+
                 return true;
             }
+
             return false;
         }
+
         public static bool SetAvatarToSwitch( TestVanDammeAnim character, int playerNum = -1 )
         {
             try
@@ -1973,6 +2049,7 @@ namespace Control_Enemies_Mod
                 return false;
             }
         }
+
         public static bool TryOverrideSpawn( int playerNum )
         {
             if ( LoadHero.willReplaceBro[playerNum] )
@@ -1980,8 +2057,10 @@ namespace Control_Enemies_Mod
                 LoadHero.previousSpawnInfo[playerNum] = Player.SpawnType.CheckpointRespawn;
                 return true;
             }
+
             return false;
         }
+
         public static bool OverrideSpawn( int playerNum )
         {
             try
@@ -2005,11 +2084,11 @@ namespace Control_Enemies_Mod
                 bulletPrefab.gameObject.SetActive( false );
                 EllenRipbro ellenRipbro = ( HeroController.GetHeroPrefab( HeroType.EllenRipbro ) as EllenRipbro );
                 bulletPrefab.Setup( ellenRipbro );
-                UnityEngine.Object.DontDestroyOnLoad( bulletPrefab );
+                Object.DontDestroyOnLoad( bulletPrefab );
             }
             catch ( Exception ex )
             {
-                Main.Log( "Exception creating bullet: " + ex.ToString() );
+                Log( "Exception creating bullet: " + ex.ToString() );
             }
         }
 
@@ -2020,18 +2099,20 @@ namespace Control_Enemies_Mod
             {
                 return;
             }
+
             if ( bulletPrefab == null )
             {
                 // Create Mind Control Bullet
                 SetupBullet();
             }
+
             fireDelay[playerNum] = settings.fireRate;
             TestVanDammeAnim firingChar = HeroController.players[playerNum].character;
             float x = firingChar.X + 3f;
             float y = firingChar.Y + firingChar.height + 1.5f;
             float xSpeed = firingChar.transform.localScale.x * 700f;
             float ySpeed = 0f;
-            MindControlBullet firedBullet = ProjectileController.SpawnProjectileLocally( bulletPrefab, firingChar, x, y, xSpeed, ySpeed, firingChar.playerNum ) as MindControlBullet;
+            ProjectileController.SpawnProjectileLocally( bulletPrefab, firingChar, x, y, xSpeed, ySpeed, firingChar.playerNum );
         }
 
         public static void FindUnitToControl( Vector3 center, int playerNum )
@@ -2040,12 +2121,12 @@ namespace Control_Enemies_Mod
             {
                 Unit unit = Map.units[i];
                 // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-                if ( unit != null && unit is TestVanDammeAnim && unit.playerNum < 0 && unit.health > 0 && unit.name != "c" && unit.name != "p" && !unit.IsHero )
+                if ( unit != null && unit is TestVanDammeAnim anim && anim.playerNum < 0 && anim.health > 0 && anim.name != "c" && anim.name != "p" && !anim.IsHero )
                 {
                     // Check unit is in rectangle around trap
-                    if ( Tools.FastAbsWithinRange( unit.X - center.x, 10f ) && Tools.FastAbsWithinRange( unit.Y - center.y, 10f ) )
+                    if ( Tools.FastAbsWithinRange( anim.X - center.x, 10f ) && Tools.FastAbsWithinRange( anim.Y - center.y, 10f ) )
                     {
-                        StartControllingUnit( playerNum, unit as TestVanDammeAnim );
+                        StartControllingUnit( playerNum, anim );
                         return;
                     }
                 }
@@ -2061,7 +2142,7 @@ namespace Control_Enemies_Mod
         #region Spawning As Enemy
         public static void CreateUnitList()
         {
-            Main.creatingUnitList = true;
+            creatingUnitList = true;
 
             if ( currentUnitList != null )
             {
@@ -2073,6 +2154,7 @@ namespace Control_Enemies_Mod
                     }
                 }
             }
+
             if ( settings.filterEnemies )
             {
                 currentUnitList = settings.enabledUnits.ToArray();
@@ -2090,7 +2172,8 @@ namespace Control_Enemies_Mod
                     settings.selGridInt[i] = 0;
                 }
             }
-            Main.creatingUnitList = false;
+
+            creatingUnitList = false;
         }
 
         public static void CreateFilteredUnitList()
@@ -2125,15 +2208,13 @@ namespace Control_Enemies_Mod
             {
                 return ToUnitType( currentUnitList[settings.selGridInt[playerNum]] );
             }
-            else
-            {
-                return UnitType.Mook;
-            }
+
+            return UnitType.Mook;
         }
 
         public static GameObject SpawnUnit( UnitType type, Vector3 vector )
         {
-            GameObject __result = UnityEngine.Object.Instantiate<TestVanDammeAnim>( type.GetTestVanDammeAnimPrefab(), vector, Quaternion.identity ).gameObject;
+            GameObject __result = Object.Instantiate<TestVanDammeAnim>( type.GetTestVanDammeAnimPrefab(), vector, Quaternion.identity ).gameObject;
 
             if ( __result != null )
             {
@@ -2157,11 +2238,11 @@ namespace Control_Enemies_Mod
                     flag = true;
                     goto IL_1E7;
                 case Player.SpawnType.AddBroToTransport:
-                    {
-                        Map.AddBroToHeroTransport( bro );
-                        arg = bro.transform.position;
-                        goto IL_1E7;
-                    }
+                {
+                    Map.AddBroToHeroTransport( bro );
+                    arg = bro.transform.position;
+                    goto IL_1E7;
+                }
                 case Player.SpawnType.CheckpointRespawn:
                     flag2 = Map.IsCheckPointAnAirdrop( HeroController.GetCurrentCheckPointID() );
                     arg = HeroController.GetCheckPointPosition( player.playerNum, flag2 );
@@ -2175,28 +2256,30 @@ namespace Control_Enemies_Mod
                     {
                         arg = player.rescuingThisBro.transform.position;
                     }
+
                     goto IL_1E7;
                 case Player.SpawnType.DropInDuringGame:
                     flag = true;
                     goto IL_1E7;
                 case Player.SpawnType.SpawnInCage:
+                {
+                    SpawnPoint spawnPoint = Map.GetSpawnPoint( player.playerNum );
+                    if ( spawnPoint == null )
                     {
-                        SpawnPoint spawnPoint = Map.GetSpawnPoint( player.playerNum );
-                        if ( spawnPoint == null )
-                        {
-                            flag = true;
-                        }
-                        else
-                        {
-                            arg = spawnPoint.transform.position;
-                            if ( spawnPoint.cage != null )
-                            {
-                                spawnPoint.cage.SetPlayerColor( player.playerNum );
-                                arg.x -= 8f;
-                            }
-                        }
-                        goto IL_1E7;
+                        flag = true;
                     }
+                    else
+                    {
+                        arg = spawnPoint.transform.position;
+                        if ( spawnPoint.cage != null )
+                        {
+                            spawnPoint.cage.SetPlayerColor( player.playerNum );
+                            arg.x -= 8f;
+                        }
+                    }
+
+                    goto IL_1E7;
+                }
                 case Player.SpawnType.LevelEditorReload:
                     arg = LevelEditorGUI.lastPayerPos;
                     LevelEditorGUI.lastPayerPos = -Vector3.one;
@@ -2206,26 +2289,29 @@ namespace Control_Enemies_Mod
                     arg = player.playerFollowPos;
                     goto IL_1E7;
                 case Player.SpawnType.CustomSpawnPoint:
+                {
+                    SpawnPoint spawnPoint2 = Map.GetSpawnPoint( player.playerNum );
+                    arg = spawnPoint2.transform.position;
+                    if ( spawnPoint2 != null && spawnPoint2.cage != null )
                     {
-                        SpawnPoint spawnPoint2 = Map.GetSpawnPoint( player.playerNum );
-                        arg = spawnPoint2.transform.position;
-                        if ( spawnPoint2 != null && spawnPoint2.cage != null )
-                        {
-                            arg.x -= 8f;
-                        }
-                        goto IL_1E7;
+                        arg.x -= 8f;
                     }
+
+                    goto IL_1E7;
+                }
                 case Player.SpawnType.AirDropRespawn:
                     arg = HeroController.GetCheckPointPosition( player.playerNum, true );
                     flag2 = true;
                     goto IL_1E7;
             }
+
             flag = true;
             IL_1E7:
             if ( flag )
             {
                 arg = HeroController.GetFirstPlayerPosition( player.playerNum );
             }
+
             player.SetSpawnPositon( bro, arg2, flag2, arg );
         }
         #endregion
@@ -2277,6 +2363,7 @@ namespace Control_Enemies_Mod
                         }
                     }
                 }
+
                 if ( !livingPlayer )
                 {
                     everyoneDead = true;
@@ -2291,7 +2378,7 @@ namespace Control_Enemies_Mod
                         // Respawn player and allow them to look for a new character to possess
                         findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
                         HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                        HeroController.players[playerNum].RespawnBro( false );
+                        HeroController.players[playerNum].RespawnBro();
                     }
                     else
                     {
@@ -2311,9 +2398,8 @@ namespace Control_Enemies_Mod
                     if ( !anyAttemptingWin )
                     {
                         // Killed by ghost player
-                        if ( damage != null && damage.damageSender != null && damage.damageSender is TestVanDammeAnim && damage.damageSender.name == "c" )
+                        if ( damage != null && damage.damageSender != null && damage.damageSender is TestVanDammeAnim killer && killer.name == "c" )
                         {
-                            TestVanDammeAnim killer = damage.damageSender as TestVanDammeAnim;
                             ResurrectGhost( killer.playerNum );
 
                             if ( remainingLives > 0 )
@@ -2323,7 +2409,7 @@ namespace Control_Enemies_Mod
                                     // Respawn player and allow them to look for a new character to possess
                                     findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
                                     HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                                    HeroController.players[playerNum].RespawnBro( false );
+                                    HeroController.players[playerNum].RespawnBro();
                                 }
                                 else
                                 {
@@ -2336,7 +2422,8 @@ namespace Control_Enemies_Mod
                                     {
                                         ghostSpawnPoint[playerNum] = character.transform.position;
                                     }
-                                    HeroController.players[playerNum].RespawnBro( false );
+
+                                    HeroController.players[playerNum].RespawnBro();
                                 }
                             }
                         }
@@ -2346,7 +2433,7 @@ namespace Control_Enemies_Mod
                             List<int> players = new List<int>();
                             for ( int i = 0; i < 4; ++i )
                             {
-                                if ( i != Main.currentHeroNum && HeroController.PlayerIsAlive( i ) && HeroController.players[i].Lives > 0 )
+                                if ( i != currentHeroNum && HeroController.PlayerIsAlive( i ) && HeroController.players[i].Lives > 0 )
                                 {
                                     players.Add( i );
                                 }
@@ -2355,7 +2442,7 @@ namespace Control_Enemies_Mod
                             // If other ghost players have lives, respawn one of them
                             if ( players.Count > 0 )
                             {
-                                int chosenPlayer = players[UnityEngine.Random.Range( 0, players.Count )];
+                                int chosenPlayer = players[Random.Range( 0, players.Count )];
 
                                 ResurrectGhost( chosenPlayer );
 
@@ -2364,7 +2451,7 @@ namespace Control_Enemies_Mod
                                     // Respawn player and allow them to look for a new character to possess
                                     findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
                                     HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                                    HeroController.players[playerNum].RespawnBro( false );
+                                    HeroController.players[playerNum].RespawnBro();
                                 }
                                 else
                                 {
@@ -2377,7 +2464,8 @@ namespace Control_Enemies_Mod
                                     {
                                         ghostSpawnPoint[playerNum] = character.transform.position;
                                     }
-                                    HeroController.players[playerNum].RespawnBro( false );
+
+                                    HeroController.players[playerNum].RespawnBro();
                                 }
                             }
                             // Otherwise respawn the hero player
@@ -2406,7 +2494,6 @@ namespace Control_Enemies_Mod
                             GameModeController.LevelFinish( LevelResult.ForcedFail );
                         }
                     }
-
                 }
 
                 if ( character != null )
@@ -2416,7 +2503,7 @@ namespace Control_Enemies_Mod
             }
             catch ( Exception ex )
             {
-                Main.Log( "Exception on player death: " + ex.ToString() );
+                Log( "Exception on player death: " + ex.ToString() );
             }
         }
 
@@ -2448,7 +2535,7 @@ namespace Control_Enemies_Mod
         {
             if ( currentGhosts[playerNum] == null )
             {
-                currentGhosts[playerNum] = UnityEngine.Object.Instantiate<GhostPlayer>( ghostPrefab, Vector3.zero, Quaternion.identity ).GetComponent<GhostPlayer>();
+                currentGhosts[playerNum] = Object.Instantiate<GhostPlayer>( ghostPrefab, Vector3.zero, Quaternion.identity ).GetComponent<GhostPlayer>();
                 currentGhosts[playerNum].playerNum = playerNum;
                 // Ghost isn't spawning at level start so play resurrection animation instead
                 if ( ghostSpawnPoint[playerNum] != Vector3.zero )
@@ -2457,6 +2544,7 @@ namespace Control_Enemies_Mod
                     ghostSpawnPoint[playerNum] = Vector3.zero;
                     currentGhosts[playerNum].StartResurrecting();
                 }
+
                 currentGhosts[playerNum].ReActivate();
             }
             // Update ghost position
@@ -2467,6 +2555,7 @@ namespace Control_Enemies_Mod
                     currentGhosts[playerNum].transform.position = ghostSpawnPoint[playerNum];
                     ghostSpawnPoint[playerNum] = Vector3.zero;
                 }
+
                 if ( !fastResurrect )
                 {
                     currentGhosts[playerNum].StartResurrecting();
@@ -2476,6 +2565,7 @@ namespace Control_Enemies_Mod
                     currentGhosts[playerNum].frame = 0;
                     currentGhosts[playerNum].SetFrame();
                 }
+
                 currentGhosts[playerNum].ReActivate();
             }
         }
@@ -2499,7 +2589,7 @@ namespace Control_Enemies_Mod
                     {
                         currentHeroNum = playerNum;
                         HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
-                        HeroController.players[playerNum].RespawnBro( false );
+                        HeroController.players[playerNum].RespawnBro();
                     }
                     else
                     {
@@ -2532,7 +2622,7 @@ namespace Control_Enemies_Mod
                     TestVanDammeAnim character = Map.units[i] as TestVanDammeAnim;
                     if ( AvailableToPossess( character ) && SortOfFollow.IsItSortOfVisible( character.transform.position, 5f, 8f ) )
                     {
-                        StartControllingUnit( playerNum, character, false, true, false );
+                        StartControllingUnit( playerNum, character );
                         return;
                     }
                 }
