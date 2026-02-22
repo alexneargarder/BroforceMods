@@ -1,11 +1,11 @@
 {
   "name": "Control_Enemies_Mod",
   "author": "AlexN",
-  "version_number": "1.0.2",
+  "version_number": "1.0.3",
   "website_url": "https://github.com/alexneargarder/BroforceMods",
   "description": "This mod allows you to play as almost all of the enemies in the game.",
   "dependencies": [
-    "UMM-UMM-1.0.2",
-    "RocketLib-RocketLib-2.4.1"
+    "UMM-UMM-1.1.0",
+    "RocketLib-RocketLib-2.4.3"
   ]
 }
