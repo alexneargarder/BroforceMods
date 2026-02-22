@@ -1,7 +1,8 @@
 ## v1.0.3 (unreleased)
 - Updated to work with new RocketLib version.
 - Fix players being able to be trapped in hell portal in competitive mode if they don't currently have enough points to attempt a win.
-- Allow double tapping to sprint as ghosts
+- Allow double tapping to sprint as ghosts.
+- Fix ladder climbing animation for pig and satan miniboss.
 
 ## v1.0.2
 - Updated to work with new RocketLib version.

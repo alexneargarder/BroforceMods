@@ -1631,6 +1631,84 @@ namespace Control_Enemies_Mod
         }
         #endregion
 
+        // Fix ladder animations for certain enemies
+
+        #region Ladder Animations
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "AnimateClimbingLadder" )]
+        public static class TestVanDammeAnim_AnimateClimbingLadder_Patch
+        {
+            static readonly AccessTools.FieldRef<TestVanDammeAnim, int> pixelWidthRef =
+                AccessTools.FieldRefAccess<TestVanDammeAnim, int>( "spritePixelWidth" );
+
+            static readonly AccessTools.FieldRef<TestVanDammeAnim, int> pixelHeightRef =
+                AccessTools.FieldRefAccess<TestVanDammeAnim, int>( "spritePixelHeight" );
+
+            public static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
+            {
+                var instructionList = instructions.ToList();
+                var codeMatcher = new CodeMatcher( instructionList, generator );
+
+                MethodInfo setLowerLeftPixel = AccessTools.Method( typeof( SpriteSM ), "SetLowerLeftPixel", new Type[] { typeof( float ), typeof( float ) } );
+                MethodInfo setLadderPixel = AccessTools.Method( typeof( TestVanDammeAnim_AnimateClimbingLadder_Patch ), "SetLadderPixel" );
+
+                if ( setLowerLeftPixel == null || setLadderPixel == null )
+                {
+                    Main.mod.Logger.Log( "AnimateClimbingLadder transpiler: method lookup failed" );
+                    return instructionList;
+                }
+
+                for ( int i = 0; i < 4; i++ )
+                {
+                    codeMatcher.MatchStartForward(
+                        new CodeMatch( inst => inst.Calls( setLowerLeftPixel ) )
+                    );
+
+                    if ( !codeMatcher.IsValid )
+                    {
+                        Main.mod.Logger.Log( $"AnimateClimbingLadder transpiler: SetLowerLeftPixel call #{i} not found" );
+                        return instructionList;
+                    }
+
+                    codeMatcher.Insert( new CodeInstruction( OpCodes.Ldarg_0 ) );
+                    codeMatcher.Advance( 1 );
+                    codeMatcher.Set( OpCodes.Call, setLadderPixel );
+                    codeMatcher.Advance( 1 );
+                }
+
+                return codeMatcher.InstructionEnumeration();
+            }
+
+            public static void SetLadderPixel( SpriteSM sprite, float x, float y, TestVanDammeAnim instance )
+            {
+                if ( !Main.enabled || !Main.IsControlledUnit( instance ) )
+                {
+                    sprite.SetLowerLeftPixel( x, y );
+                    return;
+                }
+
+                int row;
+                UnitType type = Main.currentUnitType[instance.playerNum];
+
+                switch ( type )
+                {
+                    case UnitType.Pig:
+                    case UnitType.RottenPig:
+                    case UnitType.SatanMiniboss:
+                        row = 2;
+                        break;
+                    default:
+                        sprite.SetLowerLeftPixel( x, y );
+                        return;
+                }
+
+                int pixelWidth = pixelWidthRef( instance );
+                int pixelHeight = pixelHeightRef( instance );
+                int frame = instance.frame % 4;
+                sprite.SetLowerLeftPixel( frame * pixelWidth, pixelHeight * row );
+            }
+        }
+        #endregion
+
         // Make spawned helldogs friendly
 
         #region HellDog
