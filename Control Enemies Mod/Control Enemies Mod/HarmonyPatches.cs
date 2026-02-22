@@ -28,7 +28,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledAI( __instance ) )
                 {
                     if ( Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum] )
                     {
@@ -57,7 +57,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledAI( __instance ) )
                 {
                     if ( Main.settings.competitiveModeEnabled && !Main.revealed[__instance.gameObject.GetComponent<TestVanDammeAnim>().playerNum] )
                     {
@@ -86,7 +86,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -112,7 +112,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( gesture == GestureElement.Gestures.Flex && __instance.name == "c" )
+                if ( gesture == GestureElement.Gestures.Flex && Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -134,7 +134,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     // Track whether we're dying from out-of-bounds to know if we should be able to respawn from corpse
                     if ( damage != null )
@@ -160,7 +160,7 @@ namespace Control_Enemies_Mod
                             Main.PlayerDiedInCompetitiveMode( __instance, damage );
                         }
                     }
-                    else if ( __instance.name == "c" && __instance.playerNum >= 0 && __instance.playerNum < 4 )
+                    else if ( Main.IsControlledUnit( __instance ) && __instance.playerNum >= 0 && __instance.playerNum < 4 )
                     {
                         // If we're not respawning from a corpse or we don't have enough lives left, release the unit
                         if ( !( Main.settings.respawnFromCorpse && HeroController.players[__instance.playerNum].Lives > 0 && !outOfBounds && Main.previousCharacter[__instance.playerNum] != null ) )
@@ -199,7 +199,7 @@ namespace Control_Enemies_Mod
                         {
                             Main.PlayerDiedInCompetitiveMode( __instance );
                         }
-                        else if ( __instance.name == "c" )
+                        else if ( Main.IsControlledUnit( __instance ) )
                         {
                             if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                             {
@@ -235,7 +235,7 @@ namespace Control_Enemies_Mod
                 {
                 }
                 // Don't report death if we don't want to lose lives when dying as a mook or if we want to respawn at their corpse
-                else if ( __instance.name == "c" && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum] )
+                else if ( Main.IsControlledUnit( __instance ) && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.currentlyEnemy[__instance.playerNum] )
                 {
                     bool chestBurstDeath = false;
                     if ( __instance is AlienFaceHugger faceHugger )
@@ -291,7 +291,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
+                if ( Main.IsControlledUnit( __instance ) && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
                 {
                     Main.previousDeathType[__instance.playerNum] = ___deathType;
                 }
@@ -318,9 +318,8 @@ namespace Control_Enemies_Mod
                     return false;
                 }
 
-
                 // Disable life loss for suicide enemies
-                if ( Main.settings.noLifeLossOnSuicide && __instance.character != null && __instance.character.name == "c" && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() && Main.previousDeathType[__instance.playerNum] == DeathType.Suicide )
+                if ( Main.settings.noLifeLossOnSuicide && __instance.character != null && Main.IsControlledUnit( __instance.character ) && Main.currentUnitType[__instance.playerNum].IsSuicideUnit() && Main.previousDeathType[__instance.playerNum] == DeathType.Suicide )
                 {
                     Main.previousDeathType[__instance.playerNum] = DeathType.None;
                     return false;
@@ -498,7 +497,7 @@ namespace Control_Enemies_Mod
 
                 if ( !Main.settings.competitiveModeEnabled )
                 {
-                    if ( __instance.name == "c" && __instance.IsHeavy() )
+                    if ( Main.IsControlledUnit( __instance ) && __instance.IsHeavy() )
                     {
                         __result = false;
                         if ( __instance.playerNum >= 0 && __instance.playerNum < 4 )
@@ -559,7 +558,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "c";
+                return !Main.IsControlledUnit( __instance );
             }
         }
 
@@ -575,7 +574,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "c";
+                return !Main.IsControlledUnit( __instance );
             }
         }
 
@@ -591,7 +590,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't let method execute if this is a controlled enemy
-                return __instance.name != "c";
+                return !Main.IsControlledUnit( __instance );
             }
         }
 
@@ -698,7 +697,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __instance.GetComponent<SpriteSM>().SetLowerLeftPixel( 0f, Main.currentSpriteHeight[__instance.playerNum] );
                     return false;
@@ -719,7 +718,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __instance.GetComponent<SpriteSM>().SetLowerLeftPixel( 0f, Main.currentSpriteHeight[__instance.playerNum] );
                     return false;
@@ -740,7 +739,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __instance.GetComponent<SpriteSM>().SetLowerLeftPixel( 0f, Main.currentSpriteHeight[__instance.playerNum] );
                     return false;
@@ -762,7 +761,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Play laugh instead of confused sound
-                if ( __instance.name == "c" && Main.holdingGesture[__instance.playerNum] )
+                if ( Main.IsControlledUnit( __instance ) && Main.holdingGesture[__instance.playerNum] )
                 {
                     __instance.PlayLaughterSound();
                     ___stunVocalDelay = 0.4f + Random.Range( 0.3f, 0.9f );
@@ -784,7 +783,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" && Main.currentUnitType[__instance.playerNum] == UnitType.GrenadierMook )
+                if ( Main.IsControlledUnit( __instance ) && Main.currentUnitType[__instance.playerNum] == UnitType.GrenadierMook )
                 {
                     return false;
                 }
@@ -809,7 +808,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -829,7 +828,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -849,7 +848,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -869,7 +868,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -889,7 +888,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -909,7 +908,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -929,7 +928,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -949,7 +948,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -969,7 +968,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -989,7 +988,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -1009,7 +1008,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -1029,7 +1028,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -1049,7 +1048,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -1116,7 +1115,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1133,7 +1132,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1150,7 +1149,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1167,7 +1166,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1184,7 +1183,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1201,7 +1200,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1218,7 +1217,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     overrideNextVisibilityCheck = true;
                 }
@@ -1239,7 +1238,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __result = true;
                     return false;
@@ -1259,7 +1258,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __result = true;
                     return false;
@@ -1291,7 +1290,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1322,7 +1321,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1353,7 +1352,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1384,7 +1383,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1415,7 +1414,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1446,7 +1445,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance, damage );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds && damage != null )
                         {
@@ -1477,7 +1476,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         if ( !TestVanDammeAnim_Death_Patch.outOfBounds )
                         {
@@ -1508,7 +1507,7 @@ namespace Control_Enemies_Mod
                         Main.PlayerDiedInCompetitiveMode( __instance );
                     }
                     // Ensure controlled enemies cause life loss on death
-                    else if ( __instance.name == "c" )
+                    else if ( Main.IsControlledUnit( __instance ) )
                     {
                         typeof( TestVanDammeAnim ).GetMethod( "ReduceLives", BindingFlags.NonPublic | BindingFlags.Instance ).Invoke( __instance, new object[] { false } );
                     }
@@ -1529,7 +1528,7 @@ namespace Control_Enemies_Mod
 
                 if ( !Main.settings.competitiveModeEnabled )
                 {
-                    if ( __instance.name == "c" )
+                    if ( Main.IsControlledUnit( __instance ) )
                     {
                         Main.LeaveUnit( __instance, __instance.playerNum, true );
                     }
@@ -1562,7 +1561,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't explode if recalling
-                if ( __instance.name == "c" && ___recalling )
+                if ( Main.IsControlledUnit( __instance ) && ___recalling )
                 {
                     return false;
                 }
@@ -1582,7 +1581,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Don't explode if recalling
-                if ( __instance.name == "c" && ___recalling )
+                if ( Main.IsControlledUnit( __instance ) && ___recalling )
                 {
                     return false;
                 }
@@ -1606,7 +1605,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Deathtype is set to suicide if the game thinks you're attacking
-                if ( __instance.name == "c" && ___diving )
+                if ( Main.IsControlledUnit( __instance ) && ___diving )
                 {
                     __instance.fire = true;
                 }
@@ -1624,7 +1623,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Deathtype is set to suicide if the game thinks you're attacking
-                if ( __instance.name == "c" && ___diving )
+                if ( Main.IsControlledUnit( __instance ) && ___diving )
                 {
                     __instance.fire = true;
                 }
@@ -1649,7 +1648,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // If egg was fired by controlled enemy or friendly enemy, make it friendly
-                if ( ( __instance.firedBy.name == "c" || ( __instance.firedBy as Mook ).playerNum >= 0 ) )
+                if ( ( __instance.firedBy is Unit u && Main.IsControlledUnit( u ) || ( __instance.firedBy as Mook ).playerNum >= 0 ) )
                 {
                     nextDogFriendly = true;
                     playerNum = ( __instance.firedBy as Mook ).playerNum;
@@ -1711,7 +1710,7 @@ namespace Control_Enemies_Mod
                     Main.countdownToRespawn[controllerPlayerNum] = -1f;
                 }
                 // Make sure already controlled aliens don't have their playernum overwritten by the start function
-                else if ( __instance.name == "c" )
+                else if ( Main.IsControlledUnit( __instance ) )
                 {
                     int playerNum = Main.currentUnit.IndexOf( __instance );
                     if ( playerNum != __instance.playerNum )
@@ -1741,7 +1740,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     if ( !allowJetpack )
                     {
@@ -1768,7 +1767,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __instance.jetPackHeight = __instance.groundHeight + 48f;
                 }
@@ -1790,7 +1789,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" && __instance is MookWarlockAI )
+                if ( Main.IsControlledAI( __instance ) && __instance is MookWarlockAI )
                 {
                     // Set playernum to hero in competitive
                     if ( Main.settings.competitiveModeEnabled )
@@ -1817,7 +1816,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.owner != null && __instance.owner.name == "c" )
+                if ( __instance.owner != null && Main.IsControlledUnit( __instance.owner ) )
                 {
                     __instance.unit.playerNum = __instance.owner.playerNum;
                 }
@@ -1840,7 +1839,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Mech itself is being controlled
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     // Take control of discharged unit
                     TestVanDammeAnim pilotUnit = __instance.pilotUnit as TestVanDammeAnim;
@@ -1871,7 +1870,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Prevent mook from taking damage if it's a player controlled enemy
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     __instance.SetInvulnerable( 0.1f, false );
                     if ( __instance.gunSprite != null )
@@ -1933,7 +1932,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     Mook mook = MapController.SpawnMook_Networked( prefab, x, y, 0f, 0f, false, false, true, false, true );
                     mook.playerNum = __instance.playerNum;
@@ -1960,7 +1959,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Fix suicide mooks being unable to wall climb
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     ___halfWidth = 6f;
                 }
@@ -1991,7 +1990,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     CheckInput( __instance );
                 }
@@ -2019,7 +2018,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     if ( manualActivation && Main.settings.noLifeLossOnSuicide )
                     {
@@ -2097,6 +2096,10 @@ namespace Control_Enemies_Mod
                 }
 
                 Main.currentlyEnemy[__instance.playerNum] = false;
+                if ( Main.currentUnit[__instance.playerNum] != null )
+                {
+                    Main.controlledUnits.Remove( Main.currentUnit[__instance.playerNum] );
+                }
 
                 if ( Main.settings.spawnAsEnemyEnabled )
                 {
@@ -2149,6 +2152,10 @@ namespace Control_Enemies_Mod
                     {
                         Main.previousCharacter[__instance.playerNum] = null;
                         Main.currentlyEnemy[__instance.playerNum] = false;
+                        if ( Main.currentUnit[__instance.playerNum] != null )
+                        {
+                            Main.controlledUnits.Remove( Main.currentUnit[__instance.playerNum] );
+                        }
                     }
 
                     // Hide player since they're not the current hero
@@ -2453,7 +2460,7 @@ namespace Control_Enemies_Mod
 
                 if ( Main.settings.spawnAsEnemyEnabled )
                 {
-                    if ( __instance.name == "c" )
+                    if ( Main.IsControlledUnit( __instance ) )
                     {
                         int playerNum = Main.currentUnit.IndexOf( __instance );
                         if ( playerNum != __instance.playerNum )
@@ -2475,7 +2482,7 @@ namespace Control_Enemies_Mod
                             return;
                         }
 
-                        if ( !( __instance.playerNum >= 0 && __instance.playerNum < 4 ) && __instance.name != "c" && __instance.name != "Hobro" )
+                        if ( !( __instance.playerNum >= 0 && __instance.playerNum < 4 ) && !Main.IsControlledUnit( __instance ) && __instance.name != "Hobro" )
                         {
                             Main.StartControllingUnit( chosenPlayer, __instance );
                         }
@@ -2495,7 +2502,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     int playerNum = Main.currentUnit.IndexOf( __instance );
                     if ( playerNum != __instance.playerNum )
@@ -2570,7 +2577,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance != null && __instance.playerNum != Main.currentHeroNum && ( !Main.settings.ghostControlledEnemiesAffectCamera || __instance.character == null || __instance.character.destroyed || __instance.character.name != "c" || !__instance.character.IsAlive() ) )
+                if ( __instance != null && __instance.playerNum != Main.currentHeroNum && ( !Main.settings.ghostControlledEnemiesAffectCamera || __instance.character == null || __instance.character.destroyed || !Main.IsControlledUnit( __instance.character ) || !__instance.character.IsAlive() ) )
                 {
                     __result = false;
                     return false;
@@ -2761,6 +2768,11 @@ namespace Control_Enemies_Mod
                     Object.Destroy( Main.currentGhosts[playerNum].gameObject );
                     Main.previousCharacter[playerNum] = null;
                     Main.currentlyEnemy[playerNum] = false;
+                    if ( Main.currentUnit[playerNum] != null )
+                    {
+                        Main.controlledUnits.Remove( Main.currentUnit[playerNum] );
+                    }
+
                     Main.currentGhosts[playerNum] = null;
                 }
             }
@@ -2813,7 +2825,7 @@ namespace Control_Enemies_Mod
                 for ( int i = Map.units.Count - 1; i >= 0; i-- )
                 {
                     Unit unit = Map.units[i];
-                    if ( !( unit == null ) && ( unit.playerNum < 0 || unit.name == "c" ) && ( canBeDead || unit.health > 0 ) )
+                    if ( !( unit == null ) && ( unit.playerNum < 0 || Main.IsControlledUnit( unit ) ) && ( canBeDead || unit.health > 0 ) )
                     {
                         float num = unit.X - x;
                         if ( Tools.FastAbsWithinRange( num, xRange ) && Mathf.Sign( num ) == ( float )direction )
@@ -2944,7 +2956,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     if ( __instance.fatAnimal )
                     {
@@ -2976,7 +2988,7 @@ namespace Control_Enemies_Mod
                     return true;
                 }
 
-                if ( __instance.name == "c" )
+                if ( Main.IsControlledUnit( __instance ) )
                 {
                     return false;
                 }
@@ -3303,7 +3315,7 @@ namespace Control_Enemies_Mod
                 }
             }
         }
-        
+
         // Don't allow window to affect player to avoid players being sucked into win portal if they can't win currently
         [HarmonyPatch( typeof( TestVanDammeAnim ), "CanBeAffectedByWind" )]
         public static class TestVanDammeAnim_CanBeAffectedByWind_Patch

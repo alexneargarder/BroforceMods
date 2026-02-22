@@ -930,6 +930,7 @@ namespace Control_Enemies_Mod
         #region Modding
         // General options
         public static List<Unit> currentUnit = new List<Unit> { null, null, null, null };
+        public static HashSet<Unit> controlledUnits = new HashSet<Unit>();
         public static UnitType[] currentUnitType = { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
         public static float[] currentSpriteHeight = { 0f, 0f, 0f, 0f };
         public static bool[] currentlyEnemy = { false, false, false, false };
@@ -1168,6 +1169,7 @@ namespace Control_Enemies_Mod
         {
             // General options
             currentUnit = new List<Unit> { null, null, null, null };
+            controlledUnits.Clear();
             currentUnitType = new UnitType[] { UnitType.None, UnitType.None, UnitType.None, UnitType.None };
             currentlyEnemy = new bool[] { false, false, false, false };
             previousPlayerNum = new int[] { -1, -1, -1, -1 };
@@ -1236,6 +1238,7 @@ namespace Control_Enemies_Mod
                     // Store previous info
                     fireDelay[playerNum] = settings.swapCooldown;
                     currentUnit[playerNum] = unit;
+                    controlledUnits.Add( unit );
                     currentUnitType[playerNum] = unit.GetUnitType();
                     currentSpriteHeight[playerNum] = currentUnitType[playerNum].GetSpriteHeight();
                     previousDeathType[playerNum] = DeathType.None;
@@ -1385,6 +1388,7 @@ namespace Control_Enemies_Mod
             Traverse previousTrav = Traverse.Create( previous );
             previousTrav.Field( "isHero" ).SetValue( false );
             previous.name = "Enemy";
+            controlledUnits.Remove( previous );
             previous.canWallClimb = false;
             previous.canDash = false;
             previous.canPushBlocks = false;
@@ -1462,6 +1466,7 @@ namespace Control_Enemies_Mod
                     Traverse previousTrav = Traverse.Create( previous );
                     previousTrav.Field( "isHero" ).SetValue( false );
                     previous.name = "Enemy";
+                    controlledUnits.Remove( previous );
                     previous.canWallClimb = false;
                     previous.canDash = false;
                     previous.canPushBlocks = false;
@@ -1498,7 +1503,7 @@ namespace Control_Enemies_Mod
                             TestVanDammeAnim originalCharacter = previousCharacter[playerNum];
                             HeroController.players[playerNum].character = originalCharacter;
                             // If originalCharacter is also an enemy, set the current unit type back
-                            if ( originalCharacter.name == "c" )
+                            if ( IsControlledUnit( originalCharacter ) )
                             {
                                 currentUnitType[playerNum] = originalCharacter.GetUnitType();
                             }
@@ -1616,7 +1621,7 @@ namespace Control_Enemies_Mod
 
         public static void FixAvatar( int playerNum )
         {
-            if ( HeroController.players[playerNum].character.name == "c" )
+            if ( IsControlledUnit( HeroController.players[playerNum].character ) )
             {
                 SwitchToEnemyAvatar( playerNum, currentUnitType[playerNum] );
             }
@@ -2121,7 +2126,7 @@ namespace Control_Enemies_Mod
             {
                 Unit unit = Map.units[i];
                 // Check that unit is not null, is not a player, is not dead, and is not already grabbed by this trap or another
-                if ( unit != null && unit is TestVanDammeAnim anim && anim.playerNum < 0 && anim.health > 0 && anim.name != "c" && anim.name != "p" && !anim.IsHero )
+                if ( unit != null && unit is TestVanDammeAnim anim && anim.playerNum < 0 && anim.health > 0 && !IsControlledUnit( anim ) && anim.name != "p" && !anim.IsHero )
                 {
                     // Check unit is in rectangle around trap
                     if ( Tools.FastAbsWithinRange( anim.X - center.x, 10f ) && Tools.FastAbsWithinRange( anim.Y - center.y, 10f ) )
@@ -2133,9 +2138,19 @@ namespace Control_Enemies_Mod
             }
         }
 
+        public static bool IsControlledUnit( Unit unit )
+        {
+            return controlledUnits.Contains( unit );
+        }
+
+        public static bool IsControlledAI( PolymorphicAI ai )
+        {
+            return controlledUnits.Any( u => u is TestVanDammeAnim tvda && tvda.enemyAI == ai );
+        }
+
         public static bool AvailableToPossess( TestVanDammeAnim character )
         {
-            return character.name != "c" && character.name != "p" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
+            return !IsControlledUnit( character ) && character.name != "p" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
         }
         #endregion
 
@@ -2371,7 +2386,7 @@ namespace Control_Enemies_Mod
                 }
 
                 // Ghost controlled enemy died
-                if ( character.name == "c" )
+                if ( IsControlledUnit( character ) )
                 {
                     if ( settings.spawnMode == SpawnMode.Automatic )
                     {
@@ -2398,7 +2413,7 @@ namespace Control_Enemies_Mod
                     if ( !anyAttemptingWin )
                     {
                         // Killed by ghost player
-                        if ( damage != null && damage.damageSender != null && damage.damageSender is TestVanDammeAnim killer && killer.name == "c" )
+                        if ( damage != null && damage.damageSender != null && damage.damageSender is TestVanDammeAnim killer && IsControlledUnit( killer ) )
                         {
                             ResurrectGhost( killer.playerNum );
 

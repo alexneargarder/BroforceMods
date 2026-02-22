@@ -248,6 +248,7 @@ namespace Control_Enemies_Mod
                     {
                         dashing = true;
                     }
+
                     leftTapTime = Time.time;
                 }
 
@@ -257,6 +258,7 @@ namespace Control_Enemies_Mod
                     {
                         dashing = true;
                     }
+
                     rightTapTime = Time.time;
                 }
 
