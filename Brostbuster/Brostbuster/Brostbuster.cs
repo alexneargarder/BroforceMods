@@ -43,7 +43,6 @@ namespace Brostbuster
         protected bool playedBeamStartup = false;
         protected float startupTime = 0f;
         protected float shutdownTime = 0f;
-        public static HashSet<Brostbuster> currentBros = new HashSet<Brostbuster>();
         protected float currentGunPosition = 0f;
 
         // Ghost Trap
@@ -59,9 +58,6 @@ namespace Brostbuster
         protected bool throwingMook = false;
         public AudioClip slimerTrapOpen;
         public AudioSource slimerPortalSource;
-
-        // Misc
-        protected bool acceptedDeath = false;
 
         // Variants
         [SaveableSetting]
@@ -86,44 +82,17 @@ namespace Brostbuster
 
         public override int GetVariant()
         {
-            // Don't duplicate brostbuster variants
-            if ( Brostbuster.currentBros.Count > 0 )
-            {
-                List<int> available;
-                if ( filterVariants )
-                {
-                    available = new List<int>( enabledVariants );
-                }
-                else
-                {
-                    available = new List<int> { 0, 1, 2, 3 };
-                }
-
-                foreach ( Brostbuster bro in currentBros )
-                {
-                    // Don't count bros that are recalling to account for a brostbuster rescuing a bro
-                    if ( !bro.recalling )
-                    {
-                        available.Remove( bro.CurrentVariant );
-                    }
-                }
-
-                if ( available.Count > 0 )
-                {
-                    Brostbuster.currentBros.Add( this );
-                    return available[UnityEngine.Random.Range( 0, available.Count )];
-                }
-            }
-
-            Brostbuster.currentBros.Add( this );
+            List<int> allowedVariants;
             if ( filterVariants )
             {
-                return enabledVariants[UnityEngine.Random.Range( 0, enabledVariants.Count )];
+                allowedVariants = new List<int>( enabledVariants );
             }
             else
             {
-                return base.GetVariant();
+                allowedVariants = new List<int> { 0, 1, 2, 3 };
             }
+
+            return GetUniqueVariant( allowedVariants );
         }
 
         public override void UIOptions()
@@ -213,6 +182,8 @@ namespace Brostbuster
 
         protected override void Awake()
         {
+            this.deduplicateVariants = true;
+            this.useCustomMelee = true;
             base.Awake();
 
             protonLine1 = new GameObject( "ProtonLine1", new Type[] { typeof( LineRenderer ) } ).GetComponent<LineRenderer>();
@@ -240,33 +211,12 @@ namespace Brostbuster
             this.trapPrefab = CustomGrenade.CreatePrefab<GhostTrap>();
 
             this.slimerPrefab = CustomProjectile.CreatePrefab<Slimer>();
-
-            this.currentMeleeType = BroBase.MeleeType.Disembowel;
-            this.meleeType = BroBase.MeleeType.Disembowel;
-        }
-
-        protected override void Start()
-        {
-            base.Start();
-            Brostbuster.currentBros.Add( this );
         }
 
         protected override void Update()
         {
             base.Update();
-            if ( this.acceptedDeath )
-            {
-                if ( this.health <= 0 && !this.WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-                else
-                {
-                    Brostbuster.currentBros.Add( this );
-                    this.acceptedDeath = false;
-                }
-            }
+            if ( this.acceptedDeath ) return;
 
             // Stop proton gun when getting on helicopter
             if ( this.isOnHelicopter )
@@ -274,20 +224,15 @@ namespace Brostbuster
                 this.StopProtonGun();
                 this.protonAudio.enabled = false;
             }
-
-            // Handle death
-            if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
-            {
-                this.StopProtonGun();
-                this.protonAudio.enabled = false;
-
-                if ( !this.WillReviveAlready )
-                {
-                    Brostbuster.currentBros.Remove( this );
-                    this.acceptedDeath = true;
-                }
-            }
         }
+
+        protected override void OnDeath()
+        {
+            base.OnDeath();
+            this.StopProtonGun();
+            this.protonAudio.enabled = false;
+        }
+
         #endregion
 
         // Proton Gun methods
@@ -661,11 +606,12 @@ namespace Brostbuster
             }
 
             // Check for streams crossing
-            if ( currentBros.Count > 1 )
+            Brostbuster[] activeBros = FindObjectsOfType<Brostbuster>();
+            if ( activeBros.Length > 1 )
             {
                 try
                 {
-                    foreach ( Brostbuster bro in currentBros )
+                    foreach ( Brostbuster bro in activeBros )
                     {
                         // Check both are firing and are around the same y level
                         if ( bro.fire && bro.playedBeamStartup && Tools.FastAbsWithinRange( base.Y - bro.Y, 10 ) )
@@ -807,14 +753,6 @@ namespace Brostbuster
             this.effectCooldown = 0.3f;
         }
 
-        protected override void OnDestroy()
-        {
-            if ( this.actionState != ActionState.Dead )
-            {
-                Brostbuster.currentBros.Remove( this );
-            }
-            base.OnDestroy();
-        }
         #endregion
 
         // Special Methods
@@ -890,16 +828,6 @@ namespace Brostbuster
             currentSlimer = slimerPrefab.SpawnProjectileLocally( this, base.X, base.Y + 6f, base.transform.localScale.x * 175f, 0f, base.playerNum ) as Slimer;
             --this.SlimerTraps;
             this.alreadySpawnedSlimer = true;
-        }
-
-        public override void SetGestureAnimation( GestureElement.Gestures gesture )
-        {
-            // Don't allow flexing during melee
-            if ( this.doingMelee )
-            {
-                return;
-            }
-            base.SetGestureAnimation( gesture );
         }
 
         // Sets up melee attack

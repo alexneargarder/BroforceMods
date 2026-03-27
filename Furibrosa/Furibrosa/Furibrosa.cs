@@ -18,8 +18,6 @@ namespace Furibrosa
     {
         // General
         public static KeyBindingForPlayers switchWeaponKey = AllModKeyBindings.LoadKeyBinding( "Furibrosa", "Switch Weapon" );
-        protected bool acceptedDeath = false;
-        bool wasInvulnerable = false;
         public static bool jsonLoaded = false;
         public Material originalSpecialMat;
 
@@ -79,6 +77,7 @@ namespace Furibrosa
         #region General
         protected override void Awake()
         {
+            useCustomMelee = true;
             gameObject.layer = 19;
             base.Awake();
         }
@@ -104,8 +103,6 @@ namespace Furibrosa
         protected override void Start()
         {
             base.Start();
-
-            meleeType = MeleeType.Disembowel;
 
             crossbowMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteCrossbow.png" ) );
             crossbowNormalMat = crossbowMat;
@@ -170,6 +167,12 @@ namespace Furibrosa
             holdingArmSprite.CalcUVs();
             holdingArmSprite.UpdateUVs();
             holdingArmSprite.offset = new Vector3( 0f, 15f, 0f );
+
+            RegisterTintMaterial( crossbowNormalMat );
+            RegisterTintMaterial( crossbowHoldingMat );
+            RegisterTintMaterial( flareGunNormalMat );
+            RegisterTintMaterial( flareGunHoldingMat );
+            RegisterTintMaterial( holdingArm.material );
 
             // Create WarRig
             try
@@ -254,41 +257,12 @@ namespace Furibrosa
         protected override void Update()
         {
             base.Update();
-            if ( acceptedDeath )
-            {
-                if ( health <= 0 && !WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-                else
-                {
-                    acceptedDeath = false;
-                }
-            }
-
-            if ( invulnerable )
-            {
-                wasInvulnerable = true;
-            }
+            if ( acceptedDeath ) return;
 
             // Switch Weapon Pressed
             if ( playerNum >= 0 && playerNum < 4 && switchWeaponKey.IsDown( playerNum ) )
             {
                 StartSwitchingWeapon();
-            }
-
-            // Check if invulnerability ran out
-            if ( wasInvulnerable && !invulnerable )
-            {
-                // Fix any not currently displayed textures
-                wasInvulnerable = false;
-                GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
-                crossbowNormalMat.SetColor( "_TintColor", Color.gray );
-                crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
-                flareGunNormalMat.SetColor( "_TintColor", Color.gray );
-                flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
-                holdingArm.material.SetColor( "_TintColor", Color.gray );
             }
 
             if ( holdingSpecial )
@@ -304,15 +278,6 @@ namespace Furibrosa
                 else
                 {
                     holdingSpecial = false;
-                }
-            }
-
-            // Handle death
-            if ( actionState == ActionState.Dead && !acceptedDeath )
-            {
-                if ( !WillReviveAlready )
-                {
-                    acceptedDeath = true;
                 }
             }
 
@@ -1141,12 +1106,6 @@ namespace Furibrosa
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            // Don't allow flexing during melee
-            if ( doingMelee )
-            {
-                return;
-            }
-
             if ( gesture == GestureElement.Gestures.Flex )
             {
                 ReleaseUnit( false );
@@ -1223,12 +1182,7 @@ namespace Furibrosa
         {
             invulnerableTime = 0;
             invulnerable = false;
-            GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
-            crossbowNormalMat.SetColor( "_TintColor", Color.gray );
-            crossbowHoldingMat.SetColor( "_TintColor", Color.gray );
-            flareGunNormalMat.SetColor( "_TintColor", Color.gray );
-            flareGunHoldingMat.SetColor( "_TintColor", Color.gray );
-            holdingArm.material.SetColor( "_TintColor", Color.gray );
+            ResetTintColors();
         }
         #endregion
     }

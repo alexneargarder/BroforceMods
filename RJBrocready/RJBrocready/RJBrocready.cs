@@ -116,8 +116,6 @@ namespace RJBrocready
         protected const float OriginalSpeed = 130f;
         protected const float MonsterFormSpeed = 100f;
         protected const float AttackingMonsterFormSpeed = 50f;
-        protected bool acceptedDeath = false;
-        protected bool wasInvulnerable = false;
         protected bool startAsTheThing = false;
         public static bool jsonLoaded = false;
         [SaveableSetting]
@@ -149,6 +147,7 @@ namespace RJBrocready
 
         protected override void Start()
         {
+            useCustomMelee = true;
             base.Start();
 
             BaBroracus bro = HeroController.GetHeroPrefab( HeroType.BaBroracus ) as BaBroracus;
@@ -179,9 +178,6 @@ namespace RJBrocready
             this.tentacleImpaler = new GameObject( "TentacleImpaler" ).transform;
 
             this.fragileGroundLayer = this.fragileLayer | this.groundLayer;
-
-            this.currentMeleeType = MeleeType.Disembowel;
-            this.meleeType = MeleeType.Disembowel;
 
             this.thingMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingSprite.png" );
             this.thingGunMaterial = ResourcesController.GetMaterial( DirectoryPath, "thingGunSprite.png" );
@@ -284,11 +280,6 @@ namespace RJBrocready
 
         protected override void Update()
         {
-            if ( this.invulnerable )
-            {
-                this.wasInvulnerable = true;
-            }
-
             if ( currentState != ThingState.FakeDeath )
             {
                 base.Update();
@@ -325,19 +316,7 @@ namespace RJBrocready
                 this.CheckFacingDirection();
             }
 
-            if ( this.acceptedDeath )
-            {
-                if ( this.health <= 0 && !this.WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-                else
-                {
-                    // Handle revive
-                    this.acceptedDeath = false;
-                }
-            }
+            if ( this.acceptedDeath ) return;
 
             // Stop flamethrower when getting on helicopter
             if ( this.isOnHelicopter )
@@ -354,13 +333,6 @@ namespace RJBrocready
                         unitHit.useImpaledFrames = false;
                     }
                 }
-            }
-
-            // Check if invulnerability ran out
-            if ( this.wasInvulnerable && !this.invulnerable )
-            {
-                base.GetComponent<Renderer>().material.SetColor( "_TintColor", Color.gray );
-                gunSprite.meshRender.material.SetColor( "_TintColor", Color.gray );
             }
 
             // Count down thing timer
@@ -397,14 +369,6 @@ namespace RJBrocready
                 this.UpdateTentacle();
             }
 
-            // Handle death
-            if ( base.actionState == ActionState.Dead && !this.acceptedDeath )
-            {
-                if ( !this.WillReviveAlready )
-                {
-                    this.acceptedDeath = true;
-                }
-            }
         }
 
         public override void UIOptions()
@@ -790,7 +754,7 @@ namespace RJBrocready
                 this.meleeType = currentMeleeType;
             }
             base.StartMelee();
-            this.meleeType = MeleeType.Disembowel;
+            this.meleeType = MeleeType.Custom;
         }
 
         // Sets up melee attack
@@ -1437,7 +1401,7 @@ namespace RJBrocready
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            if ( !this.doingMelee && !( gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm ) )
+            if ( !( gesture != GestureElement.Gestures.None && this.theThing && this.currentState > ThingState.HumanForm ) )
             {
                 base.SetGestureAnimation( gesture );
             }

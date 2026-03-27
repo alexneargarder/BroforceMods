@@ -1,3 +1,6 @@
+## v1.1.1 (unreleased)
+- Updates for new BroMaker version.
+
 ## v1.1.0
 - Changes for BroMaker update.
 - Shorten proton charge up when resuming firing.
