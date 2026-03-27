@@ -15,8 +15,6 @@ namespace Mission_Impossibro
     {
         // Sprite variables
         Material normalMaterial, stealthMaterial, normalGunMaterial, stealthGunMaterial, normalAvatarMaterial, stealthAvatarMaterial;
-        bool wasInvulnerable = false;
-
         // Audio Variables
         public AudioClip[] tranqGunSounds;
         public AudioClip[] detonatorSound;
@@ -62,7 +60,6 @@ namespace Mission_Impossibro
         protected float sachelPackCooldown = 0f;
 
         // Misc Variables
-        protected bool acceptedDeath = false;
         public static bool jsonLoaded = false;
         [SaveableSetting] public static bool JumpToToggleGrapple = true;
         [SaveableSetting] public static bool PressKeyToToggleGrapple = false;
@@ -159,39 +156,15 @@ namespace Mission_Impossibro
 
             this.normalAvatarMaterial = ResourcesController.GetMaterial( DirectoryPath, "avatar.png" );
             this.stealthAvatarMaterial = ResourcesController.GetMaterial( DirectoryPath, "avatarStealth.png" );
+
+            this.RegisterTintMaterial( this.normalMaterial );
+            this.RegisterTintMaterial( this.stealthMaterial );
         }
 
         protected override void Update()
         {
-            if ( this.invulnerable )
-            {
-                this.wasInvulnerable = true;
-            }
             base.Update();
-            if ( this.acceptedDeath )
-            {
-                if ( this.health <= 0 && !this.WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-                else
-                {
-                    this.usingSpecial = false;
-                    base.GetComponent<Renderer>().material = this.normalMaterial;
-                    this.gunSprite.meshRender.material = this.normalGunMaterial;
-                    this.stealthActive = false;
-                    this.acceptedDeath = false;
-                }
-            }
-
-            // Check if invulnerability ran out
-            if ( this.wasInvulnerable && !this.invulnerable )
-            {
-                normalMaterial.SetColor( "_TintColor", Color.gray );
-                stealthMaterial.SetColor( "_TintColor", Color.gray );
-                gunSprite.meshRender.material.SetColor( "_TintColor", Color.gray );
-            }
+            if ( this.acceptedDeath ) return;
 
             this.sachelPackCooldown -= this.t;
 
@@ -242,15 +215,23 @@ namespace Mission_Impossibro
             {
                 AttachGrapple();
             }
+        }
 
-            // Detach grapple
-            if ( this.actionState == ActionState.Dead && !acceptedDeath && !this.WillReviveAlready )
-            {
-                InstantDetachGrapple();
-                this.specialTime = 0;
-                this.triggeringExplosives = this.stealthActive = this.usingSpecial = false;
-                this.acceptedDeath = true;
-            }
+        protected override void OnDeath()
+        {
+            base.OnDeath();
+            InstantDetachGrapple();
+            this.specialTime = 0;
+            this.triggeringExplosives = this.stealthActive = this.usingSpecial = false;
+        }
+
+        protected override void OnRevived()
+        {
+            base.OnRevived();
+            this.usingSpecial = false;
+            base.GetComponent<Renderer>().material = this.normalMaterial;
+            this.gunSprite.meshRender.material = this.normalGunMaterial;
+            this.stealthActive = false;
         }
 
         protected override void LateUpdate()
@@ -507,12 +488,6 @@ namespace Mission_Impossibro
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            // Don't allow flexing during melee
-            if ( this.doingMelee )
-            {
-                return;
-            }
-            
             if ( !( this.grappleAttached || this.exitingGrapple ) )
             {
                 base.SetGestureAnimation( gesture );

@@ -4,6 +4,7 @@ using System.Reflection;
 using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
 using BroMakerLib.CustomObjects.Projectiles;
+using BroMakerLib.Loggers;
 using Drunken_Broster.MeleeItems;
 using Drunken_Broster.Triggers;
 using HarmonyLib;
@@ -20,8 +21,6 @@ namespace Drunken_Broster
     public class DrunkenBroster : CustomHero
     {
         // General
-        protected bool acceptedDeath;
-        bool wasInvulnerable;
         private Traverse setRumbleTraverse;
         protected Material normalSprite;
         protected Material drunkSprite;
@@ -162,11 +161,8 @@ namespace Drunken_Broster
         #region General
         protected override void Start()
         {
+            useCustomMelee = true;
             base.Start();
-
-            // Needed to have custom melee functions called, actual type is irrelevant
-            meleeType = MeleeType.Disembowel;
-            currentMeleeType = meleeType;
 
             originalSpeed = speed;
             BroLee broLeePrefab = HeroController.GetHeroPrefab( HeroType.BroLee ) as BroLee;
@@ -174,15 +170,17 @@ namespace Drunken_Broster
             shrapnelSpark = broLeePrefab.shrapnelSpark;
             hitPuff = broLeePrefab.hitPuff;
 
-            // Load sprites
             normalSprite = GetComponent<Renderer>().material;
             drunkSprite = ResourcesController.GetMaterial( DirectoryPath, "drunkSprite.png" );
+            RegisterTintMaterial( normalSprite );
+            RegisterTintMaterial( drunkSprite );
 
             // Setup melee gunsprite
             gunSpriteMelee = new GameObject( "GunSpriteMelee", new Type[] { typeof( MeshFilter ), typeof( MeshRenderer ), typeof( SpriteSM ) } ).GetComponent<MeshRenderer>();
             gunSpriteMelee.transform.parent = transform;
             gunSpriteMelee.gameObject.SetActive( false );
             gunSpriteMelee.material = ResourcesController.GetMaterial( DirectoryPath, "gunSpriteMelee.png" );
+            RegisterTintMaterial( gunSpriteMelee.material );
             gunSpriteMeleeSprite = gunSpriteMelee.gameObject.GetComponent<SpriteSM>();
             gunSpriteMeleeSprite.RecalcTexture();
             gunSpriteMeleeSprite.SetTextureDefaults();
@@ -201,6 +199,7 @@ namespace Drunken_Broster
 
             // Load melee sprite for grabbing and throwing animations
             meleeSpriteGrabThrowing = ResourcesController.GetMaterial( DirectoryPath, "meleeSpriteGrabThrowing.png" );
+            RegisterTintMaterial( meleeSpriteGrabThrowing );
 
             // Setup throwables
             tireProjectile = CustomGrenade.CreatePrefab<TireProjectile>();
@@ -233,42 +232,7 @@ namespace Drunken_Broster
         protected override void Update()
         {
             base.Update();
-            // Don't run any code past this point if the character is dead
-            if ( acceptedDeath )
-            {
-                if ( health <= 0 && !WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-
-                acceptedDeath = false;
-            }
-
-            if ( invulnerable )
-            {
-                wasInvulnerable = true;
-            }
-
-            // Check if invulnerability ran out
-            if ( wasInvulnerable && !invulnerable )
-            {
-                // Fix any not currently displayed textures
-                wasInvulnerable = false;
-                normalSprite.SetColor( "_TintColor", Color.gray );
-                drunkSprite.SetColor( "_TintColor", Color.gray );
-                meleeSpriteGrabThrowing.SetColor( "_TintColor", Color.gray );
-                gunSpriteMelee.material.SetColor( "_TintColor", Color.gray );
-            }
-
-            // Check if character has died
-            if ( actionState == ActionState.Dead && !acceptedDeath )
-            {
-                if ( !WillReviveAlready )
-                {
-                    acceptedDeath = true;
-                }
-            }
+            if ( acceptedDeath ) return;
 
             // Count down to becoming sober
             if ( drunk )
@@ -375,9 +339,17 @@ namespace Drunken_Broster
                 }
             }
 
-            GUILayout.Space( 10 );
+            GUILayout.Space( 15 );
+            
             CompletelyRandomMeleeItems = GUILayout.Toggle( CompletelyRandomMeleeItems, "Allow all enabled melee items to be pulled on any level, and use equal weights" );
+            
+            GUILayout.Space(15 );
 
+            if (GUILayout.Button("Reset to default items"))
+            {
+                EnabledMeleeItems = new List<MeleeItem> { MeleeItem.Tire, MeleeItem.AcidEgg, MeleeItem.Beehive, MeleeItem.Bottle, MeleeItem.Crate, MeleeItem.Coconut, MeleeItem.ExplosiveBarrel, MeleeItem.SoccerBall, MeleeItem.AlienEgg, MeleeItem.Skull };
+                CompletelyRandomMeleeItems = false;
+            }
         }
 
         public override void HarmonyPatches( Harmony harmony )
@@ -2208,7 +2180,7 @@ namespace Drunken_Broster
         protected override void StartMelee()
         {
             currentMeleeType = meleeType;
-            if ( ( Physics.Raycast( new Vector3( X, Y + 5f, 0f ), Vector3.down, out _, 16f, platformLayer ) || Physics.Raycast( new Vector3( X + 4f, Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, platformLayer ) || Physics.Raycast( new Vector3( X - 4f, Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, platformLayer ) ) && raycastHit.collider.GetComponentInParent<Animal>() != null )
+            if ( ( Physics.Raycast( new Vector3( X, Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, platformLayer ) || Physics.Raycast( new Vector3( X + 4f, Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, platformLayer ) || Physics.Raycast( new Vector3( X - 4f, Y + 5f, 0f ), Vector3.down, out raycastHit, 16f, platformLayer ) ) && raycastHit.collider.GetComponentInParent<Animal>() != null )
             {
                 currentMeleeType = MeleeType.Knife;
             }
@@ -2251,7 +2223,9 @@ namespace Drunken_Broster
             // If we're already holding an item, throw that item instead
             if ( holdingItem )
             {
+                BMLogger.Log("throwing held item");
                 StartThrowingItem();
+                BMLogger.Log("thrown held item");
                 return;
             }
 
@@ -2278,7 +2252,9 @@ namespace Drunken_Broster
             GetComponent<Renderer>().material = meleeSpriteGrabThrowing;
 
             // Choose an item to throw
+            BMLogger.Log("choosing item");
             chosenItem = ChooseItem();
+            BMLogger.Log("chosen item");
 
             AnimateMelee();
         }
@@ -2836,7 +2812,7 @@ namespace Drunken_Broster
             canWallClimb = false;
 
             // Ensure melee attack type is set, otherwise wrong animation plays
-            currentMeleeType = MeleeType.Disembowel;
+            currentMeleeType = MeleeType.Custom;
 
             // Switch to melee sprite
             GetComponent<Renderer>().material = meleeSpriteGrabThrowing;
@@ -2942,16 +2918,6 @@ namespace Drunken_Broster
             {
                 ApplyFallingGravity();
             }
-        }
-
-        public override void SetGestureAnimation( GestureElement.Gestures gesture )
-        {
-            // Don't allow flexing during melee
-            if ( doingMelee )
-            {
-                return;
-            }
-            base.SetGestureAnimation( gesture );
         }
 
         // Don't cancel melee when hitting wall

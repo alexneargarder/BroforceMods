@@ -13,7 +13,6 @@ namespace Captain_Ameribro
         // Sprite variables
         public Material materialNormal, materialNormalShield, materialNormalNoShield, materialArmless;
         public Material gunMaterialNormal, gunMaterialNoShield;
-        protected bool wasInvulnerable = false;
 
         // Audio variables
         public AudioClip shieldChargeShing;
@@ -65,16 +64,14 @@ namespace Captain_Ameribro
         // Misc Variables
         protected List<Unit> currentlyHitting;
         protected const int defaultSpeed = 130;
-        protected bool acceptedDeath = false;
+
         protected InvulnerabilityFlash invulnerabilityFlash;
 
         #region General
         protected override void Awake()
         {
+            useCustomMelee = true;
             shield = CustomProjectile.CreatePrefab<Shield>( new List<Type>() { typeof( SphereCollider ) } );
-
-            this.currentMeleeType = BroBase.MeleeType.Disembowel;
-            this.meleeType = BroBase.MeleeType.Disembowel;
 
             pistolBullet = ( HeroController.GetHeroPrefab( HeroType.DoubleBroSeven ) as DoubleBroSeven ).projectile;
 
@@ -150,6 +147,12 @@ namespace Captain_Ameribro
             gunMaterialNormal = this.gunMaterial;
             gunMaterialNoShield = ResourcesController.GetMaterial( DirectoryPath, "captainAmeribroGunNoShield.png" );
 
+            RegisterTintMaterial( materialNormalShield );
+            RegisterTintMaterial( materialNormalNoShield );
+            RegisterTintMaterial( materialArmless );
+            RegisterTintMaterial( gunMaterialNormal );
+            RegisterTintMaterial( gunMaterialNoShield );
+
             this.finishedStartup = true;
 
             if ( this.caughtShieldFromPrevious )
@@ -173,42 +176,12 @@ namespace Captain_Ameribro
 
         protected override void Update()
         {
-            if ( this.invulnerable )
-            {
-                this.wasInvulnerable = true;
-            }
             base.Update();
-            if ( this.acceptedDeath )
-            {
-                if ( this.health <= 0 && !this.WillReviveAlready )
-                {
-                    return;
-                }
-                // Revived
-                else
-                {
-                    if ( this.thrownShield != null )
-                    {
-                        this.thrownShield.ReturnShieldSilent();
-                    }
-                    this.SpecialAmmo = 1;
-                    this.acceptedDeath = false;
-                }
-            }
-            // Check if invulnerability ran out
-            if ( this.wasInvulnerable && !this.invulnerable )
-            {
-                materialNormalShield.SetColor( "_TintColor", Color.gray );
-                materialNormalNoShield.SetColor( "_TintColor", Color.gray );
-                materialArmless.SetColor( "_TintColor", Color.gray );
-                gunMaterialNormal.SetColor( "_TintColor", Color.gray );
-                gunMaterialNoShield.SetColor( "_TintColor", Color.gray );
-            }
+            if ( this.acceptedDeath ) return;
 
-            // Charge special
-            if ( isHoldingSpecial )
+            if ( this.isHoldingSpecial )
             {
-                currentSpecialCharge += this.t;
+                this.currentSpecialCharge += this.t;
             }
 
             // Keep track of special frames
@@ -221,19 +194,6 @@ namespace Captain_Ameribro
                 }
                 this.specialCounter -= this.specialFrameRate;
                 ++this.specialFrame;
-            }
-
-            // Make shield drop on death
-            if ( base.actionState == ActionState.Dead && !this.acceptedDeath && !this.WillReviveAlready )
-            {
-                if ( thrownShield != null && !thrownShield.dropping )
-                {
-                    thrownShield.StartDropping();
-                }
-                this.gunFrame = 0;
-                this.currentSpecialCharge = 0f;
-                this.animateSpecial = this.usingSpecial = this.isHoldingSpecial = this.doingMelee = this.usingShieldMelee = false;
-                this.acceptedDeath = true;
             }
 
             // Reflect projectiles if using melee
@@ -268,6 +228,28 @@ namespace Captain_Ameribro
             {
                 airDashCooldown -= this.t;
             }
+        }
+
+        protected override void OnDeath()
+        {
+            base.OnDeath();
+            if ( this.thrownShield != null && !this.thrownShield.dropping )
+            {
+                this.thrownShield.StartDropping();
+            }
+            this.gunFrame = 0;
+            this.currentSpecialCharge = 0f;
+            this.animateSpecial = this.usingSpecial = this.isHoldingSpecial = this.doingMelee = this.usingShieldMelee = false;
+        }
+
+        protected override void OnRevived()
+        {
+            base.OnRevived();
+            if ( this.thrownShield != null )
+            {
+                this.thrownShield.ReturnShieldSilent();
+            }
+            this.SpecialAmmo = 1;
         }
 
         protected override void ChangeFrame()
@@ -940,13 +922,7 @@ namespace Captain_Ameribro
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
         {
-            // Don't allow flexing during melee
-            if ( this.doingMelee )
-            {
-                return;
-            }
-
-            if ( this.animateSpecial && gesture != GestureElement.Gestures.None )
+            if ( !this.doingMelee && this.animateSpecial && gesture != GestureElement.Gestures.None )
             {
                 this.CancelSpecial();
             }
