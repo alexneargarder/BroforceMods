@@ -1,19 +1,18 @@
 using System;
 using System.IO;
+using UnityEngine;
 
 namespace Unity_Inspector_Mod
 {
     public static class ScreenshotCapture
     {
         private static readonly string screenshotDirectory;
+        private static readonly bool isLinux;
 
         static ScreenshotCapture()
         {
-            var tempPath = Path.Combine(
-                Environment.GetFolderPath( Environment.SpecialFolder.LocalApplicationData ),
-                "Temp"
-            );
-            screenshotDirectory = Path.Combine( tempPath, "unity-inspector" );
+            isLinux = Application.platform == RuntimePlatform.LinuxPlayer;
+            screenshotDirectory = Path.Combine( Main.mod.Path, "Screenshots" );
 
             if ( !Directory.Exists( screenshotDirectory ) )
             {
@@ -25,7 +24,6 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                // Generate random filename
                 var timestamp = DateTime.Now.ToString( "yyyyMMdd_HHmmss" );
                 var randomId = Guid.NewGuid().ToString( "N" ).Substring( 0, 8 );
                 var filename = $"screenshot_{timestamp}_{randomId}.png";
@@ -34,10 +32,8 @@ namespace Unity_Inspector_Mod
 
                 var path = Path.Combine( screenshotDirectory, filename );
 
-                // Use Unity's built-in screenshot method
                 UnityEngine.ScreenCapture.CaptureScreenshot( path );
 
-                // Wait a moment for the file to be written
                 System.Threading.Thread.Sleep( 100 );
 
                 if ( !File.Exists( path ) )
@@ -45,8 +41,12 @@ namespace Unity_Inspector_Mod
                     Main.Log( "Screenshot file not found after capture - it may be saving asynchronously" );
                 }
 
-                var wslPath = path.Replace( '\\', '/' ).Replace( "C:", "/mnt/c" );
-                return wslPath;
+                if ( isLinux )
+                {
+                    return path;
+                }
+
+                return path.Replace( '\\', '/' );
             }
             catch ( Exception ex )
             {

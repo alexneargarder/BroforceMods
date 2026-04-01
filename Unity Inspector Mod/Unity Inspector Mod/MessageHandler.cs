@@ -4,6 +4,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Unity_Inspector_Mod
 {
@@ -32,7 +33,12 @@ namespace Unity_Inspector_Mod
                 ["set_game_speed"] = HandleSetGameSpeed,
                 ["go_to_level"] = HandleGoToLevel,
                 ["list_campaigns"] = HandleListCampaigns,
-                ["simulate_input"] = HandleSimulateInput
+                ["simulate_input"] = HandleSimulateInput,
+                ["game_state"] = HandleGameState,
+                ["execute_script"] = HandleExecuteScript,
+                ["compile_script"] = HandleCompileScript,
+                ["unload_script"] = HandleUnloadScript,
+                ["list_active_scripts"] = HandleListActiveScripts
             };
         }
 
@@ -462,6 +468,177 @@ namespace Unity_Inspector_Mod
             var interval = parameters?["interval"]?.ToObject<int?>();
             
             return InputSimulator.SimulateInput( action, duration, playerNum, count, interval );
+        }
+
+        private object HandleExecuteScript(JObject parameters)
+        {
+            var source = parameters?["source"]?.ToString();
+            var name = parameters?["name"]?.ToString();
+
+            if (string.IsNullOrEmpty(source))
+                throw new ArgumentException("Script source is required");
+            if (string.IsNullOrEmpty(name))
+                throw new ArgumentException("Script name is required");
+
+            Dictionary<string, string> args = null;
+            var argsToken = parameters?["args"] as JObject;
+            if (argsToken != null)
+            {
+                args = new Dictionary<string, string>();
+                foreach (var prop in argsToken.Properties())
+                {
+                    args[prop.Name] = prop.Value?.ToString() ?? "";
+                }
+            }
+
+            return ScriptManager.ExecuteScript(name, source, args);
+        }
+
+        private object HandleCompileScript(JObject parameters)
+        {
+            var source = parameters?["source"]?.ToString();
+            var name = parameters?["name"]?.ToString();
+
+            if (string.IsNullOrEmpty(source))
+                throw new ArgumentException("Script source is required");
+            if (string.IsNullOrEmpty(name))
+                throw new ArgumentException("Script name is required");
+
+            return ScriptManager.CompileOnly(name, source);
+        }
+
+        private object HandleUnloadScript(JObject parameters)
+        {
+            var name = parameters?["name"]?.ToString();
+
+            if (string.IsNullOrEmpty(name))
+                throw new ArgumentException("Script name is required");
+
+            return ScriptManager.UnloadScript(name);
+        }
+
+        private object HandleListActiveScripts(JObject parameters)
+        {
+            return ScriptManager.ListActiveScripts();
+        }
+
+        private object HandleGameState( JObject parameters )
+        {
+            try
+            {
+                var scene = SceneManager.GetActiveScene();
+
+                // Game mode
+                string gameMode = null;
+                try
+                {
+                    gameMode = GameModeController.GameMode.ToString();
+                }
+                catch { }
+
+                // Level info
+                int? levelIndex = null;
+                string campaignName = null;
+                bool isInGame = false;
+                try
+                {
+                    levelIndex = LevelSelectionController.CurrentLevelNum;
+                    var campaign = LevelSelectionController.currentCampaign;
+                    if ( campaign != null )
+                    {
+                        campaignName = campaign.name;
+                    }
+                }
+                catch { }
+
+                // Check if we're in gameplay
+                bool levelFinished = false;
+                string pauseState = null;
+                try
+                {
+                    isInGame = LevelSelectionController.CurrentlyInGame
+                        && GameModeController.Instance != null;
+                    levelFinished = GameModeController.IsLevelFinished();
+                }
+                catch { }
+
+                try
+                {
+                    pauseState = PauseController.pauseStatus.ToString();
+                }
+                catch { }
+
+                // Player info
+                var players = new List<object>();
+                try
+                {
+                    if ( HeroController.players != null )
+                    {
+                        for ( int i = 0; i < HeroController.players.Length; i++ )
+                        {
+                            var player = HeroController.players[i];
+                            if ( player == null ) continue;
+                            if ( player.character != null )
+                            {
+                                var character = player.character;
+                                players.Add( new
+                                {
+                                    playerIndex = i,
+                                    playerNum = player.playerNum,
+                                    broName = character.gameObject.name,
+                                    heroType = character.heroType.ToString(),
+                                    className = character.GetType().Name,
+                                    position = new { x = character.X, y = character.Y },
+                                    health = character.health,
+                                    isAlive = character.health > 0,
+                                    lives = player.Lives
+                                } );
+                            }
+                            else if ( HeroController.IsPlaying( i ) )
+                            {
+                                players.Add( new
+                                {
+                                    playerIndex = i,
+                                    playerNum = player.playerNum,
+                                    broName = (string)null,
+                                    heroType = player.heroType.ToString(),
+                                    className = (string)null,
+                                    position = (object)null,
+                                    health = 0,
+                                    isAlive = false,
+                                    lives = player.Lives
+                                } );
+                            }
+                        }
+                    }
+                }
+                catch ( Exception ex )
+                {
+                    Main.Log( $"HandleGameState - Error getting player info: {ex.Message}" );
+                }
+
+                // Time scale
+                float timeScale = Time.timeScale;
+
+                return new
+                {
+                    scene = scene.name,
+                    gameMode,
+                    isInGame,
+                    levelFinished,
+                    pauseState,
+                    levelIndex,
+                    campaignName,
+                    timeScale,
+                    playerCount = players.Count,
+                    players
+                };
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"HandleGameState - Fatal error: {ex.Message}\n{ex.StackTrace}" );
+                return new { error = ex.Message };
+            }
         }
     }
 }
