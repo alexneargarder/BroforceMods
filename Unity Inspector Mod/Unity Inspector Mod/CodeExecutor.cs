@@ -234,10 +234,24 @@ namespace Unity_Inspector_Mod
                         }
                     }
 
+                    var errorMessage = $"Execution error: {executionException.Message}";
+                    var innerEx = executionException.InnerException;
+                    while (innerEx != null)
+                    {
+                        errorMessage += $"\n  Inner: {innerEx.GetType().Name}: {innerEx.Message}";
+                        innerEx = innerEx.InnerException;
+                    }
+
+                    var compilerOutput = output != null ? output.ToString() : null;
+                    if (!string.IsNullOrEmpty(compilerOutput))
+                    {
+                        errorMessage += $"\n  Compiler output: {compilerOutput}";
+                    }
+
                     return new
                     {
                         success = false,
-                        error = $"Execution error: {executionException.Message}",
+                        error = errorMessage,
                         stackTrace = executionException.StackTrace,
                         result = (object)null
                     };

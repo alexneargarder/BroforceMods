@@ -82,6 +82,9 @@
     <Compile Include="MainThreadDispatcher.cs" />
     <Compile Include="InputSimulator.cs" />
     <Compile Include="HarmonyPatches.cs" />
+    <Compile Include="ScriptCompiler.cs" />
+    <Compile Include="ScriptContext.cs" />
+    <Compile Include="ScriptManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
