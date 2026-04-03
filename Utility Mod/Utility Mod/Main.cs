@@ -708,19 +708,15 @@ namespace Utility_Mod
             {
                 bool dropdownActive = false;
 
+                Rect lastRect;
+                
                 GUILayout.BeginHorizontal();
                 {
                     settings.loopCurrent = GUILayout.Toggle( settings.loopCurrent, new GUIContent( "Loop Current Level", "After beating a level you replay the current one instead of moving on" ), GUILayout.ExpandWidth( false ) );
 
-                    Rect lastRect = GUILayoutUtility.GetLastRect();
+                    lastRect = GUILayoutUtility.GetLastRect();
                     lastRect.y += 20;
-                    lastRect.width += 300;
-
-                    if ( GUI.tooltip != previousToolTip )
-                    {
-                        GUI.Label( lastRect, GUI.tooltip );
-                        previousToolTip = GUI.tooltip;
-                    }
+                    lastRect.width += 600;
 
                     GUILayout.Space( 20 );
 
@@ -751,6 +747,11 @@ namespace Utility_Mod
                     }
 
                 }
+                if ( GUI.tooltip != previousToolTip )
+                {
+                    GUI.Label( lastRect, GUI.tooltip );
+                    previousToolTip = GUI.tooltip;
+                }
                 GUILayout.EndHorizontal();
 
                 GUILayout.Space( 25 );
@@ -776,7 +777,7 @@ namespace Utility_Mod
 
                             if ( GUI.tooltip != previousToolTip )
                             {
-                                Rect lastRect = campaignNum.dropDownRect;
+                                lastRect = campaignNum.dropDownRect;
                                 lastRect.y += 20;
                                 lastRect.width += 500;
 
@@ -797,7 +798,7 @@ namespace Utility_Mod
                             {
                                 Main.settings.goToLevelOnStartup = GUILayout.Toggle( Main.settings.goToLevelOnStartup, new GUIContent( "Go to level on startup", "Spawns you into the level as soon as the game starts." ), WindowScaling.ScaledWidth( 150 ) );
 
-                                Rect lastRect = GUILayoutUtility.GetLastRect();
+                                lastRect = GUILayoutUtility.GetLastRect();
                                 lastRect.y += 25;
                                 lastRect.width += 500;
 
@@ -829,7 +830,7 @@ namespace Utility_Mod
                                     ChangeLevel( -1 );
                                 }
 
-                                Rect lastRect = GUILayoutUtility.GetLastRect();
+                                lastRect = GUILayoutUtility.GetLastRect();
                                 lastRect.y += 20;
                                 lastRect.width += 500;
 
