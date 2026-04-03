@@ -16,6 +16,7 @@ namespace BroforceDevTools.FPSCounter
         internal static bool MeasureMemory = true;
         internal static bool MeasureGC = true;
         internal static bool ShowPluginStats = true;
+        internal static bool ShowPatchProfiler = false;
         internal static CounterColors ColorMode = CounterColors.Outline;
         internal static TextAnchor Position = TextAnchor.LowerRight;
 
@@ -41,6 +42,9 @@ namespace BroforceDevTools.FPSCounter
             if (ShowPluginStats)
                 ModCounter.Start(helper);
 
+            if (ShowPatchProfiler)
+                HarmonyPatchProfiler.Start(helper);
+
             UpdateLooks();
         }
 
@@ -49,6 +53,8 @@ namespace BroforceDevTools.FPSCounter
             if (!running) return;
             running = false;
 
+            ProfilingRecorder.Stop();
+            HarmonyPatchProfiler.Stop();
             ModCounter.Stop();
 
             if (helper != null)
@@ -136,12 +142,19 @@ namespace BroforceDevTools.FPSCounter
         private static bool onGuiHit;
 
         internal static void ResetOnGuiHit() { onGuiHit = false; }
+
+        internal static void SampleLateUpdateTime()
+        {
+            rawLateTicks = TakeMeasurement();
+            lateUpdateTime.Sample(rawLateTicks);
+        }
         private static float nanosecPerTick;
         private static float msScale;
 
         private static long cachedAvgFrame;
         private static float cachedFps;
         private static long cachedAvgFixed, cachedAvgUpdate, cachedAvgYield, cachedAvgLate, cachedAvgRender, cachedAvgGui;
+        private static long rawFixedTicks, rawYieldTicks, rawLateTicks, rawRenderTicks;
         private static long cachedGcCollectionCount;
         private static float cachedGcAllocRate;
         private static long cachedGcMemBytes;
@@ -162,7 +175,7 @@ namespace BroforceDevTools.FPSCounter
             data.OnGUIMs = cachedAvgGui * msScale;
 
             var totalCaptured = cachedAvgFixed + cachedAvgUpdate + cachedAvgYield + cachedAvgLate + cachedAvgRender + cachedAvgGui;
-            data.OtherMs = (cachedAvgFrame - totalCaptured) * msScale;
+            data.OtherMs = System.Math.Max(0f, (cachedAvgFrame - totalCaptured) * msScale);
 
             data.GCAllocKBPerSec = cachedGcAllocRate;
             data.GCCollectionCounts = cachedGcGenCounts;
@@ -193,21 +206,25 @@ namespace BroforceDevTools.FPSCounter
             while (true)
             {
                 yield return null;
-                updateTime.Sample(TakeMeasurement());
+                var rawUpdateTicks = TakeMeasurement();
+                updateTime.Sample(rawUpdateTicks);
 
                 yield return waitForEndOfFrame;
 
                 if (!onGuiHit)
                 {
-                    renderTime.Sample(TakeMeasurement());
+                    rawRenderTicks = TakeMeasurement();
+                    renderTime.Sample(rawRenderTicks);
                     onGuiHit = true;
                 }
 
                 CanProcessOnGui = false;
-                onGuiTime.Sample(TakeMeasurement());
+                var rawGuiTicks = TakeMeasurement();
+                onGuiTime.Sample(rawGuiTicks);
                 measurementStopwatch.Reset();
 
-                frameTime.Sample(totalStopwatch.ElapsedTicks);
+                var rawFrameTicks = totalStopwatch.ElapsedTicks;
+                frameTime.Sample(rawFrameTicks);
                 totalStopwatch.Reset();
                 totalStopwatch.Start();
 
@@ -318,6 +335,28 @@ namespace BroforceDevTools.FPSCounter
                     }
                 }
 
+                if (ProfilingRecorder.IsPerFrame)
+                {
+                    var rawData = new FrameData();
+                    rawData.TotalMs = rawFrameTicks * msScale;
+                    rawData.FPS = rawFrameTicks > 0 ? 1000000f / (rawFrameTicks / nanosecPerTick) : 0;
+                    rawData.FixedUpdateMs = rawFixedTicks * msScale;
+                    rawData.UpdateMs = rawUpdateTicks * msScale;
+                    rawData.YieldMs = rawYieldTicks * msScale;
+                    rawData.LateUpdateMs = rawLateTicks * msScale;
+                    rawData.RenderMs = rawRenderTicks * msScale;
+                    rawData.OnGUIMs = rawGuiTicks * msScale;
+                    var captured = rawData.FixedUpdateMs + rawData.UpdateMs + rawData.YieldMs
+                        + rawData.LateUpdateMs + rawData.RenderMs + rawData.OnGUIMs;
+                    rawData.OtherMs = System.Math.Max(0f, rawData.TotalMs - captured);
+                    rawData.GCAllocKBPerSec = cachedGcAllocRate;
+                    rawData.GCMemoryBytes = cachedGcMemBytes;
+                    rawData.ProcessMemoryBytes = cachedProcessMemBytes;
+                    rawData.SystemFreeMemBytes = cachedSystemFreeMemBytes;
+                    rawData.GCCollectionCounts = cachedGcGenCounts;
+                    ProfilingRecorder.RecordFrameData(rawData);
+                }
+
                 if (ModCounter.StringOutput != null)
                 {
                     sb.Append("\n");
@@ -328,6 +367,12 @@ namespace BroforceDevTools.FPSCounter
                 {
                     sb.Append("\n");
                     sb.Append(HarmonyPatchProfiler.StringOutput);
+                }
+
+                if (ProfilingRecorder.StringOutput != null)
+                {
+                    sb.Append("\n");
+                    sb.Append(ProfilingRecorder.StringOutput);
                 }
 
                 FrameCounter.FrameOutputText = fStr.PopValue();
@@ -342,19 +387,22 @@ namespace BroforceDevTools.FPSCounter
 
         private void Update()
         {
-            fixedUpdateTime.Sample(TakeMeasurement());
+            rawFixedTicks = TakeMeasurement();
+            fixedUpdateTime.Sample(rawFixedTicks);
         }
 
         private void LateUpdate()
         {
-            yieldTime.Sample(TakeMeasurement());
+            rawYieldTicks = TakeMeasurement();
+            yieldTime.Sample(rawYieldTicks);
         }
 
         private void OnGUI()
         {
             if (!onGuiHit)
             {
-                renderTime.Sample(TakeMeasurement());
+                rawRenderTicks = TakeMeasurement();
+                renderTime.Sample(rawRenderTicks);
                 onGuiHit = true;
             }
 
@@ -367,6 +415,7 @@ namespace BroforceDevTools.FPSCounter
     {
         private void LateUpdate()
         {
+            FrameCounterHelper.SampleLateUpdateTime();
             FrameCounterHelper.ResetOnGuiHit();
             FrameCounterHelper.CanProcessOnGui = true;
         }

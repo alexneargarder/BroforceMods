@@ -21,7 +21,7 @@ namespace BroforceDevTools
 
         private static KeyBindingForPlayers fpsCounterKey;
         private static KeyBindingForPlayers constructorProfilerKey;
-        private static KeyBindingForPlayers patchProfilerKey;
+        private static KeyBindingForPlayers recorderKey;
 
         private static string previousToolTip = "";
 
@@ -48,7 +48,7 @@ namespace BroforceDevTools
 
             fpsCounterKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle FPS Counter");
             constructorProfilerKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle Constructor Profiler");
-            patchProfilerKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle Harmony Patch Profiler");
+            recorderKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle Profiling Recorder");
 
             return true;
         }
@@ -58,6 +58,7 @@ namespace BroforceDevTools
             enabled = value;
             if (!value)
             {
+                ProfilingRecorder.Stop();
                 FrameCounter.Cleanup();
                 ConstructorProfilerInternal.Cleanup();
                 HarmonyPatchProfiler.Stop();
@@ -82,14 +83,18 @@ namespace BroforceDevTools
                 ConstructorProfilerInternal.ToggleRecording();
             }
 
-            if (patchProfilerKey.PressedDown(0))
+            if (recorderKey.PressedDown(0))
             {
-                if (HarmonyPatchProfiler.IsRunning)
-                    HarmonyPatchProfiler.Stop();
-                else if (FrameCounter.IsRunning)
-                    HarmonyPatchProfiler.Start(FrameCounter.Helper);
+                if (ProfilingRecorder.IsRecording)
+                {
+                    ProfilingRecorder.Stop();
+                }
                 else
-                    Log("Start FPS Counter first before enabling Patch Profiler");
+                {
+                    if (!FrameCounter.IsRunning)
+                        FrameCounter.Start();
+                    ProfilingRecorder.Start(FrameCounter.Helper, settings.perFrameRecording);
+                }
             }
         }
 
@@ -102,14 +107,14 @@ namespace BroforceDevTools
             GUILayout.Label("<b>FPS Counter</b>");
             GUILayout.BeginHorizontal();
             {
-                bool fpsWas = FrameCounter.IsRunning;
-                bool fpsNow = GUILayout.Toggle(fpsWas,
-                    new GUIContent(" Enabled", "Show FPS overlay with frame timing breakdown"),
-                    WindowScaling.ScaledWidth(100));
-                if (fpsNow != fpsWas)
+                var fpsLabel = FrameCounter.IsRunning ? "Stop" : "Start";
+                var fpsTooltip = FrameCounter.IsRunning
+                    ? "Stop FPS overlay and all active profiling."
+                    : "Show FPS overlay with frame timing breakdown.";
+                if (GUILayout.Button(new GUIContent(fpsLabel, fpsTooltip), WindowScaling.ScaledWidth(60)))
                 {
-                    if (fpsNow) FrameCounter.Start();
-                    else FrameCounter.Stop();
+                    if (FrameCounter.IsRunning) FrameCounter.Stop();
+                    else FrameCounter.Start();
                 }
 
                 tooltipRect = GUILayoutUtility.GetLastRect();
@@ -129,6 +134,13 @@ namespace BroforceDevTools
                     new GUIContent(" Mod Stats", "Per-mod callback timing breakdown"),
                     WindowScaling.ScaledWidth(100));
 
+                settings.showPatchProfiler = GUILayout.Toggle(settings.showPatchProfiler,
+                    new GUIContent(" Patch Profiler", "Profile time spent in each Harmony patch. Activates when FPS Counter is enabled."),
+                    WindowScaling.ScaledWidth(120));
+
+                if (HarmonyPatchProfiler.IsRunning && GUILayout.Button("Refresh Patches", WindowScaling.ScaledWidth(120)))
+                    HarmonyPatchProfiler.Refresh();
+
                 GUI.Label(tooltipRect, GUI.tooltip);
                 previousToolTip = GUI.tooltip;
             }
@@ -139,30 +151,60 @@ namespace BroforceDevTools
             FrameCounter.MeasureGC = settings.showGC;
             FrameCounter.ShowPluginStats = settings.showModStats;
 
-            GUILayout.Space(25);
-            GUILayout.Label("<b>Harmony Patch Profiler</b>");
-            GUILayout.BeginHorizontal();
+            if (settings.showPatchProfiler != FrameCounter.ShowPatchProfiler)
             {
-                bool patchWas = HarmonyPatchProfiler.IsRunning;
-                bool patchNow = GUILayout.Toggle(patchWas,
-                    new GUIContent(" Enabled", "Profile time spent in each Harmony patch. Requires FPS Counter."),
-                    WindowScaling.ScaledWidth(100));
-                if (patchNow != patchWas)
+                FrameCounter.ShowPatchProfiler = settings.showPatchProfiler;
+                if (FrameCounter.IsRunning)
                 {
-                    if (patchNow && FrameCounter.IsRunning)
+                    if (settings.showPatchProfiler)
                         HarmonyPatchProfiler.Start(FrameCounter.Helper);
-                    else if (patchNow)
-                        Log("Start FPS Counter first");
                     else
                         HarmonyPatchProfiler.Stop();
+                }
+            }
+
+            GUILayout.Space(25);
+            GUILayout.Label("<b>Profiling Recorder</b>");
+            GUILayout.BeginHorizontal();
+            {
+                var recordLabel = ProfilingRecorder.IsRecording ? "Stop Recording" : "Start Recording";
+                var recordTooltip = ProfilingRecorder.IsRecording
+                    ? "Stop recording and export CSV + summary to mod directory."
+                    : "Record profiling data over time. Requires FPS Counter.";
+                if (GUILayout.Button(new GUIContent(recordLabel, recordTooltip), WindowScaling.ScaledWidth(120)))
+                {
+                    if (ProfilingRecorder.IsRecording)
+                    {
+                        ProfilingRecorder.Stop();
+                    }
+                    else
+                    {
+                        if (!FrameCounter.IsRunning)
+                            FrameCounter.Start();
+                        ProfilingRecorder.Start(FrameCounter.Helper, settings.perFrameRecording);
+                    }
                 }
 
                 tooltipRect = GUILayoutUtility.GetLastRect();
                 tooltipRect.y += 20;
                 tooltipRect.width += 800;
 
-                if (HarmonyPatchProfiler.IsRunning && GUILayout.Button("Refresh Patches", WindowScaling.ScaledWidth(120)))
-                    HarmonyPatchProfiler.Refresh();
+                GUILayout.Label("Mode:", WindowScaling.ScaledWidth(40));
+                var modeLabel = settings.perFrameRecording ? "Per-frame" : "Per-second";
+                var modeTooltip = settings.perFrameRecording
+                    ? "Per-frame: raw values every frame (more data, detects spikes). Click to switch to per-second."
+                    : "Per-second: smoothed values every second (less data, good for trends). Click to switch to per-frame.";
+                GUI.enabled = !ProfilingRecorder.IsRecording;
+                if (GUILayout.Button(new GUIContent(modeLabel, modeTooltip), WindowScaling.ScaledWidth(100)))
+                    settings.perFrameRecording = !settings.perFrameRecording;
+                GUI.enabled = true;
+
+                if (GUILayout.Button(new GUIContent("Open Folder", "Open the results folder in file manager."), WindowScaling.ScaledWidth(100)))
+                {
+                    var resultsDir = System.IO.Path.Combine(mod.Path, "Results");
+                    System.IO.Directory.CreateDirectory(resultsDir);
+                    System.Diagnostics.Process.Start(resultsDir);
+                }
 
                 if (GUI.tooltip != previousToolTip)
                 {
@@ -176,26 +218,28 @@ namespace BroforceDevTools
             GUILayout.Label("<b>Constructor Profiler</b>");
             GUILayout.BeginHorizontal();
             {
-                bool recWas = ConstructorProfilerInternal.IsRunning;
-                bool recNow = GUILayout.Toggle(recWas,
-                    new GUIContent(" Enabled", "Profile constructor calls in game and mod assemblies. Exports CSV on stop."),
-                    WindowScaling.ScaledWidth(100));
-
-                tooltipRect = GUILayoutUtility.GetLastRect();
-                tooltipRect.y += 20;
-                tooltipRect.width += 800;
-
-                if (recNow != recWas)
+                var ctorLabel = ConstructorProfilerInternal.IsRunning ? "Stop Recording" : "Start Recording";
+                var ctorTooltip = ConstructorProfilerInternal.IsRunning
+                    ? "Stop recording and export constructor call data to CSV."
+                    : "Profile constructor calls in game and mod assemblies.";
+                if (GUILayout.Button(new GUIContent(ctorLabel, ctorTooltip), WindowScaling.ScaledWidth(120)))
                 {
-                    if (recNow) ConstructorProfilerInternal.StartRecording();
-                    else
+                    if (ConstructorProfilerInternal.IsRunning)
                     {
                         ConstructorProfilerInternal.StopRecording();
                         var path = System.IO.Path.Combine(mod.Path,
                             "ConstructorProfiler_" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss") + ".csv");
                         ConstructorProfilerInternal.ExportCSV(path);
                     }
+                    else
+                    {
+                        ConstructorProfilerInternal.StartRecording();
+                    }
                 }
+
+                tooltipRect = GUILayoutUtility.GetLastRect();
+                tooltipRect.y += 20;
+                tooltipRect.width += 800;
 
                 if (GUI.tooltip != previousToolTip)
                 {
@@ -211,7 +255,7 @@ namespace BroforceDevTools
             GUILayout.Space(30);
             DrawKeybinding(constructorProfilerKey, ref previousToolTip);
             GUILayout.Space(30);
-            DrawKeybinding(patchProfilerKey, ref previousToolTip);
+            DrawKeybinding(recorderKey, ref previousToolTip);
         }
 
         static void DrawKeybinding(KeyBindingForPlayers key, ref string prevTooltip)
@@ -241,6 +285,8 @@ namespace BroforceDevTools
         public bool showMemory = true;
         public bool showGC = true;
         public bool showModStats = true;
+        public bool showPatchProfiler = false;
+        public bool perFrameRecording = false;
 
         public override void Save(UnityModManager.ModEntry modEntry)
         {

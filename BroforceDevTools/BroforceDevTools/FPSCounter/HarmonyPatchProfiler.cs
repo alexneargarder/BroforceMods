@@ -176,6 +176,29 @@ namespace BroforceDevTools.FPSCounter
             {
                 yield return waitForEndOfFrame;
 
+                // Per-frame recording capture (before stopwatch reset)
+                if (ProfilingRecorder.IsPerFrame)
+                {
+                    var rawList = new List<PatchTimingData>();
+                    foreach (var entry in patchTimers.Values)
+                    {
+                        var ticks = entry.Timer.ElapsedTicks;
+                        if (ticks > 0)
+                        {
+                            rawList.Add(new PatchTimingData
+                            {
+                                ModName = entry.ModName,
+                                TargetMethod = entry.TargetMethod,
+                                PatchType = entry.PatchType,
+                                AverageMs = ticks * msScale,
+                                CallsPerFrame = entry.FrameCallCount
+                            });
+                        }
+                    }
+                    if (rawList.Count > 0)
+                        ProfilingRecorder.RecordPatchTimings(rawList);
+                }
+
                 // Sample and reset all patch timers
                 var sortable = new List<KeyValuePair<PatchEntry, long>>();
                 foreach (var entry in patchTimers.Values)

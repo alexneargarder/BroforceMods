@@ -19,6 +19,11 @@ namespace BroforceDevTools
         public static void StopPatchProfiling() { HarmonyPatchProfiler.Stop(); }
         public static void RefreshPatchList() { HarmonyPatchProfiler.Refresh(); }
         public static List<PatchTimingData> GetPatchTimings() { return HarmonyPatchProfiler.GetPatchTimings(); }
+
+        public static bool IsRecording { get { return ProfilingRecorder.IsRecording; } }
+        public static float RecordingDuration { get { return ProfilingRecorder.RecordingDuration; } }
+        public static void StartRecording(bool perFrame = false) { ProfilingRecorder.Start(FrameCounter.Helper, perFrame); }
+        public static void StopRecording() { ProfilingRecorder.Stop(); }
     }
 
     public struct FrameData

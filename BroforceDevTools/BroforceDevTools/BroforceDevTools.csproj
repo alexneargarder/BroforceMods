@@ -92,6 +92,7 @@
     <Compile Include="FPSCounter\HarmonyPatchProfiler.cs" />
     <Compile Include="FPSCounter\MemoryInfo.cs" />
     <Compile Include="FPSCounter\ModCounter.cs" />
+    <Compile Include="FPSCounter\ProfilingRecorder.cs" />
     <Compile Include="FPSCounter\MovingAverage.cs" />
     <Compile Include="FPSCounter\ShadowAndOutline.cs" />
     <Compile Include="FPSCounter\StringBuilderFormat.cs" />
