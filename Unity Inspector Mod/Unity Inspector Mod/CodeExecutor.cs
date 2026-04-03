@@ -152,48 +152,83 @@ namespace Unity_Inspector_Mod
                         // Strip comments from the code
                         string processedCode = StripComments(code);
 
-                        // Use the same approach as RuntimeUnityEditor - compile and invoke
                         object result = VoidType.Value;
                         CompiledMethod compiled;
-                        evaluator.Compile(processedCode, out compiled);
 
-                        if (compiled == null)
+                        // Self-contained expressions (lambdas, delegates) can crash
+                        // the process if they hit null Unity native properties.
+                        // Wrapping these in a try/catch compiled into the evaluator's
+                        // dynamic method catches faults that an external try/catch
+                        // cannot. Only wrap self-contained code — wrapping code that
+                        // references evaluator state variables produces wrong results.
+                        bool isSelfContained = processedCode.Contains("=>") ||
+                            processedCode.Contains("delegate");
+                        bool usedWrapper = false;
+
+                        if (isSelfContained)
                         {
-                            // Check for compilation errors
-                            string outputStr = output.ToString();
-                            if (!string.IsNullOrEmpty(outputStr))
+                            string wrapped = "((System.Func<object>)(() => { try { return " +
+                                processedCode +
+                                "; } catch (System.Exception __ex) { return \"__EVAL_ERROR:\" + __ex.GetType().Name + \": \" + __ex.Message; } }))()";
+                            evaluator.Compile(wrapped, out compiled);
+
+                            if (compiled != null)
                             {
-                                Main.Log($"Compilation failed: {outputStr}");
-                                executionResult = new
+                                try
                                 {
-                                    success = false,
-                                    error = outputStr,
-                                    result = (object)null
-                                };
-                            }
-                            else
-                            {
-                                executionResult = new
+                                    compiled.Invoke(ref result);
+                                    usedWrapper = true;
+                                }
+                                catch
                                 {
-                                    success = false,
-                                    error = "Compilation failed with no output",
-                                    result = (object)null
-                                };
+                                    result = VoidType.Value;
+                                    compiled = null;
+                                }
                             }
-                            return;
                         }
 
-                        compiled.Invoke(ref result);
-
-                        // Return the result
-                        bool hasResult = result != null && !ReferenceEquals(result, VoidType.Value);
-                        executionResult = new
+                        if (!usedWrapper)
                         {
-                            success = true,
-                            result = hasResult ? SerializeResult(result) : null,
-                            resultSet = hasResult,
-                            output = output.ToString()
-                        };
+                            output.Length = 0;
+                            evaluator.Compile(processedCode, out compiled);
+
+                            if (compiled == null)
+                            {
+                                string outputStr = output.ToString();
+                                executionResult = new
+                                {
+                                    success = false,
+                                    error = !string.IsNullOrEmpty(outputStr) ? outputStr : "Compilation failed with no output",
+                                    result = (object)null
+                                };
+                                return;
+                            }
+
+                            compiled.Invoke(ref result);
+                        }
+
+                        // Check for error caught by the safety wrapper
+                        var resultStr = result as string;
+                        if (resultStr != null && resultStr.StartsWith("__EVAL_ERROR:"))
+                        {
+                            executionResult = new
+                            {
+                                success = false,
+                                error = resultStr.Substring("__EVAL_ERROR:".Length),
+                                result = (object)null
+                            };
+                        }
+                        else
+                        {
+                            bool hasResult = result != null && !ReferenceEquals(result, VoidType.Value);
+                            executionResult = new
+                            {
+                                success = true,
+                                result = hasResult ? SerializeResult(result) : null,
+                                resultSet = hasResult,
+                                output = output.ToString()
+                            };
+                        }
                     }
                     catch (InternalErrorException iex)
                     {
