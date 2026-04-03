@@ -909,5 +909,56 @@ namespace Utility_Mod
                 }
             }
         }
+
+        [HarmonyPatch( typeof( GUI ), "EndScrollView", new Type[] { typeof( bool ) } )]
+        static class GUI_EndScrollView_ScrollFix
+        {
+            static readonly bool isLinux = Application.platform == RuntimePlatform.LinuxPlayer;
+            static Vector2 savedDelta;
+            static Vector2 savedMousePos;
+
+            static void Prefix()
+            {
+                if ( !isLinux || !Main.enabled || !Main.settings.fixLinuxScrolling )
+                    return;
+
+                if ( Event.current.type == EventType.ScrollWheel )
+                {
+                    savedDelta = Event.current.delta;
+                    savedMousePos = Event.current.mousePosition;
+                    Event.current.delta = new Vector2( savedDelta.x, savedDelta.y * -4f );
+                }
+            }
+
+            static void Postfix()
+            {
+                if ( !isLinux || !Main.enabled || !Main.settings.fixLinuxScrolling )
+                    return;
+
+                if ( Event.current.type == EventType.ScrollWheel )
+                {
+                    Event.current.delta = savedDelta;
+                    Event.current.mousePosition = savedMousePos;
+                }
+            }
+        }
+
+        [HarmonyPatch( "UnityEngine.GUIClip", "Pop" )]
+        static class GUIClip_Pop_ScrollFix
+        {
+            static readonly bool isLinux = Application.platform == RuntimePlatform.LinuxPlayer;
+
+            static void Postfix()
+            {
+                if ( !isLinux || !Main.enabled || !Main.settings.fixLinuxScrolling )
+                    return;
+
+                if ( Event.current.type == EventType.ScrollWheel )
+                {
+                    var screenPos = new Vector2( Input.mousePosition.x, Screen.height - Input.mousePosition.y );
+                    Event.current.mousePosition = GUIUtility.ScreenToGUIPoint( screenPos );
+                }
+            }
+        }
     }
 }
