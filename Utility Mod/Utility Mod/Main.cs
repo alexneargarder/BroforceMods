@@ -663,6 +663,9 @@ namespace Utility_Mod
 
                     settings.scaleUIWithWindowWidth = GUILayout.Toggle( settings.scaleUIWithWindowWidth, new GUIContent( "Scale UI with Window Width", "Scales UI elements based on window width" ), WindowScaling.ScaledWidth( 200f ) );
 
+                    settings.fixLinuxScrolling = GUILayout.Toggle( settings.fixLinuxScrolling, new GUIContent( "Fix Linux Scrolling",
+                        "Fixes reversed and slow scroll wheel in the mod manager UI on Linux. Only applies when running on Linux." ), GUILayout.ExpandWidth( false ) );
+
                     GUI.Label( lastRect, GUI.tooltip );
                     previousToolTip = GUI.tooltip;
                 }
