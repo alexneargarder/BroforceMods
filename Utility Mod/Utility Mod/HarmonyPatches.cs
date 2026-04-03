@@ -275,9 +275,14 @@ namespace Utility_Mod
         [HarmonyPatch( typeof( MapController ), "SpawnMook_Networked" )]
         static class MapController_SpawnMook_Networked
         {
-            public static bool Prefix()
+            public static bool Prefix( Mook mookPrefab )
             {
                 if ( !Main.enabled || !Main.settings.disableEnemySpawn )
+                {
+                    return true;
+                }
+
+                if ( mookPrefab is MookArmouredGuy && mookPrefab.GetComponent<TankBroTank>() != null )
                 {
                     return true;
                 }
