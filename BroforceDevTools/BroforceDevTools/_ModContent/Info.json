@@ -1,0 +1,10 @@
+{
+	"Id": "BroforceDevTools",
+	"DisplayName": "BroforceDevTools",
+	"Author": "AlexN",
+	"Version": "1.0.0",
+	"Requirements": ["RocketLib"],
+	"LoadAfter": ["RocketLib"],
+	"AssemblyName": "BroforceDevTools.dll",
+	"EntryMethod": "BroforceDevTools.Main.Load"
+}
