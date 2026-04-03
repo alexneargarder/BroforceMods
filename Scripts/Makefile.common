@@ -3,11 +3,16 @@
 # Synced to repos via sync-targets.sh
 
 # Required variables (must be set before including this file):
-#   PROJECT_NAME - Display name for help text
-#   SOLUTION     - Solution or project file to build
+#   PROJECT_NAME  - Display name for help text
+#
+# Build mode (set ONE before including):
+#   SOLUTION      - Solution or project file to build (single/solution build)
+#   AUTO_DISCOVER - Set to 1 to auto-discover projects matching Name/Name/Name.csproj
+#   CUSTOM_BUILD  - Set to 1 to define your own build/clean/rebuild targets
 #
 # Optional variables:
-#   EXTRA_HELP   - Additional help text to display
+#   EXTRA_HELP    - Additional help text to display (auto-generated with AUTO_DISCOVER)
+#   EXCLUDE       - Project names to exclude from discovery (AUTO_DISCOVER only)
 
 # MSBuild configuration - override with: make MSBUILD="/path/to/msbuild" build
 # Detect if running in WSL (Windows Subsystem for Linux)
@@ -39,6 +44,68 @@ IS_SOLUTION := $(filter %.sln,$(SOLUTION))
 
 # Default target shows help
 .DEFAULT_GOAL := help
+
+# Auto-discover projects matching Name/Name/Name.csproj convention
+ifdef AUTO_DISCOVER
+CUSTOM_BUILD := 1
+
+_PROJ_LIST := /tmp/.broforce-projects-$(PROJECT_NAME)
+
+# Discover at parse time: find matching .csproj files, write target<TAB>csproj pairs
+$(shell find . -maxdepth 3 -name '*.csproj' -type f 2>/dev/null | sort | \
+  while IFS= read -r f; do \
+    f="$${f#./}"; \
+    stem=$$(basename "$$f" .csproj); \
+    dir=$$(echo "$$f" | cut -d/ -f1); \
+    parent=$$(basename "$$(dirname "$$f")"); \
+    [ "$$dir" = "$$stem" ] && [ "$$parent" = "$$stem" ] || continue; \
+    skip=false; for ex in $(EXCLUDE); do [ "$$stem" = "$$ex" ] && skip=true; done; \
+    $$skip || printf '%s\t%s\n' \
+      "$$(echo "$$stem" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')" "$$f"; \
+  done > $(_PROJ_LIST))
+
+DISCOVER_TARGETS := $(shell cut -f1 $(_PROJ_LIST))
+
+define EXTRA_HELP
+	@echo "Individual projects:"
+	@cut -f1 $(_PROJ_LIST) | sed 's/^/  make /'
+endef
+
+.PHONY: $(DISCOVER_TARGETS)
+$(DISCOVER_TARGETS):
+	@csproj=$$(awk -F'\t' '$$1 == "$@" {print $$2}' $(_PROJ_LIST)); \
+	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS)
+
+.PHONY: build
+build:
+ifeq ($(LAUNCH),no)
+	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false || exit 1; \
+	done
+else
+	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false || exit 1; \
+	done
+	@csproj=$$(head -1 $(_PROJ_LIST) | cut -f2); \
+	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true
+endif
+
+.PHONY: build-no-launch
+build-no-launch:
+	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false || exit 1; \
+	done
+
+.PHONY: clean
+clean:
+	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
+	  "$(MSBUILD)" "$$csproj" /t:Clean $(MSBUILD_FLAGS) || exit 1; \
+	done
+
+.PHONY: rebuild
+rebuild: clean build-no-launch
+
+endif # AUTO_DISCOVER
 
 .PHONY: help
 help:
