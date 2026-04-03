@@ -164,6 +164,50 @@ namespace BroforceDevTools.FPSCounter
             {
                 yield return waitForEndOfFrame;
 
+                // Per-frame recording capture (before stopwatch reset)
+                if (ProfilingRecorder.IsPerFrame)
+                {
+                    var rawTimings = new Dictionary<string, float[]>();
+                    foreach (var typeEntry in timers)
+                    {
+                        var modName = typeEntry.Value.Key;
+                        float[] values;
+                        if (!rawTimings.TryGetValue(modName, out values))
+                        {
+                            values = new float[4];
+                            rawTimings[modName] = values;
+                        }
+                        foreach (var mt in typeEntry.Value.Value)
+                        {
+                            var ms = mt.Value.ElapsedTicks * msScale;
+                            switch (mt.Key)
+                            {
+                                case "Update": values[0] += ms; break;
+                                case "FixedUpdate": values[1] += ms; break;
+                                case "LateUpdate": values[2] += ms; break;
+                                case "OnGUI": values[3] += ms; break;
+                            }
+                        }
+                    }
+                    var rawList = new List<ModTimingData>();
+                    foreach (var kvp in rawTimings)
+                    {
+                        var v = kvp.Value;
+                        var total = v[0] + v[1] + v[2] + v[3];
+                        if (total > 0.001f)
+                        {
+                            rawList.Add(new ModTimingData
+                            {
+                                ModName = kvp.Key,
+                                UpdateMs = v[0], FixedUpdateMs = v[1],
+                                LateUpdateMs = v[2], OnGUIMs = v[3],
+                                TotalMs = total
+                            });
+                        }
+                    }
+                    ProfilingRecorder.RecordModTimings(rawList);
+                }
+
                 // Aggregate per-type stopwatches into per-mod per-callback averages
                 foreach (var typeEntry in timers)
                 {
