@@ -1,3 +1,6 @@
+## v2.4.2 (unreleased)
+- Allow TankBro's tank to spawn when enemy spawns are disabled.
+
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.
 - Added option to go to custom campaign on startup.
