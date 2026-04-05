@@ -32,9 +32,10 @@ resharper_csharp_naming_rule.types_and_namespaces.removed = true
 
 # Naming rules
 dotnet_naming_rule.constants_rule.import_to_resharper = True
-dotnet_naming_rule.constants_rule.resharper_description = Constant fields (not private)
+dotnet_naming_rule.constants_rule.resharper_description = Constant fields
 dotnet_naming_rule.constants_rule.resharper_guid = 669e5282-fb4b-4e90-91e7-07d269d04b60
-dotnet_naming_rule.constants_rule.style = upper_camel_case_style
+dotnet_naming_rule.constants_rule.resharper_style = AA_BB
+dotnet_naming_rule.constants_rule.style = screaming_snake_case_style
 dotnet_naming_rule.constants_rule.symbols = constants_symbols
 dotnet_naming_rule.public_static_fields_rule.import_to_resharper = True
 dotnet_naming_rule.public_static_fields_rule.resharper_description = Static fields (not private)
@@ -64,6 +65,10 @@ dotnet_naming_rule.private_fields_rule.severity = suggestion
 
 # Naming styles
 dotnet_naming_style.lower_camel_case_style.capitalization = camel_case
+dotnet_naming_style.screaming_snake_case_style.required_prefix =
+dotnet_naming_style.screaming_snake_case_style.required_suffix =
+dotnet_naming_style.screaming_snake_case_style.word_separator = _
+dotnet_naming_style.screaming_snake_case_style.capitalization = all_upper
 dotnet_naming_style.upper_camel_case_style.capitalization = pascal_case
 dotnet_naming_style.pascal_case.required_prefix =
 dotnet_naming_style.pascal_case.required_suffix =
@@ -79,7 +84,7 @@ dotnet_naming_style.underscore_camel_case_style.word_separator =
 dotnet_naming_style.underscore_camel_case_style.capitalization = camel_case
 
 # Symbol specifications
-dotnet_naming_symbols.constants_symbols.applicable_accessibilities = public, internal, protected, protected_internal, private_protected
+dotnet_naming_symbols.constants_symbols.applicable_accessibilities = public, internal, protected, protected_internal, private_protected, private
 dotnet_naming_symbols.constants_symbols.applicable_kinds = field
 dotnet_naming_symbols.constants_symbols.required_modifiers = const
 dotnet_naming_symbols.constants_symbols.resharper_applicable_kinds = constant_field

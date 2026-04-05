@@ -435,6 +435,7 @@ Releases/**/*.dll
 CLAUDE.md
 CLAUDE*.md
 .claude
+*.claude*
 .serena
 **/.serena
 
