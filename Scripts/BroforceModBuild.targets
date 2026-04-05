@@ -30,6 +30,7 @@
     <LaunchBroforceOnBuild Condition="'$(LaunchBroforceOnBuild)' == ''">false</LaunchBroforceOnBuild>
     <VerboseBuildOutput Condition="'$(VerboseBuildOutput)' == ''">false</VerboseBuildOutput>
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
+    <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
     <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
@@ -93,7 +94,8 @@
              Condition="Exists('$(XmlDocPath)') AND '$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="InstallToGame" AfterTargets="Build" DependsOnTargets="DetectProjectType">
+  <Target Name="InstallToGame" AfterTargets="Build" DependsOnTargets="DetectProjectType"
+          Condition="'$(SkipInstall)' != 'true'">
     <MakeDir Directories="$(ProjectDir)$(ModContentFolder)" />
     <MakeDir Directories="$(InstallPath)" />
 
@@ -118,7 +120,8 @@
     <Message Text="  Files: @(CopiedContentFiles->Count()) files" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="CleanCacheFiles" AfterTargets="InstallToGame">
+  <Target Name="CleanCacheFiles" AfterTargets="InstallToGame"
+          Condition="'$(SkipInstall)' != 'true'">
     <ItemGroup>
       <CacheFiles Include="$(InstallPath)*.cache" />
     </ItemGroup>
