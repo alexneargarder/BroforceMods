@@ -1,224 +1,269 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using UnityModManagerNet;
 
 namespace Utility_Mod
 {
-    /// <summary>
-    /// Provides integration with the Swap Bros Mod through reflection.
-    /// This allows Utility Mod to interact with Swap Bros without a hard dependency.
-    /// </summary>
     public static class SwapBrosIntegration
     {
-        #region Fields
+        private static bool _searched;
+        private static bool _isAvailable;
+        private static Action<string> _log;
 
-        private static bool _initialized = false;
-        private static bool _isAvailable = false;
+        private static UnityModManager.ModEntry _modEntry;
 
-        // Cached reflection data
-        private static Type _mainType;
-        private static FieldInfo _enabledField;
-        private static FieldInfo _currentBroListField;
-        private static FieldInfo _settingsField;
-        private static FieldInfo _selGridIntField;
-        private static MethodInfo _ensureBroListUpdatedMethod;
+        // Cached methods — all public static on Swap_Bros_Mod.Main
+        private static MethodInfo _getAvailableBrosMethod;
+        private static MethodInfo _getAllNormalBrosMethod;
+        private static MethodInfo _getAllExpendabrosMethod;
+        private static MethodInfo _getAllUnfinishedBrosMethod;
+        private static MethodInfo _getSelectedBroIndexMethod;
+        private static MethodInfo _getSelectedBroNameMethod;
         private static MethodInfo _swapToSpecificBroMethod;
-
-        #endregion
-
-        #region Properties
+        private static MethodInfo _swapByNameMethod;
+        private static MethodInfo _setSelectedBroByNameMethod;
 
         /// <summary>
-        /// Gets whether Swap Bros Mod is available and enabled
+        /// Initialize with a logger. Call once during mod Load().
+        /// </summary>
+        /// <param name="logger">Logging callback for debug messages</param>
+        public static void Initialize( Action<string> logger )
+        {
+            _log = logger;
+        }
+
+        /// <summary>
+        /// Whether Swap Bros Mod is loaded and active in UMM.
         /// </summary>
         public static bool IsAvailable
         {
             get
             {
-                if ( !_initialized )
-                {
-                    Initialize();
-                }
-                bool result = _isAvailable && IsEnabled();
-                return result;
+                if ( !_searched ) Search();
+                return _isAvailable && _modEntry != null && _modEntry.Active;
             }
         }
 
-        #endregion
-
-        #region Initialization
-
-        /// <summary>
-        /// Initializes the integration by finding and caching all necessary reflection data
-        /// </summary>
-        private static void Initialize()
+        private static void Search()
         {
+            _searched = true;
+
             try
             {
-                // Try to find the Swap Bros Mod assembly
-                Assembly swapBrosAssembly = null;
-                foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
-                {
-                    if ( assembly.GetName().Name == "Swap Bros Mod" )
-                    {
-                        swapBrosAssembly = assembly;
-                        break;
-                    }
-                }
-
-                if ( swapBrosAssembly == null )
-                {
-                    _initialized = true;
-                    _isAvailable = false;
+                _modEntry = UnityModManager.FindMod( "Swap Bros Mod" );
+                if ( _modEntry == null || _modEntry.Assembly == null )
                     return;
-                }
 
-                // Find the Main type
-                _mainType = swapBrosAssembly.GetType( "Swap_Bros_Mod.Main" );
-                if ( _mainType == null )
-                {
-                    _initialized = true;
-                    _isAvailable = false;
+                var mainType = _modEntry.Assembly.GetType( "Swap_Bros_Mod.API" );
+                if ( mainType == null )
                     return;
-                }
 
-                // Cache all reflection data
-                _enabledField = _mainType.GetField( "enabled", BindingFlags.Public | BindingFlags.Static );
-                _currentBroListField = _mainType.GetField( "currentBroList", BindingFlags.Public | BindingFlags.Static );
-                _settingsField = _mainType.GetField( "settings", BindingFlags.Public | BindingFlags.Static );
-                _ensureBroListUpdatedMethod = _mainType.GetMethod( "EnsureBroListUpdated", BindingFlags.Public | BindingFlags.Static );
-                _swapToSpecificBroMethod = _mainType.GetMethod( "SwapToSpecificBro", BindingFlags.Public | BindingFlags.Static );
+                var pub = BindingFlags.Public | BindingFlags.Static;
 
-                // Get selGridInt field from settings type if settings field is found
-                if ( _settingsField != null )
-                {
-                    var settingsValue = _settingsField.GetValue( null );
-                    if ( settingsValue != null )
-                    {
-                        _selGridIntField = settingsValue.GetType().GetField( "selGridInt" );
-                    }
-                }
+                _getAvailableBrosMethod = mainType.GetMethod( "GetAvailableBros", pub );
+                _getAllNormalBrosMethod = mainType.GetMethod( "GetAllNormalBros", pub );
+                _getAllExpendabrosMethod = mainType.GetMethod( "GetAllExpendabros", pub );
+                _getAllUnfinishedBrosMethod = mainType.GetMethod( "GetAllUnfinishedBros", pub );
+                _getSelectedBroIndexMethod = mainType.GetMethod( "GetSelectedBroIndex", pub );
+                _getSelectedBroNameMethod = mainType.GetMethod( "GetSelectedBroName", pub );
+                _swapToSpecificBroMethod = mainType.GetMethod( "SwapToSpecificBro", pub );
+                _swapByNameMethod = mainType.GetMethod( "SwapByName", pub );
+                _setSelectedBroByNameMethod = mainType.GetMethod( "SetSelectedBroByName", pub );
 
-                // Verify we found everything we need
-                _isAvailable = _enabledField != null &&
-                               _currentBroListField != null &&
-                               _ensureBroListUpdatedMethod != null &&
+                _isAvailable = _getAvailableBrosMethod != null &&
                                _swapToSpecificBroMethod != null;
-
-                _initialized = true;
             }
             catch ( Exception ex )
             {
-                Main.Log( $"Failed to initialize Swap Bros integration: {ex.Message}" );
-                _initialized = true;
+                Log( "Failed to initialize Swap Bros integration: " + ex.Message );
                 _isAvailable = false;
             }
         }
 
-        /// <summary>
-        /// Checks if Swap Bros Mod is currently enabled
-        /// </summary>
-        private static bool IsEnabled()
-        {
-            try
-            {
-                if ( _enabledField != null )
-                {
-                    return (bool)_enabledField.GetValue( null );
-                }
-            }
-            catch { }
-            return false;
-        }
-
-        #endregion
-
-        #region Swap Bros API
+        #region Bro Listing
 
         /// <summary>
-        /// Gets the current list of available bros from Swap Bros Mod
+        /// Gets the current filtered list of available bros.
         /// </summary>
-        /// <returns>List of bro names, or empty list if unavailable</returns>
+        /// <returns>List of bro display names, or empty list if unavailable</returns>
         public static List<string> GetAvailableBros()
         {
-            if ( !IsAvailable )
-            {
-                return new List<string>();
-            }
+            if ( !IsAvailable ) return new List<string>();
 
             try
             {
-                // Ensure the bro list is up to date
-                _ensureBroListUpdatedMethod.Invoke( null, null );
-
-                // Get the current bro list
-                var broList = _currentBroListField.GetValue( null ) as List<string>;
-                return broList ?? new List<string>();
+                return _getAvailableBrosMethod.Invoke( null, null ) as List<string> ?? new List<string>();
             }
             catch ( Exception ex )
             {
-                Main.Log( $"Failed to get available bros: {ex.Message}" );
+                Log( "Failed to get available bros: " + ex.Message );
                 return new List<string>();
             }
         }
 
         /// <summary>
-        /// Gets the current bro index for the specified player
+        /// Gets the full list of 40 vanilla bros.
+        /// </summary>
+        /// <returns>List of bro display names, or empty list if unavailable</returns>
+        public static List<string> GetAllNormalBros()
+        {
+            if ( !IsAvailable || _getAllNormalBrosMethod == null ) return new List<string>();
+
+            try
+            {
+                return _getAllNormalBrosMethod.Invoke( null, null ) as List<string> ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+
+        /// <summary>
+        /// Gets the list of Expendabros.
+        /// </summary>
+        /// <returns>List of bro display names, or empty list if unavailable</returns>
+        public static List<string> GetAllExpendabros()
+        {
+            if ( !IsAvailable || _getAllExpendabrosMethod == null ) return new List<string>();
+
+            try
+            {
+                return _getAllExpendabrosMethod.Invoke( null, null ) as List<string> ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+
+        /// <summary>
+        /// Gets the list of unfinished bros.
+        /// </summary>
+        /// <returns>List of bro display names, or empty list if unavailable</returns>
+        public static List<string> GetAllUnfinishedBros()
+        {
+            if ( !IsAvailable || _getAllUnfinishedBrosMethod == null ) return new List<string>();
+
+            try
+            {
+                return _getAllUnfinishedBrosMethod.Invoke( null, null ) as List<string> ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+
+        #endregion
+
+        #region Current State
+
+        /// <summary>
+        /// Gets the current bro selection index for the specified player.
         /// </summary>
         /// <param name="playerNum">Player number (0-3)</param>
-        /// <returns>Current bro index, or -1 if unable to determine</returns>
+        /// <returns>Index into the available bros list, or -1 if unavailable</returns>
         public static int GetCurrentBroIndex( int playerNum )
         {
-            if ( !IsAvailable || playerNum < 0 || playerNum > 3 )
-            {
+            if ( !IsAvailable || _getSelectedBroIndexMethod == null || playerNum < 0 || playerNum > 3 )
                 return -1;
-            }
 
             try
             {
-                if ( _settingsField != null && _selGridIntField != null )
-                {
-                    var settings = _settingsField.GetValue( null );
-                    if ( settings != null )
-                    {
-                        var selGridInt = _selGridIntField.GetValue( settings ) as int[];
-                        if ( selGridInt != null && playerNum < selGridInt.Length )
-                        {
-                            return selGridInt[playerNum];
-                        }
-                    }
-                }
+                return (int)_getSelectedBroIndexMethod.Invoke( null, new object[] { playerNum } );
             }
-            catch { }
-
-            return -1;
+            catch { return -1; }
         }
 
         /// <summary>
-        /// Attempts to swap the player to a specific bro
+        /// Gets the current bro selection name for the specified player.
         /// </summary>
         /// <param name="playerNum">Player number (0-3)</param>
-        /// <param name="broIndex">Index of the bro in the available bros list</param>
-        /// <returns>True if swap was successful</returns>
-        public static bool SwapToBro( int playerNum, int broIndex )
+        /// <returns>Bro display name, or null if unavailable</returns>
+        public static string GetCurrentBroName( int playerNum )
         {
-            if ( !IsAvailable )
-            {
-                return false;
-            }
+            if ( !IsAvailable || _getSelectedBroNameMethod == null ) return null;
 
             try
             {
-                var result = _swapToSpecificBroMethod.Invoke( null, new object[] { playerNum, broIndex } );
-                return (bool)result;
+                return _getSelectedBroNameMethod.Invoke( null, new object[] { playerNum } ) as string;
+            }
+            catch { return null; }
+        }
+
+        #endregion
+
+        #region Swapping
+
+        /// <summary>
+        /// Swaps the player to a specific bro by index in the available bros list.
+        /// </summary>
+        /// <param name="playerNum">Player number (0-3)</param>
+        /// <param name="broIndex">Index into the available bros list</param>
+        /// <returns>True if the swap was successful</returns>
+        public static bool SwapToBro( int playerNum, int broIndex )
+        {
+            if ( !IsAvailable ) return false;
+
+            try
+            {
+                return (bool)_swapToSpecificBroMethod.Invoke( null, new object[] { playerNum, broIndex } );
             }
             catch ( Exception ex )
             {
-                Main.Log( $"Failed to swap to bro: {ex.Message}" );
+                Log( "Failed to swap to bro: " + ex.Message );
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Swaps the player to a specific bro by name (case-insensitive).
+        /// </summary>
+        /// <param name="playerNum">Player number (0-3)</param>
+        /// <param name="broName">Bro display name (e.g., "Rambro", "Brommando")</param>
+        /// <returns>True if the swap was successful</returns>
+        public static bool SwapToBroByName( int playerNum, string broName )
+        {
+            if ( !IsAvailable || _swapByNameMethod == null ) return false;
+
+            try
+            {
+                return (bool)_swapByNameMethod.Invoke( null, new object[] { playerNum, broName } );
+            }
+            catch ( Exception ex )
+            {
+                Log( "Failed to swap to bro by name: " + ex.Message );
                 return false;
             }
         }
 
         #endregion
+
+        #region Next Spawn Selection
+
+        /// <summary>
+        /// Sets which bro the player will spawn as next (case-insensitive).
+        /// Automatically enables "Always Spawn as Chosen" in Swap Bros Mod.
+        /// </summary>
+        /// <param name="playerNum">Player number (0-3)</param>
+        /// <param name="broName">Bro display name (e.g., "Rambro", "Brommando")</param>
+        /// <returns>True if the bro was found and selection was set</returns>
+        public static bool SetNextBroByName( int playerNum, string broName )
+        {
+            if ( !IsAvailable || _setSelectedBroByNameMethod == null ) return false;
+
+            try
+            {
+                return (bool)_setSelectedBroByNameMethod.Invoke( null, new object[] { playerNum, broName } );
+            }
+            catch ( Exception ex )
+            {
+                Log( "Failed to set next bro by name: " + ex.Message );
+                return false;
+            }
+        }
+
+        #endregion
+
+        private static void Log( string message )
+        {
+            if ( _log != null )
+            {
+                _log( "[SwapBrosIntegration] " + message );
+            }
+        }
     }
 }

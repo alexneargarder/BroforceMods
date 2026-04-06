@@ -54,12 +54,12 @@ namespace Swap_Bros_Mod
         public static GUIStyle warningStyle;
         public static float cachedFilterWidth = 0f;
 
-        static bool Load( UnityModManager.ModEntry modEntry )
+        public static bool Load( UnityModManager.ModEntry modEntry )
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
-            settings = Settings.Load<Settings>( modEntry );
+            settings = UnityModManager.ModSettings.Load<Settings>( modEntry );
             // Update selGridInt to an array
             if ( settings.selGridInt.Length < 4 )
             {
@@ -530,7 +530,7 @@ namespace Swap_Bros_Mod
                 currentBroList = new List<string>();
                 for ( int i = 0; i < GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros.Count(); ++i )
                 {
-                    currentBroList.Add( HeroTypeToString( GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i] ) );
+                    currentBroList.Add( API.HeroTypeToString( GameState.Instance.currentWorldmapSave.hardcoreModeAvailableBros[i] ) );
                 }
 
                 if ( settings.enableBromaker )
@@ -729,7 +729,7 @@ namespace Swap_Bros_Mod
             {
                 Main.firstCustomBroLoad = false;
                 // If bro is unlocked and we're filtering bros, add it to the enabled list
-                BroSpawnManager.RegisterNotifyBroUnlocked( ( string broName, StoredHero bro ) =>
+                BroSpawnManager.RegisterNotifyBroUnlocked( ( broName, bro ) =>
                 {
                     if ( settings.filterBros && !settings.enabledBros.Contains( broName ) )
                     {
@@ -759,31 +759,7 @@ namespace Swap_Bros_Mod
             return actuallyAllCustomBros.Count() > 0 && actuallyAllCustomBros.Contains( currentBroList[index] );
         }
 
-        public static string GetSelectedBroName( int playerNum )
-        {
-            return currentBroList[settings.selGridInt[playerNum]];
-        }
 
-        public static HeroType GetSelectedBroHeroType( int playerNum )
-        {
-            return StringToHeroType( currentBroList[settings.selGridInt[playerNum]] );
-        }
-
-        public static void SetSelectedBro( int playerNum, HeroType nextHero )
-        {
-            if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
-            {
-                settings.selGridInt[playerNum] = currentBroList.IndexOf( HeroTypeToString( nextHero ) );
-                if ( settings.selGridInt[playerNum] == -1 )
-                {
-                    settings.selGridInt[playerNum] = 0;
-                }
-            }
-            else
-            {
-                settings.selGridInt[playerNum] = currentBroList.IndexOf( HeroTypeToString( nextHero ) );
-            }
-        }
 
         public static bool CheckIfCustomBro( TestVanDammeAnim character, ref string name )
         {
@@ -856,260 +832,6 @@ namespace Swap_Bros_Mod
             return BSett.instance.onlyCustomInHardcore;
         }
 
-        public static string HeroTypeToString( HeroType hero )
-        {
-            switch ( hero )
-            {
-                case HeroType.Rambro: return "Rambro";
-                case HeroType.Brommando: return "Brommando";
-                case HeroType.BaBroracus: return "B. A. Broracus";
-                case HeroType.BrodellWalker: return "Brodell Walker";
-                case HeroType.BroHard: return "Bro Hard";
-                case HeroType.McBrover: return "MacBrover";
-                case HeroType.Blade: return "Brade";
-                case HeroType.BroDredd: return "Bro Dredd";
-                case HeroType.Brononymous: return "Bro In Black";
-                case HeroType.SnakeBroSkin: return "Snake Broskin";
-                case HeroType.Brominator: return "Brominator";
-                case HeroType.Brobocop: return "Brobocop";
-                case HeroType.IndianaBrones: return "Indiana Brones";
-                case HeroType.AshBrolliams: return "Ash Brolliams";
-                case HeroType.Nebro: return "Mr. Anderbro";
-                case HeroType.BoondockBros: return "The Boondock Bros";
-                case HeroType.Brochete: return "Brochete";
-                case HeroType.BronanTheBrobarian: return "Bronan the Brobarian";
-                case HeroType.EllenRipbro: return "Ellen Ripbro";
-                case HeroType.TimeBroVanDamme: return "Time Bro";
-                case HeroType.BroniversalSoldier: return "Broniversal Soldier";
-                case HeroType.ColJamesBroddock: return "Colonel James Broddock";
-                case HeroType.CherryBroling: return "Cherry Broling";
-                case HeroType.BroMax: return "Bro Max";
-                case HeroType.TheBrode: return "The Brode";
-                case HeroType.DoubleBroSeven: return "Double Bro Seven";
-                case HeroType.Predabro: return "The Brodator";
-                case HeroType.TheBrocketeer: return "The Brocketeer";
-                case HeroType.BroveHeart: return "Broheart";
-                case HeroType.TheBrofessional: return "The Brofessional";
-                case HeroType.Broden: return "Broden";
-                case HeroType.TheBrolander: return "The Brolander";
-                case HeroType.DirtyHarry: return "Dirty Brory";
-                case HeroType.TankBro: return "Tank Bro";
-                case HeroType.BroLee: return "Bro Lee";
-                case HeroType.BrondleFly: return "Seth Brondle";
-                case HeroType.Xebro: return "Xebro";
-                case HeroType.Desperabro: return "Desperabro";
-                case HeroType.Broffy: return "Broffy the Vampire Slayer";
-                case HeroType.BroGummer: return "Burt Brommer";
-                case HeroType.DemolitionBro: return "Demolition Bro";
-
-                // Expendabros
-                case HeroType.BroneyRoss: return "Broney Ross";
-                case HeroType.LeeBroxmas: return "Lee Broxmas";
-                case HeroType.BronnarJensen: return "Bronnar Jensen";
-                case HeroType.HaleTheBro: return "Bro Caesar";
-                case HeroType.TrentBroser: return "Trent Broser";
-                case HeroType.Broc: return "Broctor Death";
-                case HeroType.TollBroad: return "Toll Broad";
-
-                // Unfinished
-                case HeroType.ChevBrolios: return "Chev Brolios";
-                case HeroType.CaseyBroback: return "Casey Broback";
-                case HeroType.ScorpionBro: return "The Scorpion Bro";
-            }
-            return "";
-        }
-
-        public static HeroType StringToHeroType( string hero )
-        {
-            switch ( hero )
-            {
-                case "Rambro": return HeroType.Rambro;
-                case "Brommando": return HeroType.Brommando;
-                case "B. A. Broracus": return HeroType.BaBroracus;
-                case "Brodell Walker": return HeroType.BrodellWalker;
-                case "Bro Hard": return HeroType.BroHard;
-                case "MacBrover": return HeroType.McBrover;
-                case "Brade": return HeroType.Blade;
-                case "Bro Dredd": return HeroType.BroDredd;
-                case "Bro In Black": return HeroType.Brononymous;
-                case "Snake Broskin": return HeroType.SnakeBroSkin;
-                case "Brominator": return HeroType.Brominator;
-                case "Brobocop": return HeroType.Brobocop;
-                case "Indiana Brones": return HeroType.IndianaBrones;
-                case "Ash Brolliams": return HeroType.AshBrolliams;
-                case "Mr. Anderbro": return HeroType.Nebro;
-                case "The Boondock Bros": return HeroType.BoondockBros;
-                case "Brochete": return HeroType.Brochete;
-                case "Bronan the Brobarian": return HeroType.BronanTheBrobarian;
-                case "Ellen Ripbro": return HeroType.EllenRipbro;
-                case "Time Bro": return HeroType.TimeBroVanDamme;
-                case "Broniversal Soldier": return HeroType.BroniversalSoldier;
-                case "Colonel James Broddock": return HeroType.ColJamesBroddock;
-                case "Cherry Broling": return HeroType.CherryBroling;
-                case "Bro Max": return HeroType.BroMax;
-                case "The Brode": return HeroType.TheBrode;
-                case "Double Bro Seven": return HeroType.DoubleBroSeven;
-                case "The Brodator": return HeroType.Predabro;
-                case "The Brocketeer": return HeroType.TheBrocketeer;
-                case "Broheart": return HeroType.BroveHeart;
-                case "The Brofessional": return HeroType.TheBrofessional;
-                case "Broden": return HeroType.Broden;
-                case "The Brolander": return HeroType.TheBrolander;
-                case "Dirty Brory": return HeroType.DirtyHarry;
-                case "Tank Bro": return HeroType.TankBro;
-                case "Bro Lee": return HeroType.BroLee;
-                case "Seth Brondle": return HeroType.BrondleFly;
-                case "Xebro": return HeroType.Xebro;
-                case "Desperabro": return HeroType.Desperabro;
-                case "Broffy the Vampire Slayer": return HeroType.Broffy;
-                case "Burt Brommer": return HeroType.BroGummer;
-                case "Demolition Bro": return HeroType.DemolitionBro;
-
-                // Expendabros
-                case "Broney Ross": return HeroType.BroneyRoss;
-                case "Lee Broxmas": return HeroType.LeeBroxmas;
-                case "Bronnar Jensen": return HeroType.BronnarJensen;
-                case "Bro Caesar": return HeroType.HaleTheBro;
-                case "Trent Broser": return HeroType.TrentBroser;
-                case "Broctor Death": return HeroType.Broc;
-                case "Toll Broad": return HeroType.TollBroad;
-
-                // Unfinished
-                case "Chev Brolios": return HeroType.ChevBrolios;
-                case "Casey Broback": return HeroType.CaseyBroback;
-                case "The Scorpion Bro": return HeroType.ScorpionBro;
-            }
-            return HeroType.None;
-        }
-
-        /// <summary>
-        /// Ensures the bro list is up to date with the current game state.
-        /// Call this before accessing currentBroList to ensure it contains all available bros.
-        /// </summary>
-        /// <remarks>
-        /// This method updates the bro list based on:
-        /// - IronBro mode unlocked bros
-        /// - BroMaker custom bros
-        /// - Current game settings
-        /// </remarks>
-        public static void EnsureBroListUpdated()
-        {
-            try
-            {
-                if ( !enabled )
-                {
-                    return;
-                }
-
-                // Update list if BroMaker is enabled and the custom bro count has changed
-                if ( settings.enableBromaker && CustomCountChanged() )
-                {
-                    LoadCustomBros();
-                    CreateBroList();
-                }
-                // Update list if in IronBro mode and the number of unlocked bros has changed
-                else if ( GameModeController.IsHardcoreMode && !settings.ignoreCurrentUnlocked )
-                {
-                    if ( GetHardcoreCount() != currentBroList.Count )
-                    {
-                        CreateBroList();
-                    }
-                }
-            }
-            catch ( Exception ex )
-            {
-                Log( "Exception in EnsureBroListUpdated: " + ex.ToString() );
-            }
-        }
-
-        /// <summary>
-        /// Swaps a specific player to a specific bro by index in the current bro list.
-        /// </summary>
-        /// <param name="playerNum">The player number (0-3)</param>
-        /// <param name="broIndex">The index in currentBroList of the bro to swap to</param>
-        /// <returns>True if the swap was successful, false otherwise</returns>
-        /// <remarks>
-        /// This method will fail if:
-        /// - The mod is disabled
-        /// - Player number is invalid (not 0-3)
-        /// - Bro index is out of range
-        /// - Player is not alive or is in a vehicle
-        /// </remarks>
-        public static bool SwapToSpecificBro( int playerNum, int broIndex )
-        {
-            try
-            {
-                if ( !enabled )
-                {
-                    return false;
-                }
-
-                if ( playerNum < 0 || playerNum > 3 )
-                {
-                    return false;
-                }
-
-                if ( broIndex < 0 || broIndex >= currentBroList.Count )
-                {
-                    return false;
-                }
-
-                var player = HeroController.players[playerNum];
-                if ( player == null || !player.IsAlive() || player.character == null )
-                {
-                    return false;
-                }
-
-                // Check if player is in a state where they can swap
-                if ( player.character.pilottedUnit != null )
-                {
-                    return false;
-                }
-
-                // Get current position and velocity
-                Vector3 position = player.GetCharacterPosition();
-                float xI = (float)Traverse.Create( player.character ).Field( "xI" ).GetValue();
-                float yI = (float)Traverse.Create( player.character ).Field( "yI" ).GetValue();
-
-                // Set the selected bro index
-                settings.selGridInt[playerNum] = broIndex;
-
-                // Mark manual spawn to prevent the spawn patch from changing our selection
-                manualSpawn = true;
-
-                // Handle custom bro spawning
-                if ( settings.enableBromaker && IsBroCustom( broIndex ) )
-                {
-                    MakeCustomBroSpawn( playerNum, GetSelectedBroName( playerNum ) );
-                    player.SetSpawnPositon( player._character, Player.SpawnType.TriggerSwapBro, false, position );
-                    player.SpawnHero( HeroType.Rambro );
-                }
-                else
-                {
-                    player.SetSpawnPositon( player._character, Player.SpawnType.TriggerSwapBro, false, position );
-                    if ( settings.enableBromaker )
-                    {
-                        DisableCustomBroSpawning( playerNum );
-                    }
-                    player.SpawnHero( GetSelectedBroHeroType( playerNum ) );
-                    if ( settings.enableBromaker )
-                    {
-                        EnableCustomBroSpawning();
-                    }
-                }
-
-                // Restore position, velocity and remove invulnerability
-                player.character.SetPositionAndVelocity( position.x, position.y, xI, yI );
-                player.character.SetInvulnerable( 0f, false );
-
-                return true;
-            }
-            catch ( Exception ex )
-            {
-                Log( "Exception in SwapToSpecificBro: " + ex.ToString() );
-                return false;
-            }
-        }
     }
 }
 

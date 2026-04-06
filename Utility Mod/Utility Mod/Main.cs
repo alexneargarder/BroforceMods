@@ -251,6 +251,8 @@ namespace Utility_Mod
                 }
             }
 
+            SwapBrosIntegration.Initialize( msg => mod.Logger.Log( msg ) );
+
             lastCampaignNum = -1;
             campaignNum = new Dropdown( 125, 150, 200, 300, campaignDisplayNames, settings.campaignNum );
 

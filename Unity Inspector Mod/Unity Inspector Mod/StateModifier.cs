@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Newtonsoft.Json.Linq;
 
 namespace Unity_Inspector_Mod
@@ -495,5 +497,199 @@ namespace Unity_Inspector_Mod
                 };
             }
         }
+
+        #region Bro Swapping
+
+        private const string SwapBrosRequired = "Swap Bros Mod is required but not active";
+
+        public static object SwapBro( string broName, int playerNum )
+        {
+            try
+            {
+                if ( playerNum < 0 || playerNum > 3 )
+                {
+                    return new { success = false, error = "Player number must be 0-3" };
+                }
+
+                if ( !SwapBrosIntegration.IsAvailable )
+                {
+                    return new { success = false, error = SwapBrosRequired };
+                }
+
+                object result = null;
+
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    bool swapped = SwapBrosIntegration.SwapToBroByName( playerNum, broName );
+                    if ( !swapped )
+                    {
+                        var available = SwapBrosIntegration.GetAvailableBros();
+                        result = new
+                        {
+                            success = false,
+                            error = $"Bro '{broName}' not found or swap failed",
+                            availableBros = available.ToArray()
+                        };
+                        return;
+                    }
+
+                    var player = HeroController.players[playerNum];
+                    result = new
+                    {
+                        success = true,
+                        broName = player?.character?.gameObject?.name ?? broName,
+                        heroType = player?.character?.heroType.ToString() ?? "Unknown"
+                    };
+                }, 5000 );
+
+                return result;
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"SwapBro error: {ex.Message}" );
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        public static object SetBro( string broName, int playerNum )
+        {
+            try
+            {
+                if ( playerNum < 0 || playerNum > 3 )
+                {
+                    return new { success = false, error = "Player number must be 0-3" };
+                }
+
+                if ( !SwapBrosIntegration.IsAvailable )
+                {
+                    return new { success = false, error = SwapBrosRequired };
+                }
+
+                object result = null;
+
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    bool set = SwapBrosIntegration.SetNextBroByName( playerNum, broName );
+                    if ( !set )
+                    {
+                        var available = SwapBrosIntegration.GetAvailableBros();
+                        result = new
+                        {
+                            success = false,
+                            error = $"Bro '{broName}' not found",
+                            availableBros = available.ToArray()
+                        };
+                        return;
+                    }
+
+                    result = new
+                    {
+                        success = true,
+                        nextBro = broName
+                    };
+                }, 5000 );
+
+                return result;
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"SetBro error: {ex.Message}" );
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        public static object ListBros()
+        {
+            try
+            {
+                if ( !SwapBrosIntegration.IsAvailable )
+                {
+                    return new { success = false, error = SwapBrosRequired };
+                }
+
+                object result = null;
+
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    var available = SwapBrosIntegration.GetAvailableBros();
+                    var normal = SwapBrosIntegration.GetAllNormalBros();
+                    var expendabros = SwapBrosIntegration.GetAllExpendabros();
+                    var unfinished = SwapBrosIntegration.GetAllUnfinishedBros();
+
+                    string currentBro = null;
+                    try
+                    {
+                        currentBro = SwapBrosIntegration.GetCurrentBroName( 0 );
+                    }
+                    catch { }
+
+                    result = new
+                    {
+                        success = true,
+                        currentBro,
+                        currentlyAvailable = available.ToArray(),
+                        allNormal = normal.ToArray(),
+                        allExpendabros = expendabros.ToArray(),
+                        allUnfinished = unfinished.ToArray()
+                    };
+                }, 5000 );
+
+                return result;
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"ListBros error: {ex.Message}" );
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        #endregion
+
+        #region Level Control
+
+        public static object RestartLevel()
+        {
+            try
+            {
+                object result = null;
+
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    string sceneName = SceneManager.GetActiveScene().name;
+
+                    Map.ClearSuperCheckpointStatus();
+
+                    // Clear trigger-once triggers so the level fully resets
+                    var field = typeof( TriggerManager ).GetField( "alreadyTriggeredTriggerOnceTriggers",
+                        BindingFlags.Static | BindingFlags.NonPublic );
+                    if ( field != null )
+                    {
+                        var triggers = field.GetValue( null ) as List<string>;
+                        if ( triggers != null )
+                        {
+                            triggers.Clear();
+                        }
+                    }
+
+                    PauseController.SetPause( PauseStatus.UnPaused );
+                    GameModeController.RestartLevel();
+
+                    result = new
+                    {
+                        success = true,
+                        scene = sceneName
+                    };
+                }, 5000 );
+
+                return result;
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"RestartLevel error: {ex.Message}" );
+                return new { success = false, error = ex.Message };
+            }
+        }
+
+        #endregion
     }
 }

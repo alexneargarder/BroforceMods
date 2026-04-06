@@ -33,6 +33,9 @@ namespace Unity_Inspector_Mod
             // Initialize input simulator
             InputSimulator.Initialize();
 
+            // Initialize Swap Bros Mod integration
+            SwapBrosIntegration.Initialize( Log );
+
             // Apply Harmony patches
             try
             {
