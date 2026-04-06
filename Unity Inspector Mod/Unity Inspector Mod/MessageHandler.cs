@@ -38,7 +38,11 @@ namespace Unity_Inspector_Mod
                 ["execute_script"] = HandleExecuteScript,
                 ["compile_script"] = HandleCompileScript,
                 ["unload_script"] = HandleUnloadScript,
-                ["list_active_scripts"] = HandleListActiveScripts
+                ["list_active_scripts"] = HandleListActiveScripts,
+                ["swap_bro"] = HandleSwapBro,
+                ["set_bro"] = HandleSetBro,
+                ["list_bros"] = HandleListBros,
+                ["restart_level"] = HandleRestartLevel
             };
         }
 
@@ -639,6 +643,36 @@ namespace Unity_Inspector_Mod
                 Main.Log( $"HandleGameState - Fatal error: {ex.Message}\n{ex.StackTrace}" );
                 return new { error = ex.Message };
             }
+        }
+
+        private object HandleSwapBro( JObject parameters )
+        {
+            var broName = parameters?["broName"]?.ToString();
+            if ( string.IsNullOrEmpty( broName ) )
+                throw new ArgumentException( "Bro name is required" );
+
+            var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
+            return StateModifier.SwapBro( broName, playerNum );
+        }
+
+        private object HandleSetBro( JObject parameters )
+        {
+            var broName = parameters?["broName"]?.ToString();
+            if ( string.IsNullOrEmpty( broName ) )
+                throw new ArgumentException( "Bro name is required" );
+
+            var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
+            return StateModifier.SetBro( broName, playerNum );
+        }
+
+        private object HandleListBros( JObject parameters )
+        {
+            return StateModifier.ListBros();
+        }
+
+        private object HandleRestartLevel( JObject parameters )
+        {
+            return StateModifier.RestartLevel();
         }
     }
 }

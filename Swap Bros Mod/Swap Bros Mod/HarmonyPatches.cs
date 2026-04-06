@@ -52,7 +52,7 @@ namespace Swap_Bros_Mod
                             {
                                 nextHeroType = Map.MapData.forcedBro;
 
-                                int nextHero = Main.currentBroList.IndexOf( Main.HeroTypeToString( nextHeroType ) );
+                                int nextHero = Main.currentBroList.IndexOf( API.HeroTypeToString( nextHeroType ) );
 
                                 if ( nextHero == -1 )
                                 {
@@ -66,7 +66,7 @@ namespace Swap_Bros_Mod
                             {
                                 string nextHeroName = Main.currentBroListUnseen[UnityEngine.Random.Range( 0, Main.currentBroListUnseen.Count() )];
 
-                                nextHeroType = Main.StringToHeroType( nextHeroName );
+                                nextHeroType = API.StringToHeroType( nextHeroName );
 
                                 int nextHero = Main.currentBroList.IndexOf( nextHeroName );
 
@@ -90,7 +90,7 @@ namespace Swap_Bros_Mod
                                     {
                                         if ( !( Main.settings.enableBromaker && Main.CheckIfCustomBro( __instance.character, ref previousCharacter ) ) )
                                         {
-                                            previousCharacter = Main.HeroTypeToString( __instance.character.heroType );
+                                            previousCharacter = API.HeroTypeToString( __instance.character.heroType );
                                         }
 
                                         // Don't remove bro unless this is a new list
@@ -130,7 +130,7 @@ namespace Swap_Bros_Mod
                                     if ( Main.settings.enableBromaker )
                                         Main.DisableCustomBroSpawning( curPlayer );
 
-                                    nextHeroType = Main.StringToHeroType( Main.currentBroList[nextHero] );
+                                    nextHeroType = API.StringToHeroType( Main.currentBroList[nextHero] );
                                 }
 
                                 Main.settings.selGridInt[curPlayer] = nextHero;
@@ -138,7 +138,7 @@ namespace Swap_Bros_Mod
                         }
                         else
                         {
-                            Main.SetSelectedBro( __instance.playerNum, nextHeroType );
+                            API.SetSelectedBro( __instance.playerNum, nextHeroType );
                         }
                         return;
                     }
@@ -156,7 +156,7 @@ namespace Swap_Bros_Mod
                         // If Bromaker is enabled and selected character is custom
                         if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
                         {
-                            Main.MakeCustomBroSpawn( curPlayer, Main.GetSelectedBroName( curPlayer ) );
+                            Main.MakeCustomBroSpawn( curPlayer, API.GetSelectedBroName( curPlayer ) );
                             // Ensure we don't spawn boondock bros because one gets left over
                             nextHeroType = HeroType.Rambro;
                         }
@@ -164,13 +164,13 @@ namespace Swap_Bros_Mod
                         {
                             if ( Main.settings.enableBromaker )
                                 Main.DisableCustomBroSpawning( curPlayer );
-                            nextHeroType = Main.GetSelectedBroHeroType( curPlayer );
+                            nextHeroType = API.GetSelectedBroHeroType( curPlayer );
                         }
                     }
                     // If bro spawning is a custom bro
                     else if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
                     {
-                        Main.MakeCustomBroSpawn( curPlayer, Main.GetSelectedBroName( curPlayer ) );
+                        Main.MakeCustomBroSpawn( curPlayer, API.GetSelectedBroName( curPlayer ) );
                         // Ensure we don't spawn boondock bros because one gets left over
                         nextHeroType = HeroType.Rambro;
                     }
@@ -179,7 +179,7 @@ namespace Swap_Bros_Mod
                     {
                         if ( Main.settings.enableBromaker )
                             Main.DisableCustomBroSpawning( curPlayer );
-                        nextHeroType = Main.GetSelectedBroHeroType( curPlayer );
+                        nextHeroType = API.GetSelectedBroHeroType( curPlayer );
                     }
 
                 }
@@ -199,7 +199,7 @@ namespace Swap_Bros_Mod
                     string name = "";
                     if ( Main.CheckIfCustomBro( __instance.character, ref name ) )
                     {
-                        if ( name != Main.GetSelectedBroName( __instance.playerNum ) )
+                        if ( name != API.GetSelectedBroName( __instance.playerNum ) )
                         {
                             Main.settings.selGridInt[__instance.playerNum] = Main.currentBroList.IndexOf( name );
                             if ( Main.settings.selGridInt[__instance.playerNum] == -1 )
@@ -213,12 +213,12 @@ namespace Swap_Bros_Mod
                     }
                     else
                     {
-                        Main.currentBroListUnseen.Remove( Main.HeroTypeToString( nextHeroType ) );
+                        Main.currentBroListUnseen.Remove( API.HeroTypeToString( nextHeroType ) );
                     }
                 }
                 else
                 {
-                    Main.currentBroListUnseen.Remove( Main.HeroTypeToString( nextHeroType ) );
+                    Main.currentBroListUnseen.Remove( API.HeroTypeToString( nextHeroType ) );
                 }
 
                 if ( Main.currentBroListUnseen.Count() == 0 )
@@ -228,7 +228,7 @@ namespace Swap_Bros_Mod
                         Main.currentBroListUnseen.Clear();
                         for ( int i = 0; i < Map.MapData.forcedBros.Count(); ++i )
                         {
-                            Main.currentBroListUnseen.Add( Main.HeroTypeToString( Map.MapData.forcedBros[i] ) );
+                            Main.currentBroListUnseen.Add( API.HeroTypeToString( Map.MapData.forcedBros[i] ) );
                         }
                     }
                     else
@@ -259,13 +259,13 @@ namespace Swap_Bros_Mod
                     // If clicking is enabled and player clicked a bro
                     if ( Main.settings.clickingEnabled && Main.switched[curPlayer] )
                     {
-                        Main.SwapToSpecificBro( curPlayer, Main.settings.selGridInt[curPlayer] );
+                        API.SwapToSpecificBro( curPlayer, Main.settings.selGridInt[curPlayer] );
                         Main.switched[curPlayer] = false;
                         return;
                     }
 
                     // If our list of characters is out of date, update it
-                    Main.EnsureBroListUpdated();
+                    API.EnsureBroListUpdated();
 
                     int targetIndex = Main.settings.selGridInt[curPlayer];
 
@@ -286,7 +286,7 @@ namespace Swap_Bros_Mod
                         }
                     }
 
-                    if ( Main.SwapToSpecificBro( curPlayer, targetIndex ) )
+                    if ( API.SwapToSpecificBro( curPlayer, targetIndex ) )
                     {
                         Main.cooldown = Main.settings.swapCoolDown;
                     }
@@ -354,7 +354,7 @@ namespace Swap_Bros_Mod
                     Main.currentBroListUnseen.Clear();
                     for ( int i = 0; i < Map.MapData.forcedBros.Count(); ++i )
                     {
-                        Main.currentBroListUnseen.Add( Main.HeroTypeToString( Map.MapData.forcedBros[i] ) );
+                        Main.currentBroListUnseen.Add( API.HeroTypeToString( Map.MapData.forcedBros[i] ) );
                     }
                 }
                 else

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityModManagerNet;
 
-namespace Utility_Mod
+namespace Unity_Inspector_Mod
 {
     public static class SwapBrosIntegration
     {
