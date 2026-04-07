@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
+using System.Text.RegularExpressions;
 using HarmonyLib;
 using Mono.CSharp;
 
@@ -48,8 +49,155 @@ namespace Unity_Inspector_Mod
             return false; // Skip original method
         }
 
+        // Unity 2017.4's Mono runtime crashes (native segfault in mono_reflection_get_token)
+        // when an enum defined in a dynamically compiled assembly is referenced anywhere by
+        // running code. Compilation may succeed but the JIT crashes when the enum's metadata
+        // needs to be resolved. Known Mono bug fixed upstream in 5.10 (Xamarin Bugzilla #59080)
+        // but Unity 2017.4 ships an older Mono. Detect script-defined enums that are also
+        // referenced within the same script and fail with a clear error before reaching the
+        // compiler.
+        private static string DetectEnumUsageError(string source)
+        {
+            var clean = StripCommentsAndStrings(source);
+
+            var enumDecls = new List<KeyValuePair<string, int[]>>();
+            foreach (Match m in Regex.Matches(clean, @"\benum\s+(\w+)"))
+            {
+                var enumName = m.Groups[1].Value;
+                var braceIdx = clean.IndexOf('{', m.Index + m.Length);
+                if (braceIdx < 0) continue;
+                int depth = 1;
+                int endIdx = braceIdx + 1;
+                while (endIdx < clean.Length && depth > 0)
+                {
+                    if (clean[endIdx] == '{') depth++;
+                    else if (clean[endIdx] == '}') depth--;
+                    endIdx++;
+                }
+                if (depth != 0) continue;
+                enumDecls.Add(new KeyValuePair<string, int[]>(enumName, new[] { m.Index, endIdx }));
+            }
+
+            if (enumDecls.Count == 0) return null;
+
+            // Mask out declaration regions so the usage check only sees other references
+            var sb = new StringBuilder(clean);
+            foreach (var decl in enumDecls)
+            {
+                int start = decl.Value[0];
+                int end = decl.Value[1];
+                for (int i = start; i < end && i < sb.Length; i++)
+                {
+                    if (sb[i] != '\n') sb[i] = ' ';
+                }
+            }
+            var masked = sb.ToString();
+
+            foreach (var decl in enumDecls)
+            {
+                var enumName = decl.Key;
+                if (Regex.IsMatch(masked, @"\b" + Regex.Escape(enumName) + @"\b"))
+                {
+                    return "Script defines enum '" + enumName + "' and references it within the same script.\n" +
+                           "This crashes Unity 2017.4's Mono runtime due to a known bug (Xamarin Bugzilla #59080) " +
+                           "that cannot be worked around at the script level.\n" +
+                           "Workarounds:\n" +
+                           "  - Define the enum in a mod DLL or non-script source\n" +
+                           "  - Use 'int' instead of '" + enumName + "' for fields/locals/parameters, casting to '" + enumName + "' when needed\n" +
+                           "  - Use string identifiers instead of an enum";
+                }
+            }
+
+            return null;
+        }
+
+        private static string StripCommentsAndStrings(string source)
+        {
+            var sb = new StringBuilder(source.Length);
+            int i = 0;
+            while (i < source.Length)
+            {
+                char c = source[i];
+
+                if (c == '/' && i + 1 < source.Length && source[i + 1] == '/')
+                {
+                    while (i < source.Length && source[i] != '\n') { sb.Append(' '); i++; }
+                    continue;
+                }
+
+                if (c == '/' && i + 1 < source.Length && source[i + 1] == '*')
+                {
+                    sb.Append("  ");
+                    i += 2;
+                    while (i + 1 < source.Length && !(source[i] == '*' && source[i + 1] == '/'))
+                    {
+                        sb.Append(source[i] == '\n' ? '\n' : ' ');
+                        i++;
+                    }
+                    if (i + 1 < source.Length) { sb.Append("  "); i += 2; }
+                    continue;
+                }
+
+                if (c == '@' && i + 1 < source.Length && source[i + 1] == '"')
+                {
+                    sb.Append("  ");
+                    i += 2;
+                    while (i < source.Length)
+                    {
+                        if (source[i] == '"' && (i + 1 >= source.Length || source[i + 1] != '"')) { sb.Append(' '); i++; break; }
+                        if (source[i] == '"' && source[i + 1] == '"') { sb.Append("  "); i += 2; continue; }
+                        sb.Append(source[i] == '\n' ? '\n' : ' ');
+                        i++;
+                    }
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    sb.Append(' ');
+                    i++;
+                    while (i < source.Length && source[i] != '"')
+                    {
+                        if (source[i] == '\\' && i + 1 < source.Length) { sb.Append("  "); i += 2; continue; }
+                        sb.Append(' ');
+                        i++;
+                    }
+                    if (i < source.Length) { sb.Append(' '); i++; }
+                    continue;
+                }
+
+                if (c == '\'')
+                {
+                    sb.Append(' ');
+                    i++;
+                    while (i < source.Length && source[i] != '\'')
+                    {
+                        if (source[i] == '\\' && i + 1 < source.Length) { sb.Append("  "); i += 2; continue; }
+                        sb.Append(' ');
+                        i++;
+                    }
+                    if (i < source.Length) { sb.Append(' '); i++; }
+                    continue;
+                }
+
+                sb.Append(c);
+                i++;
+            }
+            return sb.ToString();
+        }
+
         public static CompileResult Compile(string name, string source)
         {
+            var enumError = DetectEnumUsageError(source);
+            if (enumError != null)
+            {
+                return new CompileResult
+                {
+                    Success = false,
+                    Errors = enumError
+                };
+            }
+
             var errorOutput = new StringBuilder();
             var reporter = new StreamReportPrinter(new StringWriter(errorOutput));
 
