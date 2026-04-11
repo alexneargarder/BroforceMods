@@ -19,6 +19,7 @@ namespace Unity_Inspector_Mod
 
         private static readonly HashSet<string> CompiledAssemblies = new HashSet<string>();
         private static bool tokenCheckPatched;
+        private static bool extensionMethodCrashPatched;
 
         public class CompileResult
         {
@@ -47,6 +48,39 @@ namespace Unity_Inspector_Mod
         private static bool SkipTokenCheck()
         {
             return false; // Skip original method
+        }
+
+        // Unity 2017.4's Mono crashes (SIGSEGV in mono_type_get_object) when the mcs
+        // compiler searches for extension methods during error reporting. The search
+        // lazy-loads MemberCache for types in imported assemblies, which calls
+        // GetCustomAttributes on methods. MonoMod types in the 0Harmony assembly have
+        // attributes referencing .NET Core types that don't exist in Unity's Mono,
+        // causing a null pointer crash in native code. Only affects invalid code —
+        // valid member accesses never trigger extension method namespace search.
+        public static void PatchExtensionMethodCrash()
+        {
+            if (extensionMethodCrashPatched) return;
+            var mcsAssembly = typeof(CSharpParser).Assembly;
+
+            var rootNsType = mcsAssembly.GetType("Mono.CSharp.RootNamespace");
+            if (rootNsType == null) return;
+
+            var findMethod = rootNsType.GetMethod("FindExtensionMethodNamespaces",
+                BindingFlags.Instance | BindingFlags.Public);
+
+            if (findMethod != null)
+            {
+                var harmony = new Harmony("scriptcompiler.internal");
+                harmony.Patch(findMethod,
+                    prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("SkipExtensionMethodSearch",
+                        BindingFlags.Static | BindingFlags.NonPublic)));
+                extensionMethodCrashPatched = true;
+            }
+        }
+
+        private static bool SkipExtensionMethodSearch()
+        {
+            return false; // Skip extension method namespace search — return null
         }
 
         // Unity 2017.4's Mono runtime crashes (native segfault in mono_reflection_get_token)
