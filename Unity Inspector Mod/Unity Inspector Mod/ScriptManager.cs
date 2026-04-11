@@ -27,6 +27,7 @@ namespace Unity_Inspector_Mod
         public static object ExecuteScript(string name, string source, Dictionary<string, string> args)
         {
             ScriptCompiler.PatchTokenCheck();
+            ScriptCompiler.PatchExtensionMethodCrash();
             var hash = ComputeHash(source);
 
             // If same script is already loaded with same source, just re-run Main()
@@ -101,6 +102,7 @@ namespace Unity_Inspector_Mod
         public static object CompileOnly(string name, string source)
         {
             ScriptCompiler.PatchTokenCheck();
+            ScriptCompiler.PatchExtensionMethodCrash();
             var result = ScriptCompiler.Compile(name, source);
             if (!result.Success)
             {

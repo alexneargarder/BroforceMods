@@ -29,6 +29,10 @@ namespace Unity_Inspector_Mod
 
                 try
                 {
+                    // Patch mcs to prevent native crash on unresolved member access
+                    ScriptCompiler.PatchTokenCheck();
+                    ScriptCompiler.PatchExtensionMethodCrash();
+
                     // Force load game assemblies by touching key types BEFORE evaluator creation
                     // This ensures AppDomain.GetAssemblies() returns complete list
                     var typesToPreload = new[]
