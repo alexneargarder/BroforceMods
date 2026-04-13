@@ -236,12 +236,11 @@ namespace Utility_Mod
 
         }
 
-        [HarmonyPatch( typeof( GameModeController ), "RestartLevel" )]
-        static class GameModeController_RestartLevel_Patch
+        [HarmonyPatch( typeof( GameModeController ), "SwitchLevel" )]
+        static class GameModeController_SwitchLevel_Patch
         {
             public static void Prefix()
             {
-                // Reset level replay tracking when restarting
                 lastReplayedLevelKey = "";
             }
         }
