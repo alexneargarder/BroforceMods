@@ -67,7 +67,7 @@ namespace Unity_Inspector_Mod
             // Find Unload method
             foreach (var type in result.Assembly.GetTypes())
             {
-                var unload = type.GetMethod("Unload", BindingFlags.Public | BindingFlags.Static);
+                var unload = type.GetMethod("Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                 if (unload != null && unload.GetParameters().Length == 0)
                 {
                     script.UnloadMethod = unload;
@@ -119,10 +119,10 @@ namespace Unity_Inspector_Mod
                 .ToArray();
 
             bool hasMain = result.Assembly.GetTypes()
-                .Any(t => t.GetMethod("Main", BindingFlags.Public | BindingFlags.Static) != null);
+                .Any(t => t.GetMethod("Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null);
 
             bool hasUnload = result.Assembly.GetTypes()
-                .Any(t => t.GetMethod("Unload", BindingFlags.Public | BindingFlags.Static) != null);
+                .Any(t => t.GetMethod("Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null);
 
             return new
             {
@@ -236,7 +236,7 @@ namespace Unity_Inspector_Mod
             MethodInfo mainMethod = null;
             foreach (var type in script.Assembly.GetTypes())
             {
-                var main = type.GetMethod("Main", BindingFlags.Public | BindingFlags.Static);
+                var main = type.GetMethod("Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                 if (main != null && main.GetParameters().Length == 0)
                 {
                     mainMethod = main;
