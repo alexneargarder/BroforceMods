@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using BroMakerLib.CustomObjects.Bros;
+using BroMakerLib.CustomObjects;
 using BroMakerLib.Loaders;
 using BroMakerLib.Storages;
 using HarmonyLib;
@@ -763,9 +763,9 @@ namespace Swap_Bros_Mod
 
         public static bool CheckIfCustomBro( TestVanDammeAnim character, ref string name )
         {
-            if ( character is CustomHero )
+            if ( character is ICustomHero hero )
             {
-                name = ( character as CustomHero ).Info.name;
+                name = hero.Info.name;
                 return true;
             }
 
