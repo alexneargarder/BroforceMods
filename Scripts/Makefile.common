@@ -11,8 +11,11 @@
 #   CUSTOM_BUILD  - Set to 1 to define your own build/clean/rebuild targets
 #
 # Optional variables:
-#   EXTRA_HELP    - Additional help text to display (auto-generated with AUTO_DISCOVER)
-#   EXCLUDE       - Project names to exclude from discovery (AUTO_DISCOVER only)
+#   EXTRA_HELP       - Additional help text to display (auto-generated with AUTO_DISCOVER)
+#   EXCLUDE          - Project names to exclude from discovery (AUTO_DISCOVER only)
+#   CLEANUP_SETTINGS - Path to ReSharper .DotSettings file (default: Scripts/BroforceMods.DotSettings)
+#   CLEANUP_PROFILE  - Cleanup profile name (default: BroforceMods)
+#   JB               - jb binary (default: jb; override for dotnet local tools: JB="dotnet jb")
 
 # MSBuild configuration - override with: make MSBUILD="/path/to/msbuild" build
 # Detect if running in WSL (Windows Subsystem for Linux)
@@ -43,6 +46,11 @@ ifeq ($(INSTALL),no)
 else
     INSTALL_FLAGS :=
 endif
+
+# Code cleanup configuration (JetBrains ReSharper CLI)
+CLEANUP_SETTINGS ?= Scripts/BroforceMods.DotSettings
+CLEANUP_PROFILE ?= BroforceMods
+JB ?= jb
 
 # For solution builds: extract first .csproj to use for single launch at end
 # (avoids launching once per project in multi-project solutions)
@@ -115,6 +123,102 @@ rebuild: clean build-no-launch
 
 endif # AUTO_DISCOVER
 
+# Code cleanup targets
+_CHECK_JB = @command -v $(firstword $(JB)) >/dev/null 2>&1 || { \
+	echo "Error: '$(firstword $(JB))' not found."; \
+	echo "Install with: dotnet tool install -g JetBrains.ReSharper.GlobalTools"; \
+	exit 1; }
+_CHECK_SETTINGS = @test -f "$(CLEANUP_SETTINGS)" || { \
+	echo "Error: $(CLEANUP_SETTINGS) not found. Run Scripts/sync-targets.sh from Broforce-Templates."; \
+	exit 1; }
+
+ifdef AUTO_DISCOVER
+ifdef PROJECT
+_CLEANUP_LIST_CMD = awk -F'\t' '$$1 == "$(PROJECT)" {print $$2}' $(_PROJ_LIST)
+else
+_CLEANUP_LIST_CMD = cut -f2 $(_PROJ_LIST)
+endif
+else
+_CLEANUP_LIST_CMD = printf '%s\n' "$(SOLUTION)"
+endif
+
+_CLEANUP_PREFLIGHT = @L=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
+	if [ -z "$$L" ]; then \
+	  if [ -n "$(PROJECT)" ]; then \
+	    echo "Error: PROJECT='$(PROJECT)' not found. Run 'make help' to list available projects."; \
+	  else \
+	    echo "Error: no cleanup targets. Set SOLUTION or AUTO_DISCOVER before including Makefile.common."; \
+	  fi; \
+	  exit 1; \
+	fi
+
+# jb cleanupcode needs a .sln for full C# transforms; a bare .csproj gets reformat-only.
+# Map .csproj → sibling .sln when one exists; skip with a warning otherwise.
+_RESOLVE_CLEANUP_TARGETS = while IFS= read -r f; do \
+	  case "$$f" in \
+	    *.sln) echo "$$f" ;; \
+	    *.csproj) \
+	      sln="$$(dirname "$$(dirname "$$f")")/$$(basename "$$f" .csproj).sln"; \
+	      if [ -f "$$sln" ]; then echo "$$sln"; \
+	      else echo "Skipping $$f: no sibling .sln found" >&2; fi ;; \
+	    *) echo "$$f" ;; \
+	  esac; \
+	done
+
+.PHONY: cleanup
+cleanup:
+	$(_CHECK_JB)
+	$(_CHECK_SETTINGS)
+	$(_CLEANUP_PREFLIGHT)
+	@if [ -n "$(AUTO_DISCOVER)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
+	  echo "Error: unscoped 'make cleanup' touches every project in this repo."; \
+	  echo "  Scope to one project:  make cleanup PROJECT=<name>"; \
+	  echo "  Or opt into all:       make cleanup ALL=1"; \
+	  exit 1; \
+	fi
+	@$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	  echo "Cleaning up $$t..."; \
+	  $(JB) cleanupcode "$$t" --settings="$(CLEANUP_SETTINGS)" --profile="$(CLEANUP_PROFILE)" || exit 1; \
+	done
+
+.PHONY: cleanup-changed
+cleanup-changed:
+	$(_CHECK_JB)
+	$(_CHECK_SETTINGS)
+	$(_CLEANUP_PREFLIGHT)
+	@FILES=$$(git diff --name-only --diff-filter=ACMR HEAD -- '*.cs'); \
+	if [ -z "$$FILES" ]; then \
+	  echo "No changed .cs files."; \
+	  exit 0; \
+	fi; \
+	AUTO_PROJECT=; \
+	if [ -z "$(PROJECT)" ] && [ -n "$(AUTO_DISCOVER)" ]; then \
+	  DIRS=$$(echo "$$FILES" | awk -F/ '{print $$1}' | sort -u); \
+	  if [ "$$(echo "$$DIRS" | wc -l)" = "1" ]; then \
+	    AUTO_PROJECT=$$(awk -F'\t' -v d="$$DIRS" '{ split($$2, p, "/"); if (p[1] == d) {print $$1; exit} }' $(_PROJ_LIST)); \
+	    [ -n "$$AUTO_PROJECT" ] && echo "Auto-detected PROJECT=$$AUTO_PROJECT from changed files."; \
+	  fi; \
+	fi; \
+	if [ -n "$$AUTO_PROJECT" ]; then \
+	  LIST=$$(awk -F'\t' -v p="$$AUTO_PROJECT" '$$1 == p {print $$2}' $(_PROJ_LIST)); \
+	else \
+	  LIST=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
+	fi; \
+	echo "$$LIST" | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	  dir="$$(dirname "$$t")"; \
+	  if [ "$$dir" = "." ]; then \
+	    SCOPED="$$FILES"; \
+	  else \
+	    SCOPED=$$(echo "$$FILES" | awk -v d="$$dir/" 'index($$0, d) == 1 { print substr($$0, length(d)+1) }'); \
+	  fi; \
+	  if [ -z "$$SCOPED" ]; then \
+	    echo "No changed .cs files in $$t."; continue; \
+	  fi; \
+	  INCL=$$(echo "$$SCOPED" | paste -sd';' -); \
+	  echo "Cleaning up changed files in $$t..."; \
+	  $(JB) cleanupcode "$$t" --settings="$(CLEANUP_SETTINGS)" --profile="$(CLEANUP_PROFILE)" --include="$$INCL" || exit 1; \
+	done
+
 .PHONY: help
 help:
 	@echo "$(PROJECT_NAME) Build System"
@@ -124,6 +228,8 @@ help:
 	@echo "  make build-no-launch    Build without disrupting running game"
 	@echo "  make clean              Clean build artifacts"
 	@echo "  make rebuild            Clean and rebuild"
+	@echo "  make cleanup            Run ReSharper code cleanup on all code"
+	@echo "  make cleanup-changed    Run ReSharper code cleanup on git-changed files"
 ifdef EXTRA_HELP
 	@echo ""
 	@$(EXTRA_HELP)
@@ -132,6 +238,7 @@ endif
 	@echo "Options:"
 	@echo "  LAUNCH=no               Don't kill or launch game"
 	@echo "  INSTALL=no              Don't copy DLL to game directory"
+	@echo "  PROJECT=<name>          Scope cleanup to one project (AUTO_DISCOVER only)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build              Standard build with game launch"
