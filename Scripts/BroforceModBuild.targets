@@ -141,11 +141,4 @@
     <Message Text="Launching Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="CleanInstall" DependsOnTargets="DetectProjectType">
-    <RemoveDir Directories="$(InstallPath)" Condition="Exists('$(InstallPath)')" />
-    <Message Text="Cleaned install folder: $(InstallPath)" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
-  </Target>
-
-  <Target Name="RebuildAndInstall" DependsOnTargets="Clean;CleanInstall;Build" />
-
 </Project>
