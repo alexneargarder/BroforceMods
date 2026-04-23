@@ -399,7 +399,8 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException("X and Y coordinates are required");
             }
 
-            return StateModifier.TeleportPlayer(x.Value, y.Value, z);
+            var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
+            return StateModifier.TeleportPlayer(x.Value, y.Value, z, playerNum);
         }
 
         private object HandleSetPlayerHealth(JObject parameters)
@@ -411,7 +412,8 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException("Health value is required");
             }
 
-            return StateModifier.SetPlayerHealth(health.Value);
+            var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
+            return StateModifier.SetPlayerHealth(health.Value, playerNum);
         }
 
         private object HandleSpawnEntity(JObject parameters)
@@ -667,7 +669,8 @@ namespace Unity_Inspector_Mod
 
         private object HandleListBros( JObject parameters )
         {
-            return StateModifier.ListBros();
+            var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
+            return StateModifier.ListBros( playerNum );
         }
 
         private object HandleRestartLevel( JObject parameters )
