@@ -214,27 +214,68 @@ namespace Unity_Inspector_Mod
         }
 
         // High-level convenience methods
-        public static object TeleportPlayer(float x, float y, float? z = null)
+        public static object TeleportPlayer(float x, float y, float? z = null, int playerNum = 0)
         {
             try
             {
-                var players = HeroController.players;
-                if (players == null || players.Length == 0 || players[0]?.character == null)
+                if (playerNum < -1 || playerNum > 3)
                 {
-                    return new { success = false, error = "No player found" };
+                    return new { success = false, error = "Player number must be 0-3, or -1 for all players" };
                 }
 
-                var player = players[0].character;
+                var players = HeroController.players;
+
+                if (playerNum == -1)
+                {
+                    if (players == null || players.Length == 0)
+                    {
+                        return new { success = false, error = "No players found" };
+                    }
+
+                    var results = new List<object>();
+                    float finalZ = z ?? 0f;
+                    for (int i = 0; i < players.Length; i++)
+                    {
+                        var p = players[i]?.character;
+                        if (p == null) continue;
+                        float pz = z ?? p.transform.position.z;
+                        finalZ = pz;
+                        p.transform.position = new Vector3(x, y, pz);
+                        p.X = x;
+                        p.Y = y;
+                        results.Add(new { playerNum = i, playerName = p.name });
+                    }
+
+                    if (results.Count == 0)
+                    {
+                        return new { success = false, error = "No active players found" };
+                    }
+
+                    return new {
+                        success = true,
+                        newPosition = new { x = x, y = y, z = finalZ },
+                        playerNum = -1,
+                        results = results.ToArray()
+                    };
+                }
+
+                if (players == null || players.Length <= playerNum || players[playerNum]?.character == null)
+                {
+                    return new { success = false, error = $"No player found at index {playerNum}" };
+                }
+
+                var player = players[playerNum].character;
                 Vector3 newPosition = new Vector3(x, y, z ?? player.transform.position.z);
                 player.transform.position = newPosition;
-                
+
                 // Also update the character's internal position tracking
                 player.X = x;
                 player.Y = y;
 
-                return new { 
-                    success = true, 
+                return new {
+                    success = true,
                     newPosition = new { x = x, y = y, z = newPosition.z },
+                    playerNum = playerNum,
                     playerName = player.name
                 };
             }
@@ -245,28 +286,68 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        public static object SetPlayerHealth(int health)
+        public static object SetPlayerHealth(int health, int playerNum = 0)
         {
             try
             {
-                var players = HeroController.players;
-                if (players == null || players.Length == 0 || players[0]?.character == null)
+                if (playerNum < -1 || playerNum > 3)
                 {
-                    return new { success = false, error = "No player found" };
+                    return new { success = false, error = "Player number must be 0-3, or -1 for all players" };
                 }
 
-                var player = players[0].character;
+                var players = HeroController.players;
+
+                if (playerNum == -1)
+                {
+                    if (players == null || players.Length == 0)
+                    {
+                        return new { success = false, error = "No players found" };
+                    }
+
+                    var results = new List<object>();
+                    for (int i = 0; i < players.Length; i++)
+                    {
+                        var p = players[i]?.character;
+                        if (p == null) continue;
+                        p.health = health;
+                        if (health > 0 && p.actionState == ActionState.Dead)
+                        {
+                            p.actionState = ActionState.Idle;
+                        }
+                        results.Add(new { playerNum = i, playerName = p.name });
+                    }
+
+                    if (results.Count == 0)
+                    {
+                        return new { success = false, error = "No active players found" };
+                    }
+
+                    return new {
+                        success = true,
+                        health = health,
+                        playerNum = -1,
+                        results = results.ToArray()
+                    };
+                }
+
+                if (players == null || players.Length <= playerNum || players[playerNum]?.character == null)
+                {
+                    return new { success = false, error = $"No player found at index {playerNum}" };
+                }
+
+                var player = players[playerNum].character;
                 player.health = health;
-                
+
                 // Make sure the player isn't dead if health > 0
                 if (health > 0 && player.actionState == ActionState.Dead)
                 {
                     player.actionState = ActionState.Idle;
                 }
 
-                return new { 
-                    success = true, 
+                return new {
+                    success = true,
                     health = health,
+                    playerNum = playerNum,
                     playerName = player.name
                 };
             }
@@ -598,10 +679,15 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        public static object ListBros()
+        public static object ListBros( int playerNum = 0 )
         {
             try
             {
+                if ( playerNum < 0 || playerNum > 3 )
+                {
+                    return new { success = false, error = "Player number must be 0-3" };
+                }
+
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
                     return new { success = false, error = SwapBrosRequired };
@@ -619,14 +705,30 @@ namespace Unity_Inspector_Mod
                     string currentBro = null;
                     try
                     {
-                        currentBro = SwapBrosIntegration.GetCurrentBroName( 0 );
+                        currentBro = SwapBrosIntegration.GetCurrentBroName( playerNum );
                     }
                     catch { }
+
+                    var currentBros = new List<object>();
+                    var players = HeroController.players;
+                    if ( players != null )
+                    {
+                        for ( int i = 0; i < players.Length; i++ )
+                        {
+                            if ( players[i]?.character == null ) continue;
+                            string name = null;
+                            try { name = SwapBrosIntegration.GetCurrentBroName( i ); }
+                            catch { }
+                            currentBros.Add( new { playerNum = i, currentBro = name } );
+                        }
+                    }
 
                     result = new
                     {
                         success = true,
+                        playerNum,
                         currentBro,
+                        currentBros = currentBros.ToArray(),
                         currentlyAvailable = available.ToArray(),
                         allNormal = normal.ToArray(),
                         allExpendabros = expendabros.ToArray(),
