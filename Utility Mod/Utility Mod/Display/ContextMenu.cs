@@ -28,6 +28,11 @@ namespace Utility_Mod
         private static int windowIdCounter = 1000;  // Window ID counter
         private readonly int windowId;
 
+        // Scroll handling (enabled when menu content exceeds available screen height)
+        private Vector2 scrollPosition = Vector2.zero;
+        private const float scrollbarWidth = 16f;
+        private const float screenVerticalMargin = 10f;
+
         // Submenu handling
         private ContextMenu activeSubmenu;
         private int submenuParentIndex = -1;
@@ -214,15 +219,34 @@ namespace Utility_Mod
 
         private void DrawWindow( int id )
         {
-            // Menu rect is now relative to window (0,0)
-            float menuHeight = GetMenuHeight();
-            Rect localMenuRect = new Rect( 0, 0, width, menuHeight );
+            // Visible (capped) height for the window background, actual content height for the scroll view
+            float visibleHeight = GetMenuHeight();
+            float contentHeight = GetContentHeight();
+            bool needsScroll = contentHeight > visibleHeight + 0.5f;
+            float contentWidth = needsScroll ? width - scrollbarWidth : width;
+            float itemDrawWidth = contentWidth - padding * 2;
 
-            // Draw menu background
+            // Draw menu background over the visible area
+            Rect localMenuRect = new Rect( 0, 0, width, visibleHeight );
             GUI.Box( localMenuRect, "", menuStyle );
 
-            // Update hovered index based on mouse position
-            UpdateHoveredIndex( localMenuRect );
+            // Wrap items in a scroll view when content overflows
+            if ( needsScroll )
+            {
+                float maxScrollY = Mathf.Max( 0f, contentHeight - visibleHeight );
+                scrollPosition.y = Mathf.Clamp( scrollPosition.y, 0f, maxScrollY );
+                Rect scrollViewRect = new Rect( 0, 0, width, visibleHeight );
+                Rect viewRect = new Rect( 0, 0, contentWidth, contentHeight );
+                scrollPosition = GUI.BeginScrollView( scrollViewRect, scrollPosition, viewRect );
+            }
+            else
+            {
+                scrollPosition = Vector2.zero;
+            }
+
+            // Inside BeginScrollView, Event.current.mousePosition is content-space, so hover detection works unchanged
+            Rect hoverRect = needsScroll ? new Rect( 0, 0, contentWidth, contentHeight ) : localMenuRect;
+            UpdateHoveredIndex( hoverRect );
 
             // Handle submenu
             if ( hoveredIndex >= 0 && hoveredIndex < items.Count )
@@ -250,14 +274,14 @@ namespace Utility_Mod
                 if ( item.IsSeparator )
                 {
                     // Draw separator
-                    Rect separatorRect = new Rect( padding, y + itemHeight / 2, width - padding * 2, 1 );
+                    Rect separatorRect = new Rect( padding, y + itemHeight / 2, itemDrawWidth, 1 );
                     GUI.Box( separatorRect, "", separatorStyle );
                     y += itemHeight;
                 }
                 else
                 {
                     // Draw menu item
-                    Rect itemRect = new Rect( padding, y, width - padding * 2, itemHeight );
+                    Rect itemRect = new Rect( padding, y, itemDrawWidth, itemHeight );
                     bool isHovered = ( i == hoveredIndex ) && !item.IsHeader;
 
                     GUIStyle style = isHovered ? itemHoverStyle : itemStyle;
@@ -377,13 +401,18 @@ namespace Utility_Mod
                     y += itemHeight;
                 }
             }
+
+            if ( needsScroll )
+            {
+                GUI.EndScrollView();
+            }
         }
 
         #endregion
 
         #region Layout Calculations
 
-        public float GetMenuHeight()
+        public float GetContentHeight()
         {
             float height = padding * 2;
             foreach ( var item in items )
@@ -394,6 +423,13 @@ namespace Utility_Mod
                     height += itemHeight;
             }
             return height;
+        }
+
+        public float GetMenuHeight()
+        {
+            float contentHeight = GetContentHeight();
+            float maxAllowed = Mathf.Max( 100f, Screen.height - screenVerticalMargin * 2 );
+            return Mathf.Min( contentHeight, maxAllowed );
         }
 
         private void CalculateDynamicWidth()
@@ -506,7 +542,6 @@ namespace Utility_Mod
             if ( parentIndex < 0 || parentIndex >= items.Count || !items[parentIndex].HasSubMenu )
                 return;
 
-
             // Create new submenu (don't call CloseSubmenu here as it resets submenuParentIndex)
             activeSubmenu = new ContextMenu();
 
@@ -532,6 +567,10 @@ namespace Utility_Mod
                 else
                     parentY += itemHeight;
             }
+            // parentY was summed in scroll-content space; subtract scroll offset to get the visible Y
+            parentY -= scrollPosition.y;
+            // If the parent item has scrolled above the viewport, keep the submenu from opening above the menu's top edge
+            parentY = Mathf.Max( parentY, Position.y );
             Vector2 submenuPos = new Vector2( Position.x + width - 5, parentY );
 
             // We need to know the submenu width before positioning, so trigger its calculation
