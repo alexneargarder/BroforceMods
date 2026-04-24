@@ -126,6 +126,7 @@ namespace Utility_Mod
         public float enemyPaintDelay = 0.5f;  // Time delay between enemy spawns in paint mode
         public float enemyPaintDistance = 2f;  // Distance threshold in blocks for distance-based enemy painting (1 block = 16 units)
         public float blockPaintDistance = 1f;  // Distance threshold in blocks for block/doodad painting (1 block = 16 units)
+        public bool switchBroMenuGrouped = false;  // Group Switch-To bros by category (Vanilla/Custom/Expendabros/Unfinished)
         public bool enableLevelEditReplay = false;  // Global toggle for automatically replaying level edits
         public bool isRecordingLevelEdits = false;  // Whether we're currently recording edits
 

@@ -1518,6 +1518,14 @@ namespace Utility_Mod
 
             GUILayout.Space( 10 );
 
+            // Group Switch-To bros by category
+            GUILayout.BeginHorizontal();
+            settings.switchBroMenuGrouped = GUILayout.Toggle( settings.switchBroMenuGrouped,
+                new GUIContent( "Group Switch Bro Menu", "Groups the Switch-To submenu into Vanilla, Custom, Expendabros, and Unfinished categories." ) );
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space( 10 );
+
             // Quick Clone keybinding
             GUILayout.BeginHorizontal();
             GUILayout.Label( new GUIContent( "Quick Clone:", "Press this key to instantly clone the object (enemy or block) under your cursor. Press again to exit." ), WindowScaling.ScaledWidth( 100 ) );

@@ -1960,28 +1960,18 @@ namespace Utility_Mod
                                 }
                             }
 
-                            // Get current bro index for this player
-                            int currentBroIndex = SwapBrosIntegration.GetCurrentBroIndex( playerNum );
+                            string currentBroName = SwapBrosIntegration.GetCurrentBroName( playerNum );
 
-                            // Add each available bro as a submenu item
-                            for ( int i = 0; i < availableBros.Count; i++ )
+                            if ( Main.settings.switchBroMenuGrouped )
                             {
-                                int broIndex = i; // Capture for closure
-                                string broName = availableBros[i];
-                                bool isCurrentBro = ( i == currentBroIndex );
-
-                                // Add checkmark prefix for current bro
-                                string displayName = isCurrentBro ? "✓ " + broName : broName;
-
-                                var menuItem = new MenuItem( displayName, () =>
+                                BuildGroupedSwitchBroMenu( switchToMenu, availableBros, currentBroName, playerNum );
+                            }
+                            else
+                            {
+                                foreach ( var broName in availableBros )
                                 {
-                                    if ( SwapBrosIntegration.SwapToBro( playerNum, broIndex ) )
-                                    {
-                                        manager.CloseMenu();
-                                    }
-                                } );
-
-                                switchToMenu.AddSubItem( menuItem );
+                                    AddSwitchBroItem( switchToMenu, broName, string.Equals( broName, currentBroName, StringComparison.OrdinalIgnoreCase ), playerNum );
+                                }
                             }
                         }
                     }
@@ -2371,6 +2361,63 @@ namespace Utility_Mod
             }
 
             return true;
+        }
+
+        private void AddSwitchBroItem( MenuItem parent, string broName, bool isCurrent, int playerNum )
+        {
+            string displayName = isCurrent ? "✓ " + broName : broName;
+            var item = new MenuItem( displayName, () =>
+            {
+                if ( SwapBrosIntegration.SwapToBroByName( playerNum, broName ) )
+                {
+                    manager.CloseMenu();
+                }
+            } );
+            parent.AddSubItem( item );
+        }
+
+        private void BuildGroupedSwitchBroMenu( MenuItem switchToMenu, List<string> availableBros, string currentBroName, int playerNum )
+        {
+            var availableSet = new HashSet<string>( availableBros, StringComparer.OrdinalIgnoreCase );
+
+            var normalBros = SwapBrosIntegration.GetAllNormalBros();
+            var expendabros = SwapBrosIntegration.GetAllExpendabros();
+            var unfinishedBros = SwapBrosIntegration.GetAllUnfinishedBros();
+
+            // Track every bro that belongs to a known category so the remainder can be treated as Custom
+            var categorized = new HashSet<string>( StringComparer.OrdinalIgnoreCase );
+            foreach ( var b in normalBros ) categorized.Add( b );
+            foreach ( var b in expendabros ) categorized.Add( b );
+            foreach ( var b in unfinishedBros ) categorized.Add( b );
+
+            AddCategoryIfNonEmpty( switchToMenu, "Vanilla", normalBros, availableSet, currentBroName, playerNum );
+            AddCategoryIfNonEmpty( switchToMenu, "Expendabros", expendabros, availableSet, currentBroName, playerNum );
+            AddCategoryIfNonEmpty( switchToMenu, "Unfinished", unfinishedBros, availableSet, currentBroName, playerNum );
+
+            var customBros = availableBros.Where( b => !categorized.Contains( b ) ).ToList();
+            if ( customBros.Count > 0 )
+            {
+                var customMenu = new MenuItem( "Custom", () => { } );
+                switchToMenu.AddSubItem( customMenu );
+                foreach ( var broName in customBros )
+                {
+                    AddSwitchBroItem( customMenu, broName, string.Equals( broName, currentBroName, StringComparison.OrdinalIgnoreCase ), playerNum );
+                }
+            }
+        }
+
+        private void AddCategoryIfNonEmpty( MenuItem switchToMenu, string categoryName, List<string> categoryBros,
+            HashSet<string> availableSet, string currentBroName, int playerNum )
+        {
+            var filtered = categoryBros.Where( b => availableSet.Contains( b ) ).ToList();
+            if ( filtered.Count == 0 ) return;
+
+            var categoryMenu = new MenuItem( categoryName, () => { } );
+            switchToMenu.AddSubItem( categoryMenu );
+            foreach ( var broName in filtered )
+            {
+                AddSwitchBroItem( categoryMenu, broName, string.Equals( broName, currentBroName, StringComparison.OrdinalIgnoreCase ), playerNum );
+            }
         }
         #endregion
     }
