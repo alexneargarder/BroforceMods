@@ -31,6 +31,7 @@
     <VerboseBuildOutput Condition="'$(VerboseBuildOutput)' == ''">false</VerboseBuildOutput>
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
     <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
+    <LaunchArgs Condition="'$(LaunchArgs)' == ''"></LaunchArgs>
     <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
@@ -131,13 +132,19 @@
 
   <Target Name="LaunchGame" AfterTargets="InstallToGame"
           Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
-    <Exec Command="start steam://rungameid/274190" />
+    <Exec Command="start steam://rungameid/274190"
+          Condition="'$(LaunchArgs)' == ''" />
+    <Exec Command="start steam://run/274190//$(LaunchArgs)/"
+          Condition="'$(LaunchArgs)' != ''" />
     <Message Text="Launching Broforce via Steam" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
   <Target Name="LaunchGameLinux" AfterTargets="InstallToGame"
           Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf || xdg-open steam://rungameid/274190" />
+    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf || xdg-open steam://rungameid/274190"
+          Condition="'$(LaunchArgs)' == ''" />
+    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf $(LaunchArgs) || xdg-open 'steam://run/274190//$(LaunchArgs)/'"
+          Condition="'$(LaunchArgs)' != ''" />
     <Message Text="Launching Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 

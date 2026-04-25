@@ -47,6 +47,14 @@ else
     INSTALL_FLAGS :=
 endif
 
+# LAUNCH_ARGS forwards extra args to the post-build launch command
+# Usage: make build LAUNCH_ARGS="-m"
+ifneq ($(strip $(LAUNCH_ARGS)),)
+    LAUNCH_ARGS_FLAGS := /p:LaunchArgs="$(LAUNCH_ARGS)"
+else
+    LAUNCH_ARGS_FLAGS :=
+endif
+
 # Code cleanup configuration (JetBrains ReSharper CLI)
 CLEANUP_SETTINGS ?= Scripts/BroforceMods.DotSettings
 CLEANUP_PROFILE ?= BroforceMods
@@ -90,32 +98,32 @@ endef
 .PHONY: $(DISCOVER_TARGETS)
 $(DISCOVER_TARGETS):
 	@csproj=$$(awk -F'\t' '$$1 == "$@" {print $$2}' $(_PROJ_LIST)); \
-	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS)
+	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 
 .PHONY: build
 build:
 ifeq ($(LAUNCH),no)
 	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) || exit 1; \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
 	done
 else
 	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) || exit 1; \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
 	done
 	@csproj=$$(head -1 $(_PROJ_LIST) | cut -f2); \
-	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS)
+	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 endif
 
 .PHONY: build-no-launch
 build-no-launch:
 	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) || exit 1; \
+	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
 	done
 
 .PHONY: clean
 clean:
 	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) || exit 1; \
+	  "$(MSBUILD)" "$$csproj" /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
 	done
 
 .PHONY: rebuild
@@ -238,37 +246,38 @@ endif
 	@echo "Options:"
 	@echo "  LAUNCH=no               Don't kill or launch game"
 	@echo "  INSTALL=no              Don't copy DLL to game directory"
+	@echo "  LAUNCH_ARGS=\"...\"       Forward extra args to the launch command"
 	@echo "  PROJECT=<name>          Scope cleanup to one project (AUTO_DISCOVER only)"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build              Standard build with game launch"
-	@echo "  make build LAUNCH=no    Build without disrupting running game"
-	@echo "  make build INSTALL=no   Build without installing to game"
+	@echo "  make build                  Standard build with game launch"
+	@echo "  make build LAUNCH=no        Build without disrupting running game"
+	@echo "  make build INSTALL=no       Build without installing to game"
 
 # Build targets - can be overridden by setting CUSTOM_BUILD=1 before including
 ifndef CUSTOM_BUILD
 .PHONY: build
 build:
 ifeq ($(LAUNCH),no)
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 else ifdef IS_SOLUTION
 	@# Solution build: build all with launch disabled, then trigger launch via one project
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS)
-	"$(MSBUILD)" "$(LAUNCH_PROJECT)" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
+	"$(MSBUILD)" "$(LAUNCH_PROJECT)" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 else
 	@# Single project build: normal behavior
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 endif
 
 .PHONY: build-no-launch
 build-no-launch:
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 
 .PHONY: clean
 clean:
-	"$(MSBUILD)" $(SOLUTION) /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 
 .PHONY: rebuild
 rebuild: clean
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS)
+	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
 endif
