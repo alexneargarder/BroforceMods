@@ -280,7 +280,7 @@ namespace Utility_Mod
             // Initialize Unity log capture if enabled
             if ( settings.captureUnityLogs )
             {
-                Application.logMessageReceived += OnUnityLogMessageReceived;
+                SetUnityLogCaptureSubscription( true );
             }
 
             return true;
@@ -295,13 +295,42 @@ namespace Utility_Mod
         {
             enabled = value;
 
-            // Clean up Unity log capture when mod is disabled
-            if ( !value && settings != null && settings.captureUnityLogs )
+            // Sync Unity log capture subscription with the new enabled state
+            if ( settings != null && settings.captureUnityLogs )
             {
-                Application.logMessageReceived -= OnUnityLogMessageReceived;
+                SetUnityLogCaptureSubscription( value );
             }
 
             return true;
+        }
+
+        private static bool unityLogCaptureSubscribed = false;
+
+        private static void SetUnityLogCaptureSubscription( bool subscribe )
+        {
+            if ( subscribe && !unityLogCaptureSubscribed )
+            {
+                Application.logMessageReceived += OnUnityLogMessageReceived;
+                unityLogCaptureSubscribed = true;
+            }
+            else if ( !subscribe && unityLogCaptureSubscribed )
+            {
+                Application.logMessageReceived -= OnUnityLogMessageReceived;
+                unityLogCaptureSubscribed = false;
+            }
+        }
+
+        public static void SetUnityLogCapture( bool capture )
+        {
+            if ( settings == null )
+                return;
+
+            if ( settings.captureUnityLogs == capture )
+                return;
+
+            settings.captureUnityLogs = capture;
+            SetUnityLogCaptureSubscription( capture );
+            Log( capture ? "Unity log capture enabled" : "Unity log capture disabled" );
         }
 
         public static void Log( String str )
@@ -344,13 +373,13 @@ namespace Utility_Mod
 
             if ( !shouldCapture ) return;
 
-            // Format and log the message with color
-            Log( $"[Unity] {colorTag}{condition}{colorCloseTag}" );
+            // Format and log the message with color, bypassing ModLogger so the [Utility Mod] prefix isn't added
+            UnityModManager.Logger.Log( $"[Unity] {colorTag}{condition}{colorCloseTag}", string.Empty );
 
             // Include stack trace for errors and exceptions (also colored)
             if ( !string.IsNullOrEmpty( stackTrace ) && ( type == LogType.Error || type == LogType.Exception ) )
             {
-                Log( $"[Unity] {colorTag}Stack trace:\n{stackTrace}{colorCloseTag}" );
+                UnityModManager.Logger.Log( $"[Unity] {colorTag}Stack trace:\n{stackTrace}{colorCloseTag}", string.Empty );
             }
         }
 
@@ -1327,25 +1356,14 @@ namespace Utility_Mod
                 GUILayout.Space( 20 );
 
                 // Unity Log Capture Options
-                bool previousCaptureState = settings.captureUnityLogs;
-                settings.captureUnityLogs = GUILayout.Toggle( settings.captureUnityLogs,
+                bool newCaptureState = GUILayout.Toggle( settings.captureUnityLogs,
                     new GUIContent( "Capture Unity Logs", "Captures Unity's Debug.Log output, warnings, and errors to UnityModManager's log file. Logs are color-coded: red for errors, yellow for warnings, blue for info." ) );
 
                 lastRect = GUILayoutUtility.GetLastRect();
 
-                // Handle enabling/disabling the log capture
-                if ( previousCaptureState != settings.captureUnityLogs )
+                if ( newCaptureState != settings.captureUnityLogs )
                 {
-                    if ( settings.captureUnityLogs )
-                    {
-                        Application.logMessageReceived += OnUnityLogMessageReceived;
-                        Log( "Unity log capture enabled" );
-                    }
-                    else
-                    {
-                        Application.logMessageReceived -= OnUnityLogMessageReceived;
-                        Log( "Unity log capture disabled" );
-                    }
+                    SetUnityLogCapture( newCaptureState );
                 }
 
                 if ( settings.captureUnityLogs )
