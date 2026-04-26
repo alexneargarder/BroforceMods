@@ -33,8 +33,8 @@
     <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
     <LaunchArgs Condition="'$(LaunchArgs)' == ''"></LaunchArgs>
     <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
-    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(MSBuildThisFileDirectory)../../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath>
-    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(MSBuildThisFileDirectory)../../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
     <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
   </PropertyGroup>
