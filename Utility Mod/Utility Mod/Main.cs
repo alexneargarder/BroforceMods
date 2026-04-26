@@ -341,6 +341,12 @@ namespace Utility_Mod
             }
         }
 
+        private static readonly string[] frequentUnityLogFilters = new string[]
+        {
+            "Finish serenading",
+            "BoxColliders does not support negative scale or size",
+        };
+
         private static void OnUnityLogMessageReceived( string condition, string stackTrace, LogType type )
         {
             // Check if we should capture this log type
@@ -372,6 +378,17 @@ namespace Utility_Mod
             }
 
             if ( !shouldCapture ) return;
+
+            if ( settings.filterFrequentUnityLogs && condition != null )
+            {
+                for ( int i = 0; i < frequentUnityLogFilters.Length; i++ )
+                {
+                    if ( condition.IndexOf( frequentUnityLogFilters[i], StringComparison.Ordinal ) >= 0 )
+                    {
+                        return;
+                    }
+                }
+            }
 
             // Format and log the message with color, bypassing ModLogger so the [Utility Mod] prefix isn't added
             UnityModManager.Logger.Log( $"[Unity] {colorTag}{condition}{colorCloseTag}", string.Empty );
@@ -1375,6 +1392,8 @@ namespace Utility_Mod
                     settings.captureUnityErrors = GUILayout.Toggle( settings.captureUnityErrors, "Capture Errors" );
                     settings.captureUnityWarnings = GUILayout.Toggle( settings.captureUnityWarnings, "Capture Warnings" );
                     settings.captureUnityInfo = GUILayout.Toggle( settings.captureUnityInfo, "Capture Info/Log Messages" );
+                    settings.filterFrequentUnityLogs = GUILayout.Toggle( settings.filterFrequentUnityLogs,
+                        new GUIContent( "Filter frequent Unity log spam", "Hides specific Unity messages that appear frequently and rarely indicate a real problem." ) );
                     lastRect = GUILayoutUtility.GetLastRect();
 
                     GUILayout.EndVertical();
