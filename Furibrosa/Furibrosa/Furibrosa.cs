@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using BroMakerLib;
 using BroMakerLib.CustomObjects.Bros;
+using BroMakerLib.Extensions;
 using BroMakerLib.Loggers;
 using HarmonyLib;
 using RocketLib;
@@ -181,7 +182,7 @@ namespace Furibrosa
             }
             catch ( Exception ex )
             {
-                BMLogger.Log( "Exception creating WarRig: " + ex.ToString() );
+                this.LogError( "Furibrosa failed to create WarRig prefab", ex );
             }
 
             // Randomize starting weapon

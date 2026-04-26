@@ -48,7 +48,7 @@ namespace RJBrocready
                     }
                     catch ( Exception e )
                     {
-                        BMLogger.ExceptionLog( e );
+                        BMLogger.Error( "R.J. Brocready failed to reset IronBro death state on revive", bro: "R.J. Brocready", ex: e );
                     }
                 }
             }

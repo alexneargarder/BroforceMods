@@ -107,7 +107,7 @@ namespace Brostbuster
             }
             catch ( Exception ex )
             {
-                BMLogger.Log( "Exception Creating Projectile: " + ex.ToString() );
+                BMLogger.Error( "GhostTrap projectile failed in Awake", bro: "Brostbuster", ex: ex );
             }
         }
 

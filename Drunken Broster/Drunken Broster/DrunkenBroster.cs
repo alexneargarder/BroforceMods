@@ -2223,9 +2223,7 @@ namespace Drunken_Broster
             // If we're already holding an item, throw that item instead
             if ( holdingItem )
             {
-                BMLogger.Log("throwing held item");
                 StartThrowingItem();
-                BMLogger.Log("thrown held item");
                 return;
             }
 
@@ -2252,9 +2250,7 @@ namespace Drunken_Broster
             GetComponent<Renderer>().material = meleeSpriteGrabThrowing;
 
             // Choose an item to throw
-            BMLogger.Log("choosing item");
             chosenItem = ChooseItem();
-            BMLogger.Log("chosen item");
 
             AnimateMelee();
         }

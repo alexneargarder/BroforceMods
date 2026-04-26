@@ -69,7 +69,7 @@ namespace Brostbuster
         public override void PreloadAssets()
         {
             CustomHero.PreloadSprites( DirectoryPath, new List<string> { "protonLine1.png", "protonLine1End.png", "protonLine21.png", "protonLine22.png", "protonLine23.png", "protonLine24.png" } );
-            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "ghostTrap.png", "slimer.png" } );
+            CustomHero.PreloadSprites( ProjectilePath, new List<string> { "GhostTrap.png", "Slimer.png" } );
 
             CustomHero.PreloadSounds( SoundPath, new List<string> { "protonStartup.wav", "protonStartup2.wav", "protonLoop.wav", "protonEnd.wav", "slimerTrapOpen.wav", "freeze1.wav", "freeze2.wav", "freeze3.wav", "freeze4.wav", "freeze5.wav", "freeze6.wav", "freeze7.wav", "freeze8.wav", "slimer1.wav", "slimer2.wav", "slimer3.wav", "slimer4.wav", "trapOpen.wav", "trapMain.wav", "trapClosing.wav", "trapClosed.wav" } );
         }
