@@ -97,6 +97,7 @@ namespace Utility_Mod
         public bool captureUnityErrors = true;
         public bool captureUnityWarnings = true;
         public bool captureUnityInfo = true;
+        public bool filterFrequentUnityLogs = true;
         public float gameSpeedMultiplier = 1.0f;
         public float gameSpeedStep = 0.01f;
         public bool isGamePaused = false;
