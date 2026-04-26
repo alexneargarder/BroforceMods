@@ -6,6 +6,8 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using TFBGames.Systems;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityModManagerNet;
 
 namespace Utility_Mod
 {
@@ -13,6 +15,31 @@ namespace Utility_Mod
     {
         // Track if we've already replayed edits for this level
         static string lastReplayedLevelKey = "";
+
+        [HarmonyPatch( typeof( UnityModManager.UI ), "DrawTab" )]
+        static class UMM_UI_DrawTab_Patch
+        {
+            static void Postfix( UnityModManager.UI __instance, int tabId, ref UnityAction buttons )
+            {
+                if ( !Main.enabled || Main.settings == null )
+                    return;
+
+                if ( __instance.tabs == null || tabId < 0 || tabId >= __instance.tabs.Length )
+                    return;
+
+                if ( __instance.tabs[tabId] != "Logs" )
+                    return;
+
+                buttons += delegate
+                {
+                    bool newState = GUILayout.Toggle( Main.settings.captureUnityLogs, "Capture Unity Logs", UnityModManager.UI.button, GUILayout.ExpandWidth( false ) );
+                    if ( newState != Main.settings.captureUnityLogs )
+                    {
+                        Main.SetUnityLogCapture( newState );
+                    }
+                };
+            }
+        }
 
         static IEnumerator ReplayLevelEditsDelayed()
         {
