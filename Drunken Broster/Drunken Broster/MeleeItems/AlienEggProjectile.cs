@@ -136,7 +136,7 @@ namespace Drunken_Broster.MeleeItems
                     }
                     catch ( Exception ex )
                     {
-                        BMLogger.ExceptionLog( ex );
+                        BMLogger.Error( "AlienEggProjectile failed to spawn facehugger effect", bro: "Drunken Broster", ex: ex );
                     }
                     Death();
                 }

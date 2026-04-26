@@ -272,7 +272,7 @@ namespace Furibrosa
             }
             catch ( Exception ex )
             {
-                BMLogger.Log( "Exception Loading Audio: " + ex.ToString() );
+                BMLogger.Error( "WarRig failed to load audio clips", bro: "Furibrosa", ex: ex );
             }
 
             gameObject.SetActive( false );

@@ -33,7 +33,12 @@
     <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
     <LaunchArgs Condition="'$(LaunchArgs)' == ''"></LaunchArgs>
     <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
     <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
