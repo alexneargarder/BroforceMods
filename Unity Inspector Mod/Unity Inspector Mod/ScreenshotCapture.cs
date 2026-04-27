@@ -34,11 +34,18 @@ namespace Unity_Inspector_Mod
 
                 UnityEngine.ScreenCapture.CaptureScreenshot( path );
 
-                System.Threading.Thread.Sleep( 100 );
+                const int timeoutMs = 3000;
+                const int pollIntervalMs = 25;
+                int elapsed = 0;
+                while ( !File.Exists( path ) && elapsed < timeoutMs )
+                {
+                    System.Threading.Thread.Sleep( pollIntervalMs );
+                    elapsed += pollIntervalMs;
+                }
 
                 if ( !File.Exists( path ) )
                 {
-                    Main.Log( "Screenshot file not found after capture - it may be saving asynchronously" );
+                    throw new IOException( $"Screenshot capture timed out after {timeoutMs}ms" );
                 }
 
                 if ( isLinux )
