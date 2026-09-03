@@ -12,18 +12,32 @@ namespace Unity_Inspector_Mod
     {
         private TcpListener listener;
         private Thread listenerThread;
-        private bool isRunning;
+        private volatile bool isRunning;
         private readonly int port;
+        private readonly bool allowRemoteConnections;
         private readonly List<ClientHandler> clients = new List<ClientHandler>();
+        private readonly object clientsLock = new object();
         private readonly MessageHandler messageHandler;
 
         public bool IsRunning => isRunning;
         public int Port => port;
-        public int ConnectedClients => clients.Count;
+        public bool AllowRemoteConnections => allowRemoteConnections;
 
-        public TcpServer( int port )
+        public int ConnectedClients
+        {
+            get
+            {
+                lock ( clientsLock )
+                {
+                    return clients.Count;
+                }
+            }
+        }
+
+        public TcpServer( int port, bool allowRemoteConnections )
         {
             this.port = port;
+            this.allowRemoteConnections = allowRemoteConnections;
             this.messageHandler = new MessageHandler();
         }
 
@@ -33,7 +47,19 @@ namespace Unity_Inspector_Mod
 
             try
             {
-                listener = new TcpListener( IPAddress.Any, port );
+                IPAddress bindAddress = allowRemoteConnections ? IPAddress.Any : IPAddress.Loopback;
+
+                if ( allowRemoteConnections )
+                {
+                    Main.Log( "==============================================================" );
+                    Main.Log( $"WARNING: Unity Inspector is listening on ALL network interfaces (0.0.0.0:{port})." );
+                    Main.Log( "WARNING: There is NO authentication. Anyone who can reach this port" );
+                    Main.Log( "WARNING: can execute arbitrary code on this machine." );
+                    Main.Log( "WARNING: Disable 'Allow remote connections' unless you need it." );
+                    Main.Log( "==============================================================" );
+                }
+
+                listener = new TcpListener( bindAddress, port );
                 listener.Start();
                 isRunning = true;
 
@@ -52,11 +78,17 @@ namespace Unity_Inspector_Mod
         {
             isRunning = false;
 
-            foreach ( var client in clients.ToArray() )
+            ClientHandler[] toDisconnect;
+            lock ( clientsLock )
+            {
+                toDisconnect = clients.ToArray();
+                clients.Clear();
+            }
+
+            foreach ( var client in toDisconnect )
             {
                 client.Disconnect();
             }
-            clients.Clear();
 
             if ( listener != null )
             {
@@ -77,14 +109,29 @@ namespace Unity_Inspector_Mod
             {
                 try
                 {
+                    var currentListener = listener;
+                    if ( currentListener == null ) break;
 
-                    if ( listener.Pending() )
+                    if ( currentListener.Pending() )
                     {
-                        var tcpClient = listener.AcceptTcpClient();
-                        var client = new ClientHandler( tcpClient, this );
-                        clients.Add( client );
+                        var tcpClient = currentListener.AcceptTcpClient();
+
+                        try
+                        {
+                            lock ( clientsLock )
+                            {
+                                if ( isRunning )
+                                {
+                                    clients.Add( new ClientHandler( tcpClient, this ) );
+                                    tcpClient = null;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            tcpClient?.Close();
+                        }
                     }
-                    Thread.Sleep( 100 );
                 }
                 catch ( Exception ex )
                 {
@@ -94,12 +141,19 @@ namespace Unity_Inspector_Mod
                         Main.Log( $"Exception details: {ex}" );
                     }
                 }
+                finally
+                {
+                    Thread.Sleep( 100 );
+                }
             }
         }
 
         internal void RemoveClient( ClientHandler client )
         {
-            clients.Remove( client );
+            lock ( clientsLock )
+            {
+                clients.Remove( client );
+            }
         }
 
         internal string ProcessMessage( string message )

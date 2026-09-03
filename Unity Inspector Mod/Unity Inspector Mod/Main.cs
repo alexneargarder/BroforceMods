@@ -59,6 +59,7 @@ namespace Unity_Inspector_Mod
             if ( server != null && server.IsRunning )
             {
                 GUILayout.Label( $"Port: {settings.serverPort}" );
+                GUILayout.Label( $"Bound To: {( server.AllowRemoteConnections ? "0.0.0.0 (all interfaces)" : "127.0.0.1 (localhost only)" )}" );
                 GUILayout.Label( $"Connected Clients: {server.ConnectedClients}" );
 
                 if ( GUILayout.Button( "Stop Server", GUILayout.Width( 200 ) ) )
@@ -76,6 +77,26 @@ namespace Unity_Inspector_Mod
 
             GUILayout.Space( 10 );
             settings.autoStartServer = GUILayout.Toggle( settings.autoStartServer, "Auto-start server on load" );
+
+            // Drawn before the toggle so the Layout and event passes see the same value
+            if ( settings.allowRemoteConnections )
+            {
+                GUILayout.Label( "WARNING: remote connections are enabled. This mod executes arbitrary code, and there is no authentication." );
+            }
+
+            if ( settings.allowRemoteConnections != ( settings.allowRemoteConnections = GUILayout.Toggle( settings.allowRemoteConnections,
+                    new GUIContent( "Allow remote connections (LAN) - WARNING: anyone on the network can run code via this mod",
+                        "Off: the server only listens on 127.0.0.1. On: it listens on all interfaces, which is required when the MCP client runs in a VM such as WSL. There is no authentication - only enable this on a network you trust." ) ) ) )
+            {
+                settings.Save( mod );
+
+                if ( server != null && server.IsRunning )
+                {
+                    Log( $"Allow remote connections changed to {settings.allowRemoteConnections} - restarting TCP server" );
+                    StopServer();
+                    StartServer();
+                }
+            }
         }
 
         static void OnSaveGUI( UnityModManager.ModEntry modEntry )
@@ -99,7 +120,7 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                server = new TcpServer( settings.serverPort );
+                server = new TcpServer( settings.serverPort, settings.allowRemoteConnections );
                 server.Start();
             }
             catch ( Exception ex )
@@ -128,6 +149,7 @@ namespace Unity_Inspector_Mod
     {
         public int serverPort = 9999;
         public bool autoStartServer = true;
+        public bool allowRemoteConnections = false;
 
         public override void Save( UnityModManager.ModEntry modEntry )
         {
