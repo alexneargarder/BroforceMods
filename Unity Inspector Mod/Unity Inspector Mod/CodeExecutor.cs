@@ -14,6 +14,42 @@ namespace Unity_Inspector_Mod
         private static bool initialized;
         private static readonly object initLock = new object();
 
+        // Dynamic assemblies, which the AppDomain sweep in Initialize() skips.
+        private static readonly List<Assembly> scriptAssemblies = new List<Assembly>();
+
+        internal static void RegisterScriptAssembly(Assembly assembly)
+        {
+            lock (initLock)
+            {
+                scriptAssemblies.Add(assembly);
+                if (evaluator == null) return;
+
+                try
+                {
+                    evaluator.ReferenceAssembly(assembly);
+                }
+                catch (Exception ex)
+                {
+                    Main.Log("Failed to register script assembly with Evaluator: " + ex.Message);
+                }
+            }
+        }
+
+        // The Evaluator cannot drop a referenced assembly: a replaced script's types would
+        // collide with its previous build (CS0433), so rebuild the Evaluator instead.
+        internal static void UnregisterScriptAssembly(Assembly assembly)
+        {
+            lock (initLock)
+            {
+                if (!scriptAssemblies.Remove(assembly)) return;
+
+                if (evaluator == null) return;
+
+                initialized = false;
+                evaluator = null;
+            }
+        }
+
         // Represents void return type
         private sealed class VoidType
         {
@@ -32,6 +68,7 @@ namespace Unity_Inspector_Mod
                     // Patch mcs to prevent native crash on unresolved member access
                     ScriptCompiler.PatchTokenCheck();
                     ScriptCompiler.PatchExtensionMethodCrash();
+                    ScriptCompiler.PatchAssemblyImport();
 
                     // Force load game assemblies by touching key types BEFORE evaluator creation
                     // This ensures AppDomain.GetAssemblies() returns complete list
@@ -69,7 +106,7 @@ namespace Unity_Inspector_Mod
                     // Standard libraries to skip
                     var stdLib = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
-                        "mscorlib", "System.Core", "System", "System.Xml"
+                        "mscorlib", "System.Core", "System", "System.Xml", "Microsoft.CSharp"
                     };
 
                     // CRITICAL: Reference assemblies AFTER evaluator creation
@@ -81,22 +118,41 @@ namespace Unity_Inspector_Mod
                             if (stdLib.Contains(name))
                                 continue;
 
+                            // AssemblyBuilder.Location throws NotSupportedException on Unity's
+                            // mscorlib, so skip dynamic assemblies before probing it.
+                            if (assembly is System.Reflection.Emit.AssemblyBuilder)
+                                continue;
+
                             if (!string.IsNullOrEmpty(assembly.Location))
                             {
                                 evaluator.ReferenceAssembly(assembly);
                             }
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
-                            // Some assemblies might fail to load
+                            ScriptCompiler.ReportImportFailure(
+                                ScriptCompiler.SafeAssemblyName(assembly), "any type", ex);
+                        }
+                    }
+
+                    foreach (var scriptAssembly in scriptAssemblies)
+                    {
+                        try
+                        {
+                            evaluator.ReferenceAssembly(scriptAssembly);
+                        }
+                        catch (Exception ex)
+                        {
+                            ScriptCompiler.ReportImportFailure(
+                                ScriptCompiler.SafeAssemblyName(scriptAssembly), "any type", ex);
                         }
                     }
 
                     // CRITICAL: Run using statements separately, not all at once
-                    evaluator.Run("using System;");
-                    evaluator.Run("using System.Collections.Generic;");
-                    evaluator.Run("using System.Linq;");
-                    evaluator.Run("using UnityEngine;");
+                    foreach (var ns in ScriptCompiler.PreambleNamespaces)
+                    {
+                        evaluator.Run("using " + ns + ";");
+                    }
 
                     // CRITICAL: Execute meaningful warm-up code that touches referenced types
                     // Simple "1+1" doesn't work - must access actual type system

@@ -15,11 +15,26 @@ namespace Unity_Inspector_Mod
     {
         private static readonly HashSet<string> StdLib =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                { "mscorlib", "System.Core", "System", "System.Xml" };
+                { "mscorlib", "System.Core", "System", "System.Xml", "Microsoft.CSharp" };
+
+        internal static readonly string[] PreambleNamespaces =
+        {
+            "System",
+            "System.Collections.Generic",
+            "System.Linq",
+            "System.Reflection",
+            "UnityEngine",
+            "HarmonyLib",
+            "Unity_Inspector_Mod"
+        };
 
         private static readonly HashSet<string> CompiledAssemblies = new HashSet<string>();
         private static bool tokenCheckPatched;
         private static bool extensionMethodCrashPatched;
+        private static bool assemblyImportPatched;
+        private static readonly object assemblyImportPatchLock = new object();
+
+        private static readonly HashSet<string> reportedImportFailures = new HashSet<string>();
 
         public class CompileResult
         {
@@ -81,6 +96,181 @@ namespace Unity_Inspector_Mod
         private static bool SkipExtensionMethodSearch()
         {
             return false; // Skip extension method namespace search — return null
+        }
+
+        // Mono.CSharp's ImportAssembly aborts its whole type loop on the first unresolvable
+        // dependency, silently losing every remaining type. Patched to import per type.
+        public static void PatchAssemblyImport()
+        {
+            lock (assemblyImportPatchLock)
+            {
+                if (assemblyImportPatched) return;
+
+                assemblyImportPatched = true;
+
+                try
+                {
+                    var importMethod = typeof(ReflectionImporter).GetMethod("ImportAssembly",
+                        BindingFlags.Instance | BindingFlags.Public,
+                        null, new[] { typeof(Assembly), typeof(RootNamespace) }, null);
+
+                    if (importMethod == null)
+                    {
+                        Main.Log("Mono.CSharp.ReflectionImporter.ImportAssembly not found — " + ImportDegradedWarning);
+                        return;
+                    }
+
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    harmony.Patch(importMethod,
+                        prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("ImportAssemblyPerType",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch Mono.CSharp.ReflectionImporter.ImportAssembly (" +
+                             e.GetType().Name + ": " + e.Message + ") — " + ImportDegradedWarning);
+                }
+            }
+        }
+
+        private const string ImportDegradedWarning =
+            "assembly import degraded to whole-assembly mode: one unimportable type now silently " +
+            "drops every remaining type in its assembly, so scripts may fail with CS0246/CS0234 " +
+            "for types that exist";
+
+        private static bool ImportAssemblyPerType(ReflectionImporter __instance, Assembly assembly,
+            RootNamespace targetNamespace)
+        {
+            var assemblyName = SafeAssemblyName(assembly);
+
+            try
+            {
+                __instance.GetAssemblyDefinition(assembly);
+            }
+            catch (Exception e)
+            {
+                ReportImportFailure(assemblyName, "assembly metadata", e);
+                return false;
+            }
+
+            Type[] types;
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                types = e.Types; // Partially populated: unloadable entries are null
+            }
+            catch (Exception e)
+            {
+                ReportImportFailure(assemblyName, "type list", e);
+                return false;
+            }
+
+            if (types == null)
+            {
+                ReportImportFailure(assemblyName, "type list", new TypeLoadException("no types could be loaded"));
+                return false;
+            }
+
+            // UnityModManager Harmony-patches Assembly.GetTypes() to return an empty array
+            // for its own assembly, so fall back to enumerating the modules.
+            if (types.Length == 0)
+            {
+                types = GetTypesPerModule(assembly);
+            }
+
+            var single = new Type[1];
+            foreach (var type in types)
+            {
+                if (type == null) continue;
+                single[0] = type;
+                try
+                {
+                    __instance.ImportTypes(single, targetNamespace, true);
+                }
+                catch (Exception e)
+                {
+                    ReportImportFailure(assemblyName, SafeTypeName(type), e);
+                }
+            }
+
+            return false;
+        }
+
+        private static Type[] GetTypesPerModule(Assembly assembly)
+        {
+            Module[] modules;
+            try
+            {
+                modules = assembly.GetModules(true);
+            }
+            catch (Exception)
+            {
+                return new Type[0];
+            }
+
+            var collected = new List<Type>();
+            foreach (var module in modules)
+            {
+                Type[] moduleTypes;
+                try
+                {
+                    moduleTypes = module.GetTypes();
+                }
+                catch (ReflectionTypeLoadException e)
+                {
+                    moduleTypes = e.Types; // Partially populated: unloadable entries are null
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (moduleTypes == null) continue;
+
+                foreach (var type in moduleTypes)
+                {
+                    if (type != null) collected.Add(type);
+                }
+            }
+
+            return collected.ToArray();
+        }
+
+        internal static string SafeAssemblyName(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetName().Name;
+            }
+            catch (Exception)
+            {
+                return "<unknown assembly>";
+            }
+        }
+
+        private static string SafeTypeName(Type type)
+        {
+            try
+            {
+                return "type '" + type.FullName + "'";
+            }
+            catch (Exception)
+            {
+                return "type '<unknown>'";
+            }
+        }
+
+        internal static void ReportImportFailure(string assemblyName, string what, Exception e)
+        {
+            var key = assemblyName + "|" + e.GetType().Name;
+            if (!reportedImportFailures.Add(key)) return;
+
+            Main.Log("Script compiler could not import " + what + " from assembly '" + assemblyName +
+                     "': " + e.GetType().Name + ": " + e.Message +
+                     " (further " + e.GetType().Name + "s from this assembly will not be logged)");
         }
 
         // Unity 2017.4's Mono runtime crashes (native segfault in mono_reflection_get_token)
@@ -253,15 +443,12 @@ namespace Unity_Inspector_Mod
             var ctx = new CompilerContext(settings, reporter);
             ctx.Settings.SourceFiles.Clear();
 
-            // Auto-import common namespaces so scripts don't need boilerplate
-            var preamble =
-                "using System;\n" +
-                "using System.Collections.Generic;\n" +
-                "using System.Linq;\n" +
-                "using System.Reflection;\n" +
-                "using UnityEngine;\n" +
-                "using HarmonyLib;\n" +
-                "using Unity_Inspector_Mod;\n";
+            // One using per line: the preamble shifts line numbers in reported compiler errors.
+            var preamble = new StringBuilder();
+            foreach (var ns in PreambleNamespaces)
+            {
+                preamble.Append("using ").Append(ns).Append(";\n");
+            }
             source = preamble + source;
 
             var sourceBytes = Encoding.UTF8.GetBytes(source);
@@ -389,9 +576,9 @@ namespace Unity_Inspector_Mod
                 {
                     import(ass.ass);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    // Some assemblies may fail to import
+                    ReportImportFailure(ass.name.Name, "any type", e);
                 }
             }
         }

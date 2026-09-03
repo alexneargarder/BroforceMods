@@ -19,6 +19,33 @@ namespace Unity_Inspector_Mod
             public List<GameObject> TrackedGameObjects;
             public string SourceHash;
             public Action<string> Logger;
+            public Dictionary<string, string> Args;
+        }
+
+        private class MainOutputCapture
+        {
+            private readonly List<string> lines = new List<string>();
+            private readonly Action<string> inner;
+            private bool capturing = true;
+
+            public MainOutputCapture(Action<string> inner)
+            {
+                this.inner = inner;
+            }
+
+            public void Log(string msg)
+            {
+                if (capturing) lines.Add(msg);
+                inner(msg);
+            }
+
+            public string[] Stop()
+            {
+                capturing = false;
+                var result = lines.ToArray();
+                lines.Clear();
+                return result;
+            }
         }
 
         private static readonly Dictionary<string, ActiveScript> activeScripts =
@@ -28,19 +55,22 @@ namespace Unity_Inspector_Mod
         {
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
+            ScriptCompiler.PatchAssemblyImport();
             var hash = ComputeHash(source);
 
-            // If same script is already loaded with same source, just re-run Main()
+            // Restart rather than re-enter Main(): Harmony's PatchInfo does not deduplicate,
+            // so patches would stack and fire twice.
             ActiveScript existing;
             if (activeScripts.TryGetValue(name, out existing) && existing.SourceHash == hash)
             {
+                LogCleanupWarnings(name, "restart", CleanupScript(name, existing));
                 return InvokeMain(name, existing, args);
             }
 
             // If same script exists with different source, unload first
             if (existing != null)
             {
-                UnloadScript(name);
+                LogCleanupWarnings(name, "replace", UnloadInternal(name, existing));
             }
 
             var result = ScriptCompiler.Compile(name, source);
@@ -78,23 +108,7 @@ namespace Unity_Inspector_Mod
             activeScripts[name] = script;
 
             // Register assembly with the Evaluator so execute_code can see compiled types
-            try
-            {
-                var evaluatorField = typeof(CodeExecutor).GetField("evaluator",
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                if (evaluatorField != null)
-                {
-                    var evaluator = evaluatorField.GetValue(null) as Mono.CSharp.Evaluator;
-                    if (evaluator != null)
-                    {
-                        evaluator.ReferenceAssembly(result.Assembly);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Main.Log("Failed to register script assembly with Evaluator: " + ex.Message);
-            }
+            CodeExecutor.RegisterScriptAssembly(result.Assembly);
 
             return InvokeMain(name, script, args);
         }
@@ -103,6 +117,7 @@ namespace Unity_Inspector_Mod
         {
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
+            ScriptCompiler.PatchAssemblyImport();
             var result = ScriptCompiler.Compile(name, source);
             if (!result.Success)
             {
@@ -133,14 +148,8 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        public static object UnloadScript(string name)
+        private static List<string> CleanupScript(string name, ActiveScript script)
         {
-            ActiveScript script;
-            if (!activeScripts.TryGetValue(name, out script))
-            {
-                return new { success = false, error = "Script not found: " + name };
-            }
-
             var errors = new List<string>();
 
             // Invoke Unload() on main thread
@@ -150,18 +159,15 @@ namespace Unity_Inspector_Mod
                 {
                     MainThreadDispatcher.EnqueueAndWait(() =>
                     {
-                        // Set up context for Unload
-                        ScriptContext.Harmony = script.HarmonyInstance;
-                        ScriptContext.Logger = msg => Main.Log("[Script:" + name + "] " + msg);
-                        ScriptContext.GameObjects = script.TrackedGameObjects;
-
+                        var saved = ScriptContext.Enter(script.HarmonyInstance, script.Logger,
+                            script.TrackedGameObjects, script.Args);
                         try
                         {
                             script.UnloadMethod.Invoke(null, null);
                         }
                         finally
                         {
-                            ScriptContext.Clear();
+                            ScriptContext.Exit(saved);
                         }
                     }, 10000);
                 }
@@ -195,6 +201,10 @@ namespace Unity_Inspector_Mod
                                 UnityEngine.Object.Destroy(go);
                             }
                         }
+
+                        // Cleared inside the action: EnqueueAndWait's timeout only stops
+                        // waiting, the action stays queued.
+                        script.TrackedGameObjects.Clear();
                     }, 5000);
                 }
                 catch (Exception ex)
@@ -203,7 +213,34 @@ namespace Unity_Inspector_Mod
                 }
             }
 
+            return errors;
+        }
+
+        private static void LogCleanupWarnings(string name, string action, List<string> warnings)
+        {
+            foreach (var warning in warnings)
+                Main.Log("[Script:" + name + "] " + action + ": " + warning);
+        }
+
+        private static List<string> UnloadInternal(string name, ActiveScript script)
+        {
+            var errors = CleanupScript(name, script);
+
             activeScripts.Remove(name);
+            CodeExecutor.UnregisterScriptAssembly(script.Assembly);
+
+            return errors;
+        }
+
+        public static object UnloadScript(string name)
+        {
+            ActiveScript script;
+            if (!activeScripts.TryGetValue(name, out script))
+            {
+                return new { success = false, error = "Script not found: " + name };
+            }
+
+            var errors = UnloadInternal(name, script);
 
             if (errors.Count > 0)
             {
@@ -232,6 +269,8 @@ namespace Unity_Inspector_Mod
 
         private static object InvokeMain(string name, ActiveScript script, Dictionary<string, string> args)
         {
+            script.Args = args ?? new Dictionary<string, string>();
+
             // Find Main() method
             MethodInfo mainMethod = null;
             foreach (var type in script.Assembly.GetTypes())
@@ -261,31 +300,17 @@ namespace Unity_Inspector_Mod
             }
 
             // Set up ScriptContext and invoke on main thread, capturing log output
-            object executionResult = null;
             Exception executionException = null;
-            var logOutput = new List<string>();
+            var capture = new MainOutputCapture(script.Logger);
+            string[] output = null;
 
             MainThreadDispatcher.EnqueueAndWait(() =>
             {
-                ScriptContext.Harmony = script.HarmonyInstance;
-                ScriptContext.Logger = msg =>
-                {
-                    logOutput.Add(msg);
-                    script.Logger(msg);
-                };
-                ScriptContext.GameObjects = script.TrackedGameObjects;
-                ScriptContext.Args = args ?? new Dictionary<string, string>();
-
+                var saved = ScriptContext.Enter(script.HarmonyInstance, capture.Log,
+                    script.TrackedGameObjects, script.Args);
                 try
                 {
                     mainMethod.Invoke(null, null);
-                    executionResult = new
-                    {
-                        success = true,
-                        executed = true,
-                        scriptName = name,
-                        output = logOutput.ToArray()
-                    };
                 }
                 catch (TargetInvocationException tie)
                 {
@@ -297,12 +322,12 @@ namespace Unity_Inspector_Mod
                 }
                 finally
                 {
-                    // Set Logger to the persistent version (not the capturing one)
-                    // so Harmony patches that fire after Main() can still log
-                    ScriptContext.Logger = script.Logger;
-                    ScriptContext.Args = null;
+                    ScriptContext.Exit(saved);
+                    output = capture.Stop();
                 }
             }, 30000);
+
+            if (output == null) output = new string[0];
 
             if (executionException != null)
             {
@@ -311,11 +336,17 @@ namespace Unity_Inspector_Mod
                     success = false,
                     error = "Main() threw an exception: " + executionException.Message,
                     stackTrace = executionException.StackTrace,
-                    output = logOutput.ToArray()
+                    output
                 };
             }
 
-            return executionResult;
+            return new
+            {
+                success = true,
+                executed = true,
+                scriptName = name,
+                output
+            };
         }
 
         private static string ComputeHash(string source)
