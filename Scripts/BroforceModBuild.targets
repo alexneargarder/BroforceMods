@@ -1,13 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Locate the props files by walking up from this file, so builds work from a git worktree
+       (<repo>/.worktrees/<name>/Scripts/) as well as a normal checkout (<repo>/Scripts/) -->
+  <PropertyGroup>
+    <BroforceGlobalProps>$([MSBuild]::GetPathOfFileAbove('BroforceGlobal.props', '$(MSBuildThisFileDirectory)'))</BroforceGlobalProps>
+    <LocalBroforceProps>$([MSBuild]::GetPathOfFileAbove('LocalBroforcePath.props', '$(MSBuildThisFileDirectory)'))</LocalBroforceProps>
+    <BroforceReposRoot Condition="'$(BroforceGlobalProps)' != ''">$([System.IO.Path]::GetDirectoryName('$(BroforceGlobalProps)'))</BroforceReposRoot>
+    <BroforceReposRoot Condition="'$(BroforceReposRoot)' == '' AND '$(LocalBroforceProps)' != ''">$([System.IO.Path]::GetDirectoryName('$(LocalBroforceProps)'))/..</BroforceReposRoot>
+    <BroforceReposRoot Condition="'$(BroforceReposRoot)' == ''">$(MSBuildThisFileDirectory)../..</BroforceReposRoot>
+  </PropertyGroup>
+
   <!-- Import global props first if it exists -->
-  <Import Project="$(MSBuildThisFileDirectory)../../BroforceGlobal.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)../../BroforceGlobal.props')" />
+  <Import Project="$(BroforceGlobalProps)" Condition="'$(BroforceGlobalProps)' != ''" />
 
   <!-- Import local props second (overrides global) -->
-  <Import Project="$(MSBuildThisFileDirectory)../LocalBroforcePath.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')" />
+  <Import Project="$(LocalBroforceProps)" Condition="'$(LocalBroforceProps)' != ''" />
+
+  <PropertyGroup Condition="'$(CLAUDECODE)' != ''">
+    <CloseBroforceOnBuild>false</CloseBroforceOnBuild>
+    <LaunchBroforceOnBuild>false</LaunchBroforceOnBuild>
+  </PropertyGroup>
 
   <PropertyGroup>
     <!-- Windows default -->
@@ -32,17 +45,136 @@
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
     <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
     <LaunchArgs Condition="'$(LaunchArgs)' == ''"></LaunchArgs>
-    <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
-    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
-    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
-    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
-
-    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
-    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
-    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
+    <_LibPathUserSet Condition="'$(LibPath)' != ''">true</_LibPathUserSet>
+    <LibPath Condition="'$(LibPath)' == ''">$(BroforceReposRoot)/BroforceMods/libs</LibPath>
+    <_BroMakerLibPathUserSet Condition="'$(BroMakerLibPath)' != ''">true</_BroMakerLibPathUserSet>
+    <_RocketLibPathUserSet Condition="'$(RocketLibPath)' != ''">true</_RocketLibPathUserSet>
     <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
     <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <BroforceStageRoot Condition="'$(BroforceStageRoot)' == ''">$(HOME)/.local/share/broforce-stages</BroforceStageRoot>
+    <BroforceInstallBackupRoot Condition="'$(BroforceInstallBackupRoot)' == ''">$(HOME)/.local/share/broforce-install-backup</BroforceInstallBackupRoot>
+    <BroforceSessionStage Condition="'$(CLAUDE_SESSION_ID)' != ''">$(BroforceStageRoot)/$(CLAUDE_SESSION_ID)/UMM</BroforceSessionStage>
+    <BroforceStageExists Condition="'$(BroforceSessionStage)' != '' AND Exists('$(BroforceSessionStage)')">true</BroforceStageExists>
+    <BroforceInstallLockWait Condition="'$(BroforceInstallLockWait)' == ''">120</BroforceInstallLockWait>
+    <BroforceInstancesRoot Condition="'$(BroforceInstancesRoot)' == ''"></BroforceInstancesRoot>
+    <AllowStageRefs Condition="'$(AllowStageRefs)' == ''">false</AllowStageRefs>
+    <RelaunchInstanceOnBuild Condition="'$(RelaunchInstanceOnBuild)' == '' AND '$(IsLinux)' == 'true' AND '$(CLAUDECODE)' != '' AND '$(CLAUDE_SESSION_ID)' != ''">true</RelaunchInstanceOnBuild>
+    <RelaunchInstanceOnBuild Condition="'$(RelaunchInstanceOnBuild)' == ''">false</RelaunchInstanceOnBuild>
+    <DeferInstanceRelaunch Condition="'$(DeferInstanceRelaunch)' == ''">false</DeferInstanceRelaunch>
+
+    <BroforceInstallRoot Condition="'$(BroforceInstallRoot)' == '' AND '$(InstallTo)' == 'default'">$(BroforcePath)</BroforceInstallRoot>
+    <BroforceInstallRoot Condition="'$(BroforceInstallRoot)' == '' AND '$(BroforceStageExists)' == 'true'">$(BroforceSessionStage)</BroforceInstallRoot>
+    <BroforceInstallRoot Condition="'$(BroforceInstallRoot)' == ''">$(BroforcePath)</BroforceInstallRoot>
+    <InstallTarget Condition="'$(BroforceInstallRoot)' == '$(BroforcePath)'">default</InstallTarget>
+    <InstallTarget Condition="'$(InstallTarget)' == '' AND '$(BroforceSessionStage)' != '' AND '$(BroforceInstallRoot)' == '$(BroforceSessionStage)'">stage</InstallTarget>
+    <InstallTarget Condition="'$(InstallTarget)' == ''">custom</InstallTarget>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Isolated builds compile against the stage; a promotion build probes Default first so the
+         promoted DLL binds to what Default has -->
+    <_RefRoot1 Condition="'$(BroforceStageExists)' == 'true' AND '$(InstallTo)' != 'default'">$(BroforceSessionStage)</_RefRoot1>
+    <_RefRoot2 Condition="'$(BroforceStageExists)' == 'true' AND '$(InstallTo)' != 'default'">$(BroforcePath)</_RefRoot2>
+    <_RefRoot1 Condition="'$(_RefRoot1)' == ''">$(BroforcePath)</_RefRoot1>
+    <_RefRoot2 Condition="'$(_RefRoot2)' == '' AND '$(BroforceStageExists)' == 'true'">$(BroforceSessionStage)</_RefRoot2>
+
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(_RefRoot1)/Mods/BroMaker/BroMakerLib.dll')">$(_RefRoot1)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(_RefRoot1)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll')">$(_RefRoot1)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND '$(_RefRoot2)' != '' AND Exists('$(_RefRoot2)/Mods/BroMaker/BroMakerLib.dll')">$(_RefRoot2)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND '$(_RefRoot2)' != '' AND Exists('$(_RefRoot2)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll')">$(_RefRoot2)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
+
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(_RefRoot1)/Mods/RocketLib/RocketLib.dll')">$(_RefRoot1)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(_RefRoot1)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll')">$(_RefRoot1)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND '$(_RefRoot2)' != '' AND Exists('$(_RefRoot2)/Mods/RocketLib/RocketLib.dll')">$(_RefRoot2)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND '$(_RefRoot2)' != '' AND Exists('$(_RefRoot2)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll')">$(_RefRoot2)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
+    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
+
+    <_BroMakerLibFromStage Condition="'$(BroforceSessionStage)' != '' AND $([System.String]::new('$(BroMakerLibPath)').StartsWith('$(BroforceSessionStage)'))">true</_BroMakerLibFromStage>
+    <_RocketLibFromStage Condition="'$(BroforceSessionStage)' != '' AND $([System.String]::new('$(RocketLibPath)').StartsWith('$(BroforceSessionStage)'))">true</_RocketLibFromStage>
+  </PropertyGroup>
+
+  <Target Name="CollectLibReferences">
+    <ItemGroup>
+      <_BroMakerLibReference Include="@(Reference)"
+                             Condition="$([System.String]::new('%(Reference.Identity)').StartsWith('BroMakerLib'))" />
+      <_RocketLibReference Include="@(Reference)"
+                           Condition="$([System.String]::new('%(Reference.Identity)').StartsWith('RocketLib'))" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="WarnMissingLibPaths" BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="CollectLibReferences"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Warning Code="BRO0001"
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' == 'true'"
+             Text="BroMakerLibPath is set to $(BroMakerLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0001"
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true'"
+             Text="BroMakerLibPath does not exist: $(BroMakerLibPath). Neither $(BroforcePath)/Mods/BroMaker/BroMakerLib.dll nor $(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll was found. Install BroMaker into that Broforce profile, or set BroMakerLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0002"
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' == 'true'"
+             Text="RocketLibPath is set to $(RocketLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0002"
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true'"
+             Text="RocketLibPath does not exist: $(RocketLibPath). Neither $(BroforcePath)/Mods/RocketLib/RocketLib.dll nor $(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll was found. Install RocketLib into that Broforce profile, or set RocketLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0003"
+             Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' == 'true'"
+             Text="LibPath is set to $(LibPath) but that directory does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+    <Warning Code="BRO0003"
+             Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' != 'true'"
+             Text="LibPath does not exist: $(LibPath). Reference DLLs are expected at &lt;repos root&gt;/BroforceMods/libs. Set LibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+  </Target>
+
+  <Target Name="ReportStageReferences" BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="CollectLibReferences"
+          Condition="'$(DesignTimeBuild)' != 'true' AND ('$(_RocketLibFromStage)' == 'true' OR '$(_BroMakerLibFromStage)' == 'true')">
+    <PropertyGroup>
+      <_RocketLibStampDir>$([System.IO.Path]::GetDirectoryName('$(RocketLibPath)'))</_RocketLibStampDir>
+      <_BroMakerLibStampDir>$([System.IO.Path]::GetDirectoryName('$(BroMakerLibPath)'))</_BroMakerLibStampDir>
+    </PropertyGroup>
+
+    <Exec Condition="'$(IsLinux)' == 'true' AND '$(_RocketLibFromStage)' == 'true' AND '@(_RocketLibReference)' != ''"
+          Command="f='$(_RocketLibStampDir)/.build-stamp.json'; [ -f &quot;%24f&quot; ] || f='$(_RocketLibStampDir)/../.build-stamp.json'; grep -o '&quot;buildId&quot;[^,]*' &quot;%24f&quot; 2&gt;/dev/null | head -n 1 | cut -d'&quot;' -f4"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RocketLibBuildId" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true' AND '$(_BroMakerLibFromStage)' == 'true' AND '@(_BroMakerLibReference)' != ''"
+          Command="f='$(_BroMakerLibStampDir)/.build-stamp.json'; [ -f &quot;%24f&quot; ] || f='$(_BroMakerLibStampDir)/../.build-stamp.json'; grep -o '&quot;buildId&quot;[^,]*' &quot;%24f&quot; 2&gt;/dev/null | head -n 1 | cut -d'&quot;' -f4"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_BroMakerLibBuildId" />
+    </Exec>
+
+    <PropertyGroup>
+      <_RocketLibBuildId Condition="'$(_RocketLibBuildId)' == ''">no stamp</_RocketLibBuildId>
+      <_BroMakerLibBuildId Condition="'$(_BroMakerLibBuildId)' == ''">no stamp</_BroMakerLibBuildId>
+    </PropertyGroup>
+
+    <Message Importance="high"
+             Condition="'$(_RocketLibFromStage)' == 'true' AND '@(_RocketLibReference)' != ''"
+             Text="RocketLib comes from this session's private copy: $(RocketLibPath) (buildId $(_RocketLibBuildId))" />
+    <Message Importance="high"
+             Condition="'$(_BroMakerLibFromStage)' == 'true' AND '@(_BroMakerLibReference)' != ''"
+             Text="BroMakerLib comes from this session's private copy: $(BroMakerLibPath) (buildId $(_BroMakerLibBuildId))" />
+  </Target>
+
+  <Target Name="CheckStageReferences" BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="CollectLibReferences"
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(InstallTo)' == 'default' AND '$(AllowStageRefs)' != 'true'">
+    <Error Code="BRO0005"
+           Condition="'$(_RocketLibFromStage)' == 'true' AND '@(_RocketLibReference)' != ''"
+           Text="This mod was compiled against the RocketLib in this session's private copy ($(RocketLibPath)), so it must not be installed into the shared mods folder. Install RocketLib with INSTALL=default first and rebuild, or pass ALLOW_STAGE_REFS=1 to override." />
+    <Error Code="BRO0005"
+           Condition="'$(_BroMakerLibFromStage)' == 'true' AND '@(_BroMakerLibReference)' != ''"
+           Text="This mod was compiled against the BroMakerLib in this session's private copy ($(BroMakerLibPath)), so it must not be installed into the shared mods folder. Install BroMakerLib with INSTALL=default first and rebuild, or pass ALLOW_STAGE_REFS=1 to override." />
+  </Target>
 
   <Target Name="KillGameProcess" BeforeTargets="Build"
           Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
@@ -54,13 +186,18 @@
 
   <Target Name="KillGameProcessLinux" BeforeTargets="Build"
           Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="pkill -9 -x 'Broforce.x86_64' 2>/dev/null || pkill -9 -x Broforce 2>/dev/null || pkill -9 -f 'Broforce_beta.exe' 2>/dev/null || true"
+    <PropertyGroup>
+      <_InstancesRootTrimmed Condition="'$(BroforceInstancesRoot)' != ''">$(BroforceInstancesRoot.TrimEnd('/'))</_InstancesRootTrimmed>
+      <_InstanceSkip Condition="'$(_InstancesRootTrimmed)' != ''">cwd=`readlink /proc/%24p/cwd 2&gt;/dev/null`; case "%24cwd" in '$(_InstancesRootTrimmed)'|'$(_InstancesRootTrimmed)'/*) continue;; esac; </_InstanceSkip>
+    </PropertyGroup>
+    <!-- The bracketed pattern stops pgrep -f from matching this command's own shell; %24 is MSBuild's escape for a literal $ -->
+    <Exec Command="cands() { { pgrep -x 'Broforce.x86_64'; pgrep -x Broforce; pgrep -f '[B]roforce_beta.exe'; } 2&gt;/dev/null | sort -u; }; targets() { for p in `cands`; do $(_InstanceSkip)echo %24p; done; }; t=`targets`; [ -n &quot;%24t&quot; ] || exit 0; kill -TERM %24t 2&gt;/dev/null; deadline=%24((`date +%s`+5)); while :; do t=`targets`; [ -n &quot;%24t&quot; ] || break; [ `date +%s` -ge %24deadline ] &amp;&amp; break; sleep 1; done; t=`targets`; if [ -n &quot;%24t&quot; ]; then kill -KILL %24t 2&gt;/dev/null; fi; true"
           IgnoreExitCode="true"
           ContinueOnError="true" />
     <Message Text="Closed Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="DetectProjectType" BeforeTargets="InstallToGame">
+  <Target Name="DetectProjectType">
     <ItemGroup>
       <ModJsonFiles Include="$(ProjectDir)$(ModContentFolder)\*.mod.json" />
     </ItemGroup>
@@ -69,8 +206,10 @@
       <InstallFolderName Condition="'$(InstallFolderName)' == ''">$(ProjectName)</InstallFolderName>
       <IsModProject Condition="Exists('$(ProjectDir)$(ModContentFolder)\Info.json')">true</IsModProject>
       <IsBroProject Condition="'@(ModJsonFiles->Count())' != '0'">true</IsBroProject>
-      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)/Mods/$(InstallFolderName)/</InstallPath>
-      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)/BroMaker_Storage/$(InstallFolderName)/</InstallPath>
+      <InstallKind Condition="'$(IsModProject)' == 'true'">Mods</InstallKind>
+      <InstallKind Condition="'$(IsBroProject)' == 'true'">BroMaker_Storage</InstallKind>
+      <InstallDir Condition="'$(InstallKind)' != ''">$(BroforceInstallRoot)/$(InstallKind)/$(InstallFolderName)</InstallDir>
+      <InstallPath Condition="'$(InstallKind)' != ''">$(InstallDir)/</InstallPath>
     </PropertyGroup>
 
     <Error Text="Could not determine project type. $(ModContentFolder) folder must contain either Info.json (for mods) or *.mod.json (for bros)."
@@ -84,36 +223,86 @@
     <Message Text="========================================" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
+  <!-- Fresh copies must get new inodes: an installed hard link elsewhere still points at the old ones -->
+  <Target Name="RefreshModContentOutputs" AfterTargets="Build"
+          BeforeTargets="CopyXmlDocumentation;InstallToGame"
+          Condition="'$(SkipInstall)' != 'true'">
+    <Delete Files="$(ProjectDir)$(ModContentFolder)\$(TargetFileName)" ContinueOnError="true" />
+  </Target>
+
   <Target Name="CopyXmlDocumentation" AfterTargets="Build" BeforeTargets="InstallToGame"
-          Condition="'$(CopyXmlDocToModContent)' == 'true'">
+          Condition="'$(CopyXmlDocToModContent)' == 'true' AND '$(SkipInstall)' != 'true'">
     <PropertyGroup>
       <XmlDocPath>$(TargetDir)$(AssemblyName).xml</XmlDocPath>
       <XmlDocDestination>$(ProjectDir)$(ModContentFolder)\$(AssemblyName).xml</XmlDocDestination>
     </PropertyGroup>
 
+    <Delete Files="$(XmlDocDestination)" ContinueOnError="true"
+            Condition="Exists('$(XmlDocPath)')" />
+
     <Copy SourceFiles="$(XmlDocPath)"
           DestinationFiles="$(XmlDocDestination)"
-          SkipUnchangedFiles="true"
+          SkipUnchangedFiles="false"
           Condition="Exists('$(XmlDocPath)')" />
 
     <Message Text="Copied XML documentation to $(ModContentFolder)" Importance="high"
              Condition="Exists('$(XmlDocPath)') AND '$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
+  <!-- Runs before the kill step and before anything under the install root is touched, so a
+       refusal leaves the instance running the build it already has; the kill would otherwise
+       stop the instance first and hide it from the status check.
+       %24 is MSBuild's escape for a literal $. Exec rewrites every backslash in the command to a
+       forward slash, so nothing here may rely on one -->
+  <Target Name="CheckInstanceRelaunch" BeforeTargets="KillGameProcessLinux;InstallToGame"
+          Condition="'$(IsLinux)' == 'true' AND '$(SkipInstall)' != 'true' AND '$(RelaunchInstanceOnBuild)' == 'true' AND '$(InstallTarget)' != 'custom'">
+    <Exec Command="if command -v bf &gt;/dev/null 2&gt;&amp;1; then s=`bf instance &quot;$(CLAUDE_SESSION_ID)&quot; status 2&gt;/dev/null`; case &quot;%24s&quot; in running=1*) echo running;; *) echo stopped;; esac; else echo nobf; fi"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_InstanceStatus" />
+    </Exec>
+
+    <Message Importance="low" Condition="'$(_InstanceStatus)' == 'nobf'"
+             Text="bf is not on PATH; instance $(CLAUDE_SESSION_ID) was not checked." />
+    <Message Importance="low" Condition="'$(_InstanceStatus)' == 'stopped'"
+             Text="Instance $(CLAUDE_SESSION_ID) is not running; nothing to relaunch." />
+
+    <Exec Condition="'$(_InstanceStatus)' == 'running'"
+          Command="if command -v claude-session &gt;/dev/null 2&gt;&amp;1; then j=`claude-session lock status broforce-game --json 2&gt;/dev/null`; else j=; fi; if command -v jq &gt;/dev/null 2&gt;&amp;1; then h=`printf '%s' &quot;%24j&quot; | jq -r '.held' 2&gt;/dev/null`; hid=`printf '%s' &quot;%24j&quot; | jq -r '.holder.session_id // &quot;&quot;' 2&gt;/dev/null`; hn=`printf '%s' &quot;%24j&quot; | jq -r '.holder.session_name // &quot;&quot;' 2&gt;/dev/null`; else h=`printf '%s' &quot;%24j&quot; | grep -Eo '&quot;held&quot;[^,}]*' | head -n 1 | grep -Eo 'true|false'`; hid=`printf '%s' &quot;%24j&quot; | grep -Eo '&quot;session_id&quot;[[:space:]]*:[[:space:]]*&quot;[^&quot;]*&quot;' | head -n 1 | cut -d'&quot;' -f4`; hn=`printf '%s' &quot;%24j&quot; | grep -Eo '&quot;session_name&quot;[[:space:]]*:[[:space:]]*&quot;[^&quot;]*&quot;' | head -n 1 | cut -d'&quot;' -f4`; fi; if [ &quot;%24h&quot; != 'true' ] &amp;&amp; [ &quot;%24h&quot; != 'false' ]; then echo 'could not be checked'; elif [ &quot;%24h&quot; = 'false' ]; then echo 'is free'; elif [ &quot;%24hid&quot; = '$(CLAUDE_SESSION_ID)' ]; then echo ok; else [ -n &quot;%24hn&quot; ] || hn=&quot;%24hid&quot;; [ -n &quot;%24hn&quot; ] || hn='another session'; echo &quot;is held by %24hn&quot;; fi"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_InstanceLockState" />
+    </Exec>
+
+    <PropertyGroup>
+      <_InstanceRelaunchDue Condition="'$(_InstanceStatus)' == 'running' AND '$(_InstanceLockState)' == 'ok'">true</_InstanceRelaunchDue>
+    </PropertyGroup>
+
+    <!-- The post-build LaunchOnly run installs nothing of its own, so it gets the variant that
+         does not claim the install was skipped -->
+    <Error Code="BRO0008"
+           Condition="'$(_InstanceStatus)' == 'running' AND '$(_InstanceLockState)' != 'ok' AND '$(RelaunchAfterInstall)' != 'true'"
+           Text="Instance $(CLAUDE_SESSION_ID) is running, so this build has to relaunch it after installing, but the broforce-game lock $(_InstanceLockState). Nothing was installed. Take the lock with 'cs lock take broforce-game --queue', build with LAUNCH=no to install without relaunching, or stop the instance." />
+
+    <Error Code="BRO0008"
+           Condition="'$(_InstanceStatus)' == 'running' AND '$(_InstanceLockState)' != 'ok' AND '$(RelaunchAfterInstall)' == 'true'"
+           Text="This build is installed, but instance $(CLAUDE_SESSION_ID) is still running the previous one: the broforce-game lock $(_InstanceLockState). Take the lock with 'cs lock take broforce-game --queue' and rebuild, or relaunch the instance yourself." />
+  </Target>
+
   <Target Name="InstallToGame" AfterTargets="Build" DependsOnTargets="DetectProjectType"
           Condition="'$(SkipInstall)' != 'true'">
     <MakeDir Directories="$(ProjectDir)$(ModContentFolder)" />
-    <MakeDir Directories="$(InstallPath)" />
 
     <Copy SourceFiles="$(TargetPath)"
           DestinationFolder="$(ProjectDir)$(ModContentFolder)"
-          SkipUnchangedFiles="true" />
+          SkipUnchangedFiles="false" />
 
     <ItemGroup>
       <ModContentFiles Include="$(ProjectDir)$(ModContentFolder)\**\*.*" />
     </ItemGroup>
 
-    <Copy SourceFiles="@(ModContentFiles)"
+    <MakeDir Directories="$(InstallPath)" Condition="'$(IsWindows)' == 'true'" />
+
+    <Copy Condition="'$(IsWindows)' == 'true'"
+          SourceFiles="@(ModContentFiles)"
           DestinationFiles="@(ModContentFiles->'$(InstallPath)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"
           UseHardlinksIfPossible="$(UseHardLinksForInstall)"
@@ -122,8 +311,90 @@
       <Output TaskParameter="CopiedFiles" ItemName="CopiedContentFiles" />
     </Copy>
 
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <!-- One staging tree per build: two checkouts installing the same mod must not share one -->
+      <_InstallStagingDir>$(BroforceInstallRoot)/.install-staging/$(InstallFolderName).$([System.Guid]::NewGuid())</_InstallStagingDir>
+    </PropertyGroup>
+
+    <Exec Condition="'$(IsLinux)' == 'true'"
+          Command="rm -rf '$(_InstallStagingDir)' &amp;&amp; mkdir -p '$(_InstallStagingDir)'" />
+
+    <Copy Condition="'$(IsLinux)' == 'true'"
+          SourceFiles="@(ModContentFiles)"
+          DestinationFiles="@(ModContentFiles->'$(_InstallStagingDir)/%(RecursiveDir)%(Filename)%(Extension)')"
+          UseHardlinksIfPossible="$(UseHardLinksForInstall)"
+          Retries="3"
+          RetryDelayMilliseconds="500">
+      <Output TaskParameter="CopiedFiles" ItemName="CopiedContentFiles" />
+    </Copy>
+
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          Command="git -C '$(MSBuildProjectDirectory)' rev-parse --path-format=absolute --git-common-dir 2&gt;/dev/null | sed 's|/[^/]*%24||; s|.*/||'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampRepo" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          Command="git -C '$(MSBuildProjectDirectory)' rev-parse --abbrev-ref HEAD 2&gt;/dev/null">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampBranch" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          Command="git -C '$(MSBuildProjectDirectory)' rev-parse HEAD 2&gt;/dev/null">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampCommit" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          Command="if git -C '$(MSBuildProjectDirectory)' rev-parse --git-dir &gt;/dev/null 2&gt;&amp;1; then if [ -n &quot;`git -C '$(MSBuildProjectDirectory)' status --porcelain --untracked-files=no 2&gt;/dev/null`&quot; ]; then echo true; else echo false; fi; fi">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampDirty" />
+    </Exec>
+
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_StampSessionJson Condition="'$(CLAUDE_SESSION_ID)' != ''">"$(CLAUDE_SESSION_ID)"</_StampSessionJson>
+      <_StampSessionJson Condition="'$(CLAUDE_SESSION_ID)' == ''">null</_StampSessionJson>
+      <_StampRepoJson Condition="'$(_StampRepo)' != ''">"$(_StampRepo)"</_StampRepoJson>
+      <_StampRepoJson Condition="'$(_StampRepo)' == ''">null</_StampRepoJson>
+      <_StampBranchJson Condition="'$(_StampBranch)' != ''">"$(_StampBranch)"</_StampBranchJson>
+      <_StampBranchJson Condition="'$(_StampBranch)' == ''">null</_StampBranchJson>
+      <_StampCommitJson Condition="'$(_StampCommit)' != ''">"$(_StampCommit)"</_StampCommitJson>
+      <_StampCommitJson Condition="'$(_StampCommit)' == ''">null</_StampCommitJson>
+      <_StampDirtyJson Condition="'$(_StampDirty)' == 'true' OR '$(_StampDirty)' == 'false'">$(_StampDirty)</_StampDirtyJson>
+      <_StampDirtyJson Condition="'$(_StampDirtyJson)' == ''">null</_StampDirtyJson>
+      <_BuildStampJson>{"buildId": "$([System.Guid]::NewGuid())", "builtAt": "$([System.DateTime]::UtcNow.ToString("o"))", "session": $(_StampSessionJson), "project": "$(MSBuildProjectName)", "installTarget": "$(InstallTarget)", "repo": $(_StampRepoJson), "branch": $(_StampBranchJson), "commit": $(_StampCommitJson), "dirty": $(_StampDirtyJson)}</_BuildStampJson>
+    </PropertyGroup>
+
+    <WriteLinesToFile Condition="'$(IsLinux)' == 'true'"
+                      File="$(_InstallStagingDir)/.build-stamp.json"
+                      Lines="$(_BuildStampJson)"
+                      Overwrite="true" />
+
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_InstallSwapPre Condition="'$(InstallTarget)' == 'default'">rm -rf '$(BroforceInstallBackupRoot)/$(InstallFolderName)'; if [ -e '$(InstallDir)' ]; then mkdir -p '$(BroforceInstallBackupRoot)'; mv '$(InstallDir)' '$(BroforceInstallBackupRoot)/$(InstallFolderName)'; fi</_InstallSwapPre>
+      <_InstallSwapPre Condition="'$(InstallTarget)' != 'default'">rm -rf '$(InstallDir)'</_InstallSwapPre>
+      <!-- The launcher composes from the stage under the stage's own lock, so take it for the removal -->
+      <_InstallSwapPost Condition="'$(InstallTarget)' == 'default' AND '$(InstallTo)' == 'default' AND '$(BroforceStageExists)' == 'true'">; exec 8&gt;'$(BroforceSessionStage)/.install.lock'; flock -E 76 -w $(BroforceInstallLockWait) 8 || exit %24?; rm -rf '$(BroforceSessionStage)/$(InstallKind)/$(InstallFolderName)'</_InstallSwapPost>
+    </PropertyGroup>
+
+    <!-- %24 is MSBuild's escape for a literal $; flock exits 75 (76 for the stage's lock) on a wait expiry -->
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true"
+          Command="set -e; mkdir -p '$(BroforceInstallRoot)'; exec 9&gt;'$(BroforceInstallRoot)/.install.lock'; flock -E 75 -w $(BroforceInstallLockWait) 9 || exit %24?; find '$(BroforceInstallRoot)/.install-staging' -mindepth 1 -maxdepth 1 -name '$(InstallFolderName).*' ! -path '$(_InstallStagingDir)' -mmin +60 -exec rm -rf {} + || true; mkdir -p '$(BroforceInstallRoot)/$(InstallKind)'; $(_InstallSwapPre); mv '$(_InstallStagingDir)' '$(InstallDir)'$(_InstallSwapPost)">
+      <Output TaskParameter="ExitCode" PropertyName="_InstallSwapExit" />
+    </Exec>
+
+    <Error Code="BRO0006"
+           Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' == '75'"
+           Text="Timed out after $(BroforceInstallLockWait)s waiting for .install.lock in $(BroforceInstallRoot). Nothing was installed." />
+    <Error Code="BRO0006"
+           Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' == '76'"
+           Text="Installed into $(InstallDir), then timed out after $(BroforceInstallLockWait)s waiting for .install.lock in $(BroforceSessionStage). This session's private copy still holds its own $(InstallFolderName)." />
+    <Error Code="BRO0007"
+           Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' != '0' AND '$(_InstallSwapExit)' != '75' AND '$(_InstallSwapExit)' != '76'"
+           Text="Installing into $(InstallDir) failed with exit code $(_InstallSwapExit)." />
+
     <Message Text="✓ Installed successfully" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
     <Message Text="  Files: @(CopiedContentFiles->Count()) files" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+
+    <OnError ExecuteTargets="RemoveInstallStaging" />
+  </Target>
+
+  <Target Name="RemoveInstallStaging" Condition="'$(IsLinux)' == 'true' AND '$(_InstallStagingDir)' != ''">
+    <Exec Command="rm -rf '$(_InstallStagingDir)'" IgnoreExitCode="true" ContinueOnError="true" />
   </Target>
 
   <Target Name="CleanCacheFiles" AfterTargets="InstallToGame"
@@ -135,22 +406,45 @@
     <Message Text="Cleaned cache files" Importance="low" Condition="'@(CacheFiles)' != ''" />
   </Target>
 
+  <Target Name="RelaunchInstance" AfterTargets="CleanCacheFiles"
+          Condition="'$(_InstanceRelaunchDue)' == 'true' AND '$(DeferInstanceRelaunch)' != 'true'">
+    <Exec Command="bf instance &quot;$(CLAUDE_SESSION_ID)&quot; relaunch" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="_InstanceRelaunchExit" />
+    </Exec>
+
+    <Error Code="BRO0009"
+           Condition="'$(_InstanceRelaunchExit)' != '0'"
+           Text="Relaunching instance $(CLAUDE_SESSION_ID) failed with exit code $(_InstanceRelaunchExit); the instance may be stopped." />
+
+    <Message Importance="high"
+             Condition="'$(_InstanceRelaunchExit)' == '0'"
+             Text="Relaunched instance $(CLAUDE_SESSION_ID) on the new build. Call wait_for_game before the next inspector call." />
+  </Target>
+
   <Target Name="LaunchGame" AfterTargets="InstallToGame"
           Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
-    <Exec Command="start steam://rungameid/274190"
+    <Exec Command="start &quot;&quot; &quot;steam://rungameid/274190&quot;"
           Condition="'$(LaunchArgs)' == ''" />
-    <Exec Command="start steam://run/274190//$(LaunchArgs)/"
+    <Exec Command="start &quot;&quot; &quot;steam://run/274190//$(LaunchArgs)/&quot;"
           Condition="'$(LaunchArgs)' != ''" />
     <Message Text="Launching Broforce via Steam" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
   <Target Name="LaunchGameLinux" AfterTargets="InstallToGame"
           Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf || xdg-open steam://rungameid/274190"
+    <Exec Command="if command -v bf &gt;/dev/null 2&gt;&amp;1; then bf; else xdg-open steam://rungameid/274190; fi"
           Condition="'$(LaunchArgs)' == ''" />
-    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf $(LaunchArgs) || xdg-open 'steam://run/274190//$(LaunchArgs)/'"
+    <Exec Command="if command -v bf &gt;/dev/null 2&gt;&amp;1; then bf $(LaunchArgs); else xdg-open 'steam://run/274190//$(LaunchArgs)/'; fi"
           Condition="'$(LaunchArgs)' != ''" />
     <Message Text="Launching Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <!-- Launch the game, and relaunch this session's instance, without building or installing:
+       msbuild <csproj> /t:LaunchOnly /p:LaunchBroforceOnBuild=true -->
+  <Target Name="LaunchOnly" DependsOnTargets="CheckInstanceRelaunch;LaunchGame;LaunchGameLinux;RelaunchInstance">
+    <Warning Code="BRO0004"
+             Condition="'$(LaunchBroforceOnBuild)' != 'true' AND '$(RelaunchInstanceOnBuild)' != 'true'"
+             Text="LaunchOnly has nothing to do unless LaunchBroforceOnBuild=true is passed or a running instance of this session is due a relaunch" />
   </Target>
 
 </Project>

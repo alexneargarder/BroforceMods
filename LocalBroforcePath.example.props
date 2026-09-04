@@ -2,31 +2,30 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!--
-    Copy this file to LocalBroforcePath.props and configure for your system.
+    Copy this file to LocalBroforcePath.props in your repo root and configure for your system.
     This file is git-ignored and contains your personal build settings.
-  -->
 
-  <!-- OPTIONAL: Share settings across repos with BroforceGlobal.props -->
-  <!-- If BroforceGlobal.props exists in parent directory, it will be imported here -->
-  <!-- Note that any settings below override the global settings -->
-  <Import Project="$(MSBuildThisFileDirectory)../BroforceGlobal.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)../BroforceGlobal.props')" />
+    Import chain: BroforceModBuild.targets imports BroforceGlobal.props from the repos
+    parent directory first, then LocalBroforcePath.props from the repo root. Settings here
+    override the global ones. Do not import BroforceGlobal.props from this file - the
+    targets file already does it, and a second import warns MSB4011 on every build.
+  -->
 
   <PropertyGroup>
 
     <!-- REQUIRED: Broforce installation directory - UPDATE THIS PATH -->
     <!-- For Thunderstore/r2modman installs, replace YourName with your Windows username: -->
-    <BroforcePath>C:\Users\YourName\AppData\Roaming\r2modmanPlus-local\Broforce\profiles\Default\UMM</BroforcePath>
+    <BroforcePath>C:/Users/YourName/AppData/Roaming/r2modmanPlus-local/Broforce/profiles/Default/UMM</BroforcePath>
 
     <!-- For UMM installs without r2modman: -->
-    <!-- <BroforcePath>C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath> -->
+    <!-- <BroforcePath>C:/Program Files (x86)/Steam/steamapps/common/Broforce</BroforcePath> -->
 
     <!-- LibPath (uncomment to override - default points to BroforceMods/libs) -->
     <!-- <LibPath>$(MSBuildThisFileDirectory)../BroforceMods/libs</LibPath> -->
 
     <!-- Point these to your installed mods (Thunderstore structure) -->
-    <BroMakerLibPath>$(BroforcePath)\Mods\BroMaker-BroMaker\BroMakerLib\BroMakerLib.dll</BroMakerLibPath>
-    <RocketLibPath>$(BroforcePath)\Mods\RocketLib-RocketLib\RocketLib\RocketLib.dll</RocketLibPath>
+    <BroMakerLibPath>$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
+    <RocketLibPath>$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
     <!-- If building from source repos: -->
     <!-- <BroMakerLibPath>$(MSBuildThisFileDirectory)../Bro-Maker/BroMakerLib/_ModContent/BroMakerLib.dll</BroMakerLibPath> -->
     <!-- <RocketLibPath>$(MSBuildThisFileDirectory)../RocketLib/RocketLib/_ModContent/RocketLib.dll</RocketLibPath> -->
@@ -36,6 +35,9 @@
     <!-- <LaunchBroforceOnBuild>false</LaunchBroforceOnBuild> -->
     <!-- <UseHardLinksForInstall>false</UseHardLinksForInstall> -->
     <!-- <VerboseBuildOutput>false</VerboseBuildOutput> -->
+
+    <!-- Game processes whose working directory is under it are not closed by the build -->
+    <!-- <BroforceInstancesRoot>/path/to/instances</BroforceInstancesRoot> -->
 
   </PropertyGroup>
 </Project>
