@@ -119,11 +119,9 @@ namespace Unity_Inspector_Mod
             var includeInactive = parameters?["includeInactive"]?.Value<bool>() ?? true;
             var maxResults = parameters?["maxResults"]?.Value<int>() ?? 100;
             
-            // Debug logging
             
             var rootObjects = GameObjectInspector.GetRootGameObjects( includeInactive );
 
-            // Limit results to prevent response size issues
             var limitedObjects = rootObjects.Take(maxResults).ToList();
 
             return new
@@ -150,17 +148,13 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( "GameObject path is required" );
             }
 
-            // Check for detailed parameter (default to false for lightweight response)
             var detailed = parameters?["detailed"]?.ToObject<bool>() ?? false;
 
-            // Can't use GameObject.Find() as it only searches active scene hierarchy
-            // Need to search through all objects like we do in list
+            // GameObject.Find only searches the active scene hierarchy.
             GameObject go = null;
             
-            // First try the active scene
             go = GameObject.Find( path );
             
-            // If not found, search through all objects
             if ( go == null )
             {
                 var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
@@ -197,13 +191,10 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( "Component type is required" );
             }
 
-            // Find the GameObject first
             GameObject go = null;
             
-            // First try the active scene
             go = GameObject.Find( path );
             
-            // If not found, search through all objects
             if ( go == null )
             {
                 var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
@@ -257,7 +248,6 @@ namespace Unity_Inspector_Mod
                         {
                             var go = player.character.gameObject;
                             
-                            // Don't do deep inspection, just basic info for now
                             results.Add( new
                             {
                                 playerIndex = i,
@@ -265,8 +255,6 @@ namespace Unity_Inspector_Mod
                                 name = go.name,
                                 position = new { x = go.transform.position.x, y = go.transform.position.y },
                                 isActive = go.activeSelf
-                                // Commenting out deep inspection until we fix the crash
-                                // details = GameObjectInspector.InspectGameObject( go )
                             } );
                         }
                     }
@@ -421,13 +409,15 @@ namespace Unity_Inspector_Mod
             var entityType = parameters?["type"]?.ToString();
             var x = parameters?["x"]?.Value<float>();
             var y = parameters?["y"]?.Value<float>();
+            var xI = parameters?["xI"]?.Value<float>();
+            var yI = parameters?["yI"]?.Value<float>();
 
             if (string.IsNullOrEmpty(entityType) || !x.HasValue || !y.HasValue)
             {
                 throw new ArgumentException("Entity type and coordinates are required");
             }
 
-            return StateModifier.SpawnEntity(entityType, x.Value, y.Value);
+            return StateModifier.SpawnEntity(entityType, x.Value, y.Value, xI ?? 0f, yI ?? 0f);
         }
 
         private object HandleSetGameSpeed(JObject parameters)
@@ -534,7 +524,6 @@ namespace Unity_Inspector_Mod
             {
                 var scene = SceneManager.GetActiveScene();
 
-                // Game mode
                 string gameMode = null;
                 try
                 {
@@ -542,7 +531,6 @@ namespace Unity_Inspector_Mod
                 }
                 catch { }
 
-                // Level info
                 int? levelIndex = null;
                 string campaignName = null;
                 bool isInGame = false;
@@ -557,7 +545,6 @@ namespace Unity_Inspector_Mod
                 }
                 catch { }
 
-                // Check if we're in gameplay
                 bool levelFinished = false;
                 string pauseState = null;
                 try
@@ -574,7 +561,6 @@ namespace Unity_Inspector_Mod
                 }
                 catch { }
 
-                // Player info
                 var players = new List<object>();
                 try
                 {
@@ -623,7 +609,6 @@ namespace Unity_Inspector_Mod
                     Main.Log( $"HandleGameState - Error getting player info: {ex.Message}" );
                 }
 
-                // Time scale
                 float timeScale = Time.timeScale;
 
                 return new

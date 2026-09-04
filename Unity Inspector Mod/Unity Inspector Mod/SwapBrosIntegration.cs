@@ -13,7 +13,6 @@ namespace Unity_Inspector_Mod
 
         private static UnityModManager.ModEntry _modEntry;
 
-        // Cached methods — all public static on Swap_Bros_Mod.Main
         private static MethodInfo _getAvailableBrosMethod;
         private static MethodInfo _getAllNormalBrosMethod;
         private static MethodInfo _getAllExpendabrosMethod;
@@ -24,18 +23,11 @@ namespace Unity_Inspector_Mod
         private static MethodInfo _swapByNameMethod;
         private static MethodInfo _setSelectedBroByNameMethod;
 
-        /// <summary>
-        /// Initialize with a logger. Call once during mod Load().
-        /// </summary>
-        /// <param name="logger">Logging callback for debug messages</param>
         public static void Initialize( Action<string> logger )
         {
             _log = logger;
         }
 
-        /// <summary>
-        /// Whether Swap Bros Mod is loaded and active in UMM.
-        /// </summary>
         public static bool IsAvailable
         {
             get
@@ -83,10 +75,6 @@ namespace Unity_Inspector_Mod
 
         #region Bro Listing
 
-        /// <summary>
-        /// Gets the current filtered list of available bros.
-        /// </summary>
-        /// <returns>List of bro display names, or empty list if unavailable</returns>
         public static List<string> GetAvailableBros()
         {
             if ( !IsAvailable ) return new List<string>();
@@ -102,10 +90,6 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        /// <summary>
-        /// Gets the full list of 40 vanilla bros.
-        /// </summary>
-        /// <returns>List of bro display names, or empty list if unavailable</returns>
         public static List<string> GetAllNormalBros()
         {
             if ( !IsAvailable || _getAllNormalBrosMethod == null ) return new List<string>();
@@ -117,10 +101,6 @@ namespace Unity_Inspector_Mod
             catch { return new List<string>(); }
         }
 
-        /// <summary>
-        /// Gets the list of Expendabros.
-        /// </summary>
-        /// <returns>List of bro display names, or empty list if unavailable</returns>
         public static List<string> GetAllExpendabros()
         {
             if ( !IsAvailable || _getAllExpendabrosMethod == null ) return new List<string>();
@@ -132,10 +112,6 @@ namespace Unity_Inspector_Mod
             catch { return new List<string>(); }
         }
 
-        /// <summary>
-        /// Gets the list of unfinished bros.
-        /// </summary>
-        /// <returns>List of bro display names, or empty list if unavailable</returns>
         public static List<string> GetAllUnfinishedBros()
         {
             if ( !IsAvailable || _getAllUnfinishedBrosMethod == null ) return new List<string>();
@@ -151,11 +127,6 @@ namespace Unity_Inspector_Mod
 
         #region Current State
 
-        /// <summary>
-        /// Gets the current bro selection index for the specified player.
-        /// </summary>
-        /// <param name="playerNum">Player number (0-3)</param>
-        /// <returns>Index into the available bros list, or -1 if unavailable</returns>
         public static int GetCurrentBroIndex( int playerNum )
         {
             if ( !IsAvailable || _getSelectedBroIndexMethod == null || playerNum < 0 || playerNum > 3 )
@@ -168,11 +139,6 @@ namespace Unity_Inspector_Mod
             catch { return -1; }
         }
 
-        /// <summary>
-        /// Gets the current bro selection name for the specified player.
-        /// </summary>
-        /// <param name="playerNum">Player number (0-3)</param>
-        /// <returns>Bro display name, or null if unavailable</returns>
         public static string GetCurrentBroName( int playerNum )
         {
             if ( !IsAvailable || _getSelectedBroNameMethod == null ) return null;
@@ -188,12 +154,6 @@ namespace Unity_Inspector_Mod
 
         #region Swapping
 
-        /// <summary>
-        /// Swaps the player to a specific bro by index in the available bros list.
-        /// </summary>
-        /// <param name="playerNum">Player number (0-3)</param>
-        /// <param name="broIndex">Index into the available bros list</param>
-        /// <returns>True if the swap was successful</returns>
         public static bool SwapToBro( int playerNum, int broIndex )
         {
             if ( !IsAvailable ) return false;
@@ -209,12 +169,6 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        /// <summary>
-        /// Swaps the player to a specific bro by name (case-insensitive).
-        /// </summary>
-        /// <param name="playerNum">Player number (0-3)</param>
-        /// <param name="broName">Bro display name (e.g., "Rambro", "Brommando")</param>
-        /// <returns>True if the swap was successful</returns>
         public static bool SwapToBroByName( int playerNum, string broName )
         {
             if ( !IsAvailable || _swapByNameMethod == null ) return false;
@@ -234,13 +188,6 @@ namespace Unity_Inspector_Mod
 
         #region Next Spawn Selection
 
-        /// <summary>
-        /// Sets which bro the player will spawn as next (case-insensitive).
-        /// Automatically enables "Always Spawn as Chosen" in Swap Bros Mod.
-        /// </summary>
-        /// <param name="playerNum">Player number (0-3)</param>
-        /// <param name="broName">Bro display name (e.g., "Rambro", "Brommando")</param>
-        /// <returns>True if the bro was found and selection was set</returns>
         public static bool SetNextBroByName( int playerNum, string broName )
         {
             if ( !IsAvailable || _setSelectedBroByNameMethod == null ) return false;

@@ -53,6 +53,7 @@ namespace Unity_Inspector_Mod
             if (checkMethod != null)
             {
                 var harmony = new Harmony("scriptcompiler.internal");
+                // CheckReferencesPublicToken null-refs during Emit
                 harmony.Patch(checkMethod,
                     prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("SkipTokenCheck",
                         BindingFlags.Static | BindingFlags.NonPublic)));
@@ -62,16 +63,10 @@ namespace Unity_Inspector_Mod
 
         private static bool SkipTokenCheck()
         {
-            return false; // Skip original method
+            return false;
         }
 
-        // Unity 2017.4's Mono crashes (SIGSEGV in mono_type_get_object) when the mcs
-        // compiler searches for extension methods during error reporting. The search
-        // lazy-loads MemberCache for types in imported assemblies, which calls
-        // GetCustomAttributes on methods. MonoMod types in the 0Harmony assembly have
-        // attributes referencing .NET Core types that don't exist in Unity's Mono,
-        // causing a null pointer crash in native code. Only affects invalid code —
-        // valid member accesses never trigger extension method namespace search.
+        // mcs's extension-method search during error reporting segfaults Unity 2017.4's Mono in mono_type_get_object.
         public static void PatchExtensionMethodCrash()
         {
             if (extensionMethodCrashPatched) return;
@@ -95,11 +90,10 @@ namespace Unity_Inspector_Mod
 
         private static bool SkipExtensionMethodSearch()
         {
-            return false; // Skip extension method namespace search — return null
+            return false;
         }
 
-        // Mono.CSharp's ImportAssembly aborts its whole type loop on the first unresolvable
-        // dependency, silently losing every remaining type. Patched to import per type.
+        // Mono.CSharp's ImportAssembly aborts its whole type loop on the first unresolvable dependency.
         public static void PatchAssemblyImport()
         {
             lock (assemblyImportPatchLock)
@@ -174,8 +168,7 @@ namespace Unity_Inspector_Mod
                 return false;
             }
 
-            // UnityModManager Harmony-patches Assembly.GetTypes() to return an empty array
-            // for its own assembly, so fall back to enumerating the modules.
+            // UnityModManager Harmony-patches Assembly.GetTypes() to return an empty array for its own assembly.
             if (types.Length == 0)
             {
                 types = GetTypesPerModule(assembly);
@@ -273,13 +266,7 @@ namespace Unity_Inspector_Mod
                      " (further " + e.GetType().Name + "s from this assembly will not be logged)");
         }
 
-        // Unity 2017.4's Mono runtime crashes (native segfault in mono_reflection_get_token)
-        // when an enum defined in a dynamically compiled assembly is referenced anywhere by
-        // running code. Compilation may succeed but the JIT crashes when the enum's metadata
-        // needs to be resolved. Known Mono bug fixed upstream in 5.10 (Xamarin Bugzilla #59080)
-        // but Unity 2017.4 ships an older Mono. Detect script-defined enums that are also
-        // referenced within the same script and fail with a clear error before reaching the
-        // compiler.
+        // A script-defined enum referenced in the same script segfaults Unity 2017.4's Mono in mono_reflection_get_token (Xamarin #59080).
         private static string DetectEnumUsageError(string source)
         {
             var clean = StripCommentsAndStrings(source);

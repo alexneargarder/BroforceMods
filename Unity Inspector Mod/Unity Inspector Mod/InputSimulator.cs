@@ -40,11 +40,10 @@ namespace Unity_Inspector_Mod
                 
                 int targetPlayer = playerNum ?? 0;
                 int pressCount = count ?? 1;
-                int pressInterval = interval ?? 200; // Default 200ms between presses
+                int pressInterval = interval ?? 200;
                 
                 if (pressCount > 1)
                 {
-                    // Multiple presses
                     PressInputMultiple(inputKey, pressCount, pressInterval, targetPlayer);
                     return new { success = true, action = action, count = pressCount, interval = pressInterval, player = targetPlayer };
                 }
@@ -102,19 +101,15 @@ namespace Unity_Inspector_Mod
         
         private static void PressInputMultiple(string inputKey, int count, int intervalMs, int playerNum)
         {
-            // Block until all presses complete
             for (int i = 0; i < count; i++)
             {
-                // Press the input
                 simulatedInputs[inputKey] = true;
 
-                // Release after 50ms
                 var releaseTimer = new Timer(_ =>
                 {
                     simulatedInputs[inputKey] = false;
                 }, null, 50, Timeout.Infinite);
 
-                // Wait for interval before next press (except after last press)
                 if (i < count - 1)
                 {
                     System.Threading.Thread.Sleep(intervalMs);
@@ -141,7 +136,6 @@ namespace Unity_Inspector_Mod
             if (simulatedInputs.ContainsKey("start") && simulatedInputs["start"] && !startButtonHandled)
             {
                 startButtonHandled = true;
-                // Reset the flag after a short delay to allow for next press
                 var resetTimer = new Timer(_ =>
                 {
                     startButtonHandled = false;

@@ -27,16 +27,12 @@ namespace Unity_Inspector_Mod
                 StartServer();
             }
             
-            // Initialize main thread dispatcher
             MainThreadDispatcher.Initialize();
             
-            // Initialize input simulator
             InputSimulator.Initialize();
 
-            // Initialize Swap Bros Mod integration
             SwapBrosIntegration.Initialize( Log );
 
-            // Apply Harmony patches
             try
             {
                 var harmony = new Harmony(modEntry.Info.Id);

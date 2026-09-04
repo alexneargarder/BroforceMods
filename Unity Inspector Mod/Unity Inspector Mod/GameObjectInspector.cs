@@ -149,13 +149,10 @@ namespace Unity_Inspector_Mod
         {
             value = null;
 
-            // Check if the property getter might have side effects or create new instances
-            // In Unity, certain properties like MeshFilter.mesh create new instances when accessed
+            // Unity's non-shared accessors (mesh, material) instantiate a copy on read.
             var getMethod = prop.GetGetMethod();
             if ( getMethod != null )
             {
-                // Check if this is a property that returns the same type as a shared/prefixed version
-                // (e.g., mesh vs sharedMesh, material vs sharedMaterial)
                 var propName = prop.Name;
                 var sharedVersion = "shared" + char.ToUpper( propName[0] ) + propName.Substring( 1 );
                 var allProps = prop.DeclaringType.GetProperties();
@@ -165,8 +162,6 @@ namespace Unity_Inspector_Mod
                     if ( otherProp.Name.Equals( sharedVersion, StringComparison.OrdinalIgnoreCase ) &&
                         otherProp.PropertyType == prop.PropertyType )
                     {
-                        // This property has a "shared" version, which means the non-shared version
-                        // likely creates instances. Skip it.
                         value = "<skipped - may create instance>";
                         return false;
                     }
@@ -189,7 +184,6 @@ namespace Unity_Inspector_Mod
             var type = component.GetType();
             var properties = new Dictionary<string, object>();
 
-            // Skip certain problematic types that cause crashes
             if ( type.Name.Contains( "TestVanDammeAnim" ) ||
                 type.Name.Contains( "NetworkedPlayer" ) ||
                 type.FullName.Contains( "Rewired" ) )
@@ -208,7 +202,6 @@ namespace Unity_Inspector_Mod
             {
                 try
                 {
-                    // Skip backing fields and complex types
                     if ( field.Name.Contains( "k__BackingField" ) ||
                         field.Name.Contains( "m_" ) ||
                         field.FieldType.FullName.Contains( "System.Action" ) ||
@@ -237,7 +230,6 @@ namespace Unity_Inspector_Mod
                 {
                     try
                     {
-                        // Skip complex properties that might cause issues
                         if ( prop.PropertyType.FullName.Contains( "System.Action" ) ||
                             prop.PropertyType.FullName.Contains( "System.Func" ) ||
                             prop.Name == "gameObject" ||
@@ -259,12 +251,11 @@ namespace Unity_Inspector_Mod
                 }
             }
 
-            // Get methods
             var methods = new List<object>();
             var methodInfos = type.GetMethods( BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly );
             foreach ( var method in methodInfos )
             {
-                if ( method.IsSpecialName ) continue; // Skip property getters/setters
+                if ( method.IsSpecialName ) continue;
 
                 var parameters = method.GetParameters().Select( p => new
                 {
@@ -294,7 +285,6 @@ namespace Unity_Inspector_Mod
             if ( value == null || depth > 2 ) return null;
 
             var type = value.GetType();
-            // Skip delegates and events
             if ( type.BaseType == typeof( System.MulticastDelegate ) )
                 return "<delegate>";
 
@@ -380,9 +370,31 @@ namespace Unity_Inspector_Mod
             };
         }
 
+        private const int ScanBudgetMs = 2000;
+        private const string GameAssemblyName = "Assembly-CSharp";
+
+        private class TypeResolution
+        {
+            public Type Type;
+            public int Candidates;
+        }
+
+        private static readonly Dictionary<string, TypeResolution> componentTypeCache = new Dictionary<string, TypeResolution>();
+        private static readonly object componentTypeCacheLock = new object();
+
+        public static void InvalidateTypeCache()
+        {
+            lock ( componentTypeCacheLock )
+            {
+                componentTypeCache.Clear();
+            }
+        }
+
         public static object QueryGameObjects( string namePattern, string componentType, bool includeInactive, int maxResults )
         {
-            IEnumerable<GameObject> allObjects;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            GameObject[] allObjects;
 
             if ( includeInactive )
             {
@@ -393,30 +405,149 @@ namespace Unity_Inspector_Mod
                 allObjects = GameObject.FindObjectsOfType<GameObject>();
             }
 
-            if ( !string.IsNullOrEmpty( namePattern ) )
-            {
-                allObjects = allObjects.Where( go => go.name.Contains( namePattern ) );
-            }
+            var filterByName = !string.IsNullOrEmpty( namePattern );
+            var filterByComponent = !string.IsNullOrEmpty( componentType );
+            var resolution = filterByComponent ? ResolveComponentType( componentType ) : null;
+            var resolvedType = resolution != null ? resolution.Type : null;
 
-            if ( !string.IsNullOrEmpty( componentType ) )
-            {
-                allObjects = allObjects.Where( go => go.GetComponent( componentType ) != null );
-            }
+            var results = new List<object>();
+            var totalFound = 0;
+            var scanned = 0;
+            var scanTruncated = false;
 
-            var results = allObjects.Take( maxResults ).Select( go => new
+            for ( int i = 0; i < allObjects.Length; i++ )
             {
-                name = go.name,
-                path = GetPath( go ),
-                isActive = go.activeSelf,
-                hasComponent = !string.IsNullOrEmpty( componentType )
-            } ).ToArray();
+                if ( ( i & 63 ) == 0 && stopwatch.ElapsedMilliseconds > ScanBudgetMs )
+                {
+                    scanTruncated = true;
+                    break;
+                }
+
+                var go = allObjects[i];
+                if ( go == null ) continue;
+
+                scanned++;
+
+                if ( filterByName && !go.name.Contains( namePattern ) ) continue;
+
+                if ( filterByComponent )
+                {
+                    // GetComponent( Type ) matches subclasses and interfaces; the string overload matches the exact type name only.
+                    var match = resolvedType != null
+                        ? go.GetComponent( resolvedType ) != null
+                        : go.GetComponent( componentType ) != null;
+
+                    if ( !match ) continue;
+                }
+
+                totalFound++;
+
+                if ( results.Count < maxResults )
+                {
+                    results.Add( new
+                    {
+                        name = go.name,
+                        path = GetPath( go ),
+                        isActive = go.activeSelf,
+                        hasComponent = filterByComponent
+                    } );
+                }
+            }
 
             return new
             {
-                count = results.Length,
-                totalFound = allObjects.Count(),
-                results = results
+                count = results.Count,
+                totalFound = totalFound,
+                results = results.ToArray(),
+                resolvedType = resolvedType != null ? resolvedType.FullName : null,
+                candidates = resolution != null ? resolution.Candidates : 0,
+                scanned = scanned,
+                scanTruncated = scanTruncated
             };
+        }
+
+        private static TypeResolution ResolveComponentType( string typeName )
+        {
+            TypeResolution resolution;
+            var resolvedNow = false;
+
+            lock ( componentTypeCacheLock )
+            {
+                if ( componentTypeCache.TryGetValue( typeName, out resolution ) )
+                {
+                    return resolution;
+                }
+
+                Type resolved = null;
+                var resolvedScore = -1;
+                var candidates = 0;
+
+                foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
+                {
+                    foreach ( var type in GetTypesSafely( assembly ) )
+                    {
+                        if ( type == null ) continue;
+
+                        var fullNameMatch = type.FullName == typeName;
+                        if ( !fullNameMatch && type.Name != typeName ) continue;
+                        if ( !type.IsInterface && !typeof( Component ).IsAssignableFrom( type ) ) continue;
+
+                        candidates++;
+
+                        var score = ( fullNameMatch ? 2 : 0 ) + ( IsGameAssembly( type ) ? 1 : 0 );
+                        if ( score > resolvedScore )
+                        {
+                            resolved = type;
+                            resolvedScore = score;
+                        }
+                    }
+                }
+
+                resolution = new TypeResolution { Type = resolved, Candidates = candidates };
+                componentTypeCache[typeName] = resolution;
+                resolvedNow = true;
+            }
+
+            if ( resolvedNow && resolution.Candidates > 1 && resolution.Type != null )
+            {
+                Main.Log( $"query_gameobjects: '{typeName}' matched {resolution.Candidates} types; using {resolution.Type.FullName} from {SafeAssemblyName( resolution.Type )}" );
+            }
+
+            return resolution;
+        }
+
+        private static Type[] GetTypesSafely( Assembly assembly )
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch ( ReflectionTypeLoadException ex )
+            {
+                // Partially populated: unloadable entries come back as null.
+                return ex.Types ?? new Type[0];
+            }
+            catch ( Exception )
+            {
+                return new Type[0];
+            }
+        }
+
+        private static bool IsGameAssembly( Type type )
+        {
+            return SafeAssemblyName( type ) == GameAssemblyName;
+        }
+
+        private static string SafeAssemblyName( Type type )
+        {
+            try
+            {
+                return type.Assembly.GetName().Name;
+            }
+            catch ( Exception )
+            {
+                return null;
+            }
         }
 
         private static string GetPath( GameObject go )

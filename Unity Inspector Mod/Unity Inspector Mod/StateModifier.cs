@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Newtonsoft.Json.Linq;
@@ -22,7 +23,6 @@ namespace Unity_Inspector_Mod
 
                 Component component = null;
                 
-                // Try to find component by type name
                 foreach (var comp in go.GetComponents<Component>())
                 {
                     if (comp.GetType().Name == componentType || comp.GetType().FullName == componentType)
@@ -77,7 +77,6 @@ namespace Unity_Inspector_Mod
             {
                 Type type = target.GetType();
                 
-                // Try field first
                 FieldInfo field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (field != null)
                 {
@@ -86,7 +85,6 @@ namespace Unity_Inspector_Mod
                     return true;
                 }
 
-                // Try property
                 PropertyInfo property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (property != null && property.CanWrite)
                 {
@@ -109,7 +107,6 @@ namespace Unity_Inspector_Mod
             if (value == null || value.Type == JTokenType.Null)
                 return null;
 
-            // Handle Unity types
             if (targetType == typeof(Vector3))
             {
                 if (value.Type == JTokenType.Object)
@@ -147,7 +144,6 @@ namespace Unity_Inspector_Mod
             {
                 if (value.Type == JTokenType.Object)
                 {
-                    // Support both quaternion and euler angles
                     if (value["euler"] != null)
                     {
                         var euler = value["euler"];
@@ -169,7 +165,6 @@ namespace Unity_Inspector_Mod
                 }
             }
 
-            // Use JSON.NET's built-in conversion for other types
             return value.ToObject(targetType);
         }
 
@@ -178,17 +173,14 @@ namespace Unity_Inspector_Mod
             if (string.IsNullOrEmpty(path))
                 return null;
 
-            // Handle root path
             if (path == "/")
                 return null;
 
             string[] parts = path.TrimStart('/').Split('/');
             
-            // Find root objects
             GameObject[] rootObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
             GameObject current = null;
 
-            // Find the root object
             foreach (var obj in rootObjects)
             {
                 if (obj.transform.parent == null && obj.name == parts[0])
@@ -201,7 +193,6 @@ namespace Unity_Inspector_Mod
             if (current == null)
                 return null;
 
-            // Traverse the path
             for (int i = 1; i < parts.Length; i++)
             {
                 Transform child = current.transform.Find(parts[i]);
@@ -268,7 +259,6 @@ namespace Unity_Inspector_Mod
                 Vector3 newPosition = new Vector3(x, y, z ?? player.transform.position.z);
                 player.transform.position = newPosition;
 
-                // Also update the character's internal position tracking
                 player.X = x;
                 player.Y = y;
 
@@ -338,7 +328,6 @@ namespace Unity_Inspector_Mod
                 var player = players[playerNum].character;
                 player.health = health;
 
-                // Make sure the player isn't dead if health > 0
                 if (health > 0 && player.actionState == ActionState.Dead)
                 {
                     player.actionState = ActionState.Idle;
@@ -358,41 +347,210 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        public static object SpawnEntity(string entityType, float x, float y)
+        public static object SpawnEntity(string entityType, float x, float y, float xI = 0f, float yI = 0f)
         {
             try
             {
-                // This is a placeholder - actual spawning would require finding the prefab
-                // and instantiating it, which is complex in Broforce
-                
-                
-                // For now, we can at least report what entities are available
-                var availableTypes = new List<string>();
-                
-                // Find all prefabs in resources
-                var allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-                foreach (var obj in allObjects)
-                {
-                    if (obj.name.Contains("Mook") || obj.name.Contains("Enemy") || 
-                        obj.name.Contains("Pickup") || obj.name.Contains("Crate"))
-                    {
-                        if (!availableTypes.Contains(obj.name))
-                            availableTypes.Add(obj.name);
-                    }
-                }
+                object result = null;
 
-                return new { 
-                    success = false, 
-                    error = "Spawning not yet implemented",
-                    availableTypes = availableTypes.ToArray(),
-                    note = "Use execute_code to spawn entities manually for now"
-                };
+                MainThreadDispatcher.EnqueueAndWait(() =>
+                {
+                    result = SpawnEntityOnMainThread(entityType, x, y, xI, yI);
+                }, 5000);
+
+                return result;
             }
             catch (Exception ex)
             {
                 Main.Log($"SpawnEntity error: {ex.Message}");
-                return new { success = false, error = ex.Message };
+                return new { success = false, error = ex.Message, stackTrace = ex.StackTrace };
             }
+        }
+
+        private static object SpawnEntityOnMainThread(string entityType, float x, float y, float xI, float yI)
+        {
+            Map map = Map.Instance;
+            ThemeHolder theme = map == null ? null : map.activeTheme;
+
+            if (theme == null)
+            {
+                return new { success = false, error = "No level is loaded - a level must be loaded before entities can be spawned" };
+            }
+
+            var candidates = GetSpawnablePrefabs(theme);
+
+            string requested = (entityType ?? string.Empty).Trim();
+            if (string.Equals(requested, "facehugger", StringComparison.OrdinalIgnoreCase))
+            {
+                requested = "alienFaceHugger";
+            }
+            else if (string.Equals(requested, "baneling", StringComparison.OrdinalIgnoreCase))
+            {
+                requested = "alienBaneling";
+            }
+
+            string resolvedName = null;
+            Mook prefab = null;
+
+            foreach (var candidate in candidates)
+            {
+                if (MatchesFieldName(requested, candidate.Key))
+                {
+                    resolvedName = candidate.Key;
+                    prefab = candidate.Value;
+                    break;
+                }
+            }
+
+            if (prefab == null)
+            {
+                foreach (var candidate in candidates)
+                {
+                    if (string.Equals(requested, candidate.Value.name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        resolvedName = candidate.Key;
+                        prefab = candidate.Value;
+                        break;
+                    }
+                }
+            }
+
+            if (prefab == null)
+            {
+                var availableTypes = new List<string>();
+                foreach (var candidate in candidates)
+                {
+                    availableTypes.Add(candidate.Key);
+                }
+
+                return new
+                {
+                    success = false,
+                    error = $"Unknown entity type '{entityType}'",
+                    availableTypes = availableTypes.ToArray()
+                };
+            }
+
+            TestVanDammeAnim spawned;
+            bool networked;
+            if (resolvedName == "alienFaceHugger")
+            {
+                spawned = Map.SpawnFaceHugger(x, y, xI, yI);
+                networked = false;
+            }
+            else if (resolvedName == "alienBaneling")
+            {
+                spawned = Map.SpawnFaceBaneling(x, y, xI, yI);
+                networked = false;
+            }
+            else
+            {
+                spawned = MapController.SpawnMook_Networked(prefab, x, y, xI, yI, false, false, false, false, true);
+                networked = true;
+            }
+
+            if (spawned == null)
+            {
+                if (networked)
+                {
+                    return new
+                    {
+                        success = false,
+                        error = $"Networked spawn of '{resolvedName}' returned no instance{DescribeSpawnMookPrefixes()}"
+                    };
+                }
+
+                return new
+                {
+                    success = false,
+                    error = $"Spawn helper for '{resolvedName}' returned no instance - an object may still have been spawned"
+                };
+            }
+
+            return new
+            {
+                success = true,
+                type = resolvedName,
+                prefab = prefab.name,
+                name = spawned.name,
+                instanceId = spawned.gameObject.GetInstanceID(),
+                networked = networked,
+                x = x,
+                y = y
+            };
+        }
+
+        private static List<KeyValuePair<string, Mook>> GetSpawnablePrefabs(ThemeHolder theme)
+        {
+            var candidates = new List<KeyValuePair<string, Mook>>();
+
+            FieldInfo[] fields = typeof(ThemeHolder).GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var field in fields)
+            {
+                if (!typeof(TestVanDammeAnim).IsAssignableFrom(field.FieldType))
+                {
+                    continue;
+                }
+
+                Mook prefab = field.GetValue(theme) as Mook;
+                if (prefab != null)
+                {
+                    candidates.Add(new KeyValuePair<string, Mook>(field.Name, prefab));
+                }
+            }
+
+            return candidates;
+        }
+
+        // A prefix that returns false leaves __result null, so the spawn silently produces nothing.
+        private static string DescribeSpawnMookPrefixes()
+        {
+            try
+            {
+                MethodBase target = AccessTools.Method(typeof(MapController), "SpawnMook_Networked");
+                if (target == null)
+                {
+                    return string.Empty;
+                }
+
+                Patches patches = Harmony.GetPatchInfo(target);
+                if (patches == null || patches.Prefixes == null)
+                {
+                    return string.Empty;
+                }
+
+                var owners = new List<string>();
+                foreach (var patch in patches.Prefixes)
+                {
+                    if (!string.IsNullOrEmpty(patch.owner) && !owners.Contains(patch.owner))
+                    {
+                        owners.Add(patch.owner);
+                    }
+                }
+
+                if (owners.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                return $" - a Harmony prefix from {string.Join(", ", owners.ToArray())} may have suppressed the spawn (Utility Mod's disableEnemySpawn does this)";
+            }
+            catch (Exception ex)
+            {
+                Main.Log($"SpawnEntity prefix lookup error: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static bool MatchesFieldName(string requested, string fieldName)
+        {
+            if (string.Equals(requested, fieldName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return fieldName.Length > 4 && fieldName.StartsWith("mook", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(requested, fieldName.Substring(4), StringComparison.OrdinalIgnoreCase);
         }
 
         public static object SetGameSpeed(float speed)
@@ -469,7 +627,6 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                // Setup player 1 if they haven't joined yet (e.g., from main menu)
                 if (!HeroController.IsPlayerPlaying(0))
                 {
                     PlayerProgress.currentWorldMapSaveSlot = 0;
@@ -484,7 +641,6 @@ namespace Unity_Inspector_Mod
                 LevelSelectionController.ResetLevelAndGameModeToDefault();
                 GameState.Instance.ResetToDefault();
                 
-                // Campaign names mapping (from Utility Mod)
                 string[] campaignNames = new string[]
                 {
                     "WM_Intro(mouse)",
@@ -524,7 +680,6 @@ namespace Unity_Inspector_Mod
                 }
                 else
                 {
-                    // Use fallback like Utility Mod does
                     GameState.Instance.campaignName = campaignNames[0];
                     LevelSelectionController.CurrentLevelNum = 0;
                 }
@@ -535,17 +690,14 @@ namespace Unity_Inspector_Mod
                 GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
                 GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
                 
-                // Check if we're on the main thread
                 bool isMainThread = System.Threading.Thread.CurrentThread.ManagedThreadId == 1;
                 
                 if (isMainThread)
                 {
-                    // Already on main thread, call directly
                     GameModeController.LoadNextScene(GameState.Instance);
                 }
                 else
                 {
-                    // Queue to main thread
                     try
                     {
                         MainThreadDispatcher.EnqueueAndWait(() =>
@@ -761,7 +913,6 @@ namespace Unity_Inspector_Mod
 
                     Map.ClearSuperCheckpointStatus();
 
-                    // Clear trigger-once triggers so the level fully resets
                     var field = typeof( TriggerManager ).GetField( "alreadyTriggeredTriggerOnceTriggers",
                         BindingFlags.Static | BindingFlags.NonPublic );
                     if ( field != null )

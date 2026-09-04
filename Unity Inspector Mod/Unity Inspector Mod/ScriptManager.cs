@@ -58,8 +58,7 @@ namespace Unity_Inspector_Mod
             ScriptCompiler.PatchAssemblyImport();
             var hash = ComputeHash(source);
 
-            // Restart rather than re-enter Main(): Harmony's PatchInfo does not deduplicate,
-            // so patches would stack and fire twice.
+            // Harmony's PatchInfo does not deduplicate, so re-entering Main() would stack patches and fire twice.
             ActiveScript existing;
             if (activeScripts.TryGetValue(name, out existing) && existing.SourceHash == hash)
             {
@@ -67,7 +66,6 @@ namespace Unity_Inspector_Mod
                 return InvokeMain(name, existing, args);
             }
 
-            // If same script exists with different source, unload first
             if (existing != null)
             {
                 LogCleanupWarnings(name, "replace", UnloadInternal(name, existing));
@@ -94,7 +92,6 @@ namespace Unity_Inspector_Mod
                 Logger = persistentLogger
             };
 
-            // Find Unload method
             foreach (var type in result.Assembly.GetTypes())
             {
                 var unload = type.GetMethod("Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
@@ -107,7 +104,6 @@ namespace Unity_Inspector_Mod
 
             activeScripts[name] = script;
 
-            // Register assembly with the Evaluator so execute_code can see compiled types
             CodeExecutor.RegisterScriptAssembly(result.Assembly);
 
             return InvokeMain(name, script, args);
@@ -152,7 +148,6 @@ namespace Unity_Inspector_Mod
         {
             var errors = new List<string>();
 
-            // Invoke Unload() on main thread
             if (script.UnloadMethod != null)
             {
                 try
@@ -177,7 +172,6 @@ namespace Unity_Inspector_Mod
                 }
             }
 
-            // Unpatch all Harmony patches from this script
             try
             {
                 script.HarmonyInstance.UnpatchAll("script." + name);
@@ -187,7 +181,6 @@ namespace Unity_Inspector_Mod
                 errors.Add("Harmony unpatch failed: " + ex.Message);
             }
 
-            // Destroy tracked GameObjects on main thread
             if (script.TrackedGameObjects.Count > 0)
             {
                 try
@@ -202,8 +195,7 @@ namespace Unity_Inspector_Mod
                             }
                         }
 
-                        // Cleared inside the action: EnqueueAndWait's timeout only stops
-                        // waiting, the action stays queued.
+                        // EnqueueAndWait's timeout only stops waiting; the action stays queued, so clear inside it.
                         script.TrackedGameObjects.Clear();
                     }, 5000);
                 }
@@ -271,7 +263,6 @@ namespace Unity_Inspector_Mod
         {
             script.Args = args ?? new Dictionary<string, string>();
 
-            // Find Main() method
             MethodInfo mainMethod = null;
             foreach (var type in script.Assembly.GetTypes())
             {
@@ -285,7 +276,6 @@ namespace Unity_Inspector_Mod
 
             if (mainMethod == null)
             {
-                // No Main() is valid -- script only defines types for REPL
                 var types = script.Assembly.GetTypes()
                     .Select(t => t.FullName)
                     .ToArray();
@@ -299,7 +289,6 @@ namespace Unity_Inspector_Mod
                 };
             }
 
-            // Set up ScriptContext and invoke on main thread, capturing log output
             Exception executionException = null;
             var capture = new MainOutputCapture(script.Logger);
             string[] output = null;

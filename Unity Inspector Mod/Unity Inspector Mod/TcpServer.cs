@@ -178,7 +178,7 @@ namespace Unity_Inspector_Mod
             this.client = client;
             this.server = server;
             this.stream = client.GetStream();
-            this.reader = new StreamReader( stream, new UTF8Encoding( false ) ); // false = no BOM
+            this.reader = new StreamReader( stream, new UTF8Encoding( false ) );
             this.writer = new StreamWriter( stream, new UTF8Encoding( false ) ) { AutoFlush = true };
             this.isConnected = true;
 
@@ -196,7 +196,6 @@ namespace Unity_Inspector_Mod
                     string message = reader.ReadLine();
                     if ( message != null )
                     {
-                        // Process message from client
                         string response = server.ProcessMessage( message );
                         
                         writer.WriteLine( response );

@@ -72,7 +72,10 @@ namespace Unity_Inspector_Mod
             
             bool completed = false;
             Exception exception = null;
-            
+
+            // Enqueue itself blocks while Update drains the queue, so the budget has to cover it.
+            var startTime = DateTime.Now;
+
             Enqueue(() =>
             {
                 try
@@ -88,8 +91,7 @@ namespace Unity_Inspector_Mod
                     completed = true;
                 }
             });
-            
-            var startTime = DateTime.Now;
+
             while (!completed)
             {
                 if ((DateTime.Now - startTime).TotalMilliseconds > timeoutMs)
