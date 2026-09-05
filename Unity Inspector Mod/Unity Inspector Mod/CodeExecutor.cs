@@ -404,8 +404,7 @@ namespace Unity_Inspector_Mod
                     {
                         success = false,
                         error = errorMessage,
-                        // Reading a trace across dynamic anonymous-method frames crashes Mono, so only compile-phase traces are safe.
-                        stackTrace = invokeStarted ? null : executionException.StackTrace,
+                        stackTrace = executionException.StackTrace,
                         result = (object)null
                     };
                 }
@@ -766,8 +765,7 @@ namespace Unity_Inspector_Mod
             {
                 success = false,
                 error = DescribeException(userException),
-                // StackTrace across dynamic anonymous-method frames crashes Mono in mono_method_body_get_object.
-                stackTrace = (string)null,
+                stackTrace = userException.StackTrace,
                 result = (object)null
             };
         }
