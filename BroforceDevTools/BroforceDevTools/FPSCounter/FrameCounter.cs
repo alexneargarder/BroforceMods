@@ -1,3 +1,4 @@
+// Modified from the original; see THIRD-PARTY-NOTICES.md.
 using System;
 using System.Collections;
 using System.Diagnostics;
@@ -28,6 +29,8 @@ namespace BroforceDevTools.FPSCounter
             if (running) return;
             running = true;
 
+            fString.builder.Length = 0;
+
             if (counterObject == null)
             {
                 counterObject = new GameObject("BroforceDevTools_FPSCounter");
@@ -56,6 +59,8 @@ namespace BroforceDevTools.FPSCounter
             ProfilingRecorder.Stop();
             HarmonyPatchProfiler.Stop();
             ModCounter.Stop();
+            FrameCounterHelper.ResetOverlayError();
+            FrameCounterHelper.ResetMemoryQueryAvailability();
 
             if (helper != null)
             {
@@ -92,7 +97,7 @@ namespace BroforceDevTools.FPSCounter
                 Start();
         }
 
-        private const int MAX_STRING_SIZE = 1400;
+        private const int MAX_STRING_SIZE = 3000;
         private static readonly GUIStyle style = new GUIStyle();
         private static Rect screenRect;
         private const int ScreenOffset = 10;
@@ -138,10 +143,13 @@ namespace BroforceDevTools.FPSCounter
         private static readonly MovingAverage frameTime = new MovingAverage(60);
 
         private static Stopwatch measurementStopwatch;
+        private static string lastOverlayError;
         internal static bool CanProcessOnGui;
         private static bool onGuiHit;
 
         internal static void ResetOnGuiHit() { onGuiHit = false; }
+        internal static void ResetOverlayError() { lastOverlayError = null; }
+        internal static void ResetMemoryQueryAvailability() { memoryQueryUnavailable = false; }
 
         internal static void SampleLateUpdateTime()
         {
@@ -160,6 +168,7 @@ namespace BroforceDevTools.FPSCounter
         private static long cachedGcMemBytes;
         private static long cachedProcessMemBytes = -1;
         private static long cachedSystemFreeMemBytes = -1;
+        private static bool memoryQueryUnavailable;
         private static int[] cachedGcGenCounts;
 
         internal static FrameData GetFrameData()
@@ -240,143 +249,161 @@ namespace BroforceDevTools.FPSCounter
                 var fStr = FrameCounter.GetFixedString();
                 var sb = fStr.builder;
 
-                sb.Concat(cachedFps, 1);
-                sb.Append(" FPS");
-
-                if (FrameCounter.ShowDetailedStats)
+                try
                 {
-                    var totalCapturedTicks = cachedAvgFixed + cachedAvgUpdate + cachedAvgYield + cachedAvgLate + cachedAvgRender + cachedAvgGui;
-                    var otherTicks = cachedAvgFrame - totalCapturedTicks;
+                    sb.Concat(cachedFps, 1);
+                    sb.Append(" FPS");
 
-                    sb.Append(",");
-                    sb.Concat(cachedAvgFrame * msScale, 1, 3);
-                    sb.Append("ms\nFixed:");
-                    sb.Concat(cachedAvgFixed * msScale, 1, 3);
-                    sb.Append("ms\nUpdate:");
-                    sb.Concat(cachedAvgUpdate * msScale, 1, 3);
-                    sb.Append("ms\nYield/anim:");
-                    sb.Concat(cachedAvgYield * msScale, 1, 3);
-                    sb.Append("ms\nLate:");
-                    sb.Concat(cachedAvgLate * msScale, 1, 3);
-                    sb.Append("ms\nRender/VSync:");
-                    sb.Concat(cachedAvgRender * msScale, 1, 3);
-                    sb.Append("ms\nOnGUI:");
-                    sb.Concat(cachedAvgGui * msScale, 1, 3);
-                    sb.Append("ms\nOther/Frameskip:");
-                    sb.Concat(otherTicks * msScale, 1, 3);
-                    sb.Append("ms");
-                }
-
-                if (FrameCounter.MeasureMemory)
-                {
-                    try
+                    if (FrameCounter.ShowDetailedStats)
                     {
-                        var procMem = MemoryInfo.QueryProcessMemStatus();
-                        cachedProcessMemBytes = (long)procMem.WorkingSetSize;
-                        var currentMem = procMem.WorkingSetSize / 1024 / 1024;
+                        var totalCapturedTicks = cachedAvgFixed + cachedAvgUpdate + cachedAvgYield + cachedAvgLate + cachedAvgRender + cachedAvgGui;
+                        var otherTicks = cachedAvgFrame - totalCapturedTicks;
 
-                        var memorystatus = MemoryInfo.QuerySystemMemStatus();
-                        cachedSystemFreeMemBytes = (long)memorystatus.ullAvailPhys;
-                        var freeMem = memorystatus.ullAvailPhys / 1024 / 1024;
-
-                        sb.Append("\nRAM: ");
-                        sb.Concat(currentMem, 3);
-                        sb.Append("MB used, ");
-                        sb.Concat(freeMem, 3);
-                        sb.Append("MB free");
-                    }
-                    catch
-                    {
-                        cachedProcessMemBytes = -1;
-                        cachedSystemFreeMemBytes = -1;
-                    }
-                }
-
-                if (FrameCounter.MeasureGC)
-                {
-                    var totalGcMemBytes = GC.GetTotalMemory(false);
-                    cachedGcMemBytes = totalGcMemBytes;
-                    if (totalGcMemBytes != 0)
-                    {
-                        var gcDelta = totalGcMemBytes - gcPreviousAmount;
-                        if (gcDelta >= 0)
-                            gcAddedSize.Sample(gcDelta);
-                        else
-                            cachedGcCollectionCount++;
-
-                        cachedGcAllocRate = gcAddedSize.GetAverage() * cachedFps / 1024f;
-
-                        var totalGcMem = totalGcMemBytes / 1024 / 1024;
-                        sb.Append("\nGC:");
-                        sb.Concat((int)totalGcMem, 4);
-                        sb.Append("MB,");
-                        sb.Concat(Mathf.RoundToInt(cachedGcAllocRate), 5);
-                        sb.Append("KB/s, ");
-                        sb.Concat(cachedGcCollectionCount, 2);
-                        sb.Append(" collects");
-
-                        gcPreviousAmount = totalGcMemBytes;
+                        sb.Append(",");
+                        sb.Concat(cachedAvgFrame * msScale, 1, 3);
+                        sb.Append("ms\nFixed:");
+                        sb.Concat(cachedAvgFixed * msScale, 1, 3);
+                        sb.Append("ms\nUpdate:");
+                        sb.Concat(cachedAvgUpdate * msScale, 1, 3);
+                        sb.Append("ms\nYield/anim:");
+                        sb.Concat(cachedAvgYield * msScale, 1, 3);
+                        sb.Append("ms\nLate:");
+                        sb.Concat(cachedAvgLate * msScale, 1, 3);
+                        sb.Append("ms\nRender/VSync:");
+                        sb.Concat(cachedAvgRender * msScale, 1, 3);
+                        sb.Append("ms\nOnGUI:");
+                        sb.Concat(cachedAvgGui * msScale, 1, 3);
+                        sb.Append("ms\nOther/Frameskip:");
+                        sb.Concat(otherTicks * msScale, 1, 3);
+                        sb.Append("ms");
                     }
 
-                    var gcGens = GC.MaxGeneration;
-                    if (gcGens > 0)
+                    // The Windows P/Invokes behind these queries are unavailable on the Linux launch
+                    // path, where the type initializer fails on every call
+                    if (FrameCounter.MeasureMemory && !memoryQueryUnavailable)
                     {
-                        cachedGcGenCounts = new int[gcGens];
-                        sb.Append("\nGC hits:");
-                        for (var g = 0; g < gcGens; g++)
+                        try
                         {
-                            var collections = GC.CollectionCount(g);
-                            cachedGcGenCounts[g] = collections;
-                            sb.Append(" ");
-                            sb.Concat(g);
-                            sb.Append(":");
-                            sb.Concat(collections);
+                            var procMem = MemoryInfo.QueryProcessMemStatus();
+                            cachedProcessMemBytes = (long)procMem.WorkingSetSize;
+                            var currentMem = procMem.WorkingSetSize / 1024 / 1024;
+
+                            var memorystatus = MemoryInfo.QuerySystemMemStatus();
+                            cachedSystemFreeMemBytes = (long)memorystatus.ullAvailPhys;
+                            var freeMem = memorystatus.ullAvailPhys / 1024 / 1024;
+
+                            sb.Append("\nRAM: ");
+                            sb.Concat(currentMem, 3);
+                            sb.Append("MB used, ");
+                            sb.Concat(freeMem, 3);
+                            sb.Append("MB free");
+                        }
+                        catch
+                        {
+                            memoryQueryUnavailable = true;
+                            cachedProcessMemBytes = -1;
+                            cachedSystemFreeMemBytes = -1;
                         }
                     }
-                }
 
-                if (ProfilingRecorder.IsPerFrame)
+                    if (FrameCounter.MeasureGC)
+                    {
+                        var totalGcMemBytes = GC.GetTotalMemory(false);
+                        cachedGcMemBytes = totalGcMemBytes;
+                        if (totalGcMemBytes != 0)
+                        {
+                            var gcDelta = totalGcMemBytes - gcPreviousAmount;
+                            if (gcDelta >= 0)
+                                gcAddedSize.Sample(gcDelta);
+                            else
+                                cachedGcCollectionCount++;
+
+                            cachedGcAllocRate = gcAddedSize.GetAverage() * cachedFps / 1024f;
+
+                            var totalGcMem = totalGcMemBytes / 1024 / 1024;
+                            sb.Append("\nGC:");
+                            sb.Concat((int)totalGcMem, 4);
+                            sb.Append("MB,");
+                            sb.Concat(Mathf.RoundToInt(cachedGcAllocRate), 5);
+                            sb.Append("KB/s, ");
+                            sb.Concat(cachedGcCollectionCount, 2);
+                            sb.Append(" collects");
+
+                            gcPreviousAmount = totalGcMemBytes;
+                        }
+
+                        var gcGens = GC.MaxGeneration;
+                        if (gcGens > 0)
+                        {
+                            cachedGcGenCounts = new int[gcGens + 1];
+                            sb.Append("\nGC hits:");
+                            for (var g = 0; g <= gcGens; g++)
+                            {
+                                var collections = GC.CollectionCount(g);
+                                cachedGcGenCounts[g] = collections;
+                                sb.Append(" ");
+                                sb.Concat(g);
+                                sb.Append(":");
+                                sb.Concat(collections);
+                            }
+                        }
+                    }
+
+                    if (ProfilingRecorder.IsPerFrame)
+                    {
+                        var rawData = new FrameData();
+                        rawData.TotalMs = rawFrameTicks * msScale;
+                        rawData.FPS = rawFrameTicks > 0 ? 1000000f / (rawFrameTicks / nanosecPerTick) : 0;
+                        rawData.FixedUpdateMs = rawFixedTicks * msScale;
+                        rawData.UpdateMs = rawUpdateTicks * msScale;
+                        rawData.YieldMs = rawYieldTicks * msScale;
+                        rawData.LateUpdateMs = rawLateTicks * msScale;
+                        rawData.RenderMs = rawRenderTicks * msScale;
+                        rawData.OnGUIMs = rawGuiTicks * msScale;
+                        var captured = rawData.FixedUpdateMs + rawData.UpdateMs + rawData.YieldMs
+                            + rawData.LateUpdateMs + rawData.RenderMs + rawData.OnGUIMs;
+                        rawData.OtherMs = System.Math.Max(0f, rawData.TotalMs - captured);
+                        rawData.GCAllocKBPerSec = cachedGcAllocRate;
+                        rawData.GCMemoryBytes = cachedGcMemBytes;
+                        rawData.ProcessMemoryBytes = cachedProcessMemBytes;
+                        rawData.SystemFreeMemBytes = cachedSystemFreeMemBytes;
+                        rawData.GCCollectionCounts = cachedGcGenCounts;
+                        ProfilingRecorder.RecordFrameData(rawData);
+                    }
+
+                    if (ModCounter.StringOutput != null)
+                    {
+                        sb.Append("\n");
+                        sb.Append(ModCounter.StringOutput, 0, ModCounter.StringOutputLength);
+                    }
+
+                    if (HarmonyPatchProfiler.StringOutput != null)
+                    {
+                        sb.Append("\n");
+                        sb.Append(HarmonyPatchProfiler.StringOutput, 0, HarmonyPatchProfiler.StringOutputLength);
+                    }
+
+                    if (ProfilingRecorder.StringOutput != null)
+                    {
+                        sb.Append("\n");
+                        sb.Append(ProfilingRecorder.StringOutput);
+                    }
+
+                    FrameCounter.FrameOutputText = fStr.PopValue();
+                    measurementStopwatch.Reset();
+                }
+                catch (Exception ex)
                 {
-                    var rawData = new FrameData();
-                    rawData.TotalMs = rawFrameTicks * msScale;
-                    rawData.FPS = rawFrameTicks > 0 ? 1000000f / (rawFrameTicks / nanosecPerTick) : 0;
-                    rawData.FixedUpdateMs = rawFixedTicks * msScale;
-                    rawData.UpdateMs = rawUpdateTicks * msScale;
-                    rawData.YieldMs = rawYieldTicks * msScale;
-                    rawData.LateUpdateMs = rawLateTicks * msScale;
-                    rawData.RenderMs = rawRenderTicks * msScale;
-                    rawData.OnGUIMs = rawGuiTicks * msScale;
-                    var captured = rawData.FixedUpdateMs + rawData.UpdateMs + rawData.YieldMs
-                        + rawData.LateUpdateMs + rawData.RenderMs + rawData.OnGUIMs;
-                    rawData.OtherMs = System.Math.Max(0f, rawData.TotalMs - captured);
-                    rawData.GCAllocKBPerSec = cachedGcAllocRate;
-                    rawData.GCMemoryBytes = cachedGcMemBytes;
-                    rawData.ProcessMemoryBytes = cachedProcessMemBytes;
-                    rawData.SystemFreeMemBytes = cachedSystemFreeMemBytes;
-                    rawData.GCCollectionCounts = cachedGcGenCounts;
-                    ProfilingRecorder.RecordFrameData(rawData);
-                }
+                    fStr.builder.Length = 0;
+                    FrameCounter.FrameOutputText = null;
 
-                if (ModCounter.StringOutput != null)
-                {
-                    sb.Append("\n");
-                    sb.Append(ModCounter.StringOutput);
+                    var detail = ex.ToString();
+                    if (lastOverlayError != detail)
+                    {
+                        lastOverlayError = detail;
+                        Main.Log("FPS overlay frame failed: " + detail);
+                    }
                 }
-
-                if (HarmonyPatchProfiler.StringOutput != null)
-                {
-                    sb.Append("\n");
-                    sb.Append(HarmonyPatchProfiler.StringOutput);
-                }
-
-                if (ProfilingRecorder.StringOutput != null)
-                {
-                    sb.Append("\n");
-                    sb.Append(ProfilingRecorder.StringOutput);
-                }
-
-                FrameCounter.FrameOutputText = fStr.PopValue();
-                measurementStopwatch.Reset();
             }
         }
 

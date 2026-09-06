@@ -36,10 +36,12 @@ namespace BroforceDevTools.ConstructorProfiler
 {
     internal static class ConstructorProfilerInternal
     {
-        internal static bool IsRunning;
+        internal static volatile bool IsRunning;
 
         private static Harmony harmony;
+        private static readonly object sync = new object();
         private static Dictionary<string, StackData> callCounter = new Dictionary<string, StackData>();
+        private static Dictionary<string, StackData> results = new Dictionary<string, StackData>();
         private static bool hooksInstalled;
         private static MethodInfo addCallMethod = typeof(ConstructorProfilerInternal).GetMethod("AddCall", BindingFlags.Static | BindingFlags.NonPublic);
 
@@ -52,46 +54,74 @@ namespace BroforceDevTools.ConstructorProfiler
         {
             if (!hooksInstalled)
                 InstallHooks();
-            callCounter = new Dictionary<string, StackData>();
+            lock (sync)
+            {
+                callCounter = new Dictionary<string, StackData>();
+            }
             IsRunning = true;
             Main.Log("ConstructorProfiler: Started recording");
         }
 
         internal static void StopRecording()
         {
+            var wasRunning = IsRunning;
             IsRunning = false;
-            Main.Log("ConstructorProfiler: Stopped recording (" + callCounter.Count + " unique stacks)");
+            if (!wasRunning) return;
+
+            lock (sync)
+            {
+                results = callCounter;
+                callCounter = new Dictionary<string, StackData>();
+            }
+            Main.Log("ConstructorProfiler: Stopped recording (" + results.Count + " unique stacks)");
         }
 
         internal static List<ConstructorCallData> GetResults()
         {
-            var results = new List<ConstructorCallData>();
-            foreach (var kvp in callCounter)
+            List<StackData> snapshot;
+            lock (sync)
             {
-                results.Add(new ConstructorCallData
+                snapshot = new List<StackData>((IsRunning ? callCounter : results).Values);
+            }
+
+            var list = new List<ConstructorCallData>();
+            foreach (var data in snapshot)
+            {
+                list.Add(new ConstructorCallData
                 {
-                    TypeName = kvp.Value.createdType,
-                    TotalCallCount = kvp.Value.count,
+                    TypeName = data.createdType,
+                    TotalCallCount = data.count,
                     CallStacks = new List<StackCallData>
                     {
-                        new StackCallData { StackTrace = kvp.Value.cleanStack, CallCount = kvp.Value.count }
+                        new StackCallData { StackTrace = data.cleanStack, CallCount = data.count }
                     }
                 });
             }
-            results.Sort((a, b) => b.TotalCallCount.CompareTo(a.TotalCallCount));
-            return results;
+            list.Sort((a, b) => b.TotalCallCount.CompareTo(a.TotalCallCount));
+            return list;
         }
 
         internal static void ClearResults()
         {
-            callCounter = new Dictionary<string, StackData>();
+            lock (sync)
+            {
+                results = new Dictionary<string, StackData>();
+                if (IsRunning)
+                    callCounter = new Dictionary<string, StackData>();
+            }
         }
 
         internal static void ExportCSV(string path)
         {
+            List<StackData> snapshot;
+            lock (sync)
+            {
+                snapshot = new List<StackData>((IsRunning ? callCounter : results).Values);
+            }
+
             var lines = new List<string>();
             lines.Add("\"Stack\",\"Created object\",\"Count\"");
-            foreach (var item in callCounter.Values.OrderByDescending(x => x.count))
+            foreach (var item in snapshot.OrderByDescending(x => x.count))
             {
                 lines.Add("\"" + item.cleanStack + "\",\"" + item.createdType + "\",\"" + item.count + "\"");
             }
@@ -102,15 +132,16 @@ namespace BroforceDevTools.ConstructorProfiler
         internal static void ToggleRecording()
         {
             if (!IsRunning)
-            {
                 StartRecording();
-            }
             else
-            {
-                StopRecording();
-                var path = Path.Combine(Main.mod.Path, "ConstructorProfiler_" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss") + ".csv");
-                ExportCSV(path);
-            }
+                StopRecordingAndExport();
+        }
+
+        internal static void StopRecordingAndExport()
+        {
+            StopRecording();
+            var path = Path.Combine(Main.mod.Path, "ConstructorProfiler_" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss") + ".csv");
+            ExportCSV(path);
         }
 
         private static void InstallHooks()
@@ -138,9 +169,9 @@ namespace BroforceDevTools.ConstructorProfiler
             {
                 try { return ass.GetTypes(); }
                 catch (ReflectionTypeLoadException ex) { return ex.Types.Where(x => x != null); }
-            }).Where(x => x.IsClass && !x.IsGenericType).ToList();
+            }).Where(x => x.IsClass && !x.IsGenericType && !typeof(Delegate).IsAssignableFrom(x)).ToList();
 
-            var constructors = types.SelectMany(type => type.GetConstructors()).ToList();
+            var constructors = types.SelectMany(GetConstructorsSafe).Where(HasILBody).ToList();
             int patched = 0;
 
             foreach (var constructor in constructors)
@@ -157,26 +188,66 @@ namespace BroforceDevTools.ConstructorProfiler
             Main.Log("ConstructorProfiler: Patched " + patched + "/" + constructors.Count + " constructors");
         }
 
-        private static void AddCall()
+        private static ConstructorInfo[] GetConstructorsSafe(Type type)
+        {
+            try { return type.GetConstructors(); }
+            catch (Exception) { return new ConstructorInfo[0]; }
+        }
+
+        // Runtime-implemented constructors (delegates especially) have no IL body; patching one detours
+        // Mono's shared native delegate constructor and breaks every delegate creation in the process.
+        private static bool HasILBody(ConstructorInfo constructor)
+        {
+            try
+            {
+                if (constructor.IsAbstract)
+                    return false;
+                var flags = constructor.GetMethodImplementationFlags();
+                if ((flags & MethodImplAttributes.CodeTypeMask) != MethodImplAttributes.IL)
+                    return false;
+                if ((flags & MethodImplAttributes.InternalCall) != 0)
+                    return false;
+                return constructor.GetMethodBody() != null;
+            }
+            catch (Exception) { return false; }
+        }
+
+        private static void AddCall(MethodBase __originalMethod)
         {
             if (!IsRunning) return;
 
-            var stackTrace = new System.Diagnostics.StackTrace();
-            var key = stackTrace.ToString();
+            var key = new System.Diagnostics.StackTrace().ToString();
+            var createdType = __originalMethod != null && __originalMethod.DeclaringType != null
+                ? __originalMethod.DeclaringType.FullName : "Unknown";
 
-            StackData data;
-            if (callCounter.TryGetValue(key, out data))
+            lock (sync)
             {
-                data.count++;
-            }
-            else
-            {
-                callCounter.Add(key, new StackData(stackTrace));
+                StackData data;
+                if (callCounter.TryGetValue(key, out data))
+                {
+                    data.count++;
+                }
+                else
+                {
+                    callCounter.Add(key, new StackData(key, createdType));
+                }
             }
         }
 
         internal static void Cleanup()
         {
+            if (IsRunning)
+            {
+                try
+                {
+                    StopRecordingAndExport();
+                }
+                catch (Exception ex)
+                {
+                    Main.Log("ConstructorProfiler: Export failed: " + ex.Message);
+                }
+            }
+
             if (harmony != null)
                 harmony.UnpatchAll("BroforceDevTools.ConstructorProfiler");
             IsRunning = false;
@@ -189,21 +260,14 @@ namespace BroforceDevTools.ConstructorProfiler
             public string cleanStack;
             public int count;
 
-            public StackData(System.Diagnostics.StackTrace stackTrace)
+            public StackData(string stackTrace, string createdType)
             {
                 count = 1;
-                try
-                {
-                    var ctorFrame = stackTrace.GetFrame(1);
-                    var method = ctorFrame != null ? ctorFrame.GetMethod() : null;
-                    createdType = method != null && method.DeclaringType != null
-                        ? method.DeclaringType.FullName : "Unknown";
-                }
-                catch { createdType = "Unknown"; }
+                this.createdType = createdType;
 
                 try
                 {
-                    var frames = stackTrace.ToString()
+                    var frames = stackTrace
                         .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                     cleanStack = string.Join("\n", frames.Skip(2).Take(5).ToArray());
                 }

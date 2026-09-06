@@ -1,3 +1,4 @@
+// Modified from the original; see THIRD-PARTY-NOTICES.md.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,19 +30,27 @@ namespace BroforceDevTools.FPSCounter
         private static bool running;
         private static FixedString fString;
         private static Action stopAction;
+        private static string lastOverlayError;
 
         public static string StringOutput { get; private set; }
+        public static int StringOutputLength { get; private set; }
         public static bool IsRunning { get { return running; } }
 
         public static void Start(MonoBehaviour mb)
         {
             if (running) return;
+            if (mb == null)
+            {
+                Main.Log("Start FPS Counter first before enabling Patch Profiler");
+                return;
+            }
             running = true;
 
             if (harmonyInstance == null)
                 harmonyInstance = new Harmony("BroforceDevTools.PatchProfiler");
             if (fString == null)
-                fString = new FixedString(1000);
+                fString = new FixedString(1500);
+            fString.builder.Length = 0;
 
             ScanAndHookPatches();
 
@@ -54,23 +63,38 @@ namespace BroforceDevTools.FPSCounter
             if (!running) return;
             running = false;
 
+            if (stopAction != null)
+            {
+                stopAction();
+                stopAction = null;
+            }
+
+            foreach (var entry in patchTimers.Values)
+            {
+                entry.Timer.Reset();
+                entry.Average = new MovingAverage(60);
+                entry.FrameCallCount = 0;
+            }
+
+            StringOutput = null;
+            StringOutputLength = 0;
+            lastOverlayError = null;
+        }
+
+        public static void Cleanup()
+        {
+            Stop();
+
             if (harmonyInstance != null)
                 harmonyInstance.UnpatchAll("BroforceDevTools.PatchProfiler");
 
             patchTimers.Clear();
-
-            if (stopAction != null)
-                stopAction();
-
-            StringOutput = null;
         }
 
         public static void Refresh()
         {
             if (!running) return;
 
-            harmonyInstance.UnpatchAll("BroforceDevTools.PatchProfiler");
-            patchTimers.Clear();
             ScanAndHookPatches();
         }
 
@@ -103,7 +127,7 @@ namespace BroforceDevTools.FPSCounter
             }
 
             var pre = new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatchProfiler), "TimerPre"));
-            var post = new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatchProfiler), "TimerPost"));
+            var finalizer = new HarmonyMethod(AccessTools.Method(typeof(HarmonyPatchProfiler), "TimerPost"));
 
             int hooked = 0;
             foreach (var method in Harmony.GetAllPatchedMethods().ToList())
@@ -115,17 +139,17 @@ namespace BroforceDevTools.FPSCounter
                     ? method.DeclaringType.Name + "." + method.Name
                     : method.Name;
 
-                HookPatches(patches.Prefixes, method, targetName, "Prefix", modAssemblyMap, pre, post, ref hooked);
-                HookPatches(patches.Postfixes, method, targetName, "Postfix", modAssemblyMap, pre, post, ref hooked);
-                HookPatches(patches.Finalizers, method, targetName, "Finalizer", modAssemblyMap, pre, post, ref hooked);
+                HookPatches(patches.Prefixes, method, targetName, "Prefix", modAssemblyMap, pre, finalizer, ref hooked);
+                HookPatches(patches.Postfixes, method, targetName, "Postfix", modAssemblyMap, pre, finalizer, ref hooked);
+                HookPatches(patches.Finalizers, method, targetName, "Finalizer", modAssemblyMap, pre, finalizer, ref hooked);
             }
 
-            Main.Log("PatchProfiler: Hooked " + hooked + " patches");
+            Main.Log("PatchProfiler: Hooked " + hooked + " new patches (" + patchTimers.Count + " tracked)");
         }
 
         private static void HookPatches(IList<Patch> patches, MethodBase targetMethod, string targetName,
             string patchType, Dictionary<Assembly, string> modAssemblyMap,
-            HarmonyMethod pre, HarmonyMethod post, ref int hooked)
+            HarmonyMethod pre, HarmonyMethod finalizer, ref int hooked)
         {
             if (patches == null) return;
 
@@ -134,8 +158,7 @@ namespace BroforceDevTools.FPSCounter
                 var patchMethod = patch.PatchMethod;
                 if (patchMethod == null) continue;
 
-                if (patch.owner == "BroforceDevTools.PatchProfiler" ||
-                    patch.owner == "BroforceDevTools.ModCounter") continue;
+                if (patch.owner != null && patch.owner.StartsWith("BroforceDevTools", StringComparison.Ordinal)) continue;
 
                 var assembly = patchMethod.DeclaringType != null ? patchMethod.DeclaringType.Assembly : null;
                 string modName;
@@ -153,11 +176,11 @@ namespace BroforceDevTools.FPSCounter
                     Average = new MovingAverage(60),
                     FrameCallCount = 0
                 };
-                patchTimers[patchMethod] = entry;
 
                 try
                 {
-                    harmonyInstance.Patch(patchMethod, pre, post);
+                    harmonyInstance.Patch(patchMethod, pre, null, null, finalizer);
+                    patchTimers[patchMethod] = entry;
                     hooked++;
                 }
                 catch (Exception) { }
@@ -169,79 +192,100 @@ namespace BroforceDevTools.FPSCounter
         {
             var nanosecPerTick = 1000L * 1000L * 100L / Stopwatch.Frequency;
             var msScale = 1f / (nanosecPerTick * 1000f);
-            var cutoffTicks = nanosecPerTick * 100;
+            var cutoffTicks = nanosecPerTick * 10;
             var builder = fString.builder;
 
             while (true)
             {
                 yield return waitForEndOfFrame;
 
-                // Per-frame recording capture (before stopwatch reset)
-                if (ProfilingRecorder.IsPerFrame)
+                try
                 {
-                    var rawList = new List<PatchTimingData>();
+                    // Per-frame recording capture (before stopwatch reset)
+                    if (ProfilingRecorder.IsPerFrame)
+                    {
+                        var rawList = new List<PatchTimingData>();
+                        foreach (var entry in patchTimers.Values)
+                        {
+                            var ticks = entry.Timer.ElapsedTicks;
+                            if (ticks > 0)
+                            {
+                                rawList.Add(new PatchTimingData
+                                {
+                                    ModName = entry.ModName,
+                                    TargetMethod = entry.TargetMethod,
+                                    PatchType = entry.PatchType,
+                                    AverageMs = ticks * msScale,
+                                    CallsPerFrame = entry.FrameCallCount
+                                });
+                            }
+                        }
+                        if (rawList.Count > 0)
+                            ProfilingRecorder.RecordPatchTimings(rawList);
+                    }
+
+                    // Sample and reset all patch timers
+                    var sortable = new List<KeyValuePair<PatchEntry, long>>();
                     foreach (var entry in patchTimers.Values)
                     {
                         var ticks = entry.Timer.ElapsedTicks;
-                        if (ticks > 0)
+                        entry.Average.Sample(ticks);
+                        entry.Timer.Reset();
+
+                        var avg = entry.Average.GetAverage();
+                        if (avg > cutoffTicks)
+                            sortable.Add(new KeyValuePair<PatchEntry, long>(entry, avg));
+
+                        entry.FrameCallCount = 0;
+                    }
+
+                    if (sortable.Count > 0)
+                    {
+                        sortable.Sort((a, b) => b.Value.CompareTo(a.Value));
+                        builder.Concat("Patches:");
+                        int c = 0;
+                        foreach (var item in sortable)
                         {
-                            rawList.Add(new PatchTimingData
-                            {
-                                ModName = entry.ModName,
-                                TargetMethod = entry.TargetMethod,
-                                PatchType = entry.PatchType,
-                                AverageMs = ticks * msScale,
-                                CallsPerFrame = entry.FrameCallCount
-                            });
+                            builder.Concat("\n  ");
+                            builder.Concat(item.Key.ModName);
+                            builder.Concat(" ");
+                            builder.Concat(item.Key.TargetMethod);
+                            builder.Concat("(");
+                            builder.Concat(item.Key.PatchType);
+                            builder.Concat("):");
+                            builder.Concat(item.Value * msScale, 2, 3);
+                            builder.Concat("ms");
+                            if (c++ >= 8) break;
                         }
                     }
-                    if (rawList.Count > 0)
-                        ProfilingRecorder.RecordPatchTimings(rawList);
-                }
-
-                // Sample and reset all patch timers
-                var sortable = new List<KeyValuePair<PatchEntry, long>>();
-                foreach (var entry in patchTimers.Values)
-                {
-                    var ticks = entry.Timer.ElapsedTicks;
-                    entry.Average.Sample(ticks);
-                    entry.Timer.Reset();
-
-                    var avg = entry.Average.GetAverage();
-                    if (avg > cutoffTicks)
-                        sortable.Add(new KeyValuePair<PatchEntry, long>(entry, avg));
-
-                    entry.FrameCallCount = 0;
-                }
-
-                if (sortable.Count > 0)
-                {
-                    sortable.Sort((a, b) => b.Value.CompareTo(a.Value));
-                    builder.Concat("Patches:");
-                    int c = 0;
-                    foreach (var item in sortable)
+                    else
                     {
-                        builder.Concat("\n  ");
-                        builder.Concat(item.Key.ModName);
-                        builder.Concat(" ");
-                        builder.Concat(item.Key.TargetMethod);
-                        builder.Concat("(");
-                        builder.Concat(item.Key.PatchType);
-                        builder.Concat("):");
-                        builder.Concat(item.Value * msScale, 2, 3);
-                        builder.Concat("ms");
-                        if (c++ >= 8) break;
+                        builder.Concat("Patches: none above 0.01ms");
+                    }
+
+                    StringOutput = fString.PopValue();
+                    StringOutputLength = fString.LastValueLength;
+                }
+                catch (Exception ex)
+                {
+                    fString.builder.Length = 0;
+                    StringOutput = null;
+                    StringOutputLength = 0;
+
+                    var detail = ex.ToString();
+                    if (lastOverlayError != detail)
+                    {
+                        lastOverlayError = detail;
+                        Main.Log("PatchProfiler overlay frame failed: " + detail);
                     }
                 }
-
-                StringOutput = sortable.Count > 0 ? fString.PopValue() : null;
-                if (sortable.Count == 0)
-                    fString.builder.Length = 0;
             }
         }
 
         private static void TimerPre(MethodBase __originalMethod)
         {
+            if (!running) return;
+
             PatchEntry entry;
             if (patchTimers.TryGetValue(__originalMethod, out entry))
             {
@@ -252,6 +296,8 @@ namespace BroforceDevTools.FPSCounter
 
         private static void TimerPost(MethodBase __originalMethod)
         {
+            if (!running) return;
+
             PatchEntry entry;
             if (patchTimers.TryGetValue(__originalMethod, out entry))
                 entry.Timer.Stop();

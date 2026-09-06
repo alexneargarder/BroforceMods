@@ -1,3 +1,4 @@
+// Modified from the original; see THIRD-PARTY-NOTICES.md.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,16 +19,27 @@ namespace BroforceDevTools.FPSCounter
         private static readonly Dictionary<string, Dictionary<string, MovingAverage>> averages =
             new Dictionary<string, Dictionary<string, MovingAverage>>();
 
+        private static readonly string[] callbackNames = { "Update", "FixedUpdate", "LateUpdate", "OnGUI" };
+
+        private static readonly Dictionary<string, long[]> frameTicks = new Dictionary<string, long[]>();
+
         private static Harmony harmonyInstance;
         private static bool running;
         private static FixedString fString;
         private static Action stopAction;
+        private static string lastOverlayError;
 
         public static string StringOutput { get; private set; }
+        public static int StringOutputLength { get; private set; }
 
         public static void Start(MonoBehaviour mb)
         {
             if (running) return;
+            if (mb == null)
+            {
+                Main.Log("Start FPS Counter first before enabling Mod Stats");
+                return;
+            }
             running = true;
 
             if (harmonyInstance == null)
@@ -35,6 +47,7 @@ namespace BroforceDevTools.FPSCounter
 
             if (fString == null)
                 fString = new FixedString(800);
+            fString.builder.Length = 0;
 
             var hookCount = 0;
             var modCount = 0;
@@ -68,12 +81,6 @@ namespace BroforceDevTools.FPSCounter
                                 modName, new Dictionary<string, Stopwatch>());
                         }
 
-                        var methodTimers = timers[modType].Value;
-                        if (!methodTimers.ContainsKey(unityMethod))
-                        {
-                            methodTimers[unityMethod] = new Stopwatch();
-                        }
-
                         if (!averages.ContainsKey(modName))
                         {
                             averages[modName] = new Dictionary<string, MovingAverage>();
@@ -83,11 +90,16 @@ namespace BroforceDevTools.FPSCounter
                             averages[modName][unityMethod] = new MovingAverage(60);
                         }
 
+                        var methodTimers = timers[modType].Value;
+                        if (methodTimers.ContainsKey(unityMethod)) continue;
+
                         try
                         {
                             harmonyInstance.Patch(methodInfo,
                                 new HarmonyMethod(AccessTools.Method(typeof(ModCounter), "Pre")),
+                                null, null,
                                 new HarmonyMethod(AccessTools.Method(typeof(ModCounter), "Post")));
+                            methodTimers[unityMethod] = new Stopwatch();
                             hookCount++;
                         }
                         catch (Exception) { }
@@ -98,28 +110,40 @@ namespace BroforceDevTools.FPSCounter
             var co = mb.StartCoroutine(CollectLoop());
             stopAction = () => mb.StopCoroutine(co);
 
-            Main.Log("ModCounter: Attached " + hookCount + " hooks across " + modCount + " mods");
+            Main.Log("ModCounter: Attached " + hookCount + " new hooks across " + modCount + " mods");
         }
 
         public static void Stop()
         {
             if (!running) return;
-
-            if (harmonyInstance != null)
-                harmonyInstance.UnpatchAll("BroforceDevTools.ModCounter");
-
             running = false;
+
+            if (stopAction != null)
+            {
+                stopAction();
+                stopAction = null;
+            }
 
             foreach (var t in timers)
                 foreach (var sw in t.Value.Value.Values)
                     sw.Reset();
-            timers.Clear();
             averages.Clear();
-
-            if (stopAction != null)
-                stopAction();
+            frameTicks.Clear();
 
             StringOutput = null;
+            StringOutputLength = 0;
+            lastOverlayError = null;
+        }
+
+        public static void Cleanup()
+        {
+            Stop();
+
+            if (harmonyInstance != null)
+                harmonyInstance.UnpatchAll("BroforceDevTools.ModCounter");
+
+            timers.Clear();
+            averages.Clear();
         }
 
         public static List<ModTimingData> GetModTimings()
@@ -157,114 +181,155 @@ namespace BroforceDevTools.FPSCounter
         {
             var nanosecPerTick = 1000L * 1000L * 100L / Stopwatch.Frequency;
             var msScale = 1f / (nanosecPerTick * 1000f);
-            var cutoffTicks = nanosecPerTick * 100;
+            var cutoffTicks = nanosecPerTick * 10;
             var builder = fString.builder;
 
             while (true)
             {
                 yield return waitForEndOfFrame;
 
-                // Per-frame recording capture (before stopwatch reset)
-                if (ProfilingRecorder.IsPerFrame)
+                try
                 {
-                    var rawTimings = new Dictionary<string, float[]>();
+                    // Per-frame recording capture (before stopwatch reset)
+                    if (ProfilingRecorder.IsPerFrame)
+                    {
+                        var rawTimings = new Dictionary<string, float[]>();
+                        foreach (var typeEntry in timers)
+                        {
+                            var modName = typeEntry.Value.Key;
+                            float[] values;
+                            if (!rawTimings.TryGetValue(modName, out values))
+                            {
+                                values = new float[4];
+                                rawTimings[modName] = values;
+                            }
+                            foreach (var mt in typeEntry.Value.Value)
+                            {
+                                var ms = mt.Value.ElapsedTicks * msScale;
+                                switch (mt.Key)
+                                {
+                                    case "Update": values[0] += ms; break;
+                                    case "FixedUpdate": values[1] += ms; break;
+                                    case "LateUpdate": values[2] += ms; break;
+                                    case "OnGUI": values[3] += ms; break;
+                                }
+                            }
+                        }
+                        var rawList = new List<ModTimingData>();
+                        foreach (var kvp in rawTimings)
+                        {
+                            var v = kvp.Value;
+                            var total = v[0] + v[1] + v[2] + v[3];
+                            if (total > 0.001f)
+                            {
+                                rawList.Add(new ModTimingData
+                                {
+                                    ModName = kvp.Key,
+                                    UpdateMs = v[0], FixedUpdateMs = v[1],
+                                    LateUpdateMs = v[2], OnGUIMs = v[3],
+                                    TotalMs = total
+                                });
+                            }
+                        }
+                        ProfilingRecorder.RecordModTimings(rawList);
+                    }
+
+                    // Aggregate per-type stopwatches into per-mod per-callback averages
+                    foreach (var modTicks in frameTicks.Values)
+                        Array.Clear(modTicks, 0, modTicks.Length);
+
                     foreach (var typeEntry in timers)
                     {
                         var modName = typeEntry.Value.Key;
-                        float[] values;
-                        if (!rawTimings.TryGetValue(modName, out values))
+                        var methodTimers = typeEntry.Value.Value;
+
+                        long[] ticks;
+                        if (!frameTicks.TryGetValue(modName, out ticks))
                         {
-                            values = new float[4];
-                            rawTimings[modName] = values;
+                            ticks = new long[4];
+                            frameTicks[modName] = ticks;
                         }
-                        foreach (var mt in typeEntry.Value.Value)
+
+                        foreach (var methodTimer in methodTimers)
                         {
-                            var ms = mt.Value.ElapsedTicks * msScale;
-                            switch (mt.Key)
+                            var elapsed = methodTimer.Value.ElapsedTicks;
+                            switch (methodTimer.Key)
                             {
-                                case "Update": values[0] += ms; break;
-                                case "FixedUpdate": values[1] += ms; break;
-                                case "LateUpdate": values[2] += ms; break;
-                                case "OnGUI": values[3] += ms; break;
+                                case "Update": ticks[0] += elapsed; break;
+                                case "FixedUpdate": ticks[1] += elapsed; break;
+                                case "LateUpdate": ticks[2] += elapsed; break;
+                                case "OnGUI": ticks[3] += elapsed; break;
                             }
+                            methodTimer.Value.Reset();
                         }
                     }
-                    var rawList = new List<ModTimingData>();
-                    foreach (var kvp in rawTimings)
+
+                    foreach (var modEntry in frameTicks)
                     {
-                        var v = kvp.Value;
-                        var total = v[0] + v[1] + v[2] + v[3];
-                        if (total > 0.001f)
+                        Dictionary<string, MovingAverage> modAvgs;
+                        if (!averages.TryGetValue(modEntry.Key, out modAvgs)) continue;
+
+                        for (var i = 0; i < callbackNames.Length; i++)
                         {
-                            rawList.Add(new ModTimingData
-                            {
-                                ModName = kvp.Key,
-                                UpdateMs = v[0], FixedUpdateMs = v[1],
-                                LateUpdateMs = v[2], OnGUIMs = v[3],
-                                TotalMs = total
-                            });
+                            MovingAverage ma;
+                            if (modAvgs.TryGetValue(callbackNames[i], out ma))
+                                ma.Sample(modEntry.Value[i]);
                         }
                     }
-                    ProfilingRecorder.RecordModTimings(rawList);
-                }
 
-                // Aggregate per-type stopwatches into per-mod per-callback averages
-                foreach (var typeEntry in timers)
-                {
-                    var modName = typeEntry.Value.Key;
-                    var methodTimers = typeEntry.Value.Value;
-
-                    Dictionary<string, MovingAverage> modAvgs;
-                    if (!averages.TryGetValue(modName, out modAvgs)) continue;
-
-                    foreach (var methodTimer in methodTimers)
+                    // Build display string
+                    var modList = new List<KeyValuePair<string, float>>();
+                    foreach (var modAvgs in averages)
                     {
-                        MovingAverage ma;
-                        if (modAvgs.TryGetValue(methodTimer.Key, out ma))
+                        long totalTicks = 0;
+                        foreach (var ma in modAvgs.Value.Values)
+                            totalTicks += ma.GetAverage();
+
+                        if (totalTicks > cutoffTicks)
+                            modList.Add(new KeyValuePair<string, float>(modAvgs.Key, totalTicks * msScale));
+                    }
+
+                    if (modList.Count > 0)
+                    {
+                        modList.Sort((a, b) => b.Value.CompareTo(a.Value));
+                        int c = 0;
+                        foreach (var mod in modList)
                         {
-                            ma.Sample(methodTimer.Value.ElapsedTicks);
+                            if (c > 0) builder.Concat(", ");
+                            builder.Concat(mod.Key);
+                            builder.Concat(":");
+                            builder.Concat(mod.Value, 1, 2);
+                            builder.Concat("ms");
+                            if (c++ >= 5) break;
                         }
-                        methodTimer.Value.Reset();
                     }
-                }
-
-                // Build display string
-                var modList = new List<KeyValuePair<string, float>>();
-                foreach (var modAvgs in averages)
-                {
-                    long totalTicks = 0;
-                    foreach (var ma in modAvgs.Value.Values)
-                        totalTicks += ma.GetAverage();
-
-                    if (totalTicks > cutoffTicks)
-                        modList.Add(new KeyValuePair<string, float>(modAvgs.Key, totalTicks * msScale));
-                }
-
-                if (modList.Count > 0)
-                {
-                    modList.Sort((a, b) => b.Value.CompareTo(a.Value));
-                    int c = 0;
-                    foreach (var mod in modList)
+                    else
                     {
-                        if (c > 0) builder.Concat(", ");
-                        builder.Concat(mod.Key);
-                        builder.Concat(":");
-                        builder.Concat(mod.Value, 1, 2);
-                        builder.Concat("ms");
-                        if (c++ >= 5) break;
+                        builder.Concat("No slow mods");
+                    }
+
+                    StringOutput = fString.PopValue();
+                    StringOutputLength = fString.LastValueLength;
+                }
+                catch (Exception ex)
+                {
+                    fString.builder.Length = 0;
+                    StringOutput = null;
+                    StringOutputLength = 0;
+
+                    var detail = ex.ToString();
+                    if (lastOverlayError != detail)
+                    {
+                        lastOverlayError = detail;
+                        Main.Log("ModCounter overlay frame failed: " + detail);
                     }
                 }
-                else
-                {
-                    builder.Concat("No slow mods");
-                }
-
-                StringOutput = fString.PopValue();
             }
         }
 
         private static void Post(MonoBehaviour __instance, MethodInfo __originalMethod)
         {
+            if (!running) return;
             if (!FrameCounterHelper.CanProcessOnGui && __originalMethod.Name == "OnGUI") return;
 
             KeyValuePair<string, Dictionary<string, Stopwatch>> entry;
@@ -278,6 +343,7 @@ namespace BroforceDevTools.FPSCounter
 
         private static void Pre(MonoBehaviour __instance, MethodInfo __originalMethod)
         {
+            if (!running) return;
             if (!FrameCounterHelper.CanProcessOnGui && __originalMethod.Name == "OnGUI") return;
 
             KeyValuePair<string, Dictionary<string, Stopwatch>> entry;

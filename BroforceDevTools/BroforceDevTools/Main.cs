@@ -25,6 +25,9 @@ namespace BroforceDevTools
 
         private static string previousToolTip = "";
 
+        private static bool prevShowModStats;
+        private static bool prevShowPatchProfiler;
+
         static bool Load(UnityModManager.ModEntry modEntry)
         {
             mod = modEntry;
@@ -50,18 +53,37 @@ namespace BroforceDevTools
             constructorProfilerKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle Constructor Profiler");
             recorderKey = AllModKeyBindings.LoadKeyBinding("BroforceDevTools", "Toggle Profiling Recorder");
 
+            ApplySettings();
+            prevShowModStats = settings.showModStats;
+            prevShowPatchProfiler = settings.showPatchProfiler;
+
             return true;
+        }
+
+        static void ApplySettings()
+        {
+            FrameCounter.ShowDetailedStats = settings.showDetailedStats;
+            FrameCounter.MeasureMemory = settings.showMemory;
+            FrameCounter.MeasureGC = settings.showGC;
+            FrameCounter.ShowPluginStats = settings.showModStats;
+            FrameCounter.ShowPatchProfiler = settings.showPatchProfiler;
         }
 
         static bool OnToggle(UnityModManager.ModEntry modEntry, bool value)
         {
             enabled = value;
-            if (!value)
+            if (value)
+            {
+                DemystifyPatcher.Apply(harmony);
+            }
+            else
             {
                 ProfilingRecorder.Stop();
                 FrameCounter.Cleanup();
                 ConstructorProfilerInternal.Cleanup();
-                HarmonyPatchProfiler.Stop();
+                HarmonyPatchProfiler.Cleanup();
+                ModCounter.Cleanup();
+                DemystifyPatcher.Remove(harmony);
             }
             return true;
         }
@@ -146,14 +168,21 @@ namespace BroforceDevTools
             }
             GUILayout.EndHorizontal();
 
-            FrameCounter.ShowDetailedStats = settings.showDetailedStats;
-            FrameCounter.MeasureMemory = settings.showMemory;
-            FrameCounter.MeasureGC = settings.showGC;
-            FrameCounter.ShowPluginStats = settings.showModStats;
-
-            if (settings.showPatchProfiler != FrameCounter.ShowPatchProfiler)
+            if (settings.showModStats != prevShowModStats)
             {
-                FrameCounter.ShowPatchProfiler = settings.showPatchProfiler;
+                prevShowModStats = settings.showModStats;
+                if (FrameCounter.IsRunning)
+                {
+                    if (settings.showModStats)
+                        ModCounter.Start(FrameCounter.Helper);
+                    else
+                        ModCounter.Stop();
+                }
+            }
+
+            if (settings.showPatchProfiler != prevShowPatchProfiler)
+            {
+                prevShowPatchProfiler = settings.showPatchProfiler;
                 if (FrameCounter.IsRunning)
                 {
                     if (settings.showPatchProfiler)
@@ -162,6 +191,8 @@ namespace BroforceDevTools
                         HarmonyPatchProfiler.Stop();
                 }
             }
+
+            ApplySettings();
 
             GUILayout.Space(25);
             GUILayout.Label("<b>Profiling Recorder</b>");
@@ -189,21 +220,25 @@ namespace BroforceDevTools
                 tooltipRect.y += 20;
                 tooltipRect.width += 800;
 
-                GUILayout.Label("Mode:", WindowScaling.ScaledWidth(40));
-                var modeLabel = settings.perFrameRecording ? "Per-frame" : "Per-second";
-                var modeTooltip = settings.perFrameRecording
-                    ? "Per-frame: raw values every frame (more data, detects spikes). Click to switch to per-second."
-                    : "Per-second: smoothed values every second (less data, good for trends). Click to switch to per-frame.";
                 GUI.enabled = !ProfilingRecorder.IsRecording;
-                if (GUILayout.Button(new GUIContent(modeLabel, modeTooltip), WindowScaling.ScaledWidth(100)))
-                    settings.perFrameRecording = !settings.perFrameRecording;
+                settings.perFrameRecording = GUILayout.Toggle(settings.perFrameRecording,
+                    new GUIContent(" Per-frame recording",
+                        "On: raw values every frame (more data, detects spikes). Off: smoothed values every second (less data, good for trends)."),
+                    WindowScaling.ScaledWidth(160));
                 GUI.enabled = true;
 
                 if (GUILayout.Button(new GUIContent("Open Folder", "Open the results folder in file manager."), WindowScaling.ScaledWidth(100)))
                 {
-                    var resultsDir = System.IO.Path.Combine(mod.Path, "Results");
-                    System.IO.Directory.CreateDirectory(resultsDir);
-                    System.Diagnostics.Process.Start(resultsDir);
+                    try
+                    {
+                        var resultsDir = System.IO.Path.Combine(mod.Path, "Results");
+                        System.IO.Directory.CreateDirectory(resultsDir);
+                        System.Diagnostics.Process.Start(resultsDir);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("Failed to open results folder: " + ex.Message);
+                    }
                 }
 
                 if (GUI.tooltip != previousToolTip)
@@ -225,16 +260,9 @@ namespace BroforceDevTools
                 if (GUILayout.Button(new GUIContent(ctorLabel, ctorTooltip), WindowScaling.ScaledWidth(120)))
                 {
                     if (ConstructorProfilerInternal.IsRunning)
-                    {
-                        ConstructorProfilerInternal.StopRecording();
-                        var path = System.IO.Path.Combine(mod.Path,
-                            "ConstructorProfiler_" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss") + ".csv");
-                        ConstructorProfilerInternal.ExportCSV(path);
-                    }
+                        ConstructorProfilerInternal.StopRecordingAndExport();
                     else
-                    {
                         ConstructorProfilerInternal.StartRecording();
-                    }
                 }
 
                 tooltipRect = GUILayoutUtility.GetLastRect();

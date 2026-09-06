@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿// Modified from the original; see THIRD-PARTY-NOTICES.md.
+using System.Collections.Generic;
 
 namespace BroforceDevTools.FPSCounter
 {

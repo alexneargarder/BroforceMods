@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Modified from the original; see THIRD-PARTY-NOTICES.md.
+using System;
 using System.Runtime.InteropServices;
 
 namespace BroforceDevTools.FPSCounter

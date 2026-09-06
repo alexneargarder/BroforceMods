@@ -1,5 +1,6 @@
 // Copyright (c) Ben A Adams. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Modified from the original; see THIRD-PARTY-NOTICES.md.
 
 using System.Collections.Generic.Enumerable;
 using System.Collections.ObjectModel;
@@ -31,7 +32,8 @@ namespace System.Diagnostics
 
                 if (stackTrace.FrameCount > 0) exception.SetStackTracesString(stackTrace.ToString());
 
-                if (InteropHelper.Types.AggregateException.IsInstanceOfType(exception))
+                if (InteropHelper.Types.AggregateException != null &&
+                    InteropHelper.Types.AggregateException.IsInstanceOfType(exception))
                 {
                     var innerExceptions =
                         InteropHelper.Types.InnerExceptions.GetValue(exception, null) as ReadOnlyCollection<Exception>;

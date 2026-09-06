@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Modified from the original; see THIRD-PARTY-NOTICES.md.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -19,6 +20,9 @@ namespace System.Diagnostics
     {
         private static readonly Type StackTraceHiddenAttributeType =
             Type.GetType("System.Diagnostics.StackTraceHiddenAttribute", false);
+
+        private static readonly FieldInfo InternalMethodNameField =
+            typeof(StackFrame).GetField("internalMethodName", BindingFlags.Instance | BindingFlags.NonPublic);
 
         private static List<EnhancedStackFrame> GetFrames(Exception exception)
         {
@@ -42,16 +46,83 @@ namespace System.Diagnostics
                 var frame = stackFrames[i];
                 var method = frame.GetMethod();
 
+                // Mono returns a null method for (wrapper dynamic-method) frames; ShowInStackTrace would throw on it.
+                if (method == null)
+                {
+                    frames.Add(new EnhancedStackFrame(frame, GetEmittedMethodDisplayString(null, frame),
+                        frame.GetFileName(), frame.GetFileLineNumber(), frame.GetFileColumnNumber()));
+                    continue;
+                }
+
                 // Always show last stackFrame
                 if (!ShowInStackTrace(method) && i < stackFrames.Length - 1) continue;
                 var fileName = frame.GetFileName();
                 var row = frame.GetFileLineNumber();
                 var column = frame.GetFileColumnNumber();
-                var stackFrame = new EnhancedStackFrame(frame, GetMethodDisplayString(method), fileName, row, column);
+                var methodInfo = IsEmitted(method)
+                    ? GetEmittedMethodDisplayString(method, frame)
+                    : GetMethodDisplayString(method);
+                var stackFrame = new EnhancedStackFrame(frame, methodInfo, fileName, row, column);
                 frames.Add(stackFrame);
             }
 
             return frames;
+        }
+
+        // Mono 2017.4 aborts natively inside GetMethodBody for Reflection.Emit methods, so
+        // anything not backed by an assembly file on disk is excluded from IL inspection.
+        private static bool IsEmitted(MethodBase method)
+        {
+            if (method == null || method is System.Reflection.Emit.DynamicMethod) return true;
+
+            // MethodBase.Module resolves through DeclaringType in this mscorlib, so a null one would throw.
+            if (method.DeclaringType == null) return true;
+
+            try
+            {
+                var module = method.Module;
+                if (module == null || module is System.Reflection.Emit.ModuleBuilder) return true;
+
+                var assembly = module.Assembly;
+                if (assembly == null || assembly is System.Reflection.Emit.AssemblyBuilder) return true;
+
+                return string.IsNullOrEmpty(assembly.Location);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private static ResolvedMethod GetEmittedMethodDisplayString(MethodBase method, StackFrame frame)
+        {
+            if (method != null)
+                return new ResolvedMethod
+                {
+                    Name = method.Name,
+                    DeclaringType = method.DeclaringType
+                };
+
+            var internalName = GetInternalMethodName(frame);
+            return new ResolvedMethod
+            {
+                Name = string.IsNullOrEmpty(internalName) ? "<unknown method>" : internalName
+            };
+        }
+
+        // The runtime records the name of a method-less frame here and nowhere else.
+        private static string GetInternalMethodName(StackFrame frame)
+        {
+            if (frame == null || InternalMethodNameField == null) return null;
+
+            try
+            {
+                return InternalMethodNameField.GetValue(frame) as string;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public static ResolvedMethod GetMethodDisplayString(MethodBase originMethod)
@@ -302,6 +373,8 @@ namespace System.Diagnostics
             ordinal = null;
             foreach (var candidateMethod in candidateMethods)
             {
+                if (IsEmitted(candidateMethod)) continue;
+
                 var methodBody = candidateMethod.GetMethodBody();
                 if (kind == GeneratedNameKind.LambdaMethod)
                     foreach (var v in EnumerableIList.Create(methodBody?.LocalVariables))

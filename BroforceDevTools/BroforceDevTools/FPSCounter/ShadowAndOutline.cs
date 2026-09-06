@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿// Modified from the original; see THIRD-PARTY-NOTICES.md.
+using UnityEngine;
 
 namespace BroforceDevTools.FPSCounter
 {

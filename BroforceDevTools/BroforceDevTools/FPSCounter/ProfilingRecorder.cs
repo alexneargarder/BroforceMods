@@ -66,6 +66,7 @@ namespace BroforceDevTools.FPSCounter
 
             if (!perFrame)
             {
+                waitOneSecond.Restart();
                 var co = mb.StartCoroutine(PerSecondLoop());
                 stopAction = () => mb.StopCoroutine(co);
             }
@@ -84,7 +85,14 @@ namespace BroforceDevTools.FPSCounter
                 stopAction = null;
             }
 
-            Export();
+            try
+            {
+                Export();
+            }
+            catch (Exception ex)
+            {
+                Main.Log("ProfilingRecorder: Export failed: " + ex.Message);
+            }
 
             frameRecords = null;
             modRecords = null;
@@ -129,11 +137,31 @@ namespace BroforceDevTools.FPSCounter
 
         #region Per-Second Mode
 
+        // This Unity version's WaitForSecondsRealtime bakes an absolute deadline in its constructor
+        // and never resets, so a reusable one has to track its own deadline.
+        private sealed class WaitOneSecondRealtime : CustomYieldInstruction
+        {
+            private float resumeTime;
+
+            public override bool keepWaiting
+            {
+                get { return Time.realtimeSinceStartup < resumeTime; }
+            }
+
+            public void Restart()
+            {
+                resumeTime = Time.realtimeSinceStartup + 1f;
+            }
+        }
+
+        private static readonly WaitOneSecondRealtime waitOneSecond = new WaitOneSecondRealtime();
+
         private static IEnumerator PerSecondLoop()
         {
             while (true)
             {
-                yield return new WaitForSeconds(1f);
+                yield return waitOneSecond;
+                waitOneSecond.Restart();
                 if (!recording) yield break;
 
                 var ts = Time.realtimeSinceStartup - startTime;
@@ -285,7 +313,7 @@ namespace BroforceDevTools.FPSCounter
             WriteFrameTimingSection(lines, avgFrame);
             WriteMemorySection(lines);
             WriteModSection(lines, duration, avgFrame);
-            WritePatchSection(lines, avgFrame);
+            WritePatchSection(lines, duration, avgFrame);
             WriteFooterSection(lines);
 
             File.WriteAllLines(path, lines.ToArray());
@@ -396,6 +424,7 @@ namespace BroforceDevTools.FPSCounter
             var modCallbackPeaks = new Dictionary<string, float>();
             var modCallbackFirstHalf = new Dictionary<string, float>();
             var modCallbackSecondHalf = new Dictionary<string, float>();
+            var modCallbackHalfCounts = new Dictionary<string, int[]>();
             var midpoint = duration / 2f;
 
             if (hasModData)
@@ -413,18 +442,32 @@ namespace BroforceDevTools.FPSCounter
                     var second = g.Where(r => r.timestamp > midpoint).ToList();
                     modCallbackFirstHalf[g.Key] = first.Count > 0 ? first.Average(r => r.data.TotalMs) : 0f;
                     modCallbackSecondHalf[g.Key] = second.Count > 0 ? second.Average(r => r.data.TotalMs) : 0f;
+                    modCallbackHalfCounts[g.Key] = new[] { first.Count, second.Count };
                 }
             }
 
             // Build per-mod patch data
+            var patchesByMod = new Dictionary<string, List<PatchRecord>>();
             var modPatchTime = new Dictionary<string, float>();
             var modPatchPeaks = new Dictionary<string, float>();
             if (hasPatchData)
             {
-                foreach (var g in patchRecords.GroupBy(r => StripRichText(r.data.ModName)))
+                foreach (var r in patchRecords)
+                {
+                    var name = StripRichText(r.data.ModName);
+                    List<PatchRecord> modPatchRecords;
+                    if (!patchesByMod.TryGetValue(name, out modPatchRecords))
+                    {
+                        modPatchRecords = new List<PatchRecord>();
+                        patchesByMod[name] = modPatchRecords;
+                    }
+                    modPatchRecords.Add(r);
+                }
+
+                foreach (var g in patchesByMod)
                 {
                     // Sum average ms across all patches for this mod
-                    var patchGroups = g.GroupBy(r => r.data.TargetMethod + "|" + r.data.PatchType);
+                    var patchGroups = g.Value.GroupBy(r => r.data.TargetMethod + "|" + r.data.PatchType);
                     float totalPatchAvg = 0;
                     float maxPatchPeak = 0;
                     foreach (var pg in patchGroups)
@@ -475,6 +518,13 @@ namespace BroforceDevTools.FPSCounter
                 entry.FirstHalfAvg = modCallbackFirstHalf.TryGetValue(name, out fh) ? fh : 0;
                 entry.SecondHalfAvg = modCallbackSecondHalf.TryGetValue(name, out sh) ? sh : 0;
 
+                int[] halfCounts;
+                if (modCallbackHalfCounts.TryGetValue(name, out halfCounts))
+                {
+                    entry.FirstHalfCount = halfCounts[0];
+                    entry.SecondHalfCount = halfCounts[1];
+                }
+
                 modEntries.Add(entry);
             }
 
@@ -512,10 +562,10 @@ namespace BroforceDevTools.FPSCounter
                 if (mod.PatchTotal > 0.001f)
                 {
                     lines.Add("**Patches:** " + Ff(mod.PatchTotal, 2) + "ms");
-                    if (hasPatchData)
+                    List<PatchRecord> modPatchRecords;
+                    if (patchesByMod.TryGetValue(mod.Name, out modPatchRecords))
                     {
-                        var patches = patchRecords
-                            .Where(r => StripRichText(r.data.ModName) == mod.Name)
+                        var patches = modPatchRecords
                             .GroupBy(r => r.data.TargetMethod + "|" + r.data.PatchType)
                             .Select(pg => new {
                                 Target = pg.First().data.TargetMethod,
@@ -529,12 +579,19 @@ namespace BroforceDevTools.FPSCounter
                     }
                 }
 
-                var trend = ComputeTrend(mod.FirstHalfAvg, mod.SecondHalfAvg);
-                if (trend == "stable")
-                    lines.Add("- Trend: **stable**");
+                if (mod.FirstHalfCount == 0 || mod.SecondHalfCount == 0)
+                {
+                    lines.Add("- Trend: **n/a**");
+                }
                 else
-                    lines.Add("- Trend: **" + trend + "** (first half " + Ff(mod.FirstHalfAvg, 2)
-                        + "ms -> second half " + Ff(mod.SecondHalfAvg, 2) + "ms)");
+                {
+                    var trend = ComputeTrend(mod.FirstHalfAvg, mod.SecondHalfAvg);
+                    if (trend == "stable")
+                        lines.Add("- Trend: **stable**");
+                    else
+                        lines.Add("- Trend: **" + trend + "** (first half " + Ff(mod.FirstHalfAvg, 2)
+                            + "ms -> second half " + Ff(mod.SecondHalfAvg, 2) + "ms)");
+                }
 
                 lines.Add("");
                 rank++;
@@ -554,24 +611,40 @@ namespace BroforceDevTools.FPSCounter
             public float CombinedTotal;
             public float PeakTotal;
             public float FirstHalfAvg, SecondHalfAvg;
+            public int FirstHalfCount, SecondHalfCount;
         }
 
-        private static void WritePatchSection(List<string> lines, float avgFrame)
+        private static void WritePatchSection(List<string> lines, float duration, float avgFrame)
         {
             if (patchRecords == null || patchRecords.Count == 0) return;
+
+            var midpoint = duration / 2f;
 
             var patchGroups = patchRecords
                 .GroupBy(r => StripRichText(r.data.ModName) + "|" + r.data.TargetMethod + "|" + r.data.PatchType)
                 .Select(g =>
                 {
                     var first = g.First().data;
+                    float sum = 0, peak = float.MinValue;
+                    float firstHalfSum = 0, secondHalfSum = 0;
+                    int count = 0, firstHalfCount = 0, secondHalfCount = 0;
+                    foreach (var r in g)
+                    {
+                        var ms = r.data.AverageMs;
+                        sum += ms;
+                        if (ms > peak) peak = ms;
+                        count++;
+                        if (r.timestamp <= midpoint) { firstHalfSum += ms; firstHalfCount++; }
+                        else { secondHalfSum += ms; secondHalfCount++; }
+                    }
                     return new
                     {
                         ModName = StripRichText(first.ModName),
                         TargetMethod = first.TargetMethod,
                         PatchType = first.PatchType,
-                        AvgMs = g.Average(r => r.data.AverageMs),
-                        PeakMs = g.Max(r => r.data.AverageMs)
+                        AvgMs = sum / count,
+                        PeakMs = peak,
+                        Trend = FormatTrendCell(firstHalfCount, firstHalfSum, secondHalfCount, secondHalfSum)
                     };
                 })
                 .OrderByDescending(x => x.AvgMs)
@@ -582,8 +655,8 @@ namespace BroforceDevTools.FPSCounter
             lines.Add("*" + patchGroups.Count + " patches with measurable overhead.*");
             lines.Add("");
 
-            lines.Add("| # | Mod | Target | Type | Avg | Peak | % of frame |");
-            lines.Add("|---|---|---|---|---|---|---|");
+            lines.Add("| # | Mod | Target | Type | Avg | Peak | % of frame | Trend |");
+            lines.Add("|---|---|---|---|---|---|---|---|");
 
             int rank = 1;
             float totalPatchOverhead = 0;
@@ -592,7 +665,8 @@ namespace BroforceDevTools.FPSCounter
                 totalPatchOverhead += patch.AvgMs;
                 var framePct = avgFrame > 0 ? (patch.AvgMs / avgFrame * 100f) : 0f;
                 lines.Add("| " + rank + " | " + patch.ModName + " | " + patch.TargetMethod
-                    + " | " + patch.PatchType + " | " + Ff(patch.AvgMs, 3) + "ms | " + Ff(patch.PeakMs, 3) + "ms | " + Ff(framePct, 1) + "% |");
+                    + " | " + patch.PatchType + " | " + Ff(patch.AvgMs, 3) + "ms | " + Ff(patch.PeakMs, 3) + "ms | " + Ff(framePct, 1) + "% | "
+                    + patch.Trend + " |");
                 rank++;
             }
 
@@ -652,6 +726,16 @@ namespace BroforceDevTools.FPSCounter
         {
             if (value == null) return "";
             return RichTextRegex.Replace(value, "").Trim();
+        }
+
+        private static string FormatTrendCell(int firstHalfCount, float firstHalfSum, int secondHalfCount, float secondHalfSum)
+        {
+            if (firstHalfCount == 0 || secondHalfCount == 0) return "n/a";
+            var firstHalf = firstHalfSum / firstHalfCount;
+            var secondHalf = secondHalfSum / secondHalfCount;
+            var trend = ComputeTrend(firstHalf, secondHalf);
+            if (trend == "stable") return "stable";
+            return trend + " (" + Ff(firstHalf, 3) + " -> " + Ff(secondHalf, 3) + "ms)";
         }
 
         private static string ComputeTrend(float firstHalf, float secondHalf)

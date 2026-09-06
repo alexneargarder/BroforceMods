@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Modified from the original; see THIRD-PARTY-NOTICES.md.
+using System;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
@@ -31,6 +32,7 @@ namespace BroforceDevTools.FPSCounter
 
         // Publics
         public int Length { get { return builder.Length; } }
+        public int LastValueLength { get; private set; }
         public int DefinedSize { get { return definedSize; } }
         public bool IsChunkImplementation { get { return useChunk; } }
 
@@ -69,6 +71,8 @@ namespace BroforceDevTools.FPSCounter
 
         public string PopValue()
         {
+            LastValueLength = builder.Length;
+
             if (builder.Length == 0)
                 return string.Empty;
 
