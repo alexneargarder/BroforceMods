@@ -53,7 +53,7 @@ namespace Unity_Inspector_Mod
             if (checkMethod != null)
             {
                 var harmony = new Harmony("scriptcompiler.internal");
-                // CheckReferencesPublicToken null-refs during Emit
+                // mcs's own AssemblyBuilderExtension.GetReferencedAssemblies() returns null on the Reflection.Emit path, and CheckReferencesPublicToken iterates it unguarded.
                 harmony.Patch(checkMethod,
                     prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("SkipTokenCheck",
                         BindingFlags.Static | BindingFlags.NonPublic)));
@@ -66,7 +66,7 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
-        // mcs's extension-method search during error reporting segfaults Unity 2017.4's Mono in mono_type_get_object.
+        // mcs's CS1061 extension-method search reads custom attributes, and mono_custom_attrs_get_attr -> mono_type_get_object kills Unity 2017.4's Mono natively.
         public static void PatchExtensionMethodCrash()
         {
             if (extensionMethodCrashPatched) return;
@@ -93,7 +93,7 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
-        // Mono.CSharp's ImportAssembly aborts its whole type loop on the first unresolvable dependency.
+        // Any exception while importing one type drops the remaining types of that assembly; only a ReflectionTypeLoadException from GetTypes() is handled.
         public static void PatchAssemblyImport()
         {
             lock (assemblyImportPatchLock)
@@ -128,9 +128,9 @@ namespace Unity_Inspector_Mod
         }
 
         private const string ImportDegradedWarning =
-            "assembly import degraded to whole-assembly mode: one unimportable type now silently " +
-            "drops every remaining type in its assembly, so scripts may fail with CS0246/CS0234 " +
-            "for types that exist";
+            "assembly import degraded to whole-assembly mode: any exception while importing one type " +
+            "now silently drops the remaining types of its assembly (only a ReflectionTypeLoadException " +
+            "from GetTypes() is handled), so scripts may fail with CS0246/CS0234 for types that exist";
 
         private static bool ImportAssemblyPerType(ReflectionImporter __instance, Assembly assembly,
             RootNamespace targetNamespace)
@@ -266,7 +266,7 @@ namespace Unity_Inspector_Mod
                      " (further " + e.GetType().Name + "s from this assembly will not be logged)");
         }
 
-        // A script-defined enum referenced in the same script segfaults Unity 2017.4's Mono in mono_reflection_get_token (Xamarin #59080).
+        // A script-defined enum used as a static field's type kills the process during compilation with mono_reflection_get_token in the native stack; as a method local it compiles and kills the process when the script runs; every other in-script reference is blocked unmeasured.
         private static string DetectEnumUsageError(string source)
         {
             var clean = StripCommentsAndStrings(source);
@@ -310,8 +310,10 @@ namespace Unity_Inspector_Mod
                 if (Regex.IsMatch(masked, @"\b" + Regex.Escape(enumName) + @"\b"))
                 {
                     return "Script defines enum '" + enumName + "' and references it within the same script.\n" +
-                           "This crashes Unity 2017.4's Mono runtime due to a known bug (Xamarin Bugzilla #59080) " +
-                           "that cannot be worked around at the script level.\n" +
+                           "Two shapes are measured to abort Unity 2017.4's Mono: as the type of a static field the " +
+                           "enum kills the game during compilation (native crash, mono_reflection_get_token in the " +
+                           "native stack), and as the type of a method local it compiles and kills the game when the " +
+                           "script runs. Every other in-script reference is blocked here as unmeasured.\n" +
                            "Workarounds:\n" +
                            "  - Define the enum in a mod DLL or non-script source\n" +
                            "  - Use 'int' instead of '" + enumName + "' for fields/locals/parameters, casting to '" + enumName + "' when needed\n" +
@@ -520,19 +522,57 @@ namespace Unity_Inspector_Mod
             }
             catch (Exception e)
             {
-                var innerMsg = e.InnerException != null ? "\nInner: " + e.InnerException.Message + "\n" + e.InnerException.StackTrace : "";
+                var detail = DescribeExceptionChain(e);
                 return new CompileResult
                 {
                     Success = false,
                     Errors = errorOutput.Length > 0
-                        ? errorOutput.ToString() + "\n" + e.Message + "\n" + e.StackTrace + innerMsg
-                        : e.Message + "\n" + e.StackTrace + innerMsg
+                        ? errorOutput.ToString() + "\n" + detail
+                        : detail
                 };
             }
             finally
             {
                 RootContext.ToplevelTypes = savedToplevel;
             }
+        }
+
+        private const int ExceptionChainLimit = 32;
+
+        private static string DescribeExceptionChain(Exception e)
+        {
+            if (e == null) return "no exception";
+
+            var chain = new List<Exception>();
+            for (var current = e; current != null && chain.Count < ExceptionChainLimit; current = current.InnerException)
+            {
+                chain.Add(current);
+            }
+
+            var innermost = chain[chain.Count - 1];
+            var sb = new StringBuilder();
+            sb.Append("Cause: ").Append(innermost.GetType().FullName).Append(": ").Append(innermost.Message);
+            if (!string.IsNullOrEmpty(innermost.StackTrace))
+            {
+                sb.Append("\n").Append(innermost.StackTrace);
+            }
+
+            if (innermost.InnerException != null)
+            {
+                sb.Append("\n... chain truncated at ").Append(ExceptionChainLimit).Append(" levels");
+            }
+
+            for (int i = chain.Count - 2; i >= 0; i--)
+            {
+                sb.Append("\nWrapped by: ").Append(chain[i].GetType().FullName)
+                    .Append(": ").Append(chain[i].Message);
+                if (!string.IsNullOrEmpty(chain[i].StackTrace))
+                {
+                    sb.Append("\n").Append(chain[i].StackTrace);
+                }
+            }
+
+            return sb.ToString();
         }
 
         private static AssemblyName ParseName(string fullName)

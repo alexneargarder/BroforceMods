@@ -184,15 +184,14 @@ namespace Unity_Inspector_Mod
             var type = component.GetType();
             var properties = new Dictionary<string, object>();
 
-            if ( type.Name.Contains( "TestVanDammeAnim" ) ||
-                type.Name.Contains( "NetworkedPlayer" ) ||
-                type.FullName.Contains( "Rewired" ) )
+            // Bro subclasses never match — this fires only on names containing it, in this build just the base type.
+            if ( type.Name.Contains( "TestVanDammeAnim" ) )
             {
                 return new
                 {
                     type = type.Name,
                     fullType = type.FullName,
-                    properties = new Dictionary<string, object> { ["_skipped"] = "Complex type skipped to prevent crash" }
+                    properties = new Dictionary<string, object> { ["_skipped"] = "Complex type skipped" }
                 };
             }
 

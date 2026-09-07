@@ -52,7 +52,7 @@ namespace Unity_Inspector_Mod
 
         private const int MainThreadBudgetMs = 9000;
 
-        // A block, not a lambda wrapper: mcs 6.13 crashes in Method.Emit on a nested lambda capturing a local.
+        // A block, not a lambda wrapper: a lambda in statement position at the Evaluator's top level whose body-declared local a nested lambda captures null-refs in HoistedVariable.GetFieldExpression (initializer position compiles).
         private const string BlockPrefix = "{\n";
         private const string BlockSuffix = "\n}";
 
@@ -275,7 +275,6 @@ namespace Unity_Inspector_Mod
 
                             if (compileException != null)
                             {
-                                // mcs swaps report printers around speculative parses, so after a throw a later attempt can report zero errors.
                                 executionException = compileException;
                                 failedLabel = attempt.Label;
                                 return;
