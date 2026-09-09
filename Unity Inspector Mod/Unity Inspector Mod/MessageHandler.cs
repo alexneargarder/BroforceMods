@@ -453,17 +453,47 @@ namespace Unity_Inspector_Mod
         private object HandleSimulateInput( JObject parameters )
         {
             var action = parameters?["action"]?.ToString();
-            if ( string.IsNullOrEmpty( action ) )
+
+            List<InputSimulator.InputStep> sequence = null;
+            var rawSequence = parameters?["sequence"];
+            var steps = rawSequence as JArray;
+
+            if ( rawSequence != null && rawSequence.Type != JTokenType.Null && steps == null )
+            {
+                return new { success = false, error = "sequence must be an array of steps" };
+            }
+
+            if ( steps != null && steps.Count > 0 )
+            {
+                sequence = new List<InputSimulator.InputStep>();
+
+                for ( int i = 0; i < steps.Count; i++ )
+                {
+                    var step = steps[i] as JObject;
+                    if ( step == null )
+                    {
+                        return new { success = false, error = $"Step {i} is not an object" };
+                    }
+
+                    sequence.Add( new InputSimulator.InputStep
+                    {
+                        Action = step["action"]?.ToString(),
+                        Duration = step["duration"]?.ToObject<int?>() ?? InputSimulator.DefaultDurationMs,
+                        Wait = step["wait"]?.ToObject<int?>() ?? 0
+                    } );
+                }
+            }
+            else if ( string.IsNullOrEmpty( action ) )
             {
                 throw new ArgumentException( "Input action is required" );
             }
-            
+
             var duration = parameters?["duration"]?.ToObject<int?>();
             var playerNum = parameters?["player"]?.ToObject<int?>();
             var count = parameters?["count"]?.ToObject<int?>();
             var interval = parameters?["interval"]?.ToObject<int?>();
-            
-            return InputSimulator.SimulateInput( action, duration, playerNum, count, interval );
+
+            return InputSimulator.SimulateInput( action, duration, playerNum, count, interval, sequence );
         }
 
         private object HandleExecuteScript(JObject parameters)
