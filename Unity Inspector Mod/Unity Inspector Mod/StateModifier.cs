@@ -453,18 +453,57 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        public static object SpawnEntity(string entityType, float x, float y, float xI = 0f, float yI = 0f)
+        public static object SpawnEntity(string entityType, float x, float y, float xI = 0f, float yI = 0f, bool ignoreSuppression = false)
         {
             try
             {
                 object result = null;
+                bool? suppressionFound = null;
+                string suppressionNote = null;
 
                 MainThreadDispatcher.EnqueueAndWait(() =>
                 {
-                    result = SpawnEntityOnMainThread(entityType, x, y, xI, yI);
+                    if (!ignoreSuppression)
+                    {
+                        result = SpawnEntityOnMainThread(entityType, x, y, xI, yI);
+                        return;
+                    }
+
+                    string missing;
+                    UtilityModSpawnSetting setting = FindUtilityModSpawnSetting(out missing);
+                    if (setting == null)
+                    {
+                        suppressionNote = $"{missing} - its disableEnemySpawn setting could not be read, so the spawn ran unchanged";
+                        result = SpawnEntityOnMainThread(entityType, x, y, xI, yI);
+                        return;
+                    }
+
+                    // Nothing else runs on the main thread between the flip and the restore, so the setting is never saved flipped.
+                    bool previous = setting.Read();
+                    suppressionFound = setting.Enabled && previous;
+                    setting.Write(false);
+                    try
+                    {
+                        result = SpawnEntityOnMainThread(entityType, x, y, xI, yI);
+                    }
+                    finally
+                    {
+                        setting.Write(previous);
+                    }
                 }, 5000);
 
-                return result;
+                if (!ignoreSuppression)
+                {
+                    return result;
+                }
+
+                JObject reply = JObject.FromObject(result);
+                reply["suppressionFound"] = suppressionFound.HasValue ? new JValue(suppressionFound.Value) : JValue.CreateNull();
+                if (suppressionNote != null)
+                {
+                    reply["suppressionNote"] = suppressionNote;
+                }
+                return reply;
             }
             catch (Exception ex)
             {
@@ -718,56 +757,96 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                Type mainType = null;
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                string reason;
+                UtilityModSpawnSetting setting = FindUtilityModSpawnSetting(out reason);
+                if (setting == null)
                 {
-                    if (assembly.GetName().Name != "Utility Mod")
+                    if (reason != null && reason != UtilityModNotLoaded)
                     {
-                        continue;
+                        Main.Log($"{reason} - cannot tell whether enemy spawning is suppressed");
                     }
-
-                    mainType = assembly.GetType("Utility_Mod.Main");
-                    break;
-                }
-
-                if (mainType == null)
-                {
                     return false;
                 }
 
-                BindingFlags staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-
-                FieldInfo enabledField = mainType.GetField("enabled", staticFlags);
-                object enabled = enabledField == null ? null : enabledField.GetValue(null);
-                if (!(enabled is bool) || !(bool)enabled)
-                {
-                    return false;
-                }
-
-                FieldInfo settingsField = mainType.GetField("settings", staticFlags);
-                object settings = settingsField == null ? null : settingsField.GetValue(null);
-                if (settings == null)
-                {
-                    Main.Log("Utility Mod is loaded but its settings field is missing or null - cannot tell whether enemy spawning is suppressed");
-                    return false;
-                }
-
-                FieldInfo disableField = settings.GetType().GetField("disableEnemySpawn",
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (disableField == null)
-                {
-                    Main.Log("Utility Mod is loaded but its disableEnemySpawn setting is missing - cannot tell whether enemy spawning is suppressed");
-                    return false;
-                }
-
-                object disabled = disableField.GetValue(settings);
-                return disabled is bool && (bool)disabled;
+                return setting.Enabled && setting.Read();
             }
             catch (Exception ex)
             {
                 Main.Log($"Enemy spawn suppression check error: {ex.Message}");
                 return false;
             }
+        }
+
+        private const string UtilityModNotLoaded = "Utility Mod is not loaded";
+
+        // Utility Mod's spawn prefixes test Main.enabled and Main.settings.disableEnemySpawn.
+        private sealed class UtilityModSpawnSetting
+        {
+            public bool Enabled;
+            public object Settings;
+            public FieldInfo Field;
+
+            public bool Read()
+            {
+                return (bool)Field.GetValue(Settings);
+            }
+
+            public void Write(bool value)
+            {
+                Field.SetValue(Settings, value);
+            }
+        }
+
+        // Null, with the reason, when Utility Mod is not loaded or a member its prefixes read is missing.
+        private static UtilityModSpawnSetting FindUtilityModSpawnSetting(out string reason)
+        {
+            reason = null;
+
+            Type mainType = null;
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly.GetName().Name != "Utility Mod")
+                {
+                    continue;
+                }
+
+                mainType = assembly.GetType("Utility_Mod.Main");
+                break;
+            }
+
+            if (mainType == null)
+            {
+                reason = UtilityModNotLoaded;
+                return null;
+            }
+
+            BindingFlags staticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+
+            FieldInfo enabledField = mainType.GetField("enabled", staticFlags);
+            object enabled = enabledField == null ? null : enabledField.GetValue(null);
+
+            FieldInfo settingsField = mainType.GetField("settings", staticFlags);
+            object settings = settingsField == null ? null : settingsField.GetValue(null);
+            if (settings == null)
+            {
+                reason = "Utility Mod is loaded but its settings field is missing or null";
+                return null;
+            }
+
+            FieldInfo disableField = settings.GetType().GetField("disableEnemySpawn",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (disableField == null || disableField.FieldType != typeof(bool))
+            {
+                reason = "Utility Mod is loaded but its disableEnemySpawn setting is missing";
+                return null;
+            }
+
+            return new UtilityModSpawnSetting
+            {
+                Enabled = enabled is bool && (bool)enabled,
+                Settings = settings,
+                Field = disableField
+            };
         }
 
         private static string[] GetPrefixOwners(KeyValuePair<Type, string>[] targets)
@@ -792,6 +871,12 @@ namespace Unity_Inspector_Mod
 
                     foreach (var patch in patches.Prefixes)
                     {
+                        // trace_spawns' own prefixes record calls and never skip one.
+                        if (patch.owner == SpawnTrace.HarmonyId)
+                        {
+                            continue;
+                        }
+
                         if (!string.IsNullOrEmpty(patch.owner) && !owners.Contains(patch.owner))
                         {
                             owners.Add(patch.owner);
@@ -992,7 +1077,7 @@ namespace Unity_Inspector_Mod
 
         private const string SwapBrosRequired = "Swap Bros Mod is required but not active";
 
-        public static object SwapBro( string broName, int playerNum )
+        public static object SwapBro( string broName, int playerNum, bool ignoreUnlocks = false )
         {
             try
             {
@@ -1008,34 +1093,56 @@ namespace Unity_Inspector_Mod
 
                 object result = null;
 
+                object ignoredUnlocks = null;
+
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
-                    bool swapped = SwapBrosIntegration.SwapToBroByName( playerNum, broName );
-                    if ( !swapped )
+                    Func<bool> swap = () =>
                     {
-                        var available = SwapBrosIntegration.GetAvailableBros();
+                        bool swapped = SwapBrosIntegration.SwapToBroByName( playerNum, broName );
+                        if ( !swapped )
+                        {
+                            var available = SwapBrosIntegration.GetAvailableBros();
+                            result = new
+                            {
+                                success = false,
+                                error = $"Bro '{broName}' not found or swap failed",
+                                availableBros = available.ToArray(),
+                                allNormal = SwapBrosIntegration.GetAllNormalBros().ToArray(),
+                                allExpendabros = SwapBrosIntegration.GetAllExpendabros().ToArray(),
+                                allUnfinished = SwapBrosIntegration.GetAllUnfinishedBros().ToArray()
+                            };
+                            return false;
+                        }
+
+                        var player = HeroController.players[playerNum];
                         result = new
                         {
-                            success = false,
-                            error = $"Bro '{broName}' not found or swap failed",
-                            availableBros = available.ToArray(),
-                            allNormal = SwapBrosIntegration.GetAllNormalBros().ToArray(),
-                            allExpendabros = SwapBrosIntegration.GetAllExpendabros().ToArray(),
-                            allUnfinished = SwapBrosIntegration.GetAllUnfinishedBros().ToArray()
+                            success = true,
+                            broName = player?.character?.gameObject?.name ?? broName,
+                            heroType = player?.character?.heroType.ToString() ?? "Unknown"
                         };
-                        return;
-                    }
-
-                    var player = HeroController.players[playerNum];
-                    result = new
-                    {
-                        success = true,
-                        broName = player?.character?.gameObject?.name ?? broName,
-                        heroType = player?.character?.heroType.ToString() ?? "Unknown"
+                        return true;
                     };
+
+                    if ( ignoreUnlocks )
+                    {
+                        ignoredUnlocks = SwapBrosIntegration.RunIgnoringUnlocks( broName, swap );
+                    }
+                    else
+                    {
+                        swap();
+                    }
                 }, 5000 );
 
-                return result;
+                if ( ignoredUnlocks == null )
+                {
+                    return result;
+                }
+
+                JObject reply = JObject.FromObject( result );
+                reply["ignoredUnlocks"] = JObject.FromObject( ignoredUnlocks );
+                return reply;
             }
             catch ( Exception ex )
             {

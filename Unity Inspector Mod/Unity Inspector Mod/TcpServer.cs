@@ -154,11 +154,13 @@ namespace Unity_Inspector_Mod
             {
                 clients.Remove( client );
             }
+
+            SpawnTrace.ReleaseOwner( client );
         }
 
-        internal string ProcessMessage( string message )
+        internal string ProcessMessage( string message, ClientHandler client )
         {
-            string result = messageHandler.HandleMessage( message );
+            string result = messageHandler.HandleMessage( message, client );
             return result;
         }
     }
@@ -196,7 +198,7 @@ namespace Unity_Inspector_Mod
                     string message = reader.ReadLine();
                     if ( message != null )
                     {
-                        string response = server.ProcessMessage( message );
+                        string response = server.ProcessMessage( message, this );
                         
                         writer.WriteLine( response );
                         

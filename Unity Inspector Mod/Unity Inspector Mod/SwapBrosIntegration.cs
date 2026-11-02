@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using RocketLib.Collections;
 using UnityModManagerNet;
@@ -23,6 +25,16 @@ namespace Unity_Inspector_Mod
         private static MethodInfo _swapToSpecificBroMethod;
         private static MethodInfo _swapByNameMethod;
         private static MethodInfo _setSelectedBroByNameMethod;
+
+        // Swap_Bros_Mod.Main and its Settings, for lifting the unlock gates around one swap.
+        private static FieldInfo _settingsField;
+        private static FieldInfo _ignoreCurrentUnlockedField;
+        private static FieldInfo _alwaysChosenField;
+        private static FieldInfo _selGridIntField;
+        private static FieldInfo _allCustomBrosField;
+        private static FieldInfo _actuallyAllCustomBrosField;
+        private static FieldInfo _customBroCountField;
+        private static MethodInfo _createBroListMethod;
 
         public static void Initialize( Action<string> logger )
         {
@@ -66,6 +78,24 @@ namespace Unity_Inspector_Mod
 
                 _isAvailable = _getAvailableBrosMethod != null &&
                                _swapToSpecificBroMethod != null;
+
+                var modMainType = _modEntry.Assembly.GetType( "Swap_Bros_Mod.Main" );
+                if ( modMainType != null )
+                {
+                    _settingsField = modMainType.GetField( "settings", pub );
+                    _allCustomBrosField = modMainType.GetField( "allCustomBros", pub );
+                    _actuallyAllCustomBrosField = modMainType.GetField( "actuallyAllCustomBros", pub );
+                    _customBroCountField = modMainType.GetField( "customBroCount", pub );
+                    _createBroListMethod = modMainType.GetMethod( "CreateBroList", pub, null, Type.EmptyTypes, null );
+
+                    if ( _settingsField != null )
+                    {
+                        var inst = BindingFlags.Public | BindingFlags.Instance;
+                        _ignoreCurrentUnlockedField = _settingsField.FieldType.GetField( "ignoreCurrentUnlocked", inst );
+                        _alwaysChosenField = _settingsField.FieldType.GetField( "alwaysChosen", inst );
+                        _selGridIntField = _settingsField.FieldType.GetField( "selGridInt", inst );
+                    }
+                }
             }
             catch ( Exception ex )
             {
@@ -201,6 +231,170 @@ namespace Unity_Inspector_Mod
             {
                 Log( "Failed to set next bro by name: " + ex.Message );
                 return false;
+            }
+        }
+
+        #endregion
+
+        #region Unlock Override
+
+        // Lifts Swap Bros Mod's IronBro unlocked-roster gate and widens its custom bro list to every custom bro
+        // BroMaker has installed, locked or disabled included, runs the action, and restores all of it. Main thread only: nothing else may
+        // run between the lift and the restore, so the lifted state is never saved or seen by the game.
+        // The swap returns whether it swapped broName in.
+        public static object RunIgnoringUnlocks( string broName, Func<bool> swap )
+        {
+            string missing = MissingUnlockMembers();
+            if ( missing != null )
+            {
+                throw new InvalidOperationException( $"Swap Bros Mod has no {missing} member, so its unlock gates cannot be lifted" );
+            }
+
+            object settings = _settingsField.GetValue( null );
+            if ( settings == null )
+            {
+                throw new InvalidOperationException( "Swap Bros Mod's settings are not loaded, so its unlock gates cannot be lifted" );
+            }
+
+            bool savedIgnore = (bool)_ignoreCurrentUnlockedField.GetValue( settings );
+            bool savedAlwaysChosen = (bool)_alwaysChosenField.GetValue( settings );
+            int[] savedSelection = (int[])( (int[])_selGridIntField.GetValue( settings ) ).Clone();
+            object savedCustom = _allCustomBrosField.GetValue( null );
+            object savedActuallyCustom = _actuallyAllCustomBrosField.GetValue( null );
+            object savedCustomCount = _customBroCountField.GetValue( null );
+
+            bool rosterGate = GameModeController.IsHardcoreMode && !savedIgnore;
+            int unlockedCount;
+            string bromakerFailure;
+            List<string> installedBros = ReadBroMakerInstalledBros( out unlockedCount, out bromakerFailure );
+            IEnumerable<string> customInEffect = installedBros ?? savedCustom as IEnumerable<string>;
+            bool swapped = false;
+
+            try
+            {
+                _ignoreCurrentUnlockedField.SetValue( settings, true );
+
+                if ( installedBros != null )
+                {
+                    _allCustomBrosField.SetValue( null, installedBros );
+                    // IsBroCustom reads this list. With the gate lifted, CustomCountChanged compares the unlocked count
+                    // to customBroCount, so matching it keeps the API's refresh from reloading the unlocked list over ours.
+                    _actuallyAllCustomBrosField.SetValue( null, installedBros );
+                    _customBroCountField.SetValue( null, unlockedCount );
+                }
+
+                _createBroListMethod.Invoke( null, null );
+                swapped = swap();
+            }
+            finally
+            {
+                _ignoreCurrentUnlockedField.SetValue( settings, savedIgnore );
+                _alwaysChosenField.SetValue( settings, savedAlwaysChosen );
+                _allCustomBrosField.SetValue( null, savedCustom );
+                _actuallyAllCustomBrosField.SetValue( null, savedActuallyCustom );
+                _customBroCountField.SetValue( null, savedCustomCount );
+                _createBroListMethod.Invoke( null, null );
+                // After the rebuild, so the indices point into the restored list again.
+                _selGridIntField.SetValue( settings, savedSelection );
+            }
+
+            return new
+            {
+                rosterGate,
+                ignoreCurrentUnlocked = (bool)_ignoreCurrentUnlockedField.GetValue( settings ),
+                broFrom = swapped ? BroOrigin( broName, customInEffect ) : null,
+                customListReplaced = installedBros != null,
+                source = installedBros != null ? "GetAllBros" : "unchanged",
+                note = bromakerFailure
+            };
+        }
+
+        // Matched as Swap Bros Mod matches a requested name: case-insensitively.
+        private static string BroOrigin( string broName, IEnumerable<string> customBros )
+        {
+            Func<IEnumerable<string>, bool> holds = names =>
+                names != null && names.Any( name => string.Equals( name, broName, StringComparison.OrdinalIgnoreCase ) );
+
+            if ( holds( GetAllNormalBros() ) || holds( GetAllExpendabros() ) || holds( GetAllUnfinishedBros() ) )
+            {
+                return "vanilla";
+            }
+
+            return holds( customBros ) ? "custom" : null;
+        }
+
+        private static string MissingUnlockMembers()
+        {
+            if ( _settingsField == null ) return "Main.settings";
+            if ( _ignoreCurrentUnlockedField == null ) return "Settings.ignoreCurrentUnlocked";
+            if ( _alwaysChosenField == null ) return "Settings.alwaysChosen";
+            if ( _selGridIntField == null || _selGridIntField.FieldType != typeof( int[] ) ) return "Settings.selGridInt";
+            if ( _allCustomBrosField == null ) return "Main.allCustomBros";
+            if ( _actuallyAllCustomBrosField == null ) return "Main.actuallyAllCustomBros";
+            if ( _customBroCountField == null || _customBroCountField.FieldType != typeof( int ) ) return "Main.customBroCount";
+            if ( _createBroListMethod == null ) return "Main.CreateBroList()";
+            return null;
+        }
+
+        // BroMakerLib is optional and not referenced; a null return leaves the custom list as Swap Bros Mod has it.
+        private static List<string> ReadBroMakerInstalledBros( out int unlockedCount, out string failure )
+        {
+            unlockedCount = 0;
+            failure = null;
+
+            try
+            {
+                Type spawnManager = null;
+                foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
+                {
+                    if ( assembly.GetName().Name == "BroMakerLib" )
+                    {
+                        spawnManager = assembly.GetType( "BroMakerLib.Storages.BroSpawnManager" );
+                        break;
+                    }
+                }
+
+                if ( spawnManager == null )
+                {
+                    failure = "BroMakerLib is not loaded - the custom bro list was left unchanged";
+                    return null;
+                }
+
+                var pub = BindingFlags.Public | BindingFlags.Static;
+                MethodInfo allBrosMethod = spawnManager.GetMethod( "GetAllBros", pub, null, Type.EmptyTypes, null );
+                MethodInfo unlockedMethod = spawnManager.GetMethod( "GetAllUnlockedBrosNames", pub, null, Type.EmptyTypes, null );
+                if ( allBrosMethod == null || unlockedMethod == null )
+                {
+                    failure = "BroMakerLib has no BroSpawnManager.GetAllBros or GetAllUnlockedBrosNames - the custom bro list was left unchanged";
+                    return null;
+                }
+
+                var allBros = allBrosMethod.Invoke( null, null ) as IEnumerable;
+                var unlocked = unlockedMethod.Invoke( null, null ) as ICollection;
+                if ( allBros == null || unlocked == null )
+                {
+                    failure = "BroMakerLib's bro lists are not loaded - the custom bro list was left unchanged";
+                    return null;
+                }
+
+                var names = new List<string>();
+                foreach ( object hero in allBros )
+                {
+                    PropertyInfo nameProperty = hero == null ? null : hero.GetType().GetProperty( "name", BindingFlags.Public | BindingFlags.Instance );
+                    string name = nameProperty == null ? null : nameProperty.GetValue( hero, null ) as string;
+                    if ( !string.IsNullOrEmpty( name ) && !names.Contains( name ) )
+                    {
+                        names.Add( name );
+                    }
+                }
+
+                unlockedCount = unlocked.Count;
+                return names;
+            }
+            catch ( Exception ex )
+            {
+                failure = $"Reading BroMakerLib's installed bros failed ({ex.GetBaseException().Message}) - the custom bro list was left unchanged";
+                return null;
             }
         }
 
