@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Revision: 1 -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Locate the props files by walking up from this file, so builds work from a git worktree
+       (<repo>/.worktrees/<name>/Scripts/) as well as a normal checkout (<repo>/Scripts/) -->
+  <PropertyGroup>
+    <BroforceGlobalProps>$([MSBuild]::GetPathOfFileAbove('BroforceGlobal.props', '$(MSBuildThisFileDirectory)'))</BroforceGlobalProps>
+    <LocalBroforceProps>$([MSBuild]::GetPathOfFileAbove('LocalBroforcePath.props', '$(MSBuildThisFileDirectory)'))</LocalBroforceProps>
+    <BroforceReposRoot Condition="'$(BroforceGlobalProps)' != ''">$([System.IO.Path]::GetDirectoryName('$(BroforceGlobalProps)'))</BroforceReposRoot>
+    <BroforceReposRoot Condition="'$(BroforceReposRoot)' == '' AND '$(LocalBroforceProps)' != ''">$([System.IO.Path]::GetDirectoryName('$(LocalBroforceProps)'))/..</BroforceReposRoot>
+    <BroforceReposRoot Condition="'$(BroforceReposRoot)' == ''">$(MSBuildThisFileDirectory)../..</BroforceReposRoot>
+  </PropertyGroup>
+
   <!-- Import global props first if it exists -->
-  <Import Project="$(MSBuildThisFileDirectory)../../BroforceGlobal.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)../../BroforceGlobal.props')" />
+  <Import Project="$(BroforceGlobalProps)" Condition="'$(BroforceGlobalProps)' != ''" />
 
   <!-- Import local props second (overrides global) -->
-  <Import Project="$(MSBuildThisFileDirectory)../LocalBroforcePath.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')" />
+  <Import Project="$(LocalBroforceProps)" Condition="'$(LocalBroforceProps)' != ''" />
 
   <PropertyGroup>
     <!-- Windows default -->
@@ -18,8 +27,8 @@
     <FrameworkPathOverride Condition="'$(FrameworkPathOverride)' == '' AND '$(OS)' != 'Windows_NT'">$(MSBuildExtensionsPath)/../2.0-api</FrameworkPathOverride>
   </PropertyGroup>
 
-  <!-- Linux: Add .NET Framework 3.5 reference assemblies via NuGet (for .NET SDK MSBuild / Rider) -->
-  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+  <!-- Supplies the .NET Framework 3.5 reference assemblies through NuGet -->
+  <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" />
   </ItemGroup>
 
@@ -32,35 +41,239 @@
     <CopyXmlDocToModContent Condition="'$(CopyXmlDocToModContent)' == ''">false</CopyXmlDocToModContent>
     <SkipInstall Condition="'$(SkipInstall)' == ''">false</SkipInstall>
     <LaunchArgs Condition="'$(LaunchArgs)' == ''"></LaunchArgs>
-    <LibPath Condition="'$(LibPath)' == ''">$(MSBuildThisFileDirectory)../../BroforceMods/libs</LibPath>
+    <!-- A Developer PowerShell for VS sets the environment variable LIBPATH, which MSBuild reads as LibPath -->
+    <LibPath Condition="'$(LibPath)' != '' AND '$(LibPath)' == '$([System.Environment]::GetEnvironmentVariable(`LIBPATH`))'"></LibPath>
+    <_LibPathUserSet Condition="'$(LibPath)' != ''">true</_LibPathUserSet>
+    <LibPath Condition="'$(LibPath)' == ''">$(BroforceReposRoot)/BroforceMods/libs</LibPath>
+    <_BroMakerLibPathUserSet Condition="'$(BroMakerLibPath)' != ''">true</_BroMakerLibPathUserSet>
+    <_RocketLibPathUserSet Condition="'$(RocketLibPath)' != ''">true</_RocketLibPathUserSet>
+    <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
+    <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
+    <!-- Under mono each build starts its own Roslyn compiler server, and some never exit -->
+    <UseSharedCompilation Condition="'$(UseSharedCompilation)' == '' AND '$(MSBuildRuntimeType)' == 'Mono'">false</UseSharedCompilation>
+  </PropertyGroup>
+
+  <!-- Generates the XML doc file a library ships in _ModContent -->
+  <PropertyGroup Condition="'$(CopyXmlDocToModContent)' == 'true' AND '$(DocumentationFile)' == ''">
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Microsoft.Common computes this before this import, while DocumentationFile was still empty -->
+    <_DocumentationFileProduced>true</_DocumentationFileProduced>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <BroforceInstallBackupRoot Condition="'$(BroforceInstallBackupRoot)' == ''">$(HOME)/.local/share/broforce-install-backup</BroforceInstallBackupRoot>
+    <BroforceInstallRoot Condition="'$(BroforceInstallRoot)' == ''">$(BroforcePath)</BroforceInstallRoot>
+    <InstallTarget Condition="'$(BroforceInstallRoot)' == '$(BroforcePath)'">default</InstallTarget>
+    <InstallTarget Condition="'$(InstallTarget)' == ''">custom</InstallTarget>
+  </PropertyGroup>
+
+  <!-- A Thunderstore install keeps the zip's inner folder, so its probe takes the first DLL one folder below
+       Mods/<Author>-<Name>/; GetFiles joins its results with ';' -->
+  <PropertyGroup>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
-    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll')">$(BroforcePath)/Mods/BroMaker-BroMaker/BroMakerLib/BroMakerLib.dll</BroMakerLibPath>
+    <_BroMakerLibStoreFiles Condition="'$(BroMakerLibPath)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker-BroMaker')">$([System.IO.Directory]::GetFiles('$(BroforcePath)/Mods/BroMaker-BroMaker', 'BroMakerLib.dll', System.IO.SearchOption.AllDirectories))</_BroMakerLibStoreFiles>
+    <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(_BroMakerLibStoreFiles)', '(?&lt;=^|;)[^;]*[\\/]BroMaker-BroMaker[\\/][^;\\/]+[\\/]BroMakerLib\.dll(?=;|$)'))</BroMakerLibPath>
     <BroMakerLibPath Condition="'$(BroMakerLibPath)' == ''">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll</BroMakerLibPath>
 
     <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
-    <RocketLibPath Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll')">$(BroforcePath)/Mods/RocketLib-RocketLib/RocketLib/RocketLib.dll</RocketLibPath>
+    <_RocketLibStoreFiles Condition="'$(RocketLibPath)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib-RocketLib')">$([System.IO.Directory]::GetFiles('$(BroforcePath)/Mods/RocketLib-RocketLib', 'RocketLib.dll', System.IO.SearchOption.AllDirectories))</_RocketLibStoreFiles>
+    <RocketLibPath Condition="'$(RocketLibPath)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(_RocketLibStoreFiles)', '(?&lt;=^|;)[^;]*[\\/]RocketLib-RocketLib[\\/][^;\\/]+[\\/]RocketLib\.dll(?=;|$)'))</RocketLibPath>
     <RocketLibPath Condition="'$(RocketLibPath)' == ''">$(BroforcePath)/Mods/RocketLib/RocketLib.dll</RocketLibPath>
-    <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
-    <IsLinux Condition="'$(OS)' != 'Windows_NT'">true</IsLinux>
   </PropertyGroup>
 
-  <Target Name="KillGameProcess" BeforeTargets="Build"
-          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
-    <Exec Command="taskkill /f /t /im Broforce_beta.exe &gt;nul 2&gt;&amp;1"
-          IgnoreExitCode="true"
-          ContinueOnError="true" />
-    <Message Text="Closed Broforce" Importance="high" Condition="'$(MSBuildLastTaskResult)' == 'true' AND '$(VerboseBuildOutput)' == 'true'" />
+  <UsingTask TaskName="BroforceProjectLock" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll"
+             Condition="'$(OS)' == 'Windows_NT'">
+    <ParameterGroup>
+      <ObjDir ParameterType="System.String" Required="true" />
+      <Mode ParameterType="System.String" Required="true" />
+      <Result ParameterType="System.String" Output="true" />
+      <Owner ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Diagnostics" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Threading" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+Directory.CreateDirectory(ObjDir);
+var me = Process.GetCurrentProcess();
+FileStream lk = null;
+var deadline = DateTime.UtcNow.AddSeconds(30);
+while (lk == null) {
+  try { lk = new FileStream(Path.Combine(ObjDir, ".build.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+  catch (IOException) { if (DateTime.UtcNow > deadline) { Result = "72"; return true; } Thread.Sleep(200); }
+}
+using (lk) {
+  var marker = Path.Combine(ObjDir, ".build-owner");
+  var f = File.Exists(marker) ? File.ReadAllText(marker).Trim().Split(' ') : new string[0];
+  if (Mode == "release") {
+    if (f.Length > 0 && f[0] == me.Id.ToString()) File.Delete(marker);
+    Result = "0";
+    return true;
+  }
+  long now = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+  if (f.Length >= 3 && f[0] != me.Id.ToString()) {
+    string st = "";
+    try { st = Process.GetProcessById(int.Parse(f[0])).StartTime.ToFileTimeUtc().ToString(); } catch (Exception) { }
+    long at;
+    if (st == f[1] && long.TryParse(f[2], out at) && now - at < 600) { Result = "73"; Owner = f[0]; return true; }
+  }
+  File.WriteAllText(marker, me.Id + " " + me.StartTime.ToFileTimeUtc() + " " + now);
+  Result = "0";
+}
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <UsingTask TaskName="BroforceTidyInstall" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll"
+             Condition="'$(OS)' == 'Windows_NT'">
+    <ParameterGroup>
+      <InstallPath ParameterType="System.String" Required="true" />
+      <Kind ParameterType="System.String" Required="true" />
+      <HadManifest ParameterType="System.Boolean" Required="true" />
+      <ProjectDir ParameterType="System.String" Required="true" />
+      <Removed ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <Kept ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.Diagnostics" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+var ip = Path.GetFullPath(InstallPath.TrimEnd('/', '\\'));
+Func<string, string, string> git = (cwd, args) => {
+  try {
+    var psi = new ProcessStartInfo("git", args) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+    if (cwd != null) psi.WorkingDirectory = cwd;
+    using (var p = Process.Start(psi)) { var o = p.StandardOutput.ReadToEnd(); p.StandardError.ReadToEnd(); p.WaitForExit(); return p.ExitCode == 0 ? o.Trim() : null; }
+  } catch (Exception) { return null; }
+};
+if (!HadManifest) {
+  var ours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+  foreach (var l in File.ReadAllLines(Path.Combine(ip, ".install-manifest"))) ours.Add(l.Replace('/', '\\'));
+  foreach (var file in Directory.GetFiles(ip, "*", SearchOption.AllDirectories)) {
+    var rel = file.Substring(ip.Length + 1);
+    if (ours.Contains(rel) || rel == ".install-manifest" || rel.EndsWith(".cache", StringComparison.OrdinalIgnoreCase)) continue;
+    var ext = Path.GetExtension(file).ToLowerInvariant();
+    var stale = ext == ".dll" || ext == ".pdb" || ext == ".mdb";
+    foreach (var h in new[] { git(ProjectDir, "hash-object --path=\"" + rel.Replace('\\', '/') + "\" -- \"" + file + "\""), git(null, "hash-object --no-filters -- \"" + file + "\"") })
+      if (!stale && !string.IsNullOrEmpty(h)) stale = git(ProjectDir, "cat-file -e " + h) != null;
+    if (stale) File.Delete(file);
+  }
+}
+Func<string, string> modId = d => {
+  var i = Path.Combine(d, "Info.json");
+  if (!File.Exists(i)) { i = null; foreach (var sub in Directory.GetDirectories(d)) if (File.Exists(Path.Combine(sub, "Info.json"))) { i = Path.Combine(sub, "Info.json"); break; } }
+  if (i == null) return null;
+  var m = Regex.Match(File.ReadAllText(i), "\"Id\"\\s*:\\s*\"([^\"]*)\"");
+  return m.Success ? m.Groups[1].Value : null;
+};
+Func<string, string, bool> hasFile = (d, name) => {
+  if (File.Exists(Path.Combine(d, name))) return true;
+  foreach (var sub in Directory.GetDirectories(d)) if (File.Exists(Path.Combine(sub, name))) return true;
+  return false;
+};
+var newId = Kind == "Mods" ? modId(ip) : null;
+var jsons = new List<string>();
+if (Kind != "Mods") foreach (var j in Directory.GetFiles(ip, "*.mod.json")) jsons.Add(Path.GetFileName(j));
+var removed = new List<Microsoft.Build.Framework.ITaskItem>();
+var kept = new List<Microsoft.Build.Framework.ITaskItem>();
+foreach (var d in Directory.GetDirectories(Path.GetDirectoryName(ip))) {
+  if (string.Equals(Path.GetFullPath(d), ip, StringComparison.OrdinalIgnoreCase)) continue;
+  bool same = Kind == "Mods" ? newId != null && modId(d) == newId : jsons.Exists(j => hasFile(d, j));
+  if (!same) continue;
+  if (File.Exists(Path.Combine(d, ".install-manifest")) || File.Exists(Path.Combine(d, ".build-stamp.json"))) {
+    Directory.Delete(d, true);
+    removed.Add(new Microsoft.Build.Utilities.TaskItem(d));
+  } else {
+    kept.Add(new Microsoft.Build.Utilities.TaskItem(d));
+  }
+}
+Removed = removed.ToArray();
+Kept = kept.ToArray();
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="CollectLibReferences">
+    <ItemGroup>
+      <_BroMakerLibReference Include="@(Reference)"
+                             Condition="$([System.String]::new('%(Reference.Identity)').StartsWith('BroMakerLib'))" />
+      <_RocketLibReference Include="@(Reference)"
+                           Condition="$([System.String]::new('%(Reference.Identity)').StartsWith('RocketLib'))" />
+    </ItemGroup>
   </Target>
 
-  <Target Name="KillGameProcessLinux" BeforeTargets="Build"
-          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="pkill -9 -x 'Broforce.x86_64' 2>/dev/null || pkill -9 -x Broforce 2>/dev/null || pkill -9 -f 'Broforce_beta.exe' 2>/dev/null || true"
+  <Target Name="WarnMissingLibPaths" BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="CollectLibReferences"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Warning Code="BRO0001"
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' == 'true'"
+             Text="BroMakerLibPath is set to $(BroMakerLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0001"
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true'"
+             Text="BroMakerLibPath does not exist: $(BroMakerLibPath). Neither $(BroforcePath)/Mods/BroMaker/BroMakerLib.dll nor a BroMakerLib.dll in a folder directly under $(BroforcePath)/Mods/BroMaker-BroMaker/ was found. Install BroMaker into that Broforce profile, or set BroMakerLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0002"
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' == 'true'"
+             Text="RocketLibPath is set to $(RocketLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0002"
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true'"
+             Text="RocketLibPath does not exist: $(RocketLibPath). Neither $(BroforcePath)/Mods/RocketLib/RocketLib.dll nor a RocketLib.dll in a folder directly under $(BroforcePath)/Mods/RocketLib-RocketLib/ was found. Install RocketLib into that Broforce profile, or set RocketLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+
+    <Warning Code="BRO0003"
+             Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' == 'true'"
+             Text="LibPath is set to $(LibPath) but that directory does not exist. Set LibPath in LocalBroforcePath.props or BroforceGlobal.props to the libs folder of a BroforceMods or Broforce-Templates clone." />
+    <Warning Code="BRO0003"
+             Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' != 'true'"
+             Text="LibPath does not exist: $(LibPath). Clone BroforceMods beside this repo, or set LibPath in LocalBroforcePath.props to the libs folder of a BroforceMods or Broforce-Templates clone." />
+  </Target>
+
+  <!-- A /p: global overrides any property set here but not a target condition, hence CLAUDECODE in the kill and launch conditions -->
+  <!-- BeforeTargets="Build" runs after Build's DependsOnTargets, so a failed compile never reaches the kill -->
+  <Target Name="KillGameProcess" BeforeTargets="Build"
+          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true' AND '$(SkipInstall)' != 'true' AND '$(CLAUDECODE)' == ''">
+    <Exec Command="taskkill /f /t /im Broforce_beta.exe &gt;nul 2&gt;&amp;1"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="_WinKillExit" />
+    </Exec>
+    <Message Text="Closed Broforce" Importance="high" Condition="'$(_WinKillExit)' == '0' AND '$(VerboseBuildOutput)' == 'true'" />
+  </Target>
+
+  <PropertyGroup>
+    <!-- A Proton game's argv[0] is its exe path, and checking only argv[0] spares a process that merely names the exe -->
+    <_GameCandidatesScript>targets() {
+  { pgrep -x 'Broforce.x86_64'; pgrep -x Broforce
+    for p in `pgrep -f 'Broforce_beta[.]exe'`; do
+      case "`head -z -n 1 /proc/%24p/cmdline | tr -d '[:cntrl:]'`" in *Broforce_beta.exe) echo %24p;; esac
+    done; } 2&gt;/dev/null | sort -u
+}</_GameCandidatesScript>
+  </PropertyGroup>
+
+  <!-- MSBuild still runs the AfterTargets hooks of a skipped target, hence the SkipInstall check -->
+  <!-- AfterTargets hooks run in declaration order, so this kill runs before LaunchGameLinux -->
+  <Target Name="KillGameProcessLinux" AfterTargets="InstallToGame"
+          Condition="'$(CloseBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true' AND '$(SkipInstall)' != 'true' AND '$(CLAUDECODE)' == ''">
+    <PropertyGroup>
+      <_KillScript>$(_GameCandidatesScript)
+t=`targets`; [ -n "%24t" ] || exit 0
+kill -TERM %24t 2&gt;/dev/null
+deadline=%24((`date +%s` + 5))
+while :; do t=`targets`; [ -n "%24t" ] || break; [ `date +%s` -ge %24deadline ] &amp;&amp; break; sleep 1; done
+t=`targets`; if [ -n "%24t" ]; then kill -KILL %24t 2&gt;/dev/null; fi
+true</_KillScript>
+    </PropertyGroup>
+    <Exec Command="$(_KillScript)"
           IgnoreExitCode="true"
           ContinueOnError="true" />
     <Message Text="Closed Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="DetectProjectType" BeforeTargets="InstallToGame">
+  <Target Name="DetectProjectType">
     <ItemGroup>
       <ModJsonFiles Include="$(ProjectDir)$(ModContentFolder)\*.mod.json" />
     </ItemGroup>
@@ -69,8 +282,10 @@
       <InstallFolderName Condition="'$(InstallFolderName)' == ''">$(ProjectName)</InstallFolderName>
       <IsModProject Condition="Exists('$(ProjectDir)$(ModContentFolder)\Info.json')">true</IsModProject>
       <IsBroProject Condition="'@(ModJsonFiles->Count())' != '0'">true</IsBroProject>
-      <InstallPath Condition="'$(IsModProject)' == 'true'">$(BroforcePath)/Mods/$(InstallFolderName)/</InstallPath>
-      <InstallPath Condition="'$(IsBroProject)' == 'true'">$(BroforcePath)/BroMaker_Storage/$(InstallFolderName)/</InstallPath>
+      <InstallKind Condition="'$(IsModProject)' == 'true'">Mods</InstallKind>
+      <InstallKind Condition="'$(IsBroProject)' == 'true'">BroMaker_Storage</InstallKind>
+      <InstallDir Condition="'$(InstallKind)' != ''">$(BroforceInstallRoot)/$(InstallKind)/$(InstallFolderName)</InstallDir>
+      <InstallPath Condition="'$(InstallKind)' != ''">$(InstallDir)/</InstallPath>
     </PropertyGroup>
 
     <Error Text="Could not determine project type. $(ModContentFolder) folder must contain either Info.json (for mods) or *.mod.json (for bros)."
@@ -84,37 +299,72 @@
     <Message Text="========================================" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
-  <Target Name="CopyXmlDocumentation" AfterTargets="Build" BeforeTargets="InstallToGame"
-          Condition="'$(CopyXmlDocToModContent)' == 'true'">
+  <!-- A fresh copy gets a new inode: an installed hard link still points at the old one -->
+  <Target Name="RefreshModContent" AfterTargets="Build" BeforeTargets="InstallToGame" Condition="'$(DesignTimeBuild)' != 'true'">
     <PropertyGroup>
-      <XmlDocPath>$(TargetDir)$(AssemblyName).xml</XmlDocPath>
-      <XmlDocDestination>$(ProjectDir)$(ModContentFolder)\$(AssemblyName).xml</XmlDocDestination>
+      <_XmlDocSource Condition="'$(CopyXmlDocToModContent)' == 'true'">$(TargetDir)$(AssemblyName).xml</_XmlDocSource>
+      <_XmlDocDestination>$(ProjectDir)$(ModContentFolder)\$(AssemblyName).xml</_XmlDocDestination>
+      <_RefreshModContentScript>set -e
+mkdir -p "%24OBJ" "%24MC"
+exec 7&gt;"%24OBJ/.modcontent.lock"
+flock -E 74 -w 120 7 || exit %24?
+rm -f "%24MC/%24DLL"
+cp "%24TARGET" "%24MC/%24DLL"
+if [ -n "%24XMLSRC" ] &amp;&amp; [ -f "%24XMLSRC" ]; then rm -f "%24MC/%24XMLNAME"; cp "%24XMLSRC" "%24MC/%24XMLNAME"; fi</_RefreshModContentScript>
     </PropertyGroup>
 
-    <Copy SourceFiles="$(XmlDocPath)"
-          DestinationFiles="$(XmlDocDestination)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(XmlDocPath)')" />
+    <Delete Condition="'$(IsWindows)' == 'true'" Files="$(ProjectDir)$(ModContentFolder)\$(TargetFileName)" ContinueOnError="true" />
+    <MakeDir Condition="'$(IsWindows)' == 'true'" Directories="$(ProjectDir)$(ModContentFolder)" />
+    <Copy Condition="'$(IsWindows)' == 'true'" SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)$(ModContentFolder)" SkipUnchangedFiles="false" Retries="3" RetryDelayMilliseconds="500" />
+    <Delete Condition="'$(IsWindows)' == 'true' AND '$(_XmlDocSource)' != '' AND Exists('$(_XmlDocSource)')" Files="$(_XmlDocDestination)" ContinueOnError="true" />
+    <Copy Condition="'$(IsWindows)' == 'true' AND '$(_XmlDocSource)' != '' AND Exists('$(_XmlDocSource)')" SourceFiles="$(_XmlDocSource)" DestinationFiles="$(_XmlDocDestination)" SkipUnchangedFiles="false" Retries="3" RetryDelayMilliseconds="500" />
 
-    <Message Text="Copied XML documentation to $(ModContentFolder)" Importance="high"
-             Condition="Exists('$(XmlDocPath)') AND '$(VerboseBuildOutput)' == 'true'" />
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true"
+          Command="$(_RefreshModContentScript)"
+          EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj;MC=$([MSBuild]::Escape($(ProjectDir)$(ModContentFolder)));DLL=$([MSBuild]::Escape($(TargetFileName)));TARGET=$([MSBuild]::Escape($(TargetPath)));XMLSRC=$([MSBuild]::Escape($(_XmlDocSource)));XMLNAME=$([MSBuild]::Escape($(AssemblyName))).xml">
+      <Output TaskParameter="ExitCode" PropertyName="_RefreshModContentExit" />
+    </Exec>
+    <Error Code="BRO0006" Condition="'$(_RefreshModContentExit)' == '74'"
+           Text="Timed out after 120s waiting for obj/.modcontent.lock, held by another build of this project; $(ModContentFolder) was not refreshed." />
+    <Error Code="BRO0007" Condition="'$(_RefreshModContentExit)' != '' AND '$(_RefreshModContentExit)' != '0' AND '$(_RefreshModContentExit)' != '74'"
+           Text="Copying the build into $(ModContentFolder) failed with exit code $(_RefreshModContentExit)." />
+    <OnError ExecuteTargets="_ReleaseProjectBuildLock;RestartKilledGameWindows" />
   </Target>
 
+  <!-- %24 is MSBuild's escape for a literal $. Exec rewrites every backslash in the command to a forward slash -->
   <Target Name="InstallToGame" AfterTargets="Build" DependsOnTargets="DetectProjectType"
           Condition="'$(SkipInstall)' != 'true'">
-    <MakeDir Directories="$(ProjectDir)$(ModContentFolder)" />
-    <MakeDir Directories="$(InstallPath)" />
-
-    <Copy SourceFiles="$(TargetPath)"
-          DestinationFolder="$(ProjectDir)$(ModContentFolder)"
-          SkipUnchangedFiles="true" />
-
-    <ItemGroup>
+    <ItemGroup Condition="'$(IsWindows)' == 'true'">
       <ModContentFiles Include="$(ProjectDir)$(ModContentFolder)\**\*.*" />
+      <!-- Paths go through metadata: an apostrophe in a path would end a quoted transform -->
+      <_WinInstallFile Include="@(ModContentFiles)">
+        <Rel>%(RecursiveDir)%(Filename)%(Extension)</Rel>
+        <Dest>$(InstallPath)%(RecursiveDir)%(Filename)%(Extension)</Dest>
+      </_WinInstallFile>
     </ItemGroup>
 
-    <Copy SourceFiles="@(ModContentFiles)"
-          DestinationFiles="@(ModContentFiles->'$(InstallPath)%(RecursiveDir)%(Filename)%(Extension)')"
+    <ReadLinesFromFile Condition="'$(IsWindows)' == 'true' AND Exists('$(InstallPath).install-manifest')"
+                       File="$(InstallPath).install-manifest">
+      <Output TaskParameter="Lines" ItemName="_WinOldManifest" />
+    </ReadLinesFromFile>
+    <ItemGroup Condition="'$(IsWindows)' == 'true'">
+      <_WinStaleFile Include="@(_WinOldManifest)" Exclude="@(_WinInstallFile->'%(Rel)')" />
+      <_WinStaleFile>
+        <Dest>$(InstallPath)%(Identity)</Dest>
+      </_WinStaleFile>
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(IsWindows)' == 'true'">
+      <_WinHadManifest>false</_WinHadManifest>
+      <_WinHadManifest Condition="Exists('$(InstallPath).install-manifest')">true</_WinHadManifest>
+    </PropertyGroup>
+    <MakeDir Directories="$(InstallPath)" Condition="'$(IsWindows)' == 'true'" />
+
+    <Delete Condition="'$(IsWindows)' == 'true'" Files="@(_WinStaleFile->'%(Dest)')" ContinueOnError="true" />
+
+    <Copy Condition="'$(IsWindows)' == 'true'"
+          SourceFiles="@(_WinInstallFile)"
+          DestinationFiles="@(_WinInstallFile->'%(Dest)')"
           SkipUnchangedFiles="true"
           UseHardlinksIfPossible="$(UseHardLinksForInstall)"
           Retries="3"
@@ -122,8 +372,295 @@
       <Output TaskParameter="CopiedFiles" ItemName="CopiedContentFiles" />
     </Copy>
 
+    <WriteLinesToFile Condition="'$(IsWindows)' == 'true'"
+                      File="$(InstallPath).install-manifest"
+                      Lines="@(_WinInstallFile->'%(Rel)')"
+                      Overwrite="true" />
+
+    <BroforceTidyInstall Condition="'$(IsWindows)' == 'true'" InstallPath="$(InstallPath)" Kind="$(InstallKind)" HadManifest="$(_WinHadManifest)"
+                         ProjectDir="$(MSBuildProjectDirectory)" ContinueOnError="true">
+      <Output TaskParameter="Removed" ItemName="_SameIdRemoved" />
+      <Output TaskParameter="Kept" ItemName="_SameIdKept" />
+    </BroforceTidyInstall>
+
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_InstallStagingDir>$(BroforceInstallRoot)/.install-staging/$(InstallFolderName).$([System.Guid]::NewGuid())</_InstallStagingDir>
+      <_CopyContentScript>set -e
+mkdir -p "%24OBJ"
+exec 7&gt;"%24OBJ/.modcontent.lock"
+flock -E 74 -w 120 7 || exit %24?
+rm -rf "%24STG"
+mkdir -p "%24STG"
+cp -RL "%24MC/." "%24STG/"</_CopyContentScript>
+    </PropertyGroup>
+
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true"
+          Command="$(_CopyContentScript)"
+          EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj;MC=$([MSBuild]::Escape($(ProjectDir)$(ModContentFolder)));STG=$([MSBuild]::Escape($(_InstallStagingDir)))">
+      <Output TaskParameter="ExitCode" PropertyName="_CopyContentExit" />
+    </Exec>
+
+    <Error Code="BRO0006"
+           Condition="'$(IsLinux)' == 'true' AND '$(_CopyContentExit)' == '74'"
+           Text="Timed out after 120s waiting for obj/.modcontent.lock, held by another build of this project. Nothing was installed." />
+    <Error Code="BRO0007"
+           Condition="'$(IsLinux)' == 'true' AND '$(_CopyContentExit)' != '0' AND '$(_CopyContentExit)' != '74'"
+           Text="Copying the build into $(_InstallStagingDir) failed with exit code $(_CopyContentExit). Nothing was installed." />
+
+    <CallTarget Targets="_ReleaseProjectBuildLock" />
+
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          EnvironmentVariables="D=$([MSBuild]::Escape($(MSBuildProjectDirectory)))"
+          Command="git -C &quot;%24D&quot; rev-parse --path-format=absolute --git-common-dir 2&gt;/dev/null | sed 's|/[^/]*%24||; s|.*/||'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampRepo" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          EnvironmentVariables="D=$([MSBuild]::Escape($(MSBuildProjectDirectory)))"
+          Command="git -C &quot;%24D&quot; rev-parse --abbrev-ref HEAD 2&gt;/dev/null">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampBranch" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          EnvironmentVariables="D=$([MSBuild]::Escape($(MSBuildProjectDirectory)))"
+          Command="git -C &quot;%24D&quot; rev-parse HEAD 2&gt;/dev/null">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampCommit" />
+    </Exec>
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          EnvironmentVariables="D=$([MSBuild]::Escape($(MSBuildProjectDirectory)))"
+          Command="if git -C &quot;%24D&quot; rev-parse --git-dir &gt;/dev/null 2&gt;&amp;1; then if [ -n &quot;`git -C &quot;%24D&quot; status --porcelain --untracked-files=no 2&gt;/dev/null`&quot; ]; then echo true; else echo false; fi; fi">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_StampDirty" />
+    </Exec>
+
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_StampRepoJson Condition="'$(_StampRepo)' != ''">"$(_StampRepo)"</_StampRepoJson>
+      <_StampRepoJson Condition="'$(_StampRepo)' == ''">null</_StampRepoJson>
+      <_StampBranchJson Condition="'$(_StampBranch)' != ''">"$(_StampBranch)"</_StampBranchJson>
+      <_StampBranchJson Condition="'$(_StampBranch)' == ''">null</_StampBranchJson>
+      <_StampCommitJson Condition="'$(_StampCommit)' != ''">"$(_StampCommit)"</_StampCommitJson>
+      <_StampCommitJson Condition="'$(_StampCommit)' == ''">null</_StampCommitJson>
+      <_StampDirtyJson Condition="'$(_StampDirty)' == 'true' OR '$(_StampDirty)' == 'false'">$(_StampDirty)</_StampDirtyJson>
+      <_StampDirtyJson Condition="'$(_StampDirtyJson)' == ''">null</_StampDirtyJson>
+      <_BuildStampJson>{"buildId": "$([System.Guid]::NewGuid())", "builtAt": "$([System.DateTime]::UtcNow.ToString("o"))", $(BuildStampExtraJson)"project": "$(MSBuildProjectName)", "installTarget": "$(InstallTarget)", "repo": $(_StampRepoJson), "branch": $(_StampBranchJson), "commit": $(_StampCommitJson), "dirty": $(_StampDirtyJson)}</_BuildStampJson>
+    </PropertyGroup>
+
+    <WriteLinesToFile Condition="'$(IsLinux)' == 'true'"
+                      File="$(_InstallStagingDir)/.build-stamp.json"
+                      Lines="$(_BuildStampJson)"
+                      Overwrite="true" />
+
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_SwapDefault Condition="'$(InstallTarget)' == 'default'">1</_SwapDefault>
+      <!-- flock exits 75 on a wait expiry; 79 means the installed copy already matches the build -->
+      <_InstallSwapScript>set -e
+to_backup() {
+  b="%24BACKUP/%24{1##*/}"; o="%24BACKUP/.%24{1##*/}.old"
+  mkdir -p "%24BACKUP"; rm -rf "%24o"
+  [ -f "%24BACKUP/.root" ] || (cd "%24ROOT" &amp;&amp; pwd -P) &gt; "%24BACKUP/.root"
+  [ ! -e "%24b" ] || mv "%24b" "%24o"
+  mv "%241" "%24b" || { rm -rf "%24b"; [ ! -e "%24o" ] || mv "%24o" "%24b"; return 1; }
+}
+modid() {
+  i="%241/Info.json"; [ -f "%24i" ] || i=%24(find "%241" -maxdepth 2 -name Info.json -print -quit 2&gt;/dev/null)
+  [ -z "%24i" ] || grep -o '"Id"[^,}]*' "%24i" | head -n 1 | cut -d'"' -f4
+}
+mkdir -p "%24ROOT"
+exec 9&gt;"%24ROOT/.install.lock"
+flock -E 75 -w 120 9 || exit %24?
+find "%24ROOT/.install-staging" -mindepth 1 -maxdepth 1 -name "%24NAME.*" ! -path "%24STG" -mmin +60 -exec rm -rf {} + || true
+mkdir -p "%24ROOT/%24KIND"
+(cd "%24STG" &amp;&amp; find . -type f ! -path ./.build-stamp.json ! -path ./.install-manifest | LC_ALL=C sort) &gt; "%24STG/.install-manifest"
+same=
+if [ -f "%24DIR/.install-manifest" ] &amp;&amp; cmp -s "%24DIR/.install-manifest" "%24STG/.install-manifest"; then
+  same=1
+  while IFS= read -r f; do cmp -s "%24STG/%24f" "%24DIR/%24f" || { same=; break; }; done &lt; "%24STG/.install-manifest"
+fi
+if [ -n "%24same" ]; then
+  # buildId changes only when the installed bytes do; readers compare it to spot a new build
+  id=%24(grep -o '"buildId"[^,]*' "%24DIR/.build-stamp.json" 2&gt;/dev/null | head -n 1)
+  [ -z "%24id" ] || sed -i 's|"buildId"[^,]*|'"%24id"'|' "%24STG/.build-stamp.json"
+  mv "%24STG/.build-stamp.json" "%24DIR/.build-stamp.json"
+  rm -rf "%24STG"
+else
+  if [ -d "%24DIR" ]; then
+    (cd "%24DIR" &amp;&amp; find . -type f ! -name '*.cache' ! -path ./.build-stamp.json ! -path ./.install-manifest) | while IFS= read -r f; do
+      [ ! -e "%24STG/%24f" ] || continue
+      if [ -f "%24DIR/.install-manifest" ]; then
+        ! grep -qxF "%24f" "%24DIR/.install-manifest" || continue
+      elif [ -f "%24DIR/.build-stamp.json" ]; then
+        [ "%24DIR/%24f" -nt "%24DIR/.build-stamp.json" ] || continue
+      else
+        case "%24f" in *.dll|*.pdb|*.mdb) continue;; esac
+        for h in %24(git -C "%24PROJ" hash-object --path="%24{f#./}" -- "%24DIR/%24f" 2&gt;/dev/null) %24(git hash-object --no-filters -- "%24DIR/%24f" 2&gt;/dev/null); do
+          ! git -C "%24PROJ" cat-file -e "%24h" 2&gt;/dev/null || continue 2
+        done
+      fi
+      mkdir -p "%24STG/%24{f%/*}"
+      ln "%24DIR/%24f" "%24STG/%24f" 2&gt;/dev/null || cp -p "%24DIR/%24f" "%24STG/%24f"
+    done
+  fi
+  if [ -n "%24DEFAULT" ] &amp;&amp; [ -e "%24DIR" ]; then
+    to_backup "%24DIR" || exit 1
+    mv "%24STG" "%24DIR" || { mv "%24b" "%24DIR"; [ ! -e "%24o" ] || mv "%24o" "%24b"; exit 1; }
+    rm -rf "%24o"
+  else
+    rm -rf "%24DIR"
+    mv "%24STG" "%24DIR"
+  fi
+fi
+newid=; [ "%24KIND" != Mods ] || newid=%24(modid "%24DIR")
+same_id() {
+  for x in "%241"/*/; do
+    x=%24{x%/}; [ -d "%24x" ] &amp;&amp; [ "%24{x##*/}" != "%24NAME" ] || continue
+    if [ "%24KIND" = Mods ]; then
+      [ -n "%24newid" ] &amp;&amp; [ "%24(modid "%24x")" = "%24newid" ] || continue
+    else
+      [ -n "%24(cd "%24DIR" &amp;&amp; for j in *.mod.json; do [ ! -e "%24j" ] || find "%24x" -maxdepth 2 -name "%24j" -print -quit; done)" ] || continue
+    fi
+    if { [ -f "%24x/.build-stamp.json" ] || [ -f "%24x/.install-manifest" ]; } &amp;&amp; if [ -n "%242" ]; then to_backup "%24x" &amp;&amp; rm -rf "%24o"; else rm -rf "%24x"; fi; then
+      echo "%24x" &gt;&gt; "%24NOTES.%243"
+    else
+      echo "%24x" &gt;&gt; "%24NOTES.%244"
+    fi
+  done
+}
+same_id "%24ROOT/%24KIND" "%24DEFAULT" removed kept
+[ -z "%24same" ] || exit 79</_InstallSwapScript>
+    </PropertyGroup>
+
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
+          Command="mkdir -p &quot;%24ROOT&quot; &amp;&amp; cd &quot;%24ROOT&quot; &amp;&amp; pwd -P | sha256sum | cut -c1-16"
+          EnvironmentVariables="ROOT=$([MSBuild]::Escape($(BroforceInstallRoot)))">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_InstallBackupKey" />
+    </Exec>
+    <PropertyGroup Condition="'$(IsLinux)' == 'true'">
+      <_InstallBackupDir>$(BroforceInstallBackupRoot)/$(_InstallBackupKey)</_InstallBackupDir>
+      <_InstallNotes>$(_InstallStagingDir).notes</_InstallNotes>
+    </PropertyGroup>
+
+    <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true"
+          Command="$(_InstallSwapScript)"
+          EnvironmentVariables="ROOT=$([MSBuild]::Escape($(BroforceInstallRoot)));KIND=$(InstallKind);NAME=$([MSBuild]::Escape($(InstallFolderName)));DIR=$([MSBuild]::Escape($(InstallDir)));STG=$([MSBuild]::Escape($(_InstallStagingDir)));NOTES=$([MSBuild]::Escape($(_InstallNotes)));BACKUP=$([MSBuild]::Escape($(_InstallBackupDir)));DEFAULT=$(_SwapDefault);PROJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))">
+      <Output TaskParameter="ExitCode" PropertyName="_InstallSwapExit" />
+    </Exec>
+
+    <ReadLinesFromFile Condition="'$(_InstallNotes)' != '' AND Exists('$(_InstallNotes).kept')" File="$(_InstallNotes).kept">
+      <Output TaskParameter="Lines" ItemName="_SameIdKept" />
+    </ReadLinesFromFile>
+    <ReadLinesFromFile Condition="'$(_InstallNotes)' != '' AND Exists('$(_InstallNotes).removed')" File="$(_InstallNotes).removed">
+      <Output TaskParameter="Lines" ItemName="_SameIdRemoved" />
+    </ReadLinesFromFile>
+    <Delete Condition="'$(_InstallNotes)' != ''" Files="$(_InstallNotes).kept;$(_InstallNotes).removed" ContinueOnError="true" />
+    <PropertyGroup>
+      <_SameIdBackupNote Condition="'$(IsLinux)' == 'true' AND '$(InstallTarget)' == 'default'">; it was moved to $(_InstallBackupDir)</_SameIdBackupNote>
+    </PropertyGroup>
+
+    <Error Code="BRO0006"
+           Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' == '75'"
+           Text="Timed out after 120s waiting for .install.lock in $(BroforceInstallRoot). Nothing was installed." />
+    <Error Code="BRO0007"
+           Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' != '0' AND '$(_InstallSwapExit)' != '75' AND '$(_InstallSwapExit)' != '79'"
+           Text="Installing into $(InstallDir) failed with exit code $(_InstallSwapExit). The previous copy and its backup are left as they were." />
+
+    <Message Importance="high" Condition="'@(_SameIdRemoved)' != ''"
+             Text="Removed %(_SameIdRemoved.Identity), an earlier install of this mod under another folder name$(_SameIdBackupNote)." />
+    <Warning Code="BRO0014" Condition="'@(_SameIdKept)' != ''"
+             Text="%(_SameIdKept.Identity) holds the same mod as $(InstallDir) but was not installed by this build system, so it was left in place and the game loads both. Remove one of them." />
+    <Message Importance="normal"
+             Condition="'$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' == '79'"
+             Text="$(InstallDir) already matches this build; nothing was reinstalled." />
     <Message Text="✓ Installed successfully" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
-    <Message Text="  Files: @(CopiedContentFiles->Count()) files" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
+    <Message Text="  Files: @(CopiedContentFiles->Count()) files" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true' AND '$(IsWindows)' == 'true'" />
+
+    <OnError ExecuteTargets="RemoveInstallStaging;_ReleaseProjectBuildLock;RestartKilledGameWindows" />
+  </Target>
+
+  <PropertyGroup Condition="'$(DesignTimeBuild)' != 'true'">
+    <BuildDependsOn>_AcquireProjectBuildLock;$(BuildDependsOn)</BuildDependsOn>
+    <CleanDependsOn>_AcquireProjectCleanLock;$(CleanDependsOn)</CleanDependsOn>
+    <_BuildLockOwnerFile>$([System.IO.Path]::Combine($(MSBuildProjectDirectory), 'obj', '.build-owner'))</_BuildLockOwnerFile>
+    <_BuildLockBusyText>Another build of $(MSBuildProjectName) is running (MSBuild process {owner}); two builds of one project at once overwrite each other's obj and bin. Build again once it finishes. If no build is running, delete $(_BuildLockOwnerFile).</_BuildLockBusyText>
+    <_BuildLockFailText>Could not check $(_BuildLockOwnerFile) for another build of $(MSBuildProjectName) (exit code {exit}).</_BuildLockFailText>
+    <!-- The owner is the MSBuild node running the build, the Exec shell's parent; a dead owner, or one older than 10 minutes, is stale -->
+    <_BuildLockAcquireScript>mkdir -p "%24OBJ"
+exec 6&gt;"%24OBJ/.build.lock"
+flock -w 30 6 || exit 72
+st() { sed 's/.*) //' /proc/%241/stat 2&gt;/dev/null | cut -d' ' -f20; }
+now=%24(date +%s)
+if [ -f "%24OBJ/.build-owner" ]; then
+  op=; ost=; oat=; read -r op ost oat &lt; "%24OBJ/.build-owner" || true
+  if [ -n "%24op" ] &amp;&amp; [ "%24op" != "%24PPID" ] &amp;&amp; [ -n "%24ost" ] &amp;&amp; [ "%24(st "%24op")" = "%24ost" ] &amp;&amp; [ %24((now - %24{oat:-0})) -lt 600 ]; then echo "%24op"; exit 73; fi
+fi
+echo "%24PPID %24(st %24PPID) %24now" &gt; "%24OBJ/.build-owner"</_BuildLockAcquireScript>
+    <_BuildLockReleaseScript>[ -f "%24OBJ/.build-owner" ] || exit 0
+exec 6&gt;"%24OBJ/.build.lock"
+flock -w 30 6 || exit 0
+op=; read -r op rest &lt; "%24OBJ/.build-owner" || true
+[ "%24op" != "%24PPID" ] || rm -f "%24OBJ/.build-owner"</_BuildLockReleaseScript>
+  </PropertyGroup>
+
+  <Target Name="_AcquireProjectBuildLock">
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_BuildLockAcquireScript)" EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="_BuildLockExit" />
+      <Output TaskParameter="ConsoleOutput" PropertyName="_BuildLockOwner" />
+    </Exec>
+    <BroforceProjectLock Condition="'$(IsWindows)' == 'true'" ObjDir="$(MSBuildProjectDirectory)/obj" Mode="acquire">
+      <Output TaskParameter="Result" PropertyName="_BuildLockExit" />
+      <Output TaskParameter="Owner" PropertyName="_BuildLockOwner" />
+    </BroforceProjectLock>
+    <Error Code="BRO0013" Condition="'$(_BuildLockExit)' == '73'"
+           Text="$(_BuildLockBusyText.Replace('{owner}', '$(_BuildLockOwner)'))" />
+    <Error Code="BRO0013" Condition="'$(_BuildLockExit)' != '0' AND '$(_BuildLockExit)' != '73'"
+           Text="$(_BuildLockFailText.Replace('{exit}', '$(_BuildLockExit)'))" />
+  </Target>
+
+  <Target Name="_AcquireProjectCleanLock">
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_BuildLockAcquireScript)" EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="_BuildLockExit" />
+      <Output TaskParameter="ConsoleOutput" PropertyName="_BuildLockOwner" />
+    </Exec>
+    <BroforceProjectLock Condition="'$(IsWindows)' == 'true'" ObjDir="$(MSBuildProjectDirectory)/obj" Mode="acquire">
+      <Output TaskParameter="Result" PropertyName="_BuildLockExit" />
+      <Output TaskParameter="Owner" PropertyName="_BuildLockOwner" />
+    </BroforceProjectLock>
+    <Error Code="BRO0013" Condition="'$(_BuildLockExit)' == '73'"
+           Text="$(_BuildLockBusyText.Replace('{owner}', '$(_BuildLockOwner)'))" />
+    <Error Code="BRO0013" Condition="'$(_BuildLockExit)' != '0' AND '$(_BuildLockExit)' != '73'"
+           Text="$(_BuildLockFailText.Replace('{exit}', '$(_BuildLockExit)'))" />
+  </Target>
+
+  <Target Name="_ReleaseProjectBuildLock" AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_BuildLockReleaseScript)" EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj"
+          IgnoreExitCode="true" ContinueOnError="true" />
+    <BroforceProjectLock Condition="'$(IsWindows)' == 'true'" ObjDir="$(MSBuildProjectDirectory)/obj" Mode="release" ContinueOnError="true" />
+  </Target>
+
+  <!-- A failed compile skips Build's AfterTargets, but CoreBuild's OnError runs _CleanRecordFileWrites, whose hook releases -->
+  <Target Name="_ReleaseProjectBuildLockOnError" AfterTargets="_CleanRecordFileWrites"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_BuildLockReleaseScript)" EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj"
+          IgnoreExitCode="true" ContinueOnError="true" />
+    <BroforceProjectLock Condition="'$(IsWindows)' == 'true'" ObjDir="$(MSBuildProjectDirectory)/obj" Mode="release" ContinueOnError="true" />
+  </Target>
+
+  <Target Name="_ReleaseProjectCleanLock" AfterTargets="Clean"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_BuildLockReleaseScript)" EnvironmentVariables="OBJ=$([MSBuild]::Escape($(MSBuildProjectDirectory)))/obj"
+          IgnoreExitCode="true" ContinueOnError="true" />
+    <BroforceProjectLock Condition="'$(IsWindows)' == 'true'" ObjDir="$(MSBuildProjectDirectory)/obj" Mode="release" ContinueOnError="true" />
+  </Target>
+
+  <Target Name="RemoveInstallStaging" Condition="'$(IsLinux)' == 'true' AND '$(_InstallStagingDir)' != ''">
+    <Exec Command="rm -rf &quot;%24STG&quot;" EnvironmentVariables="STG=$([MSBuild]::Escape($(_InstallStagingDir)))"
+          IgnoreExitCode="true" ContinueOnError="true" />
+  </Target>
+
+  <!-- A failed install runs no AfterTargets, so without this a game the build closed would stay closed -->
+  <Target Name="RestartKilledGameWindows"
+          Condition="'$(IsWindows)' == 'true' AND '$(_WinKillExit)' == '0' AND '$(LaunchBroforceOnBuild)' == 'true' AND '$(CLAUDECODE)' == ''">
+    <CallTarget Targets="LaunchGame" />
+    <Message Importance="high" Text="The install failed after the build closed Broforce, so Broforce was launched again on the previous build." />
   </Target>
 
   <Target Name="CleanCacheFiles" AfterTargets="InstallToGame"
@@ -136,21 +673,60 @@
   </Target>
 
   <Target Name="LaunchGame" AfterTargets="InstallToGame"
-          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true'">
-    <Exec Command="start steam://rungameid/274190"
+          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsWindows)' == 'true' AND '$(SkipInstall)' != 'true' AND '$(CLAUDECODE)' == ''">
+    <Exec Command="start &quot;&quot; &quot;steam://rungameid/274190&quot;"
           Condition="'$(LaunchArgs)' == ''" />
-    <Exec Command="start steam://run/274190//$(LaunchArgs)/"
+    <Exec Command="start &quot;&quot; &quot;steam://run/274190//$(LaunchArgs)/&quot;"
           Condition="'$(LaunchArgs)' != ''" />
     <Message Text="Launching Broforce via Steam" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
 
   <Target Name="LaunchGameLinux" AfterTargets="InstallToGame"
-          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true'">
-    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf || xdg-open steam://rungameid/274190"
-          Condition="'$(LaunchArgs)' == ''" />
-    <Exec Command="command -v bf &amp;&gt;/dev/null &amp;&amp; bf $(LaunchArgs) || xdg-open 'steam://run/274190//$(LaunchArgs)/'"
-          Condition="'$(LaunchArgs)' != ''" />
+          Condition="'$(LaunchBroforceOnBuild)' == 'true' AND '$(IsLinux)' == 'true' AND '$(SkipInstall)' != 'true' AND '$(CLAUDECODE)' == ''">
+    <PropertyGroup>
+      <!-- xdg-open can run the Steam handler in the foreground, so it is detached from the build's output -->
+      <_LaunchScript>u=steam://rungameid/274190
+[ -z "%24LA" ] || u="steam://run/274190//%24LA/"
+setsid -f xdg-open "%24u" &lt;/dev/null &gt;/dev/null 2&gt;&amp;1</_LaunchScript>
+    </PropertyGroup>
+    <Exec Command="$(_LaunchScript)" EnvironmentVariables="LA=$([MSBuild]::Escape($(LaunchArgs)))" IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="_LaunchExit" />
+    </Exec>
+    <Warning Code="BRO0011" Condition="'$(_LaunchExit)' != '0'"
+             Text="The build is installed, but launching Broforce exited with code $(_LaunchExit)." />
     <Message Text="Launching Broforce" Importance="high" Condition="'$(VerboseBuildOutput)' == 'true'" />
   </Target>
+
+  <Target Name="ReportRunningGame" AfterTargets="InstallToGame"
+          Condition="'$(SkipInstall)' != 'true' AND '$(InstallTarget)' == 'default' AND !('$(CloseBroforceOnBuild)' == 'true' AND '$(CLAUDECODE)' == '') AND (('$(IsLinux)' == 'true' AND '$(_InstallSwapExit)' == '0') OR ('$(IsWindows)' == 'true' AND '@(CopiedContentFiles)' != ''))">
+    <PropertyGroup>
+      <_RunningGameScript>$(_GameCandidatesScript)
+[ -z "%24(targets)" ] || echo running</_RunningGameScript>
+      <_RunningGameHint Condition="'$(CLAUDECODE)' == ''">, or build with LAUNCH=yes</_RunningGameHint>
+    </PropertyGroup>
+    <Exec Condition="'$(IsLinux)' == 'true'" Command="$(_RunningGameScript)"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RunningGame" />
+    </Exec>
+    <!-- Git Bash puts GNU find ahead of Windows' on PATH -->
+    <Exec Condition="'$(IsWindows)' == 'true'"
+          Command="(tasklist /NH /FI &quot;IMAGENAME eq Broforce_beta.exe&quot; | &quot;$(SystemRoot)\System32\find.exe&quot; /I &quot;Broforce_beta.exe&quot; &gt;nul || tasklist /NH /FI &quot;IMAGENAME eq Broforce.exe&quot; | &quot;$(SystemRoot)\System32\find.exe&quot; /I &quot;Broforce.exe&quot; &gt;nul) &amp;&amp; echo running"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RunningGame" />
+    </Exec>
+    <Message Importance="high" Condition="'$(_RunningGame)' == 'running'"
+             Text="Broforce is running and keeps the previous build of $(MSBuildProjectName) until it restarts: close Broforce and launch it again, or use stop_game and launch_game in the Unity Inspector MCP$(_RunningGameHint)." />
+  </Target>
+
+  <Target Name="LaunchOnly" DependsOnTargets="LaunchGame;LaunchGameLinux">
+    <Warning Code="BRO0004"
+             Condition="'$(LaunchBroforceOnBuild)' != 'true' OR '$(CLAUDECODE)' != ''"
+             Text="LaunchOnly has nothing to do unless LaunchBroforceOnBuild=true is passed outside a Claude Code session" />
+  </Target>
+
+  <PropertyGroup>
+    <BroforceGlobalTargets>$([MSBuild]::GetPathOfFileAbove('BroforceGlobal.targets', '$(MSBuildThisFileDirectory)'))</BroforceGlobalTargets>
+  </PropertyGroup>
+  <Import Project="$(BroforceGlobalTargets)" Condition="'$(BroforceGlobalTargets)' != ''" />
 
 </Project>

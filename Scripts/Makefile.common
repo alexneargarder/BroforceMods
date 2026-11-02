@@ -1,21 +1,59 @@
 # Makefile.common - Shared build infrastructure for Broforce mods
 # Source: Broforce-Templates/Scripts/Makefile.common
-# Synced to repos via sync-targets.sh
+# Synced to repos via sync.py
+# Revision: 2
 
 # Required variables (must be set before including this file):
 #   PROJECT_NAME  - Display name for help text
 #
 # Build mode (set ONE before including):
 #   SOLUTION      - Solution or project file to build (single/solution build)
-#   AUTO_DISCOVER - Set to 1 to auto-discover projects matching Name/Name/Name.csproj
+#   AUTO_DISCOVER - Set to 1 to auto-discover projects matching Name/Name/Name.csproj or Name/Name.csproj
+#   PROJECTS      - Explicit <target>=<csproj> list for other layouts, paths relative to the repo root
 #   CUSTOM_BUILD  - Set to 1 to define your own build/clean/rebuild targets
 #
 # Optional variables:
-#   EXTRA_HELP       - Additional help text to display (auto-generated with AUTO_DISCOVER)
-#   EXCLUDE          - Project names to exclude from discovery (AUTO_DISCOVER only)
+#   EXTRA_HELP       - Additional help text. Must be a canned recipe (define ... endef) whose
+#                      lines are @echo commands: it is expanded as recipe lines, so a plain
+#                      string would be run as a command. Auto-generated with AUTO_DISCOVER and PROJECTS.
+#   EXCLUDE          - Projects to skip during discovery (AUTO_DISCOVER only). Space-separated;
+#                      an entry matches either the project's directory/file name or its
+#                      kebab-case target name (lowercase, spaces to hyphens). Quote entries
+#                      containing spaces:
+#                        override EXCLUDE += ExampleMod "Bro Template" mission-impossibro
+#                      An entry that matches no project is warned about. A repo sets its list with
+#                      "override EXCLUDE += <list>", so that EXCLUDE on the make command line, with = or +=,
+#                      adds to the repo's list instead of replacing it.
 #   CLEANUP_SETTINGS - Path to ReSharper .DotSettings file (default: Scripts/BroforceMods.DotSettings)
 #   CLEANUP_PROFILE  - Cleanup profile name (default: BroforceMods)
+#   CLEANUP_EXCLUDE  - ";"-separated paths or globs, relative to the solution, that jb cleanupcode skips; no quotes even around spaces
 #   JB               - jb binary (default: jb; override for dotnet local tools: JB="dotnet jb")
+#   COMPAT_PROJECT   - Project bt compat-check reads; setting it defines the compat-check target (SOLUTION builds only)
+#   BT               - bt binary (default: bt)
+#
+# Command-line variables:
+#   MSBUILD=<path>    - MSBuild binary to use, or a command with arguments: MSBUILD="dotnet msbuild -restore"
+#   LAUNCH=yes        - Close the running game and launch it after the install (never under a Claude Code session)
+#   LAUNCH=no         - Don't kill or launch the game
+#                       Without LAUNCH, CloseBroforceOnBuild and LaunchBroforceOnBuild from the props decide
+#   INSTALL=no        - Build without installing, killing or launching the game
+#   LAUNCH_ARGS="..." - Extra args forwarded to the launch command
+#   PROJECT=<name>    - Scope the cleanup targets to one discovered or listed project
+#   ALL=1             - Let an unscoped `make cleanup` touch every discovered or listed project
+#   BASE=<ref>        - Make cleanup-changed take the changes since the branch left <ref>, committed ones included
+#   CORPUS=<dirs>     - compat-check: corpus directories to scan instead of Thunderstore's packages, comma-separated; paths may contain spaces
+#   WITH=<dlls>       - compat-check: replacements for the published RocketLib.dll, BroMakerLib.dll or dnlib.dll, comma-separated; paths may contain spaces
+#   LIBS=<dir>        - compat-check: directory of game assemblies
+
+_empty :=
+_space := $(_empty) $(_empty)
+_comma := ,
+
+_one_of = $(if $(and $(strip $($(1))),$(or $(word 2,$($(1))),$(filter-out $(2),$($(1))))),$(error Error: $(1) must be one of: $(2)))
+$(call _one_of,LAUNCH,yes no)
+$(call _one_of,ALL,1)
+$(call _one_of,AUTO_DISCOVER,1)
+$(call _one_of,CUSTOM_BUILD,1)
 
 # MSBuild configuration - override with: make MSBUILD="/path/to/msbuild" build
 # Detect if running in WSL (Windows Subsystem for Linux)
@@ -24,169 +62,448 @@ IS_WSL := $(shell grep -qi microsoft /proc/version 2>/dev/null && echo 1)
 ifdef IS_WSL
     # WSL: Use Windows MSBuild via /mnt/c path (override if your VS installation differs)
     MSBUILD ?= /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
+    _RESTORE_FLAG := -restore
+else ifeq ($(OS),Windows_NT)
+    # Windows: the recipes need a POSIX shell (Git Bash, MSYS2), where a bare msbuild names the MSBuild folder beside MSBuild.exe
+    MSBUILD ?= msbuild.exe
+    _RESTORE_FLAG := -restore
 else
-    # Native Linux/macOS/Windows: Use msbuild from PATH
+    # Native Linux/macOS: Use msbuild from PATH
     MSBUILD ?= msbuild
 endif
 
-MSBUILD_FLAGS := /p:Configuration=Release /verbosity:minimal /nologo
+_MSBUILD_CMD := $(if $(wildcard $(subst $(_space),\ ,$(MSBUILD))),"$(MSBUILD)",$(MSBUILD))
 
-# LAUNCH variable controls both kill and launch behavior
-# Usage: make build LAUNCH=no
-ifeq ($(LAUNCH),no)
-    LAUNCH_FLAGS := /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false
+# Dash switches: MSYS (Git Bash) rewrites a native program's /p:... or /nologo argument as a path
+# Visual Studio's MSBuild finds the .NET 3.5 reference assemblies only through the restored PackageReference; a repeated -restore is allowed
+MSBUILD_FLAGS := $(strip -p:Configuration=Release -verbosity:minimal -nologo $(_RESTORE_FLAG))
+
+# $(call _MSB,<msbuild arguments>) - one msbuild run; a failure ends the recipe
+_MSB = $(_MSBUILD_CMD) $(1) || exit $$?
+
+_BUILTIN_TARGETS := build build-no-launch clean rebuild cleanup cleanup-changed compat-check help
+
+ifdef CLAUDECODE
+    _LAUNCH_MODE := off
+else ifeq ($(LAUNCH),yes)
+    _LAUNCH_MODE := on
+else ifeq ($(LAUNCH),no)
+    _LAUNCH_MODE := off
 else
-    LAUNCH_FLAGS := /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=true
+    _LAUNCH_MODE := props
 endif
 
-# INSTALL variable controls whether DLL is copied to game directory
+_launch_prop = $(if $(filter props,$(_LAUNCH_MODE)),,-p:$(1)=$(if $(filter on,$(_LAUNCH_MODE)),true,false))
+LAUNCH_FLAGS := $(call _launch_prop,CloseBroforceOnBuild) $(call _launch_prop,LaunchBroforceOnBuild)
+
+# INSTALL variable controls whether the built DLL is installed
 # Usage: make build INSTALL=no
+_INSTALL_VALUES := no
 ifeq ($(INSTALL),no)
-    INSTALL_FLAGS := /p:SkipInstall=true
+    INSTALL_FLAGS := -p:SkipInstall=true
 else
     INSTALL_FLAGS :=
 endif
 
-# LAUNCH_ARGS forwards extra args to the post-build launch command
-# Usage: make build LAUNCH_ARGS="-m"
+# MSBuild splits a -p: value at ; and , and unescapes %XX and @(...), so those are %-escaped
+_LAUNCH_ARGS_ESC = $(subst $$,%24,$(subst @,%40,$(subst ",%22,$(subst $(_comma),%2C,$(subst ;,%3B,$(subst %,%25,$(LAUNCH_ARGS)))))))
 ifneq ($(strip $(LAUNCH_ARGS)),)
-    LAUNCH_ARGS_FLAGS := /p:LaunchArgs="$(LAUNCH_ARGS)"
+    LAUNCH_ARGS_FLAGS := '-p:LaunchArgs=$(subst ','\'',$(_LAUNCH_ARGS_ESC))'
 else
     LAUNCH_ARGS_FLAGS :=
 endif
 
+_BUILD_ONLY_FLAGS := $(call _launch_prop,CloseBroforceOnBuild) -p:LaunchBroforceOnBuild=false
+
+_NO_LAUNCH_FLAGS := -p:CloseBroforceOnBuild=false -p:LaunchBroforceOnBuild=false
+
+_POST_FLAGS := -t:LaunchOnly $(MSBUILD_FLAGS) -p:CloseBroforceOnBuild=false $(call _launch_prop,LaunchBroforceOnBuild)
+_POST_FLAGS += $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) $(if $(filter props,$(_LAUNCH_MODE)),-nowarn:BRO0004)
+
+# A machine can extend the flags above in a BroforceGlobal.mk beside BroforceGlobal.props
+-include $(firstword $(wildcard ../BroforceGlobal.mk ../../BroforceGlobal.mk ../../../BroforceGlobal.mk))
+
+$(call _one_of,INSTALL,$(_INSTALL_VALUES))
+
+_DO_POST_BUILD := $(if $(filter no,$(INSTALL)),,$(if $(filter-out off,$(_LAUNCH_MODE))$(_FORCE_POST_BUILD),1))
+
+.NOTPARALLEL:
+
+_LAUNCH_GOALS = $(filter build rebuild $(DISCOVER_TARGETS),$(MAKECMDGOALS))
+_MULTI_GOAL = $(word 2,$(_LAUNCH_GOALS))
+_KEEP_GOING := $(findstring k,$(firstword -$(MAKEFLAGS)))
+# Without -k make stops at a failing goal, so that goal runs the post-build the last goal would have
+_POST_DUE = $(if $(_DO_POST_BUILD),$(if $(filter $@,$(or $(lastword $(_LAUNCH_GOALS)),$@)),true,$(if $(_KEEP_GOING),false,[ $$rc -ne 0 ])),false)
+_BUILT_EARLIER = $(if $(filter-out $@,$(or $(firstword $(_LAUNCH_GOALS)),$@)),1)
+
+define _BUILDS
+@$(1) | { built=$(_BUILT_EARLIER); rc=0; while IFS= read -r p; do \
+  $(_MSBUILD_CMD) "$$p" $(MSBUILD_FLAGS) $(2) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) </dev/null || { rc=$$?; break; }; built=1; \
+done; \
+$(if $(3),if [ -n "$$built" ] && $(_POST_DUE); then $(_MSBUILD_CMD) $(3) $(_POST_FLAGS) </dev/null || { r=$$?; [ $$rc -ne 0 ] || rc=$$r; }; fi;) \
+exit $$rc; }
+endef
+
 # Code cleanup configuration (JetBrains ReSharper CLI)
 CLEANUP_SETTINGS ?= Scripts/BroforceMods.DotSettings
 CLEANUP_PROFILE ?= BroforceMods
+CLEANUP_EXCLUDE ?=
 JB ?= jb
+# jb loads projects through the .NET SDK, where a net35 project that doesn't import the targets finds no framework
+ifeq ($(IS_WSL)$(filter Windows_NT,$(OS)),)
+    _MONO := $(realpath $(shell command -v mono 2>/dev/null))
+    _JB_FRAMEWORK := $(if $(_MONO),$(realpath $(dir $(_MONO))../lib/mono/2.0-api))
+endif
+_JB_PROPERTIES := Configuration=Release$(if $(_JB_FRAMEWORK),;FrameworkPathOverride=$(_JB_FRAMEWORK))
+# Normalise the list: drop spaces around ";" and a trailing ";", so a multi-line value works
+_CLEANUP_EXCLUDE_LIST = $(patsubst %;,%,$(subst ;$(_space),;,$(subst $(_space);,;,$(strip $(CLEANUP_EXCLUDE)))))
+_CLEANUP_EXCLUDE_FLAG = $(if $(_CLEANUP_EXCLUDE_LIST),--exclude="$(_CLEANUP_EXCLUDE_LIST)")
+# Drops paths jb would exclude: jb's * stops at /, its ** crosses it, **/ may match no directory, and case is ignored. jb exits 3 when --include leaves nothing
+_DROP_EXCLUDED = awk -v ex="$(_CLEANUP_EXCLUDE_LIST)" 'function m(s, p, i, c) { \
+	  if (p == "") return s == ""; \
+	  if (substr(p, 1, 2) == "**") { if (substr(p, 3, 1) == "/" && m(s, substr(p, 4))) return 1; for (i = 0; i <= length(s); i++) if (m(substr(s, i + 1), substr(p, 3))) return 1; return 0 } \
+	  c = substr(p, 1, 1); \
+	  if (c == "*") { for (i = 0; i <= length(s); i++) { if (i > 0 && substr(s, i, 1) == "/") return 0; if (m(substr(s, i + 1), substr(p, 2))) return 1 } return 0 } \
+	  if (s == "" || (c == "?" ? substr(s, 1, 1) == "/" : c != substr(s, 1, 1))) return 0; \
+	  return m(substr(s, 2), substr(p, 2)) } \
+	BEGIN { n = split(tolower(ex), g, ";") } { for (k = 1; k <= n; k++) if (m(tolower($$0), g[k])) next; print }'
 
 # For solution builds: extract first .csproj to use for single launch at end
 # (avoids launching once per project in multi-project solutions)
 # Format: Project("{GUID}") = "Name", "Path\To\Project.csproj", "{GUID}"
-LAUNCH_PROJECT ?= $(shell grep -m1 '\.csproj"' "$(SOLUTION)" 2>/dev/null | sed 's/.*= "[^"]*", "\([^"]*\)".*/\1/; s/\\/\//g')
-IS_SOLUTION := $(filter %.sln,$(SOLUTION))
+# Paths inside a .sln are relative to the .sln, so they are rebased onto its directory.
+LAUNCH_PROJECT ?= $(shell d=$$(dirname $(SOLUTION)); \
+  p=$$(grep -m1 '\.csproj"' $(SOLUTION) 2>/dev/null | sed 's/.*= "[^"]*", "\([^"]*\)".*/\1/; s/[\]/\//g'); \
+  if [ -n "$$p" ] && [ "$$d" != "." ]; then printf '%s/%s' "$$d" "$$p"; else printf '%s' "$$p"; fi)
+# Quotes are stripped first so a quoted path with spaces is still recognised as a solution
+IS_SOLUTION := $(filter %.sln,$(subst ",,$(SOLUTION)))
 
 # Default target shows help
 .DEFAULT_GOAL := help
 
-# Auto-discover projects matching Name/Name/Name.csproj convention
-ifdef AUTO_DISCOVER
+_PROJECT_TABLE := $(if $(strip $(PROJECTS))$(AUTO_DISCOVER),1)
+_NO_PROJECTS_ERROR := Error: no projects matching Name/Name/Name.csproj or Name/Name.csproj found$(if $(strip $(EXCLUDE)), outside EXCLUDE)
+
+ifdef _PROJECT_TABLE
 CUSTOM_BUILD := 1
 
-_PROJ_LIST := /tmp/.broforce-projects-$(PROJECT_NAME)
+# Spaces in a discovered path are encoded as 0x1f so each "target=path" pair stays one word for make and the shell
+_US := $(shell printf '\037')
 
-# Discover at parse time: find matching .csproj files, write target<TAB>csproj pairs
-$(shell find . -maxdepth 3 -name '*.csproj' -type f 2>/dev/null | sort | \
+ifneq ($(strip $(PROJECTS)),)
+$(foreach p,$(PROJECTS),$(if $(and $(findstring =,$(p)),$(filter-out =% %=,$(p))),,$(error Error: PROJECTS entry '$(p)' is not <target>=<path>)))
+_PROJ_PAIRS := $(PROJECTS)
+else
+_PROJ_PAIRS := $(shell find . -maxdepth 3 -name '*.csproj' -type f 2>/dev/null | sort | { hit=; \
   while IFS= read -r f; do \
     f="$${f#./}"; \
     stem=$$(basename "$$f" .csproj); \
-    dir=$$(echo "$$f" | cut -d/ -f1); \
+    dir=$${f%%/*}; \
     parent=$$(basename "$$(dirname "$$f")"); \
     [ "$$dir" = "$$stem" ] && [ "$$parent" = "$$stem" ] || continue; \
-    skip=false; for ex in $(EXCLUDE); do [ "$$stem" = "$$ex" ] && skip=true; done; \
-    $$skip || printf '%s\t%s\n' \
-      "$$(echo "$$stem" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')" "$$f"; \
-  done > $(_PROJ_LIST))
+    target=$$(printf '%s' "$$stem" | tr '[:upper:]' '[:lower:]' | tr ' ' '-'); \
+    skip=false; \
+    for ex in $(EXCLUDE); do \
+      { [ "$$ex" = "$$stem" ] || [ "$$ex" = "$$target" ]; } && { skip=true; hit="$$hit|$$ex|"; }; \
+    done; \
+    $$skip && continue; \
+    case "$$stem" in (*[\'\"\\\$$\`\&\;\|\<\>\(\)\{\}\*\?\[\]\#\%\:\=\~]*) printf '!%s\n' "$$(printf '%s' "$$f" | tr ' ' '\037')"; continue;; esac; \
+    printf '%s=%s\n' "$$target" "$$(printf '%s' "$$f" | tr ' ' '\037')"; \
+  done; \
+  for ex in $(EXCLUDE); do case "$$hit" in (*"|$$ex|"*) ;; (*) printf '?%s\n' "$$(printf '%s' "$$ex" | tr ' ' '\037')";; esac; done; })
+_BAD_PROJECT := $(subst $(_US), ,$(patsubst !%,%,$(firstword $(filter !%,$(_PROJ_PAIRS)))))
+$(if $(_BAD_PROJECT),$(error Error: $(_BAD_PROJECT): a project name with shell or make special characters can't be built here; rename it or add it to EXCLUDE))
+$(foreach e,$(patsubst ?%,%,$(filter ?%,$(_PROJ_PAIRS))),$(warning Warning: EXCLUDE entry '$(subst $(_US), ,$(e))' matches no project))
+_PROJ_PAIRS := $(filter-out ?%,$(_PROJ_PAIRS))
+endif
 
-DISCOVER_TARGETS := $(shell cut -f1 $(_PROJ_LIST))
+DISCOVER_TARGETS := $(foreach p,$(_PROJ_PAIRS),$(firstword $(subst =, ,$(p))))
+_CLASHING_TARGET := $(firstword $(filter $(_BUILTIN_TARGETS),$(DISCOVER_TARGETS)))
+$(if $(_CLASHING_TARGET),$(error Error: project target '$(_CLASHING_TARGET)' is also a built-in target; rename it (in PROJECTS, or the project) or add it to EXCLUDE))
+
+# $(call _csproj_for,<target>) - decoded .csproj path for one discovered target
+_csproj_for = $(subst $(_US), ,$(patsubst $(1)=%,%,$(filter $(1)=%,$(_PROJ_PAIRS))))
+
+_FIRST_CSPROJ := $(call _csproj_for,$(firstword $(DISCOVER_TARGETS)))
+
+# Shell snippet emitting "target<TAB>csproj" (spaces decoded) for every discovered project.
+# The \# escape keeps make from reading the rest of the line as a comment.
+_EACH_PROJECT = for p in $(_PROJ_PAIRS); do printf '%s\t%s\n' "$${p%%=*}" "$$(printf '%s' "$${p\#*=}" | tr '\037' ' ')"; done
+
+define _CLEAN_EACH
+@$(_EACH_PROJECT) | cut -f2 | while IFS= read -r csproj; do \
+  $(call _MSB,"$$csproj" -t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) </dev/null); \
+done
+endef
 
 define EXTRA_HELP
 	@echo "Individual projects:"
-	@cut -f1 $(_PROJ_LIST) | sed 's/^/  make /'
+	@for t in $(DISCOVER_TARGETS); do echo "  make $$t"; done
+	@test -n "$(strip $(DISCOVER_TARGETS))" || echo "  (none discovered)"
 endef
 
+ifneq ($(strip $(DISCOVER_TARGETS)),)
 .PHONY: $(DISCOVER_TARGETS)
 $(DISCOVER_TARGETS):
-	@csproj=$$(awk -F'\t' '$$1 == "$@" {print $$2}' $(_PROJ_LIST)); \
-	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
+	$(if $(_MULTI_GOAL),$(call _BUILDS,printf '%s\n' "$(call _csproj_for,$@)",$(_BUILD_ONLY_FLAGS),"$(call _csproj_for,$@)"),@$(call _MSB,"$(call _csproj_for,$@)" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)))
+endif
+
+ifeq ($(strip $(_PROJ_PAIRS)),)
+
+# Nothing discovered: fail before running MSBuild. `make help` still works.
+.PHONY: build build-no-launch clean rebuild
+build build-no-launch clean rebuild:
+	@echo "$(_NO_PROJECTS_ERROR)"
+	@exit 1
+
+else
 
 .PHONY: build
 build:
-ifeq ($(LAUNCH),no)
-	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
-	done
-else
-	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
-	done
-	@csproj=$$(head -1 $(_PROJ_LIST) | cut -f2); \
-	"$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
-endif
+	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_BUILD_ONLY_FLAGS),"$(_FIRST_CSPROJ)")
 
 .PHONY: build-no-launch
 build-no-launch:
-	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
-	done
+	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_NO_LAUNCH_FLAGS),)
 
 .PHONY: clean
 clean:
-	@cut -f2 $(_PROJ_LIST) | while IFS= read -r csproj; do \
-	  "$(MSBUILD)" "$$csproj" /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS) || exit 1; \
-	done
+	$(_CLEAN_EACH)
 
 .PHONY: rebuild
-rebuild: clean build-no-launch
+rebuild: clean
+	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_BUILD_ONLY_FLAGS),"$(_FIRST_CSPROJ)")
 
-endif # AUTO_DISCOVER
+endif # discovery non-empty
+
+endif # _PROJECT_TABLE
+
+# Solution mode has no project table; keep the cleanup recipes syntactically valid
+ifndef _PROJECT_TABLE
+_EACH_PROJECT = printf ''
+endif
 
 # Code cleanup targets
-_CHECK_JB = @command -v $(firstword $(JB)) >/dev/null 2>&1 || { \
-	echo "Error: '$(firstword $(JB))' not found."; \
-	echo "Install with: dotnet tool install -g JetBrains.ReSharper.GlobalTools"; \
+_CHECK_TOOL = @command -v $(firstword $(1)) >/dev/null 2>&1 || { \
+	echo "Error: '$(firstword $(1))' not found."; \
+	echo "Install with: $(2)"; \
 	exit 1; }
+_CHECK_JB = $(call _CHECK_TOOL,$(JB),dotnet tool install -g JetBrains.ReSharper.GlobalTools)
 _CHECK_SETTINGS = @test -f "$(CLEANUP_SETTINGS)" || { \
-	echo "Error: $(CLEANUP_SETTINGS) not found. Run Scripts/sync-targets.sh from Broforce-Templates."; \
+	echo "Error: $(CLEANUP_SETTINGS) not found."; \
+	echo "Copy it from the Broforce-Templates repo: cp <Broforce-Templates>/Scripts/BroforceMods.DotSettings $(CLEANUP_SETTINGS)"; \
 	exit 1; }
 
-ifdef AUTO_DISCOVER
+ifdef _PROJECT_TABLE
 ifdef PROJECT
-_CLEANUP_LIST_CMD = awk -F'\t' '$$1 == "$(PROJECT)" {print $$2}' $(_PROJ_LIST)
+_CLEANUP_LIST_CMD = $(_EACH_PROJECT) | awk -F'\t' '$$1 == "$(PROJECT)" {print $$2}'
 else
-_CLEANUP_LIST_CMD = cut -f2 $(_PROJ_LIST)
+_CLEANUP_LIST_CMD = $(_EACH_PROJECT) | cut -f2
 endif
 else
-_CLEANUP_LIST_CMD = printf '%s\n' "$(SOLUTION)"
+_CLEANUP_LIST_CMD = printf '%s\n' $(SOLUTION)
 endif
 
 _CLEANUP_PREFLIGHT = @L=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
 	if [ -z "$$L" ]; then \
 	  if [ -n "$(PROJECT)" ]; then \
 	    echo "Error: PROJECT='$(PROJECT)' not found. Run 'make help' to list available projects."; \
+	  elif [ -n "$(_PROJECT_TABLE)" ]; then \
+	    echo "$(_NO_PROJECTS_ERROR)"; \
 	  else \
-	    echo "Error: no cleanup targets. Set SOLUTION or AUTO_DISCOVER before including Makefile.common."; \
+	    echo "Error: no cleanup targets. Set SOLUTION, AUTO_DISCOVER or PROJECTS before including Makefile.common."; \
 	  fi; \
 	  exit 1; \
 	fi
 
 # jb cleanupcode needs a .sln for full C# transforms; a bare .csproj gets reformat-only.
-# Map .csproj → sibling .sln when one exists; skip with a warning otherwise.
+_SLN_FOR_CSPROJ = d="$$(dirname "$$f")"; b="$$(basename "$$f")"; sln=; \
+	      for c in "$$d|$$b" "$$(dirname "$$d")|$$(basename "$$d")/$$b"; do \
+	        for s in "$${c%%|*}"/*.sln; do \
+	          [ -f "$$s" ] && tr '\134' '/' < "$$s" | grep -qF "\"$${c\#*|}\"" && { sln="$$s"; break 2; }; \
+	        done; \
+	      done
 _RESOLVE_CLEANUP_TARGETS = while IFS= read -r f; do \
 	  case "$$f" in \
 	    *.sln) echo "$$f" ;; \
 	    *.csproj) \
-	      sln="$$(dirname "$$(dirname "$$f")")/$$(basename "$$f" .csproj).sln"; \
-	      if [ -f "$$sln" ]; then echo "$$sln"; \
-	      else echo "Skipping $$f: no sibling .sln found" >&2; fi ;; \
+	      $(_SLN_FOR_CSPROJ); \
+	      if [ -f "$$sln" ]; then echo "$$sln"; else echo "!$$f"; fi ;; \
 	    *) echo "$$f" ;; \
 	  esac; \
 	done
+
+# git diff --raw -U0 to "<path><TAB><line>" for the lines changed against HEAD, or against the BASE merge base. The raw "none" entry
+# tells a file with no line changes (a pure rename) from one new to git, which has no entry at all.
+define _CHANGED_LINES_AWK
+skip > 0 { c = substr($$0, 1, 1); if (c == "+" || c == "-") skip--; next }
+/^:/ { n = split($$0, f, "\t"); print f[n] "\tnone"; next }
+/^[+][+][+] / { path = substr($$0, 7); sub(/\t$$/, "", path); next }
+/^@@ / {
+  n = split(substr($$2, 2), r, ","); b = (n > 1 ? r[2] : 1) + 0
+  n = split(substr($$3, 2), r, ","); c = r[1] + 0; d = (n > 1 ? r[2] : 1) + 0
+  skip = b + d
+  if (d == 0) { print path "\t" c; print path "\t" (c + 1) }
+  for (i = 0; i < d; i++) print path "\t" (c + i)
+}
+endef
+export _CHANGED_LINES_AWK
+
+# Keeps jb's hunks on or beside a changed line, then those they need: using-only hunks (jb's using block serves all of C) and, for a
+# hunk whose brackets differ, the hunks holding its brackets' partners in W and in C. Lines are joined, not terminated.
+define _KEEP_HUNKS_AWK
+function take(h) { if (!(h in kept)) { kept[h] = 1; q[++nq] = h } }
+function skipchr(s, i, n, c) { while (i <= n) { c = substr(s, i++, 1); if (c == "\134") i++; else if (c == "'") break } return i }
+function skipstr(s, i, n, verb, interp, c, d) {
+  while (i <= n) {
+    c = substr(s, i, 1)
+    if (d) {
+      if (c == "\"") i = skipstr(s, i + 1, n, 0, 0)
+      else if (c == "'") i = skipchr(s, i + 1, n)
+      else { if (c == "{") d++; else if (c == "}") d--; i++ }
+    } else if (interp && c == "{") { if (substr(s, i + 1, 1) == "{") i += 2; else { d = 1; i++ } }
+    else if (c == "\"") { if (verb && substr(s, i + 1, 1) == "\"") i += 2; else return i + 1 }
+    else i += (c == "\134" && !verb) ? 2 : 1
+  }
+  if (verb) inv = 1
+  return i
+}
+function brk(s, n, i, c, o, k) {
+  n = length(s); i = 1
+  if (inv) { inv = 0; i = skipstr(s, 1, n, 1, 0) }
+  while (i <= n) {
+    if (incom) { k = index(substr(s, i), "*/"); if (!k) return o; i += k + 1; incom = 0; continue }
+    c = substr(s, i, 1); k = substr(s, i, 3)
+    if (k ~ /^\/\//) return o
+    if (k ~ /^\/[*]/) { incom = 1; i += 2 }
+    else if (c == "\"") i = skipstr(s, i + 1, n, 0, 0)
+    else if (c == "'") i = skipchr(s, i + 1, n)
+    else if (k ~ /^(@\$$|\$$@)"/) i = skipstr(s, i + 3, n, 1, 1)
+    else if (k ~ /^@"/) i = skipstr(s, i + 2, n, 1, 0)
+    else if (k ~ /^\$$"/) i = skipstr(s, i + 2, n, 0, 1)
+    else { if (c ~ /[(){}]/) o = o c; i++ }
+  }
+  return o
+}
+function pairs(L, n, BT, PT, j, k, c, t) {
+  incom = inv = 0; sp["("] = sp["{"] = 0
+  for (j = 1; j <= n; j++) {
+    BT[j] = brk(L[j])
+    for (k = 1; k <= length(BT[j]); k++) {
+      c = substr(BT[j], k, 1)
+      if (c == "(" || c == "{") stk[c, ++sp[c]] = j
+      else if (sp[t = (c == ")" ? "(" : "{")]) { PT[j] = PT[j] " " stk[t, sp[t]]; PT[stk[t, sp[t]]] = PT[stk[t, sp[t]]] " " j; sp[t]-- }
+    }
+  }
+}
+function seq(BT, a, b, j, o) { for (j = a; j <= b; j++) o = o BT[j]; return o }
+function mates(PT, at, a, b, j, m, i, x) { for (j = a; j <= b; j++) { m = split(PT[j], x, " "); for (i = 1; i <= m; i++) if (x[i] in at) take(at[x[i]]) } }
+function usings(L, a, b, j) { for (j = a; j <= b; j++) if (L[j] !~ /^(\357\273\277)?[ \t]*using [^(]*;/) return 0; return 1 }
+function emit(L, a, b, j) { for (j = a; j <= b; j++) { printf "%s%s", sep, L[j] > out; sep = "\n" } }
+FILENAME == ARGV[1] { if ($$1 != "none") changed[$$1] = 1; next }
+FILENAME == ARGV[2] {
+  if ($$0 !~ /^[0-9]/) next
+  match($$0, /[acd]/); op = substr($$0, RSTART, 1)
+  n = split(substr($$0, 1, RSTART - 1), r, ","); a = r[1] + 0; b = r[n] + 0
+  n = split(substr($$0, RSTART + 1), r, ","); c = r[1] + 0; d = r[n] + 0
+  if (op == "a") b = a++
+  if (op == "d") d = c++
+  H++; ws[H] = a; we[H] = b; cs[H] = c; ce[H] = d
+  for (j = a; j <= b; j++) wh[j] = H
+  for (j = c; j <= d; j++) ch[j] = H
+  next
+}
+FILENAME == ARGV[3] { w[++nw] = $$0; next }
+{ cc[++nc] = $$0 }
+END {
+  for (h = 1; h <= H; h++) for (j = ws[h] - 1; j <= we[h] + 1; j++) if (j in changed) { take(h); break }
+  if (nq) for (h = 1; h <= H; h++) if (usings(w, ws[h], we[h]) && usings(cc, cs[h], ce[h])) take(h)
+  if (nq) { pairs(w, nw, wb, wp); pairs(cc, nc, cb, cp) }
+  for (k = 1; k <= nq; k++) {
+    h = q[k]
+    if (seq(cb, cs[h], ce[h]) != seq(wb, ws[h], we[h])) { mates(cp, ch, cs[h], ce[h]); mates(wp, wh, ws[h], we[h]) }
+  }
+  p = 1
+  for (h = 1; h <= H; h++) {
+    emit(w, p, ws[h] - 1)
+    if (h in kept) emit(cc, cs[h], ce[h]); else emit(w, ws[h], we[h])
+    p = we[h] + 1
+  }
+  emit(w, p, nw)
+  close(out)
+  print (nq + 0) " " (H - nq)
+}
+endef
+export _KEEP_HUNKS_AWK
+
+# Optimize-usings deletes live usings when a reference doesn't resolve or match the code, hence the compile first.
+# jb runs --no-build after msbuild's restore: jb's own restore can hang "Building solution" forever.
+# One jb pass isn't always a fixed point (nested redundant parentheses), so the files it changed get a second.
+# jb takes whole files, so for cleanup-changed settle keeps only the hunks the changed lines need, or the originals if that doesn't compile.
+_JB_CLEAN = \
+	compile() { $(_MSBUILD_CMD) "$$t" -restore -t:Compile $(MSBUILD_FLAGS) -p:SkipInstall=true < /dev/null > "$$JBLOG/check" 2>&1 && return 0; \
+	  errs=$$(grep -E '(error [A-Z]+[0-9]+|warning (MSB3245|BRO000[123])):' "$$JBLOG/check" | sed 's/^ *//' | sort -u); \
+	  if [ -n "$$errs" ]; then printf '%s\n' "$$errs"; else tail -n 20 "$$JBLOG/check"; fi; \
+	  return 1; }; \
+	compile || { echo "Error: $$t does not restore or compile against its references, so cleanup could delete live using lines; fix the above and rerun."; exit 1; }; \
+	if [ -n "$$INCL" ]; then printf '%s\n' "$$INCL" | tr ';' '\n'; \
+	else (cd "$$dir" && find . -name '*.cs' -type f ! -path '*/obj/*' ! -path '*/bin/*' | sed 's|^\./||'); fi > "$$JBLOG/files"; \
+	snap() { (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cksum); }; \
+	keep() { : > "$$JBLOG/cut"; [ -n "$$INCL" ] || return 0; while IFS= read -r f; do \
+	  cmp -s "$$JBLOG/pre/$$f" "$$dir/$$f" && continue; \
+	  LC_ALL=C awk -F'\t' -v f="$$f" '$$1 == f { print $$2 }' "$$JBLOG/lines" > "$$JBLOG/nums"; \
+	  [ -s "$$JBLOG/nums" ] || continue; \
+	  { cat "$$JBLOG/pre/$$f"; echo; } > "$$JBLOG/w"; { cat "$$dir/$$f"; echo; } > "$$JBLOG/c"; \
+	  diff -a --strip-trailing-cr "$$JBLOG/w" "$$JBLOG/c" > "$$JBLOG/hunks"; \
+	  r=$$(LC_ALL=C awk -v BINMODE=3 -v out="$$JBLOG/kept" "$$_KEEP_HUNKS_AWK" "$$JBLOG/nums" "$$JBLOG/hunks" "$$JBLOG/w" "$$JBLOG/c") \
+	    && [ -n "$$r" ] || { echo "Error: could not filter jb's changes to $$f, which keeps all of them."; exit 1; }; \
+	  case "$$r" in *" 0") continue;; "0 "*) cp "$$JBLOG/pre/$$f" "$$dir/$$f";; *) cp "$$JBLOG/kept" "$$dir/$$f";; esac; \
+	  printf '%s\n' "$$f" >> "$$JBLOG/cut"; \
+	done < "$$JBLOG/files"; }; \
+	named() { while IFS= read -r f; do if [ "$$dir" = . ]; then printf '%s\n' "$$f"; else printf '%s/%s\n' "$$dir" "$$f"; fi; done < "$$JBLOG/cut" >> "$$JBLOG/$$1"; }; \
+	settle() { keep; [ -s "$$JBLOG/cut" ] || return 0; \
+	  if compile; then named partial; return 0; fi; \
+	  while IFS= read -r f; do cp "$$JBLOG/pre/$$f" "$$dir/$$f"; done < "$$JBLOG/cut"; \
+	  named reverted; : > "$$JBLOG/failed"; }; \
+	jbrun() { { $(JB) cleanupcode "$$t" --no-build --properties="$(_JB_PROPERTIES)" --settings="$(CLEANUP_SETTINGS)" \
+	  --profile="$(CLEANUP_PROFILE)" $(_CLEANUP_EXCLUDE_FLAG) "$$@" < /dev/null 2>&1; echo $$? > "$$JBLOG/rc"; } | tee "$$JBLOG/out"; \
+	  return "$$(cat "$$JBLOG/rc")"; }; \
+	if [ -n "$$INCL" ]; then \
+	  (cd "$$dir" && git -c core.quotePath=false diff -U0 -M --raw --no-color --no-ext-diff --relative \
+	    --src-prefix=a/ --dst-prefix=b/ "$$B" -- '*.cs') | LC_ALL=C awk -v BINMODE=3 "$$_CHANGED_LINES_AWK" > "$$JBLOG/lines"; \
+	  rm -rf "$$JBLOG/pre"; mkdir "$$JBLOG/pre"; \
+	  (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cp --parents -t "$$JBLOG/pre"); \
+	fi; \
+	snap > "$$JBLOG/before"; \
+	if [ -n "$$INCL" ]; then jbrun --include="$$INCL"; else jbrun; fi || { \
+	  [ -n "$$INCL" ] && grep -q 'No items were found to cleanup' "$$JBLOG/out" || { settle; exit 1; }; \
+	  echo "jb found nothing to clean in $$t: no project there compiles these files."; continue; }; \
+	CHANGED=$$(snap | diff "$$JBLOG/before" - | sed -n 's/^> //p' | cut -d' ' -f3- | paste -sd';' -); \
+	if [ -n "$$CHANGED" ]; then \
+	  echo "Second pass over the files the first pass changed..."; \
+	  jbrun --include="$$CHANGED" || { settle; exit 1; }; \
+	fi; \
+	settle
 
 .PHONY: cleanup
 cleanup:
 	$(_CHECK_JB)
 	$(_CHECK_SETTINGS)
 	$(_CLEANUP_PREFLIGHT)
-	@if [ -n "$(AUTO_DISCOVER)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
+	@if [ -n "$(_PROJECT_TABLE)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
 	  echo "Error: unscoped 'make cleanup' touches every project in this repo."; \
 	  echo "  Scope to one project:  make cleanup PROJECT=<name>"; \
 	  echo "  Or opt into all:       make cleanup ALL=1"; \
 	  exit 1; \
 	fi
-	@$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	@JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
+	$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	  case "$$t" in "!"*) \
+	    $(if $(PROJECT),echo "Error: no .sln lists $${t#!}$(_comma) so it can't be cleaned."; exit 1,echo "Skipping $${t#!}: no .sln found" >&2; continue);; \
+	  esac; \
+	  dir="$$(dirname "$$t")"; INCL=; \
 	  echo "Cleaning up $$t..."; \
-	  $(JB) cleanupcode "$$t" --settings="$(CLEANUP_SETTINGS)" --profile="$(CLEANUP_PROFILE)" || exit 1; \
+	  $(_JB_CLEAN); \
 	done
 
 .PHONY: cleanup-changed
@@ -194,50 +511,100 @@ cleanup-changed:
 	$(_CHECK_JB)
 	$(_CHECK_SETTINGS)
 	$(_CLEANUP_PREFLIGHT)
-	@FILES=$$(git diff --name-only --diff-filter=ACMR HEAD -- '*.cs'); \
+	@git rev-parse --verify -q HEAD >/dev/null || { echo "Error: cleanup-changed compares against HEAD, so it needs a git repository with a commit."; exit 1; }
+	@B=HEAD; \
+	if [ -n "$(BASE)" ]; then \
+	  git rev-parse --verify -q "$(BASE)^{commit}" >/dev/null || { echo "Error: BASE=$(BASE) is not a commit."; exit 1; }; \
+	  B=$$(git merge-base "$(BASE)" HEAD) || { echo "Error: $(BASE) and HEAD have no merge base."; exit 1; }; \
+	fi; \
+	FILES=$$({ git -c core.quotePath=false diff --name-only --diff-filter=ACMR "$$B" -- '*.cs'; \
+	  git -c core.quotePath=false ls-files --others --exclude-standard -- '*.cs'; } | sort -u); \
 	if [ -z "$$FILES" ]; then \
 	  echo "No changed .cs files."; \
 	  exit 0; \
 	fi; \
 	AUTO_PROJECT=; \
-	if [ -z "$(PROJECT)" ] && [ -n "$(AUTO_DISCOVER)" ]; then \
+	if [ -z "$(PROJECT)" ] && [ -n "$(_PROJECT_TABLE)" ]; then \
 	  DIRS=$$(echo "$$FILES" | awk -F/ '{print $$1}' | sort -u); \
 	  if [ "$$(echo "$$DIRS" | wc -l)" = "1" ]; then \
-	    AUTO_PROJECT=$$(awk -F'\t' -v d="$$DIRS" '{ split($$2, p, "/"); if (p[1] == d) {print $$1; exit} }' $(_PROJ_LIST)); \
+	    AUTO_PROJECT=$$($(_EACH_PROJECT) | awk -F'\t' -v d="$$DIRS" '{ split($$2, p, "/"); if (p[1] == d) { n++; t = $$1 } } END { if (n == 1) print t }'); \
 	    [ -n "$$AUTO_PROJECT" ] && echo "Auto-detected PROJECT=$$AUTO_PROJECT from changed files."; \
 	  fi; \
 	fi; \
 	if [ -n "$$AUTO_PROJECT" ]; then \
-	  LIST=$$(awk -F'\t' -v p="$$AUTO_PROJECT" '$$1 == p {print $$2}' $(_PROJ_LIST)); \
+	  LIST=$$($(_EACH_PROJECT) | awk -F'\t' -v p="$$AUTO_PROJECT" '$$1 == p {print $$2}'); \
 	else \
 	  LIST=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
 	fi; \
+	STRICT="$(PROJECT)$$AUTO_PROJECT"; \
+	JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
 	echo "$$LIST" | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	  case "$$t" in "!"*) \
+	    p="$${t#!}"; \
+	    if [ -n "$$STRICT" ] || echo "$$FILES" | awk -v d="$$(dirname "$$p")/" 'index($$0, d) == 1 { f = 1 } END { exit !f }'; then \
+	      echo "Error: no .sln lists $$p, so its changed files can't be cleaned."; exit 1; \
+	    fi; \
+	    echo "Skipping $$p: no .sln found" >&2; continue;; \
+	  esac; \
 	  dir="$$(dirname "$$t")"; \
 	  if [ "$$dir" = "." ]; then \
 	    SCOPED="$$FILES"; \
 	  else \
 	    SCOPED=$$(echo "$$FILES" | awk -v d="$$dir/" 'index($$0, d) == 1 { print substr($$0, length(d)+1) }'); \
 	  fi; \
+	  $(if $(_CLEANUP_EXCLUDE_LIST),SCOPED=$$(echo "$$SCOPED" | $(_DROP_EXCLUDED));) \
 	  if [ -z "$$SCOPED" ]; then \
 	    echo "No changed .cs files in $$t."; continue; \
 	  fi; \
 	  INCL=$$(echo "$$SCOPED" | paste -sd';' -); \
 	  echo "Cleaning up changed files in $$t..."; \
-	  $(JB) cleanupcode "$$t" --settings="$(CLEANUP_SETTINGS)" --profile="$(CLEANUP_PROFILE)" --include="$$INCL" || exit 1; \
-	done
+	  $(_JB_CLEAN); \
+	done; rc=$$?; \
+	[ -e "$$JBLOG/failed" ] && rc=1; \
+	cmd="make cleanup$(if $(_PROJECT_TABLE), PROJECT=$${STRICT:-<name>})"; \
+	if [ -s "$$JBLOG/partial" ]; then \
+	  while IFS= read -r p; do printf "%s: cleaned the changed lines and left jb's other changes out\n" "$$p"; done < "$$JBLOG/partial"; \
+	  echo "To take the rest, run '$$cmd' on its own as a formatting-only change."; \
+	fi; \
+	if [ -s "$$JBLOG/reverted" ]; then \
+	  while IFS= read -r p; do printf "%s: left as it was, because keeping only the changed lines' cleanup didn't compile\n" "$$p"; done < "$$JBLOG/reverted"; \
+	  echo "Format their changed lines by hand, or take the whole files through '$$cmd' on its own as a formatting-only change."; \
+	fi; \
+	exit $$rc
+
+ifdef COMPAT_PROJECT
+BT ?= bt
+_CHECK_BT = $(call _CHECK_TOOL,$(BT),pipx install path/to/Broforce-Templates/Scripts)
+# $(call _compat_paths,<flag>,<comma-separated paths>) - | stands in for a space while foreach splits
+_compat_paths = $(foreach p,$(subst $(_comma), ,$(subst $(_space),|,$(strip $(2)))),$(1) "$(subst |, ,$(p))")
+_COMPAT_ARGS = $(call _compat_paths,--corpus,$(CORPUS)) $(call _compat_paths,--with,$(WITH)) $(if $(strip $(LIBS)),--libs "$(strip $(LIBS))")
+
+.PHONY: compat-check
+ifneq ($(and $(strip $(SOLUTION)),$(if $(_PROJECT_TABLE),,1)),)
+compat-check:
+	$(_CHECK_BT)
+	@$(call _MSB,$(SOLUTION) $(MSBUILD_FLAGS) $(_NO_LAUNCH_FLAGS) -p:SkipInstall=true </dev/null)
+	@$(BT) compat-check "$(COMPAT_PROJECT)" $(_COMPAT_ARGS)
+else
+compat-check:
+	@echo "Error: compat-check runs in a single-library repo: set SOLUTION instead of AUTO_DISCOVER or PROJECTS." >&2; exit 1
+endif
+endif
 
 .PHONY: help
 help:
 	@echo "$(PROJECT_NAME) Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make build              Build (kill game, build, launch)"
+	@echo "  make build              Build all projects"
 	@echo "  make build-no-launch    Build without disrupting running game"
 	@echo "  make clean              Clean build artifacts"
-	@echo "  make rebuild            Clean and rebuild"
-	@echo "  make cleanup            Run ReSharper code cleanup on all code"
-	@echo "  make cleanup-changed    Run ReSharper code cleanup on git-changed files"
+	@echo "  make rebuild            Clean, then build all projects"
+	@echo "  make cleanup            Run ReSharper code cleanup on all code$(if $(_PROJECT_TABLE), (needs PROJECT=<name> or ALL=1))"
+	@echo "  make cleanup-changed    Clean up the git-changed lines, leaving jb's other changes out"
+ifdef COMPAT_PROJECT
+	@echo "  make compat-check       Build without installing, then report the published mods this build breaks"
+endif
 ifdef EXTRA_HELP
 	@echo ""
 	@$(EXTRA_HELP)
@@ -245,39 +612,62 @@ endif
 	@echo ""
 	@echo "Options:"
 	@echo "  LAUNCH=no               Don't kill or launch game"
-	@echo "  INSTALL=no              Don't copy DLL to game directory"
+	@echo "  LAUNCH=yes              Close the running game and launch it after the install (never under a Claude Code session)"
+	@echo "                          Without LAUNCH, CloseBroforceOnBuild and LaunchBroforceOnBuild from the props decide"
+	@echo "  INSTALL=no              Build without installing, killing or launching game"
 	@echo "  LAUNCH_ARGS=\"...\"       Forward extra args to the launch command"
-	@echo "  PROJECT=<name>          Scope cleanup to one project (AUTO_DISCOVER only)"
+	@echo "  PROJECT=<name>          Scope cleanup to one project (AUTO_DISCOVER or PROJECTS)"
+	@echo "  ALL=1                   Let an unscoped make cleanup touch every project (AUTO_DISCOVER or PROJECTS)"
+	@echo "  BASE=<ref>              Make cleanup-changed take the changes since the branch left <ref>, committed ones included"
+	@echo "  EXCLUDE=<name>          Skip a project (AUTO_DISCOVER); adds to the repo's list when the repo sets it with override EXCLUDE +="
+	@echo "  MSBUILD=<path>          MSBuild to use; a command with arguments works too: MSBUILD=\"dotnet msbuild -restore\""
+ifdef COMPAT_PROJECT
+	@echo "  CORPUS=<dirs>           compat-check: scan these corpus directories instead of Thunderstore's packages"
+	@echo "  WITH=<dlls>             compat-check: use these RocketLib.dll, BroMakerLib.dll or dnlib.dll in place of the published ones"
+	@echo "  LIBS=<dir>              compat-check: read the game assemblies from this directory"
+	@echo "                          CORPUS and WITH take several paths separated by commas; all three paths may contain spaces"
+endif
+ifdef LOCAL_HELP
+	@echo ""
+	@$(LOCAL_HELP)
+endif
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build                  Standard build with game launch"
+	@echo "  make build                  Build everything, then launch the game if the props say so unless LAUNCH=no"
+	$(if $(_PROJECT_TABLE),@echo "  make <a> <b>                Build several projects$(_comma) then launch once$(_comma) as make build does")
 	@echo "  make build LAUNCH=no        Build without disrupting running game"
-	@echo "  make build INSTALL=no       Build without installing to game"
+	@echo "  make build LAUNCH=yes       Build, close the game and launch it again (never under a Claude Code session)"
+	@echo "  make build INSTALL=no       Build without installing, killing or launching game"
 
 # Build targets - can be overridden by setting CUSTOM_BUILD=1 before including
 ifndef CUSTOM_BUILD
+
+ifdef IS_SOLUTION
+# Solution build: build all with launching disabled, then launch once via LaunchOnly
+define _SOLUTION_BUILD
+$(if $(and $(_DO_POST_BUILD),$(if $(strip $(LAUNCH_PROJECT)),,1)),@echo "Error: no project found in $(SOLUTION) to launch"; exit 1)
+$(call _BUILDS,printf '%s\n' $(SOLUTION),$(_BUILD_ONLY_FLAGS),"$(LAUNCH_PROJECT)")
+endef
+else
+# Single project build: the build itself launches
+define _SOLUTION_BUILD
+$(if $(_MULTI_GOAL),$(call _BUILDS,printf '%s\n' $(SOLUTION),$(_BUILD_ONLY_FLAGS),$(SOLUTION)),@$(call _MSB,$(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)))
+endef
+endif
+
 .PHONY: build
 build:
-ifeq ($(LAUNCH),no)
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
-else ifdef IS_SOLUTION
-	@# Solution build: build all with launch disabled, then trigger launch via one project
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=true /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
-	"$(MSBUILD)" "$(LAUNCH_PROJECT)" $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=true $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
-else
-	@# Single project build: normal behavior
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
-endif
+	$(_SOLUTION_BUILD)
 
 .PHONY: build-no-launch
 build-no-launch:
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
+	@$(call _MSB,$(SOLUTION) $(MSBUILD_FLAGS) $(_NO_LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS))
 
 .PHONY: clean
 clean:
-	"$(MSBUILD)" $(SOLUTION) /t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
+	@$(call _MSB,$(SOLUTION) -t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS))
 
 .PHONY: rebuild
 rebuild: clean
-	"$(MSBUILD)" $(SOLUTION) $(MSBUILD_FLAGS) /p:CloseBroforceOnBuild=false /p:LaunchBroforceOnBuild=false $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)
+	$(_SOLUTION_BUILD)
 endif
