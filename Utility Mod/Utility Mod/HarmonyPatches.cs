@@ -269,6 +269,11 @@ namespace Utility_Mod
             public static void Prefix()
             {
                 lastReplayedLevelKey = "";
+
+                if ( ContextMenuManager.Instance != null )
+                {
+                    ContextMenuManager.Instance.CancelActiveInteractions();
+                }
             }
         }
 
@@ -413,18 +418,26 @@ namespace Utility_Mod
 
                 if ( spawnType != Player.SpawnType.RespawnAtRescueBro )
                 {
+                    bool useCustomSpawn = Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel();
+                    Vector3 finalCheckpointPos = Vector3.zero;
+
+                    if ( !useCustomSpawn && !Main.TryGetFinalCheckpointPos( out finalCheckpointPos ) )
+                    {
+                        return;
+                    }
+
                     spawnType = Player.SpawnType.CustomSpawnPoint;
                     spawnViaAirDrop = false;
 
-                    if ( Main.settings.changeSpawn && Main.HasCustomSpawnForCurrentLevel() )
+                    if ( useCustomSpawn )
                     {
                         Vector2 customSpawn = Main.GetCustomSpawnForCurrentLevel();
                         pos.x = customSpawn.x;
                         pos.y = customSpawn.y;
                     }
-                    else if ( Main.settings.changeSpawnFinal )
+                    else
                     {
-                        pos = Main.GetFinalCheckpointPos();
+                        pos = finalCheckpointPos;
                     }
                 }
             }

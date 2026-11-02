@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml.Serialization;
@@ -65,14 +64,14 @@ namespace Utility_Mod
                         record.Actions.RemoveAll( a => a == null );
 
                         // Validate action types
-                        foreach ( var action in record.Actions )
+                        record.Actions.RemoveAll( a =>
                         {
-                            if ( !IsValidAction( action ) )
-                            {
-                                Main.mod.Logger.Warning( $"Skipping invalid action: {action.ActionType}" );
-                                record.Actions.Remove( action );
-                            }
-                        }
+                            if ( IsValidAction( a ) )
+                                return false;
+
+                            Main.mod.Logger.Warning( $"Skipping invalid action: {a.ActionType}" );
+                            return true;
+                        } );
                     }
 
                     return record;
@@ -152,37 +151,6 @@ namespace Utility_Mod
                 Main.mod.Logger.Error( $"Failed to read from clipboard: {ex.Message}" );
                 return null;
             }
-        }
-
-        public static string GetExportSummary( LevelEditRecord record )
-        {
-            if ( record == null || record.Actions == null )
-            {
-                return "No actions to export";
-            }
-
-            // Count action types
-            Dictionary<LevelEditActionType, int> counts = new Dictionary<LevelEditActionType, int>();
-            foreach ( var action in record.Actions )
-            {
-                if ( !counts.ContainsKey( action.ActionType ) )
-                {
-                    counts[action.ActionType] = 0;
-                }
-                counts[action.ActionType]++;
-            }
-
-            // Build summary
-            StringBuilder summary = new StringBuilder();
-            summary.AppendLine( $"Level: {record.LevelKey ?? "Unknown"}" );
-            summary.AppendLine( $"Total Actions: {record.Actions.Count}" );
-
-            foreach ( var kvp in counts )
-            {
-                summary.AppendLine( $"  {kvp.Key}: {kvp.Value}" );
-            }
-
-            return summary.ToString();
         }
     }
 }

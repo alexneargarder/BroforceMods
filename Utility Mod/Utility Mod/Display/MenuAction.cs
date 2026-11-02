@@ -668,30 +668,23 @@ namespace Utility_Mod
         #region Execution Methods
 
         // Execute the action at the given position
-        public void Execute( Vector3 position, bool isQuickAction = false )
+        public bool Execute( Vector3 position, bool isQuickAction = false )
         {
             switch ( Type )
             {
                 // Basic Actions
                 case MenuActionType.Teleport:
-                    ExecuteTeleport( position );
-                    break;
+                    return ExecuteTeleport( position );
 
                 // Spawn Actions
                 case MenuActionType.SpawnEnemy:
-                    if ( UnitType.HasValue )
-                        Main.SpawnUnit( UnitType.Value, position );
-                    break;
+                    return UnitType.HasValue && Main.SpawnUnit( UnitType.Value, position );
 
                 case MenuActionType.SpawnBlock:
-                    if ( BlockType.HasValue )
-                        Main.SpawnBlock( position, BlockType.Value );
-                    break;
+                    return BlockType.HasValue && Main.SpawnBlock( position, BlockType.Value );
 
                 case MenuActionType.SpawnDoodad:
-                    if ( DoodadType.HasValue )
-                        Main.SpawnDoodad( position, DoodadType.Value );
-                    break;
+                    return DoodadType.HasValue && Main.SpawnDoodad( position, DoodadType.Value ) != null;
 
                 // Level Navigation Actions
                 case MenuActionType.PreviousLevel:
@@ -906,16 +899,21 @@ namespace Utility_Mod
                     ExecuteSpawnTestDummy( position );
                     break;
             }
+
+            return true;
         }
 
-        private void ExecuteTeleport( Vector3 position )
+        private bool ExecuteTeleport( Vector3 position )
         {
             // Use the provided position (which will be current mouse pos for quick actions, menu pos for menu items)
             if ( HeroController.players != null && HeroController.players.Length > 0 &&
                 HeroController.players[0] != null && HeroController.players[0].character != null )
             {
                 Main.TeleportToCoords( position.x, position.y );
+                return true;
             }
+
+            return false;
         }
 
         private Unit FindTargetPlayer( Vector3 position, bool isQuickAction )
@@ -1178,10 +1176,10 @@ namespace Utility_Mod
                 manager.CurrentMode = ContextMenuManager.ContextMenuMode.Grab;
                 manager.grabbedUnit = targetUnit;
                 Map.units.Remove( manager.grabbedUnit );
-                // Make player invulnerable while grabbed
                 if ( targetUnit is TestVanDammeAnim bro )
                 {
-                    bro.SetInvulnerable( float.MaxValue );
+                    bro.invulnerable = true;
+                    bro.SetFieldValue( "_invulnerableTime", float.MaxValue );
                 }
             }
         }
@@ -1403,9 +1401,6 @@ namespace Utility_Mod
                         manager.blockToClone = block;
                         manager.CloseMenu();
                     }
-                    else
-                    {
-                    }
                     return;
                 }
             }
@@ -1425,9 +1420,6 @@ namespace Utility_Mod
                         manager.unitToClone = null;
                         manager.blockToClone = block;
                         manager.CloseMenu();
-                    }
-                    else
-                    {
                     }
                     return;
                 }
@@ -1477,19 +1469,7 @@ namespace Utility_Mod
             // Track the destruction if recording and we actually deleted a block
             if ( foundBlock && Main.settings.isRecordingLevelEdits )
             {
-                var editAction = LevelEditAction.CreateBlockDestroy( blockPos );
-                string levelKey = Main.GetCurrentLevelKey();
-
-                if ( !string.IsNullOrEmpty( levelKey ) )
-                {
-                    // Get or create record for this level
-                    if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-                    {
-                        Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-                    }
-
-                    Main.settings.levelEditRecords[levelKey].Actions.Add( editAction );
-                }
+                LevelEditRecord.RecordAction( LevelEditAction.CreateBlockDestroy( blockPos ) );
             }
         }
 
@@ -1603,7 +1583,7 @@ namespace Utility_Mod
         private void ExecuteSpawnTestDummy( Vector3 position )
         {
             RaycastHit groundHit;
-            if ( Physics.Raycast( position + Vector3.up * 10f, Vector3.down, out groundHit, 100f, Map.groundLayer ) )
+            if ( Physics.Raycast( position + Vector3.up * 10f, Vector3.down, out groundHit, 100f, Map.groundLayer | Map.platformLayer | Map.fragileLayer ) )
             {
                 position = groundHit.point;
             }
@@ -1613,19 +1593,7 @@ namespace Utility_Mod
             // Track the spawn if recording
             if ( dummy != null && Main.settings.isRecordingLevelEdits )
             {
-                var editAction = LevelEditAction.CreateTestDummySpawn( position );
-                string levelKey = Main.GetCurrentLevelKey();
-
-                if ( !string.IsNullOrEmpty( levelKey ) )
-                {
-                    // Get or create record for this level
-                    if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-                    {
-                        Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-                    }
-
-                    Main.settings.levelEditRecords[levelKey].Actions.Add( editAction );
-                }
+                LevelEditRecord.RecordAction( LevelEditAction.CreateTestDummySpawn( position ) );
             }
         }
 

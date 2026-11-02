@@ -1,4 +1,7 @@
-## v2.4.2 (unreleased)
+## v2.5.0 (unreleased)
+- Added scrolling to the right-click menu when it doesn't fit on screen.
+- Added a button to capture the Unity log from the mod manager's log window.
+- Fixed bugs with the right-click menu.
 - Allow TankBro's tank to spawn when enemy spawns are disabled.
 - Added fix for reversed and slow scroll wheel in mod manager UI on Linux.
 - Updated Swap Bros integration to use new API.

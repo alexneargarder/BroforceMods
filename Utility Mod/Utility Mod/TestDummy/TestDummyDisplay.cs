@@ -12,10 +12,10 @@ namespace Utility_Mod
         {
             displayMode = DisplayMode.WorldAnchored;
             screenOffset = new Vector2( 0, -200 );
-            fontSize = 24;
-            autoHide = true;  // Changed to true so ShouldDisplay() is checked
-            keepInBounds = false;  // Don't force to stay in bounds
-            hideWhenOffScreen = false;  // Let it naturally go off screen
+            fontSize = 20;
+            autoHide = true;
+            keepInBounds = false;
+            hideWhenOffScreen = false;
 
             dummy = GetComponent<TestDummy>();
         }
@@ -26,15 +26,25 @@ namespace Utility_Mod
                 return "";
 
             return string.Format(
-                "DPS: {0:F1}\n" +
-                "Total: {1}\n" +
-                "Hits: {2}\n" +
-                "HP: {3}/{4}",
+                "HP: {0}/{1}\n" +
+                "Current DPS: {2:F0}\n" +
+                "Avg DPS:     {3:F0}\n" +
+                "Total:       {4}\n" +
+                "Hits:        {5}\n" +
+                "Last Hit:    {6}\n" +
+                "Avg/Min/Max: {7:F0} / {8} / {9}\n" +
+                "Time:        {10:F1}s",
+                dummy.health,
+                dummy.maxHealth,
                 dummy.currentDPS,
+                dummy.averageDPS,
                 dummy.totalDamage,
                 dummy.hitCount,
-                dummy.health,
-                dummy.maxHealth
+                dummy.lastHitDamage,
+                dummy.hitCount > 0 ? (float)dummy.totalDamage / dummy.hitCount : 0f,
+                dummy.minHitDamage,
+                dummy.maxHitDamage,
+                dummy.engagementTime
             );
         }
 
@@ -57,6 +67,7 @@ namespace Utility_Mod
                     textColor = Color.white;
 
                 displayStyle.normal.textColor = textColor;
+                displayStyle.alignment = TextAnchor.MiddleLeft;
             }
 
             InitializeButtonStyles();
@@ -67,11 +78,11 @@ namespace Utility_Mod
             if ( buttonStyle == null )
             {
                 buttonStyle = new GUIStyle( GUI.skin.button );
-                buttonStyle.fontSize = 18;
+                buttonStyle.fontSize = 16;
                 buttonStyle.fontStyle = FontStyle.Bold;
                 buttonStyle.normal.textColor = Color.white;
                 buttonStyle.alignment = TextAnchor.MiddleCenter;
-                buttonStyle.padding = new RectOffset( 10, 10, 5, 5 );
+                buttonStyle.padding = new RectOffset( 8, 8, 4, 4 );
             }
 
             if ( hoverButtonStyle == null )
@@ -83,27 +94,53 @@ namespace Utility_Mod
 
         protected override void OnGUI()
         {
-            base.OnGUI();
-
             if ( !enabled || ( autoHide && !ShouldDisplay() ) || dummy == null )
                 return;
 
-            float buttonWidth = 100f;
-            float buttonHeight = 35f;
-            float buttonSpacing = 10f;
-            Rect buttonRect = new Rect(
-                lastDisplayRect.x + ( lastDisplayRect.width - buttonWidth ) / 2,
-                lastDisplayRect.yMax + buttonSpacing,
-                buttonWidth,
-                buttonHeight
-            );
+            InitializeStyle();
 
-            bool isHovered = buttonRect.Contains( Event.current.mousePosition );
-            GUIStyle currentButtonStyle = isHovered ? hoverButtonStyle : buttonStyle;
+            string text = GetDisplayText();
+            if ( string.IsNullOrEmpty( text ) )
+                return;
 
-            if ( GUI.Button( buttonRect, "Reset", currentButtonStyle ) )
+            if ( Camera.main == null )
+                return;
+
+            Vector3 worldAnchor = dummy.mode == TestDummyMode.Free ? dummy.transform.position : dummy.spawnPosition;
+            Vector3 screenPos = Camera.main.WorldToScreenPoint( worldAnchor );
+            if ( screenPos.z < 0 )
+                return;
+
+            Vector2 guiPos = new Vector2( screenPos.x + screenOffset.x, Screen.height - screenPos.y + screenOffset.y );
+            Vector2 textSize = displayStyle.CalcSize( new GUIContent( text ) );
+            lastDisplayRect = new Rect( guiPos.x - textSize.x / 2, guiPos.y - textSize.y, textSize.x, textSize.y );
+
+            DisplayUtility.DrawInfoBox( lastDisplayRect, text, displayStyle );
+
+            float buttonHeight = 30f;
+            float spacing = 6f;
+            float modeButtonWidth = 60f;
+            float resetButtonWidth = 70f;
+            float totalWidth = modeButtonWidth + spacing + resetButtonWidth;
+            float rowY = lastDisplayRect.yMax + spacing;
+            float rowX = lastDisplayRect.x + ( lastDisplayRect.width - totalWidth ) / 2f;
+
+            Rect modeRect = new Rect( rowX, rowY, modeButtonWidth, buttonHeight );
+            Rect resetRect = new Rect( rowX + modeButtonWidth + spacing, rowY, resetButtonWidth, buttonHeight );
+
+            GUIStyle modeStyle = modeRect.Contains( Event.current.mousePosition ) ? hoverButtonStyle : buttonStyle;
+            GUIStyle resetStyle = resetRect.Contains( Event.current.mousePosition ) ? hoverButtonStyle : buttonStyle;
+
+            string modeLabel = "[" + dummy.GetModeShortLabel() + "]";
+            if ( GUI.Button( modeRect, modeLabel, modeStyle ) )
+            {
+                dummy.CycleMode();
+            }
+
+            if ( GUI.Button( resetRect, "Reset", resetStyle ) )
             {
                 dummy.ResetStats();
+                dummy.RestoreState();
             }
         }
     }

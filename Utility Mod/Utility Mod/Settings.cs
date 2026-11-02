@@ -14,6 +14,13 @@ namespace Utility_Mod
         DistanceBased = 1
     }
 
+    public enum TestDummyMode
+    {
+        AutoReset = 0,
+        Locked = 1,
+        Free = 2
+    }
+
     public class Settings : XmlModSettings
     {
         public override int SettingsVersion { get; set; } = 1;
@@ -123,6 +130,9 @@ namespace Utility_Mod
         public int menuFontSize = 16;  // Default font size
         public MenuAction selectedQuickAction = null;  // Stores the selected quick action
         public List<MenuAction> recentlyUsedItems = new List<MenuAction>();  // List of recently used menu items
+        public TestDummyMode testDummyDefaultMode = TestDummyMode.Locked;
+        public float testDummyAutoResetDelay = 1.5f;
+        public float testDummyStatsAutoClearDelay = 15f;
         public EnemyPaintMode enemyPaintMode = EnemyPaintMode.TimeBased;
         public float enemyPaintDelay = 0.5f;  // Time delay between enemy spawns in paint mode
         public float enemyPaintDistance = 2f;  // Distance threshold in blocks for distance-based enemy painting (1 block = 16 units)

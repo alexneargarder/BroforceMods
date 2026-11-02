@@ -35,6 +35,7 @@ namespace Utility_Mod
         private float rightClickHoldTime = 0f;
         private bool isHoldingRightClick = false;
         private Vector2 menuOpenPosition;
+        private Vector3 menuOpenWorldPosition;
         private UnityModManager.ModEntry mod;
         public MenuAction lastExecutedAction = null;  // Track last action for right-click repeat
 
@@ -44,18 +45,6 @@ namespace Utility_Mod
         }
 
         // Properties to access mode fields through modes instance
-        public ZiplinePoint PendingZiplinePoint
-        {
-            get { return modes?.pendingZiplinePoint; }
-            set { if ( modes != null ) modes.pendingZiplinePoint = value; }
-        }
-
-        public Vector3 FirstZiplinePosition
-        {
-            get { return modes?.firstZiplinePosition ?? Vector3.zero; }
-            set { if ( modes != null ) modes.firstZiplinePosition = value; }
-        }
-
         public Unit unitToClone
         {
             get { return modes?.unitToClone; }
@@ -102,6 +91,7 @@ namespace Utility_Mod
         {
             if ( !Main.enabled )
             {
+                CancelActiveInteractions();
                 return;
             }
 
@@ -116,7 +106,10 @@ namespace Utility_Mod
                 return;
 
             if ( !ShouldProcessInput() )
+            {
+                CancelActiveInteractions();
                 return;
+            }
 
             // Handle special modes before normal input
             if ( CurrentMode == ContextMenuMode.ZiplinePlacement )
@@ -132,8 +125,7 @@ namespace Utility_Mod
                 // Cancel on escape or left click
                 if ( Input.GetKeyDown( KeyCode.Escape ) || Input.GetMouseButtonDown( 0 ) )
                 {
-                    CurrentMode = ContextMenuMode.Normal;
-                    modes.pendingZiplinePoint = null;
+                    CancelZiplinePlacement();
                     return;
                 }
             }
@@ -150,10 +142,10 @@ namespace Utility_Mod
                     {
                         // Clone the unit at mouse position
                         UnitType unitType = modes.unitToClone.GetUnitType();
-                        Main.SpawnUnit( unitType, worldPos );
+                        bool spawned = Main.SpawnUnit( unitType, worldPos );
 
                         // Track the edit if recording
-                        if ( Main.settings.isRecordingLevelEdits )
+                        if ( spawned && Main.settings.isRecordingLevelEdits )
                         {
                             var action = MenuAction.CreateSpawnEnemy( unitType );
                             ui.TrackLevelEdit( action, worldPos );
@@ -176,17 +168,14 @@ namespace Utility_Mod
                             BlockType? blockType = GetBlockTypeFromGroundType( modes.blockToClone.groundType, modes.blockToClone );
                             if ( blockType.HasValue )
                             {
-                                Main.SpawnBlock( snappedPos, blockType.Value );
+                                bool spawned = Main.SpawnBlock( snappedPos, blockType.Value );
 
                                 // Track the edit if recording
-                                if ( Main.settings.isRecordingLevelEdits )
+                                if ( spawned && Main.settings.isRecordingLevelEdits )
                                 {
                                     var action = MenuAction.CreateSpawnBlock( blockType.Value );
                                     ui.TrackLevelEdit( action, snappedPos );
                                 }
-                            }
-                            else
-                            {
                             }
                         }
                     }
@@ -261,6 +250,7 @@ namespace Utility_Mod
                     // Cancel mass delete mode
                     CurrentMode = ContextMenuMode.Normal;
                     modes.isDraggingMassDelete = false;
+                    return;
                 }
             }
 
@@ -270,7 +260,7 @@ namespace Utility_Mod
             if ( CurrentMode == ContextMenuMode.ZiplinePlacement && modes.pendingZiplinePoint == null )
             {
                 // First point was destroyed, cancel placement
-                CurrentMode = ContextMenuMode.Normal;
+                CancelZiplinePlacement();
             }
         }
 
@@ -279,6 +269,9 @@ namespace Utility_Mod
         #region Input Handling
         void LateUpdate()
         {
+            if ( !Main.enabled || !Main.settings.contextMenuEnabled )
+                return;
+
             if ( CurrentMode == ContextMenuMode.Grab && modes.grabbedUnit != null && !modes.grabbedUnit.destroyed && modes.grabbedUnit.health > 0 )
             {
                 Vector3 worldPos = GetMouseWorldPosition();
@@ -369,7 +362,71 @@ namespace Utility_Mod
                 return false;
             }
 
+            if ( Map.isEditing )
+            {
+                return false;
+            }
+
+            if ( PauseController.pauseStatus == PauseStatus.MenuPause || PauseController.pauseStatus == PauseStatus.ConfirmationPause )
+            {
+                return false;
+            }
+
+            // Map.Instance and GameModeController.Instance fall back to FindObjectOfType
+            if ( NeedsGameplayContext() && ( GameModeController.Instance == null || Map.Instance == null ) )
+            {
+                return false;
+            }
+
             return true;
+        }
+
+        private bool NeedsGameplayContext()
+        {
+            return isMenuOpen || isHoldingRightClick || CurrentMode != ContextMenuMode.Normal ||
+                Input.GetMouseButtonDown( 1 ) || Input.GetMouseButtonUp( 1 );
+        }
+
+        public void CancelActiveInteractions()
+        {
+            if ( modes != null )
+            {
+                if ( CurrentMode == ContextMenuMode.Grab )
+                {
+                    modes.ReleaseGrabbedUnit();
+                }
+                else if ( CurrentMode == ContextMenuMode.ZiplinePlacement )
+                {
+                    CancelZiplinePlacement();
+                }
+                else if ( CurrentMode == ContextMenuMode.Clone )
+                {
+                    modes.ExitCloneMode();
+                }
+                else if ( CurrentMode == ContextMenuMode.MassDelete )
+                {
+                    CurrentMode = ContextMenuMode.Normal;
+                    modes.isDraggingMassDelete = false;
+                }
+
+                modes.isPaintMode = false;
+            }
+
+            isHoldingRightClick = false;
+            rightClickHoldTime = 0f;
+
+            CloseMenu();
+        }
+
+        private void CancelZiplinePlacement()
+        {
+            if ( modes.pendingZiplinePoint != null )
+            {
+                Destroy( modes.pendingZiplinePoint.gameObject );
+                modes.pendingZiplinePoint = null;
+            }
+
+            CurrentMode = ContextMenuMode.Normal;
         }
 
         private void HandleContextMenuInput()
@@ -377,11 +434,6 @@ namespace Utility_Mod
             bool rightClickPressed = Input.GetMouseButtonDown( 1 );
             bool rightClickHeld = Input.GetMouseButton( 1 );
             bool rightClickReleased = Input.GetMouseButtonUp( 1 );
-
-            // Debug logging
-            if ( rightClickPressed && mod != null )
-            {
-            }
 
             // Handle menu dismissal (but not when in special modes)
             if ( isMenuOpen && CurrentMode == ContextMenuMode.Normal )
@@ -409,6 +461,12 @@ namespace Utility_Mod
             if ( Input.GetKey( KeyCode.LeftShift ) || Input.GetKey( KeyCode.RightShift ) )
             {
                 modes.HandlePaintMode( pressed, held, released );
+
+                if ( released )
+                {
+                    isHoldingRightClick = false;
+                    rightClickHoldTime = 0f;
+                }
                 return;
             }
 
@@ -478,6 +536,7 @@ namespace Utility_Mod
                 builder.BuildMenuItems();
 
                 menuOpenPosition = Input.mousePosition;
+                menuOpenWorldPosition = GetMouseWorldPosition();
                 CurrentMenu.SetPosition( menuOpenPosition );
 
                 isMenuOpen = true;
@@ -572,26 +631,15 @@ namespace Utility_Mod
 
             // Background style
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
-            bgStyle.normal.background = CreateTexture( 2, 2, new Color( 0f, 0f, 0f, 0.8f * alpha ) );
+            bgStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0f, 0f, 0f, 0.8f ) );
 
             // Draw at top center of screen
             Rect textRect = new Rect( Screen.width / 2 - 300, 100, 600, 70 );
+            Color oldColor = GUI.color;
+            GUI.color = new Color( 1f, 1f, 1f, alpha );
             GUI.Box( textRect, "", bgStyle );
+            GUI.color = oldColor;
             GUI.Label( textRect, quickActionFeedback, style );
-        }
-
-        private Texture2D CreateTexture( int width, int height, Color color )
-        {
-            Color[] pixels = new Color[width * height];
-            for ( int i = 0; i < pixels.Length; i++ )
-            {
-                pixels[i] = color;
-            }
-
-            Texture2D texture = new Texture2D( width, height );
-            texture.SetPixels( pixels );
-            texture.Apply();
-            return texture;
         }
 
         private void DrawHoldProgressIndicator()
@@ -661,7 +709,7 @@ namespace Utility_Mod
         {
             foreach ( var menuItem in items )
             {
-                if ( menuItem.ShowCheckbox && menuItem.ActionId != selectedActionId )
+                if ( menuItem.ShowCheckbox && !menuItem.IsToggleAction && menuItem.ActionId != selectedActionId )
                 {
                     menuItem.IsChecked = false;
                 }
@@ -714,13 +762,7 @@ namespace Utility_Mod
             }
             else
             {
-                // Use menu position for menu items
-                Camera camera = Camera.main ?? Camera.current;
-                if ( camera != null )
-                {
-                    worldPos = camera.ScreenToWorldPoint( menuOpenPosition );
-                    worldPos.z = 0;
-                }
+                worldPos = menuOpenWorldPosition;
             }
 
             // Handle special case for zipline placement
@@ -769,10 +811,10 @@ namespace Utility_Mod
             }
 
             // Execute the action
-            action.Execute( worldPos, useCurrentMousePosition );
+            bool executed = action.Execute( worldPos, useCurrentMousePosition );
 
             // Track level edit if recording is enabled
-            if ( Main.settings.isRecordingLevelEdits )
+            if ( executed && Main.settings.isRecordingLevelEdits )
             {
                 ui.TrackLevelEdit( action, worldPos );
             }
@@ -810,11 +852,6 @@ namespace Utility_Mod
         public bool IsHoldingForMenu()
         {
             return isHoldingRightClick && Main.settings.contextMenuEnabled;
-        }
-
-        public bool IsMenuOpenOrPending()
-        {
-            return isMenuOpen || isHoldingRightClick;
         }
 
         public Vector3 GetMouseWorldPosition()
@@ -954,7 +991,10 @@ namespace Utility_Mod
                     BlockType? blockType = GetBlockTypeFromGroundType( sourceBlock.groundType, sourceBlock );
 
                     // Use our modified SpawnBlockInternal with the exact prefab
-                    Main.SpawnBlockInternal( row, column, blockType ?? BlockType.Brick, prefabBlock );
+                    if ( !Main.SpawnBlockInternal( row, column, blockType ?? BlockType.Brick, prefabBlock ) )
+                    {
+                        return false;
+                    }
 
                     // Track the edit if recording
                     if ( Main.settings.isRecordingLevelEdits && blockType.HasValue )
@@ -1138,42 +1178,6 @@ namespace Utility_Mod
                 }
             }
         }
-
-        private BlockType? MapAmmoCrateType( object ammoType )
-        {
-            if ( ammoType == null )
-                return BlockType.Crate;
-
-            string typeName = ammoType.ToString();
-            switch ( typeName )
-            {
-                case "Standard":
-                    return BlockType.AmmoCrate;
-                case "Airstrike":
-                    return BlockType.AirStrikeAmmoCrate;
-                case "Timeslow":
-                    return BlockType.TimeAmmoCrate;
-                case "RemoteControlCar":
-                    return BlockType.RCCarAmmoCrate;
-                case "MechDrop":
-                    return BlockType.MechDropAmmoCrate;
-                case "AlienPheromones":
-                    return BlockType.AlienPheromonesAmmoCrate;
-                case "Steroids":
-                    return BlockType.SteroidsAmmoCrate;
-                case "Piggy":
-                    return BlockType.PigAmmoCrate;
-                case "Perk":
-                    return BlockType.FlexAmmoCrate;
-                case "Dollars":
-                    return BlockType.MoneyCrate;
-                case "Revive":
-                    return BlockType.PillsCrate;
-                default:
-                    return BlockType.Crate;
-            }
-        }
-
 
         public BlockType? GetBlockTypeFromGroundType( GroundType groundType, Block block = null )
         {
@@ -1479,35 +1483,6 @@ namespace Utility_Mod
                     // Don't support cloning unmapped types
                     return null;
             }
-        }
-
-        public int GetLevelCountForCampaign( int campaignIndex )
-        {
-            // Match the exact logic from Main.cs OnGUI method
-            int actualCampaignNum = campaignIndex + 1;
-            int numberOfLevels = 1;
-
-            switch ( actualCampaignNum )
-            {
-                case 1: numberOfLevels = 4; break;
-                case 2: numberOfLevels = 4; break;
-                case 3: numberOfLevels = 4; break;
-                case 4: numberOfLevels = 4; break;
-                case 5: numberOfLevels = 3; break;
-                case 6: numberOfLevels = 4; break;
-                case 7: numberOfLevels = 5; break;
-                case 8: numberOfLevels = 4; break;
-                case 9: numberOfLevels = 4; break;
-                case 10: numberOfLevels = 4; break;
-                case 11: numberOfLevels = 6; break;
-                case 12: numberOfLevels = 5; break;
-                case 13: numberOfLevels = 5; break;
-                case 14: numberOfLevels = 5; break;
-                case 15: numberOfLevels = 14; break;
-                default: numberOfLevels = 1; break;
-            }
-
-            return numberOfLevels;
         }
 
         public GameObject GetObjectUnderCursor()

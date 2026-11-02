@@ -208,45 +208,61 @@ namespace Utility_Mod
         {
             bool hasItems = false;
 
-            // If quick action is set but not in recently used, add it
-            if ( Main.settings.selectedQuickAction != null )
+            if ( !Main.settings.enableRecentItems )
             {
-                bool found = false;
-                foreach ( var item in Main.settings.recentlyUsedItems )
+                if ( Main.settings.selectedQuickAction != null )
                 {
-                    if ( item.Id == Main.settings.selectedQuickAction.Id )
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-                if ( !found )
-                {
-                    Main.settings.recentlyUsedItems.Insert( 0, Main.settings.selectedQuickAction );
+                    AddRecentlyUsedItem( Main.settings.selectedQuickAction );
+                    hasItems = true;
                 }
             }
-
-            // Add recently used items with checkboxes
-            foreach ( var action in Main.settings.recentlyUsedItems.Take( Main.settings.maxRecentItems ) )
+            else
             {
-                var item = new MenuItem( action.DisplayName, () =>
+                // If quick action is set but not in recently used, add it
+                if ( Main.settings.selectedQuickAction != null )
                 {
-                    manager.ExecuteAction( action );
-                } )
+                    bool found = false;
+                    foreach ( var item in Main.settings.recentlyUsedItems )
+                    {
+                        if ( item.Id == Main.settings.selectedQuickAction.Id )
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if ( !found )
+                    {
+                        Main.settings.recentlyUsedItems.Insert( 0, Main.settings.selectedQuickAction );
+                    }
+                }
+
+                // Add recently used items with checkboxes
+                foreach ( var action in Main.settings.recentlyUsedItems.Take( Main.settings.maxRecentItems ) )
                 {
-                    ActionId = action.Id,
-                    MenuAction = action,
-                    ShowCheckbox = true,
-                    IsChecked = ( Main.settings.selectedQuickAction != null && action.Id == Main.settings.selectedQuickAction.Id )
-                };
-                manager.CurrentMenu.AddItem( item );
-                hasItems = true;
+                    AddRecentlyUsedItem( action );
+                    hasItems = true;
+                }
             }
 
             if ( hasItems )
             {
                 manager.CurrentMenu.AddSeparator();
             }
+        }
+
+        private void AddRecentlyUsedItem( MenuAction action )
+        {
+            var item = new MenuItem( action.DisplayName, () =>
+            {
+                manager.ExecuteAction( action );
+            } )
+            {
+                ActionId = action.Id,
+                MenuAction = action,
+                ShowCheckbox = true,
+                IsChecked = ( Main.settings.selectedQuickAction != null && action.Id == Main.settings.selectedQuickAction.Id )
+            };
+            manager.CurrentMenu.AddItem( item );
         }
 
         public void BuildEnemySubmenu( MenuItem parentMenu )
@@ -864,34 +880,8 @@ namespace Utility_Mod
         public void BuildLevelControlSubmenu( MenuItem parentMenu )
         {
             // Add current level display at the top
-            string currentCampaignDisplay = "Unknown";
+            string currentCampaignDisplay = Main.GetCurrentCampaignDisplayName();
             int currentLevelNum = LevelSelectionController.CurrentLevelNum + 1; // Convert to 1-based
-
-            // Check for online campaign first
-            if ( LevelSelectionController.isOnlineCampaign )
-            {
-                currentCampaignDisplay = LevelSelectionController.currentWorkshopLevel?.name ?? "Online Campaign";
-            }
-            // Check for local custom campaign
-            else if ( LevelSelectionController.loadCustomCampaign )
-            {
-                currentCampaignDisplay = LevelSelectionController.currentCampaign?.header?.name
-                    ?? LevelSelectionController.campaignToLoad
-                    ?? "Custom Campaign";
-            }
-            // Built-in campaign
-            else if ( GameState.Instance != null && !string.IsNullOrEmpty( GameState.Instance.campaignName ) )
-            {
-                // Look for matching campaign in actualCampaignNames
-                for ( int i = 0; i < Main.actualCampaignNames.Length && i < Main.campaignDisplayNames.Length; i++ )
-                {
-                    if ( Main.actualCampaignNames[i] == GameState.Instance.campaignName )
-                    {
-                        currentCampaignDisplay = Main.campaignDisplayNames[i];
-                        break;
-                    }
-                }
-            }
 
             // Add header showing current level
             parentMenu.AddSubItem( MenuItem.CreateHeader( $"Current: {currentCampaignDisplay} - Level {currentLevelNum}" ) );
@@ -982,7 +972,7 @@ namespace Utility_Mod
         {
             MenuItem campaignMenu = new MenuItem( Main.campaignDisplayNames[campaignIndex] );
 
-            int levelCount = manager.GetLevelCountForCampaign( campaignIndex );
+            int levelCount = Main.GetLevelCountForCampaign( campaignIndex );
             for ( int j = 0; j < levelCount; j++ )
             {
                 int levelIndex = j;
@@ -1222,19 +1212,7 @@ namespace Utility_Mod
                 // Track the clear action if recording
                 if ( Main.settings.isRecordingLevelEdits )
                 {
-                    var editAction = LevelEditAction.CreateClearTestDummies();
-                    string levelKey = Main.GetCurrentLevelKey();
-
-                    if ( !string.IsNullOrEmpty( levelKey ) )
-                    {
-                        // Get or create record for this level
-                        if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-                        {
-                            Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-                        }
-
-                        Main.settings.levelEditRecords[levelKey].Actions.Add( editAction );
-                    }
+                    LevelEditRecord.RecordAction( LevelEditAction.CreateClearTestDummies() );
                 }
 
                 manager.CloseMenu();
@@ -1245,6 +1223,12 @@ namespace Utility_Mod
                 TestDummyManager.ResetAllDummies();
                 manager.CloseMenu();
             } ) );
+
+            MenuItem setAllMenu = new MenuItem( "Set All Dummies" );
+            AddSetAllDummiesModeItem( setAllMenu, "Auto-Reset", TestDummyMode.AutoReset );
+            AddSetAllDummiesModeItem( setAllMenu, "Locked", TestDummyMode.Locked );
+            AddSetAllDummiesModeItem( setAllMenu, "Free", TestDummyMode.Free );
+            parentMenu.AddSubItem( setAllMenu );
 
             parentMenu.AddSeparator();
 
@@ -1259,6 +1243,31 @@ namespace Utility_Mod
                     TestDummyManager.SetDPSOverlayVisibility( isChecked );
                 }
             } );
+        }
+
+        private void AddSetAllDummiesModeItem( MenuItem parentMenu, string label, TestDummyMode itemMode )
+        {
+            MenuItem item = new MenuItem( label, () =>
+            {
+                TestDummyManager.SetAllDummiesMode( itemMode );
+                manager.CloseMenu();
+            } )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = TestDummyManager.AllDummiesInMode( itemMode )
+            };
+
+            item.OnToggle = ( isChecked ) =>
+            {
+                TestDummyManager.SetAllDummiesMode( itemMode );
+                foreach ( MenuItem sibling in parentMenu.SubItems )
+                {
+                    sibling.IsChecked = ( sibling == item );
+                }
+            };
+
+            parentMenu.AddSubItem( item );
         }
 
         public void BuildAudioSubmenu( MenuItem parentMenu )
@@ -1735,7 +1744,6 @@ namespace Utility_Mod
                 parentMenu.AddSubItem( new MenuItem( "Start Recording", () =>
                 {
                     Main.settings.isRecordingLevelEdits = true;
-                    string levelKey = Main.GetCurrentLevelKey();
                     manager.CloseMenu();
                 } ) );
             }
@@ -1745,7 +1753,6 @@ namespace Utility_Mod
                 {
                     Main.settings.isRecordingLevelEdits = false;
                     Main.settings.Save( Main.mod );
-                    string levelKey = Main.GetCurrentLevelKey();
                     manager.CloseMenu();
                 } ) );
             }

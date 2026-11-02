@@ -21,7 +21,8 @@ namespace Utility_Mod
         {
             get
             {
-                if ( slotsDict == null )
+                // After XML deserialization the dictionary is empty while SlotsList is populated
+                if ( slotsDict == null || ( slotsDict.Count == 0 && SlotsList != null && SlotsList.Count > 0 ) )
                 {
                     RebuildDictionary();
                 }

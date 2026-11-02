@@ -59,7 +59,7 @@ namespace Utility_Mod
 
             // Create a more opaque background style
             GUIStyle dialogStyle = new GUIStyle( GUI.skin.box );
-            dialogStyle.normal.background = CreateSolidColorTexture( new Color( 0.1f, 0.1f, 0.1f, 0.95f ) );
+            dialogStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0.1f, 0.1f, 0.1f, 0.95f ) );
             GUI.Box( new Rect( 0, 0, dialogWidth, dialogHeight ), "", dialogStyle );
 
             GUILayout.BeginVertical();
@@ -202,28 +202,11 @@ namespace Utility_Mod
             helpKeyStyle.fontStyle = FontStyle.Bold;
         }
 
-        private Texture2D CreateSolidColorTexture( Color color )
-        {
-            Texture2D texture = new Texture2D( 1, 1 );
-            texture.SetPixel( 0, 0, color );
-            texture.Apply();
-            return texture;
-        }
-
         public void TrackLevelEdit( MenuAction action, Vector3 position )
         {
             if ( action == null || !Main.settings.isRecordingLevelEdits )
                 return;
 
-            string levelKey = Main.GetCurrentLevelKey();
-
-            // Get or create record for this level
-            if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-            {
-                Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-            }
-
-            var record = Main.settings.levelEditRecords[levelKey];
             LevelEditAction editAction = null;
 
             // Convert MenuAction to LevelEditAction
@@ -249,10 +232,7 @@ namespace Utility_Mod
                     break;
             }
 
-            if ( editAction != null )
-            {
-                record.Actions.Add( editAction );
-            }
+            LevelEditRecord.RecordAction( editAction );
         }
 
         // Called by Main when a level loads to replay edits

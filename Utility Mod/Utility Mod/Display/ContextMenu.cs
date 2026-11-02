@@ -56,19 +56,13 @@ namespace Utility_Mod
             windowId = windowIdCounter++;
         }
 
-        public void InvalidateStyles()
-        {
-            stylesInitialized = false;
-            widthCalculated = false;
-        }
-
         private void InitializeStyles()
         {
             var settings = Main.settings;
 
             // Menu background style
             menuStyle = new GUIStyle( GUI.skin.box );
-            menuStyle.normal.background = CreateTexture( 2, 2, new Color(
+            menuStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color(
                 settings.menuBackgroundR,
                 settings.menuBackgroundG,
                 settings.menuBackgroundB,
@@ -89,7 +83,7 @@ namespace Utility_Mod
 
             // Hover item style
             itemHoverStyle = new GUIStyle( itemStyle );
-            itemHoverStyle.normal.background = CreateTexture( 2, 2, new Color(
+            itemHoverStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color(
                 settings.menuHighlightR,
                 settings.menuHighlightG,
                 settings.menuHighlightB,
@@ -97,7 +91,7 @@ namespace Utility_Mod
 
             // Separator style
             separatorStyle = new GUIStyle();
-            separatorStyle.normal.background = CreateTexture( 2, 2, new Color( 0.5f, 0.5f, 0.5f, 0.5f ) );
+            separatorStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0.5f, 0.5f, 0.5f, 0.5f ) );
             separatorStyle.fixedHeight = 1f;
             separatorStyle.margin = new RectOffset( 5, 5, 5, 5 );
 
@@ -115,20 +109,6 @@ namespace Utility_Mod
                 Main.settings.menuTextR * 0.8f,  // Slightly dimmer
                 Main.settings.menuTextG * 0.8f,
                 Main.settings.menuTextB * 0.8f );
-        }
-
-        private Texture2D CreateTexture( int width, int height, Color color )
-        {
-            Color[] pixels = new Color[width * height];
-            for ( int i = 0; i < pixels.Length; i++ )
-            {
-                pixels[i] = color;
-            }
-
-            Texture2D texture = new Texture2D( width, height );
-            texture.SetPixels( pixels );
-            texture.Apply();
-            return texture;
         }
 
         #endregion
@@ -244,8 +224,8 @@ namespace Utility_Mod
                 scrollPosition = Vector2.zero;
             }
 
-            // Inside BeginScrollView, Event.current.mousePosition is content-space, so hover detection works unchanged
-            Rect hoverRect = needsScroll ? new Rect( 0, 0, contentWidth, contentHeight ) : localMenuRect;
+            // Inside BeginScrollView, Event.current.mousePosition is content-space, so the viewport is offset by scrollPosition
+            Rect hoverRect = needsScroll ? new Rect( scrollPosition.x, scrollPosition.y, contentWidth, visibleHeight ) : localMenuRect;
             UpdateHoveredIndex( hoverRect );
 
             // Handle submenu
@@ -526,11 +506,6 @@ namespace Utility_Mod
             }
 
             return isOverMenu;
-        }
-
-        private bool IsMouseOverSubmenu()
-        {
-            return activeSubmenu != null && activeSubmenu.IsMouseOver();
         }
 
         #endregion

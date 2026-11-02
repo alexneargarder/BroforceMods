@@ -88,14 +88,6 @@ namespace Utility_Mod
         }
 
         /// <summary>
-        /// Creates a label menu item (no action)
-        /// </summary>
-        public static MenuItem CreateLabel( string text )
-        {
-            return new MenuItem( text, (Action)null );
-        }
-
-        /// <summary>
         /// Creates a header menu item (no action, no hover effect)
         /// </summary>
         public static MenuItem CreateHeader( string text )

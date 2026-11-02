@@ -10,7 +10,6 @@ namespace Utility_Mod
     public enum LevelEditActionType
     {
         SpawnUnit,
-        DestroyUnit,
         SpawnBlock,
         DestroyBlock,
         SpawnDoodad,
@@ -39,10 +38,6 @@ namespace Utility_Mod
 
         [XmlAttribute]
         public float Y2 { get; set; }
-
-        // For background blocks
-        [XmlAttribute]
-        public bool IsBackgroundBlock { get; set; }
 
         // For spawn actions - XML serializer doesn't handle nullable enums well
         [XmlIgnore]
@@ -141,17 +136,6 @@ namespace Utility_Mod
                 X = position.x,
                 Y = position.y,
                 UnitType = unitType
-            };
-        }
-
-        // Constructor for unit destroy
-        public static LevelEditAction CreateUnitDestroy( Vector3 position )
-        {
-            return new LevelEditAction
-            {
-                ActionType = LevelEditActionType.DestroyUnit,
-                X = position.x,
-                Y = position.y
             };
         }
 
@@ -259,11 +243,6 @@ namespace Utility_Mod
                         Main.SpawnUnit( UnitType.Value, position );
                     break;
 
-                case LevelEditActionType.DestroyUnit:
-                    // Find and destroy unit at position
-                    DestroyUnitAtPosition( position );
-                    break;
-
                 case LevelEditActionType.SpawnBlock:
                     if ( BlockType.HasValue )
                         Main.SpawnBlock( position, BlockType.Value );
@@ -330,54 +309,19 @@ namespace Utility_Mod
             int blockX = Mathf.RoundToInt( position.x / 16f );
             int blockY = Mathf.RoundToInt( position.y / 16f );
 
-            if ( IsBackgroundBlock )
-            {
-                // Use Map's proper deletion method for background blocks
-                Map.ClearBackgroundBlock( blockX, blockY );
-            }
-            else
-            {
-                // Use Map's proper deletion method for foreground blocks (handles all types including ladders and indestructible blocks)
-                Map.ClearForegroundBlock( blockX, blockY );
-            }
-        }
-
-        private void DestroyUnitAtPosition( Vector3 position )
-        {
-            // Find nearest unit within a small radius
-            float searchRadius = 16f;
-            Unit nearestUnit = null;
-            float nearestDist = float.MaxValue;
-
-            foreach ( Unit unit in Map.units )
-            {
-                if ( unit != null && !unit.destroyed && unit.health > 0 )
-                {
-                    float dist = Vector3.Distance( unit.transform.position, position );
-                    if ( dist < searchRadius && dist < nearestDist )
-                    {
-                        nearestDist = dist;
-                        nearestUnit = unit;
-                    }
-                }
-            }
-
-            if ( nearestUnit != null )
-            {
-                // Kill the unit
-                nearestUnit.Damage( 9999, DamageType.Normal, 0, 0, 0, null, nearestUnit.X, nearestUnit.Y );
-            }
+            // Use Map's proper deletion method for foreground blocks (handles all types including ladders and indestructible blocks)
+            Map.ClearForegroundBlock( blockX, blockY );
         }
 
         private void ExecuteMassDelete()
         {
             // Get the context menu manager and execute mass delete
-            var manager = UnityEngine.Object.FindObjectOfType<ContextMenuManager>();
+            var manager = ContextMenuManager.Instance;
             if ( manager != null && manager.modes != null )
             {
                 Vector3 startPos = new Vector3( X, Y, 0 );
                 Vector3 endPos = new Vector3( X2, Y2, 0 );
-                manager.modes.ExecuteMassDelete( startPos, endPos );
+                manager.modes.PerformMassDelete( startPos, endPos );
             }
         }
     }
@@ -395,6 +339,23 @@ namespace Utility_Mod
         public LevelEditRecord()
         {
             Actions = new List<LevelEditAction>();
+        }
+
+        public static void RecordAction( LevelEditAction action )
+        {
+            if ( action == null )
+                return;
+
+            string levelKey = Main.GetCurrentLevelKey();
+            if ( string.IsNullOrEmpty( levelKey ) )
+                return;
+
+            if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
+            {
+                Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
+            }
+
+            Main.settings.levelEditRecords[levelKey].Actions.Add( action );
         }
     }
 }

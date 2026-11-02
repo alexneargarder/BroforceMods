@@ -95,7 +95,7 @@ namespace Utility_Mod
 
             // Add dark background for better readability
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
-            bgStyle.normal.background = CreateSolidColorTexture( new Color( 0, 0, 0, 0.8f ) );
+            bgStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0, 0, 0, 0.8f ) );
 
             string objectType = unitToClone != null ? "Enemy" : "Block";
             string instruction = $"Clone Mode Active - Cloning {objectType}\nRight-click to spawn clone • Left-click or ESC to cancel";
@@ -113,13 +113,16 @@ namespace Utility_Mod
                 // Restore invulnerability state
                 grabbedUnit.invulnerable = false;
 
-                if ( grabbedUnit is Mook mook )
+                if ( grabbedUnit is TestVanDammeAnim anim )
                 {
-                    mook.SetFieldValue( "_invulnerableTime", 0f );
+                    anim.SetFieldValue( "_invulnerableTime", 0f );
                 }
 
                 // Add unit back to map
-                Map.units.Add( grabbedUnit );
+                if ( grabbedUnit.health > 0 && Map.units != null && !Map.units.Contains( grabbedUnit ) )
+                {
+                    Map.units.Add( grabbedUnit );
+                }
             }
 
             manager.CurrentMode = ContextMenuManager.ContextMenuMode.Normal;
@@ -136,7 +139,7 @@ namespace Utility_Mod
 
             // Add dark background for better readability
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
-            bgStyle.normal.background = CreateSolidColorTexture( new Color( 0, 0, 0, 0.8f ) );
+            bgStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0, 0, 0, 0.8f ) );
 
             // Check if grabbed unit is a player
             string unitType = "Enemy";
@@ -179,11 +182,16 @@ namespace Utility_Mod
             else
             {
                 // Second click - spawn second point and connect at position
+                bool connected = false;
                 GameObject secondPoint = Main.SpawnDoodad( position, SpawnableDoodadType.ZiplinePoint );
                 if ( secondPoint != null )
                 {
                     ZiplinePoint secondZiplinePoint = secondPoint.GetComponent<ZiplinePoint>();
-                    if ( secondZiplinePoint != null && pendingZiplinePoint != null )
+                    if ( secondZiplinePoint == null )
+                    {
+                        UnityEngine.Object.Destroy( secondPoint );
+                    }
+                    else if ( pendingZiplinePoint != null )
                     {
                         // Clean up any existing connections
                         // Note: ResetZipline is internal, so we manually clean up
@@ -211,19 +219,16 @@ namespace Utility_Mod
                         // Track the zipline as a single action
                         if ( Main.settings.isRecordingLevelEdits )
                         {
-                            string levelKey = Main.GetCurrentLevelKey();
-                            if ( !string.IsNullOrEmpty( levelKey ) )
-                            {
-                                if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-                                {
-                                    Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-                                }
-
-                                var editAction = LevelEditAction.CreateZipline( firstZiplinePosition, position );
-                                Main.settings.levelEditRecords[levelKey].Actions.Add( editAction );
-                            }
+                            LevelEditRecord.RecordAction( LevelEditAction.CreateZipline( firstZiplinePosition, position ) );
                         }
+
+                        connected = true;
                     }
+                }
+
+                if ( !connected && pendingZiplinePoint != null )
+                {
+                    UnityEngine.Object.Destroy( pendingZiplinePoint.gameObject );
                 }
 
                 // Reset state
@@ -272,7 +277,7 @@ namespace Utility_Mod
 
             // Add dark background for better readability
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
-            bgStyle.normal.background = CreateSolidColorTexture( new Color( 0, 0, 0, 0.8f ) );
+            bgStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0, 0, 0, 0.8f ) );
 
             string instruction = "Zipline Placement\nRight-click to place second point • Left-click or ESC to cancel";
             Rect textRect = new Rect( Screen.width / 2 - 300, 50, 600, 70 );
@@ -287,37 +292,30 @@ namespace Utility_Mod
         {
             if ( pressed )
             {
+                MenuAction action = GetPaintAction();
+                if ( action == null )
+                    return;
+
                 // Start paint mode
                 isPaintMode = true;
-                lastPaintTime = Time.time;
-                lastPaintPosition = GetMouseWorldPosition();
+                lastPaintTime = Time.unscaledTime;
+                lastPaintPosition = manager.GetMouseWorldPosition();
 
                 // Execute action at initial position
-                if ( manager.lastExecutedAction != null )
-                {
-                    ExecutePaintAction( manager.lastExecutedAction, lastPaintPosition );
-                }
-                else if ( Main.settings.selectedQuickAction != null )
-                {
-                    ExecutePaintAction( Main.settings.selectedQuickAction, lastPaintPosition );
-                }
+                ExecutePaintAction( action, lastPaintPosition );
             }
             else if ( held && isPaintMode )
             {
                 // Continue painting
-                Vector3 currentPosition = GetMouseWorldPosition();
+                Vector3 currentPosition = manager.GetMouseWorldPosition();
+                MenuAction action = GetPaintAction();
 
-                if ( manager.lastExecutedAction != null || Main.settings.selectedQuickAction != null )
+                // Check if we should paint based on the action type
+                if ( action != null && ShouldPaint( action, currentPosition ) )
                 {
-                    MenuAction action = manager.lastExecutedAction ?? Main.settings.selectedQuickAction;
-
-                    // Check if we should paint based on the action type
-                    if ( ShouldPaint( action, currentPosition ) )
-                    {
-                        ExecutePaintAction( action, currentPosition );
-                        lastPaintTime = Time.time;
-                        lastPaintPosition = currentPosition;
-                    }
+                    ExecutePaintAction( action, currentPosition );
+                    lastPaintTime = Time.unscaledTime;
+                    lastPaintPosition = currentPosition;
                 }
             }
             else if ( released )
@@ -325,6 +323,34 @@ namespace Utility_Mod
                 // End paint mode
                 isPaintMode = false;
             }
+        }
+
+        public static bool IsPaintEligible( MenuAction action )
+        {
+            if ( action == null )
+                return false;
+
+            switch ( action.Type )
+            {
+                case MenuActionType.SpawnBlock:
+                case MenuActionType.SpawnDoodad:
+                case MenuActionType.SpawnEnemy:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        private MenuAction GetPaintAction()
+        {
+            if ( IsPaintEligible( manager.lastExecutedAction ) )
+                return manager.lastExecutedAction;
+
+            if ( IsPaintEligible( Main.settings.selectedQuickAction ) )
+                return Main.settings.selectedQuickAction;
+
+            return null;
         }
 
         public bool ShouldPaint( MenuAction action, Vector3 currentPosition )
@@ -360,7 +386,7 @@ namespace Utility_Mod
                     // For enemies, check time or distance based on settings
                     if ( Main.settings.enemyPaintMode == EnemyPaintMode.TimeBased )
                     {
-                        float timeSinceLastPaint = Time.time - lastPaintTime;
+                        float timeSinceLastPaint = Time.unscaledTime - lastPaintTime;
                         return timeSinceLastPaint >= Main.settings.enemyPaintDelay;
                     }
                     else // DistanceBased
@@ -380,10 +406,11 @@ namespace Utility_Mod
         public void ExecutePaintAction( MenuAction action, Vector3 position )
         {
             // Don't track paint actions in recently used
-            action.Execute( position );
-
-            // But do track for level edit recording
-            manager.TrackLevelEdit( action, position );
+            if ( action.Execute( position ) )
+            {
+                // But do track for level edit recording
+                manager.TrackLevelEdit( action, position );
+            }
         }
 
         // Helper Methods
@@ -404,33 +431,13 @@ namespace Utility_Mod
             GUI.matrix = matrix;
         }
 
-        private Texture2D CreateSolidColorTexture( Color color )
-        {
-            Texture2D texture = new Texture2D( 1, 1 );
-            texture.SetPixel( 0, 0, color );
-            texture.Apply();
-            return texture;
-        }
-
-        private Vector3 GetMouseWorldPosition()
-        {
-            Camera camera = Camera.main ?? Camera.current;
-            if ( camera != null )
-            {
-                Vector3 worldPos = camera.ScreenToWorldPoint( Input.mousePosition );
-                worldPos.z = 0;
-                return worldPos;
-            }
-            return Vector3.zero;
-        }
-
         // Mass Delete Mode Methods
         public void DrawMassDeleteUI()
         {
             // Draw rectangle if dragging
             if ( isDraggingMassDelete )
             {
-                Vector3 currentPos = GetMouseWorldPosition();
+                Vector3 currentPos = manager.GetMouseWorldPosition();
                 DrawSelectionRectangle( massDeleteStartPos, currentPos );
             }
 
@@ -443,7 +450,7 @@ namespace Utility_Mod
 
             // Add dark background for better readability
             GUIStyle bgStyle = new GUIStyle( GUI.skin.box );
-            bgStyle.normal.background = CreateSolidColorTexture( new Color( 0, 0, 0, 0.8f ) );
+            bgStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0, 0, 0, 0.8f ) );
 
             string instruction = "Mass Delete Mode\nClick and drag to select area • Right-click or ESC to cancel";
             Rect textRect = new Rect( Screen.width / 2 - 300, 50, 600, 70 );
@@ -493,19 +500,14 @@ namespace Utility_Mod
             // Record the mass delete action if recording is enabled
             if ( Main.settings.isRecordingLevelEdits )
             {
-                string levelKey = Main.GetCurrentLevelKey();
-                if ( !string.IsNullOrEmpty( levelKey ) )
-                {
-                    if ( !Main.settings.levelEditRecords.ContainsKey( levelKey ) )
-                    {
-                        Main.settings.levelEditRecords[levelKey] = new LevelEditRecord { LevelKey = levelKey };
-                    }
-
-                    var massDeleteAction = LevelEditAction.CreateMassDelete( startPos, endPos );
-                    Main.settings.levelEditRecords[levelKey].Actions.Add( massDeleteAction );
-                }
+                LevelEditRecord.RecordAction( LevelEditAction.CreateMassDelete( startPos, endPos ) );
             }
 
+            PerformMassDelete( startPos, endPos );
+        }
+
+        public void PerformMassDelete( Vector3 startPos, Vector3 endPos )
+        {
             // Calculate bounds
             float minX = Mathf.Min( startPos.x, endPos.x );
             float maxX = Mathf.Max( startPos.x, endPos.x );

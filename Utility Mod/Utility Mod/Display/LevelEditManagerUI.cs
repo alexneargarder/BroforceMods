@@ -44,14 +44,6 @@ namespace Utility_Mod
             instance.OpenWindow();
         }
 
-        public static void Hide()
-        {
-            if ( instance != null )
-            {
-                instance.CloseWindow();
-            }
-        }
-
         private void OpenWindow()
         {
             isVisible = true;
@@ -97,16 +89,10 @@ namespace Utility_Mod
             }
 
             // Get available save slots for this level
-            if ( !Main.settings.levelEditSlots.ContainsKey( currentLevelKey ) )
-            {
-                Main.settings.levelEditSlots[currentLevelKey] = new LevelEditSlots();
-            }
-
-            currentSlots = Main.settings.levelEditSlots[currentLevelKey];
-            currentSlots.RebuildDictionary();
+            currentSlots = Main.settings.levelEditSlots.ContainsKey( currentLevelKey ) ? Main.settings.levelEditSlots[currentLevelKey] : null;
 
             // Build slot names array for dropdown
-            var slots = new List<string>( currentSlots.Slots.Keys );
+            var slots = currentSlots != null ? new List<string>( currentSlots.Slots.Keys ) : new List<string>();
             if ( slots.Count == 0 )
             {
                 slots.Add( "(No saved slots)" );
@@ -130,7 +116,7 @@ namespace Utility_Mod
             windowStyle.fontStyle = FontStyle.Bold;
 
             // Make window background opaque
-            var windowTex = CreateTexture( 2, 2, new Color( 0.15f, 0.15f, 0.15f, 0.95f ) );
+            var windowTex = DisplayUtility.CreateSolidTexture( new Color( 0.15f, 0.15f, 0.15f, 0.95f ) );
             windowStyle.normal.background = windowTex;
             windowStyle.onNormal.background = windowTex;
 
@@ -142,11 +128,11 @@ namespace Utility_Mod
             actionItemStyle.margin = new RectOffset( 2, 2, 1, 1 );
 
             // Make action items more visible with darker background
-            var itemTex = CreateTexture( 2, 2, new Color( 0.2f, 0.2f, 0.2f, 0.8f ) );
+            var itemTex = DisplayUtility.CreateSolidTexture( new Color( 0.2f, 0.2f, 0.2f, 0.8f ) );
             actionItemStyle.normal.background = itemTex;
 
             selectedItemStyle = new GUIStyle( actionItemStyle );
-            selectedItemStyle.normal.background = CreateTexture( 2, 2, new Color( 0.3f, 0.5f, 0.8f, 0.8f ) );
+            selectedItemStyle.normal.background = DisplayUtility.CreateSolidTexture( new Color( 0.3f, 0.5f, 0.8f, 0.8f ) );
 
             buttonStyle = new GUIStyle( GUI.skin.button );
             buttonStyle.fontSize = Mathf.RoundToInt( 14 * scaleFactor );
@@ -162,20 +148,6 @@ namespace Utility_Mod
             stylesInitialized = true;
         }
 
-        private Texture2D CreateTexture( int width, int height, Color color )
-        {
-            Color[] pixels = new Color[width * height];
-            for ( int i = 0; i < pixels.Length; i++ )
-            {
-                pixels[i] = color;
-            }
-
-            Texture2D texture = new Texture2D( width, height );
-            texture.SetPixels( pixels );
-            texture.Apply();
-            return texture;
-        }
-
         private string GetFormattedTitle()
         {
             if ( GameState.Instance == null )
@@ -183,30 +155,10 @@ namespace Utility_Mod
                 return "No Level";
             }
 
-            string campaignName = GameState.Instance.campaignName;
             int levelNum = GameState.Instance.levelNumber;
 
-            // Find the campaign index
-            int campaignIndex = -1;
-            for ( int i = 0; i < Main.actualCampaignNames.Length; i++ )
-            {
-                if ( Main.actualCampaignNames[i] == campaignName )
-                {
-                    campaignIndex = i;
-                    break;
-                }
-            }
-
-            if ( campaignIndex >= 0 && campaignIndex < Main.campaignDisplayNames.Length )
-            {
-                // Use the display name format like "Campaign 1 - Level 2"
-                return $"{Main.campaignDisplayNames[campaignIndex]} - Level {levelNum + 1}";
-            }
-            else
-            {
-                // Fallback if we can't find the campaign
-                return $"Campaign {campaignIndex + 1} - Level {levelNum + 1}";
-            }
+            // Use the display name format like "Campaign 1 - Level 2"
+            return $"{Main.GetCurrentCampaignDisplayName()} - Level {levelNum + 1}";
         }
 
         void Update()
@@ -383,9 +335,6 @@ namespace Utility_Mod
 
                 case LevelEditActionType.SpawnUnit:
                     return $"{index + 1}. Spawn Unit {position} - {action.UnitType}";
-
-                case LevelEditActionType.DestroyUnit:
-                    return $"{index + 1}. Delete Unit {position}";
 
                 case LevelEditActionType.SpawnDoodad:
                     return $"{index + 1}. Spawn Doodad {position} - {action.DoodadType}";
@@ -697,7 +646,7 @@ namespace Utility_Mod
                 if ( GUILayout.Button( $"Save to New Slot ({currentRecord.Actions.Count} actions)", buttonStyle, GUILayout.Height( 35 ) ) )
                 {
                     showNewSlotDialog = true;
-                    newSlotName = "Slot " + ( currentSlots.Slots.Count + 1 );
+                    newSlotName = "Slot " + ( ( currentSlots != null ? currentSlots.Slots.Count : 0 ) + 1 );
                 }
                 GUI.color = Color.white;
             }
@@ -720,7 +669,7 @@ namespace Utility_Mod
 
             // Draw semi-transparent background first
             GUI.color = new Color( 0, 0, 0, 0.7f );
-            GUI.DrawTexture( new Rect( 0, 0, Screen.width, Screen.height ), CreateTexture( 2, 2, Color.white ) );
+            GUI.DrawTexture( new Rect( 0, 0, Screen.width, Screen.height ), DisplayUtility.CreateSolidTexture( Color.white ) );
             GUI.color = Color.white;
 
             // Draw the dialog window
@@ -782,8 +731,14 @@ namespace Utility_Mod
 
         private void SaveToSlot( string slotName )
         {
-            if ( currentSlots != null && currentRecord != null && !string.IsNullOrEmpty( slotName ) )
+            if ( currentRecord != null && !string.IsNullOrEmpty( slotName ) )
             {
+                if ( currentSlots == null )
+                {
+                    currentSlots = new LevelEditSlots();
+                    Main.settings.levelEditSlots[currentLevelKey] = currentSlots;
+                }
+
                 currentSlots.SaveSlot( slotName, currentRecord );
                 currentSlots.SyncToList();
                 RefreshCurrentLevel();
@@ -799,6 +754,10 @@ namespace Utility_Mod
                 if ( currentSlots.DeleteSlot( slotName ) )
                 {
                     currentSlots.SyncToList();
+                    if ( currentSlots.SlotsList.Count == 0 )
+                    {
+                        Main.settings.levelEditSlots.Remove( currentLevelKey );
+                    }
                     RefreshCurrentLevel();
                     Main.settings.Save( Main.mod );
 

@@ -158,7 +158,6 @@ namespace Utility_Mod
             
             // Teleport Options
             "Teleport",
-            "Teleport to Cursor on Right Click",
             "Spawn at Custom Waypoint",
             "Spawn at Final Checkpoint",
             "Save Position for Custom Spawn",
@@ -1327,6 +1326,35 @@ namespace Utility_Mod
 
                 GUILayout.Space( 10 );
 
+                GUILayout.Label( new GUIContent( "Test Dummy Default Mode:", "Mode new test dummies start in" ), GUI.skin.label );
+                settings.testDummyDefaultMode = (TestDummyMode)GUILayout.SelectionGrid(
+                    (int)settings.testDummyDefaultMode,
+                    new GUIContent[] { new GUIContent( "Auto-Reset", "Effects play out, then the dummy snaps back after a delay" ), new GUIContent( "Locked", "Dummy is pinned in place and never moves" ), new GUIContent( "Free", "Full mook behavior including death; no automatic reset" ) },
+                    3,
+                    WindowScaling.ScaledWidth( 300 ) );
+
+                GUILayout.Space( 5 );
+
+                GUILayout.BeginHorizontal();
+                {
+                    GUILayout.Label( new GUIContent( "Auto-Reset Delay: " + settings.testDummyAutoResetDelay.ToString( "0.00" ) + "s",
+                        "Seconds after the last hit before an Auto-Reset dummy snaps back" ),
+                        WindowScaling.ScaledWidth( 250 ) );
+                    settings.testDummyAutoResetDelay = GUILayout.HorizontalSlider( settings.testDummyAutoResetDelay, 0.1f, 5f, WindowScaling.ScaledWidth( 200 ) );
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                {
+                    GUILayout.Label( new GUIContent( "Stats Auto-Clear Delay: " + settings.testDummyStatsAutoClearDelay.ToString( "0.0" ) + "s",
+                        "Seconds of no damage before stats reset themselves" ),
+                        WindowScaling.ScaledWidth( 250 ) );
+                    settings.testDummyStatsAutoClearDelay = GUILayout.HorizontalSlider( settings.testDummyStatsAutoClearDelay, 1f, 60f, WindowScaling.ScaledWidth( 200 ) );
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space( 10 );
+
                 settings.showMousePosition = GUILayout.Toggle( settings.showMousePosition, new GUIContent( "Show Mouse Position", "Displays the world coordinates of the mouse cursor on screen" ) );
 
                 Rect lastRect = GUILayoutUtility.GetLastRect();
@@ -1511,7 +1539,7 @@ namespace Utility_Mod
             GUILayout.BeginHorizontal();
             if ( GUILayout.Button( new GUIContent( "Show Help", "View keyboard shortcuts and usage instructions" ), WindowScaling.ScaledWidth( 100 ) ) )
             {
-                var contextMenuManager = UnityEngine.Object.FindObjectOfType<ContextMenuManager>();
+                var contextMenuManager = ContextMenuManager.Instance;
                 if ( contextMenuManager != null )
                 {
                     contextMenuManager.ShowHelpMenu();
@@ -2413,8 +2441,8 @@ namespace Utility_Mod
 
                 // Context Menu Options
                 case "Quick Clone (Under Cursor)":
-                    var contextMenuManager = UnityEngine.Object.FindObjectOfType<ContextMenuManager>();
-                    if ( contextMenuManager != null )
+                    var contextMenuManager = ContextMenuManager.Instance;
+                    if ( settings.contextMenuEnabled && contextMenuManager != null )
                     {
                         contextMenuManager.QuickCloneUnderCursor();
                     }
@@ -2422,24 +2450,28 @@ namespace Utility_Mod
             }
         }
 
-        public static void SpawnUnit( UnitType unitType, Vector3 vector )
+        public static bool SpawnUnit( UnitType unitType, Vector3 vector )
         {
             // Use RocketLib's GetUnitPrefab method to get the correct prefab
             Unit unitPrefab = unitType.GetUnitPrefab();
 
             if ( unitPrefab == null )
             {
-                return;
+                return false;
             }
 
             // Instantiate the unit
             GameObject spawnedUnit = UnityEngine.Object.Instantiate( unitPrefab, vector, Quaternion.identity ).gameObject;
 
-            if ( spawnedUnit != null )
+            if ( spawnedUnit == null )
             {
-                spawnedUnit.transform.parent = Map.Instance.transform;
-                Registry.RegisterDeterminsiticGameObject( spawnedUnit );
+                return false;
             }
+
+            spawnedUnit.transform.parent = Map.Instance.transform;
+            Registry.RegisterDeterminsiticGameObject( spawnedUnit );
+
+            return true;
         }
 
         static Block CreateBlock( int x, int y, BlockType blockType, Block prefabOverride = null )
@@ -2688,7 +2720,7 @@ namespace Utility_Mod
             return currentBlock;
         }
 
-        public static void SpawnBlock( Vector3 position, BlockType blockType )
+        public static bool SpawnBlock( Vector3 position, BlockType blockType )
         {
             int column = (int)Mathf.Round( position.x / 16f );
             int row = (int)Mathf.Round( position.y / 16f );
@@ -2696,24 +2728,30 @@ namespace Utility_Mod
             // Bounds checking
             if ( column < 0 || column >= Map.MapData.Width || row < 0 || row >= Map.MapData.Height )
             {
-                return;
+                return false;
             }
 
             // Check if space is empty
             if ( Map.blocks[column, row] != null && !Map.blocks[column, row].destroyed )
             {
-                return;
+                return false;
             }
 
-            SpawnBlockInternal( row, column, blockType );
+            return SpawnBlockInternal( row, column, blockType );
         }
 
-        public static void SpawnBlockInternal( int row, int column, BlockType blockType, Block prefabOverride = null )
+        public static bool SpawnBlockInternal( int row, int column, BlockType blockType, Block prefabOverride = null )
         {
             Block block = null;
 
             if ( prefabOverride != null )
             {
+                if ( prefabOverride.groundType == GroundType.Earth && prefabOverride.size == 2 &&
+                    ( column + 1 >= Map.MapData.Width || row - 1 < 0 ) )
+                {
+                    return false;
+                }
+
                 // When we have a prefab override, replicate the core PlaceGround logic
                 // This handles the vast majority of blocks correctly
 
@@ -2770,8 +2808,8 @@ namespace Utility_Mod
                 block = CreateBlock( column, row, blockType );
             }
 
-            if ( block == null ) return;
-            if ( block.groundType != GroundType.Bridge || block.groundType != GroundType.Bridge2 || block.groundType != GroundType.AlienBridge )
+            if ( block == null ) return false;
+            if ( !IsBridgeGroundType( block.groundType ) )
             {
                 if ( column > 0 && Map.blocks[column - 1, row] != null )
                 {
@@ -2810,6 +2848,26 @@ namespace Utility_Mod
                 dirtBlock.backgroundEdgesPrefabs = null;
             }
             block.FirstFrame();
+
+            return true;
+        }
+
+        private static bool IsBridgeGroundType( GroundType groundType )
+        {
+            switch ( groundType )
+            {
+                case GroundType.Bridge:
+                case GroundType.BridgeTop:
+                case GroundType.Bridge2:
+                case GroundType.MetalBridge:
+                case GroundType.MetalBridge2:
+                case GroundType.SacredBridge:
+                case GroundType.AlienBridge:
+                    return true;
+
+                default:
+                    return false;
+            }
         }
 
         public static GameObject SpawnDoodad( Vector3 position, SpawnableDoodadType doodadType )
@@ -2946,34 +3004,38 @@ namespace Utility_Mod
             return result;
         }
 
+        public static int GetLevelCountForCampaign( int campaignIndex )
+        {
+            int actualCampaignNum = campaignIndex + 1;
+
+            switch ( actualCampaignNum )
+            {
+                case 1: return 4;
+                case 2: return 4;
+                case 3: return 4;
+                case 4: return 4;
+                case 5: return 3;
+                case 6: return 4;
+                case 7: return 5;
+                case 8: return 4;
+                case 9: return 4;
+                case 10: return 4;
+                case 11: return 6;
+                case 12: return 5;
+                case 13: return 5;
+                case 14: return 5;
+                case 15: return 14;
+                default: return 1;
+            }
+        }
+
         static void DetermineLevelsInCampaign()
         {
             Main.settings.campaignNum = campaignNum.indexNumber;
 
             if ( lastCampaignNum != campaignNum.indexNumber )
             {
-                int actualCampaignNum = campaignNum.indexNumber + 1;
-                int numberOfLevels = 1;
-                switch ( actualCampaignNum )
-                {
-                    case 1: numberOfLevels = 4; break;
-                    case 2: numberOfLevels = 4; break;
-                    case 3: numberOfLevels = 4; break;
-                    case 4: numberOfLevels = 4; break;
-                    case 5: numberOfLevels = 3; break;
-                    case 6: numberOfLevels = 4; break;
-                    case 7: numberOfLevels = 5; break;
-                    case 8: numberOfLevels = 4; break;
-                    case 9: numberOfLevels = 4; break;
-                    case 10: numberOfLevels = 4; break;
-                    case 11: numberOfLevels = 6; break;
-                    case 12: numberOfLevels = 5; break;
-                    case 13: numberOfLevels = 5; break;
-                    case 14: numberOfLevels = 5; break;
-                    case 15: numberOfLevels = 14; break;
-                    default: numberOfLevels = 1; break;
-                }
-
+                int numberOfLevels = GetLevelCountForCampaign( campaignNum.indexNumber );
 
                 if ( levelNum.indexNumber + 1 > numberOfLevels )
                 {
@@ -3174,21 +3236,84 @@ namespace Utility_Mod
             HeroController.TimeBroBoostHeroes( 0 );
         }
 
-        public static Vector3 GetFinalCheckpointPos()
+        public static bool TryGetFinalCheckpointPos( out Vector3 position )
         {
+            position = Vector3.zero;
+
+            if ( Map.checkPoints == null || Map.checkPoints.Count == 0 )
+            {
+                return false;
+            }
+
             for ( int i = 0; i < Map.checkPoints.Count; ++i )
             {
-                if ( (bool)Traverse.Create( Map.checkPoints[i] ).Field( "isFinal" ).GetValue() )
+                if ( Map.checkPoints[i] != null && (bool)Traverse.Create( Map.checkPoints[i] ).Field( "isFinal" ).GetValue() )
                 {
-                    return Map.checkPoints[i].transform.position;
+                    position = Map.checkPoints[i].transform.position;
+                    return true;
                 }
             }
-            return Map.checkPoints[Map.checkPoints.Count - 1].transform.position;
+
+            CheckPoint lastCheckpoint = Map.checkPoints[Map.checkPoints.Count - 1];
+            if ( lastCheckpoint == null )
+            {
+                return false;
+            }
+
+            position = lastCheckpoint.transform.position;
+            return true;
+        }
+
+        public static Vector3 GetFinalCheckpointPos()
+        {
+            Vector3 position;
+            if ( TryGetFinalCheckpointPos( out position ) )
+            {
+                return position;
+            }
+
+            if ( currentCharacter != null )
+            {
+                return currentCharacter.transform.position;
+            }
+
+            return Vector3.zero;
         }
 
         public static string GetCurrentLevelKey()
         {
             return $"{GameState.Instance.campaignName}_{GameState.Instance.levelNumber}";
+        }
+
+        public static string GetCurrentCampaignDisplayName()
+        {
+            // Check for online campaign first
+            if ( LevelSelectionController.isOnlineCampaign )
+            {
+                return LevelSelectionController.currentWorkshopLevel?.name ?? "Online Campaign";
+            }
+
+            // Check for local custom campaign
+            if ( LevelSelectionController.loadCustomCampaign )
+            {
+                return LevelSelectionController.currentCampaign?.header?.name
+                    ?? LevelSelectionController.campaignToLoad
+                    ?? "Custom Campaign";
+            }
+
+            // Built-in campaign
+            if ( GameState.Instance != null && !string.IsNullOrEmpty( GameState.Instance.campaignName ) )
+            {
+                for ( int i = 0; i < actualCampaignNames.Length && i < campaignDisplayNames.Length; i++ )
+                {
+                    if ( actualCampaignNames[i] == GameState.Instance.campaignName )
+                    {
+                        return campaignDisplayNames[i];
+                    }
+                }
+            }
+
+            return "Unknown";
         }
 
         public static bool HasCustomSpawnForCurrentLevel()
