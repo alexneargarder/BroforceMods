@@ -108,7 +108,7 @@ namespace Unity_Inspector_Mod
             return result;
         }
 
-        public static object InspectSpecificComponent( GameObject go, string componentTypeName )
+        public static object InspectSpecificComponent( GameObject go, string componentTypeName, string memberPath = null )
         {
             if ( go == null ) return null;
 
@@ -127,16 +127,137 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( $"Component {componentTypeName} not found on GameObject {go.name}" );
             }
 
-            return InspectComponent( component );
+            if ( string.IsNullOrEmpty( memberPath ) )
+            {
+                return InspectComponent( component );
+            }
+
+            return InspectMember( component, memberPath );
         }
 
-        private static bool TryGetFieldValue( System.Reflection.FieldInfo field, Component component, out object value )
+        /// <summary>
+        /// Reads one named member, which may be a dotted path into nested members. The bulk walk's
+        /// noise filters do not apply here: a member asked for by name is a member the caller wants.
+        /// </summary>
+        private static object InspectMember( Component component, string memberPath )
+        {
+            var componentType = component.GetType();
+            object owner = component;
+            string leaf = memberPath;
+
+            if ( MemberPath.IsPath( memberPath ) )
+            {
+                var resolution = MemberPath.ResolveOwner( component, memberPath );
+                if ( !resolution.Success )
+                {
+                    return MemberFailure( componentType, memberPath, resolution.Reason, resolution.Error, resolution.Suggestions );
+                }
+
+                owner = resolution.Owner;
+                leaf = resolution.Leaf;
+            }
+
+            var ownerType = owner.GetType();
+
+            FieldInfo field;
+            PropertyInfo property;
+            if ( !MemberPath.FindMember( ownerType, leaf, out field, out property ) )
+            {
+                return MemberFailure( componentType, memberPath, "not-found",
+                    $"No field or property named {leaf} on {ownerType.Name} or any of its base types",
+                    MemberPath.Suggest( ownerType, leaf, MemberPath.PathPrefix( memberPath ) ) );
+            }
+
+            object value;
+            Type memberType;
+            Type declaringType;
+            bool isStatic;
+
+            if ( field != null )
+            {
+                memberType = field.FieldType;
+                declaringType = field.DeclaringType;
+                isStatic = field.IsStatic;
+
+                if ( !TryGetFieldValue( field, owner, out value ) )
+                {
+                    return MemberFailure( componentType, memberPath, "error",
+                        $"Could not read {ownerType.Name}.{leaf}: {memberType.Name} threw on read", null );
+                }
+            }
+            else
+            {
+                memberType = property.PropertyType;
+                declaringType = property.DeclaringType;
+                var accessor = property.GetGetMethod() ?? property.GetGetMethod( true );
+                isStatic = accessor != null && accessor.IsStatic;
+
+                if ( !TryGetPropertyValue( property, owner, out value ) )
+                {
+                    var reason = value as string ?? $"{memberType.Name} threw on read";
+                    return MemberFailure( componentType, memberPath, "error",
+                        $"Could not read {ownerType.Name}.{leaf}: {reason}", null );
+                }
+            }
+
+            object serialized;
+            try
+            {
+                serialized = SerializeValue( value );
+            }
+            catch ( Exception ex )
+            {
+                return MemberFailure( componentType, memberPath, "error",
+                    $"Could not serialize {ownerType.Name}.{leaf}: {ex.Message}", null );
+            }
+
+            return new
+            {
+                type = componentType.Name,
+                fullType = componentType.FullName,
+                success = true,
+                memberPath = memberPath,
+                declaringType = declaringType != null ? declaringType.Name : null,
+                memberType = memberType.Name,
+                isStatic = isStatic,
+                value = serialized
+            };
+        }
+
+        private static object MemberFailure( Type componentType, string memberPath, string reason, string error, string[] suggestions )
+        {
+            if ( suggestions == null )
+            {
+                return new
+                {
+                    type = componentType.Name,
+                    fullType = componentType.FullName,
+                    success = false,
+                    memberPath = memberPath,
+                    reason = reason,
+                    error = error
+                };
+            }
+
+            return new
+            {
+                type = componentType.Name,
+                fullType = componentType.FullName,
+                success = false,
+                memberPath = memberPath,
+                reason = reason,
+                error = error,
+                suggestions = suggestions
+            };
+        }
+
+        private static bool TryGetFieldValue( System.Reflection.FieldInfo field, object component, out object value )
         {
             value = null;
 
             try
             {
-                value = field.GetValue( component );
+                value = field.GetValue( field.IsStatic ? null : component );
                 return true;
             }
             catch
@@ -145,32 +266,46 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static bool TryGetPropertyValue( System.Reflection.PropertyInfo prop, Component component, out object value )
+        /// <summary>
+        /// Unity's non-shared accessors (mesh, material) instantiate a per-object copy on read.
+        /// Returns the shared* twin that names the same value without copying, or null.
+        /// </summary>
+        internal static PropertyInfo SharedTwin( PropertyInfo prop )
         {
-            value = null;
+            if ( prop.GetGetMethod() == null )
+                return null;
 
-            // Unity's non-shared accessors (mesh, material) instantiate a copy on read.
-            var getMethod = prop.GetGetMethod();
-            if ( getMethod != null )
+            var propName = prop.Name;
+            var sharedVersion = "shared" + char.ToUpper( propName[0] ) + propName.Substring( 1 );
+
+            foreach ( var otherProp in prop.DeclaringType.GetProperties() )
             {
-                var propName = prop.Name;
-                var sharedVersion = "shared" + char.ToUpper( propName[0] ) + propName.Substring( 1 );
-                var allProps = prop.DeclaringType.GetProperties();
-
-                foreach ( var otherProp in allProps )
+                if ( otherProp.Name.Equals( sharedVersion, StringComparison.OrdinalIgnoreCase ) &&
+                    otherProp.PropertyType == prop.PropertyType )
                 {
-                    if ( otherProp.Name.Equals( sharedVersion, StringComparison.OrdinalIgnoreCase ) &&
-                        otherProp.PropertyType == prop.PropertyType )
-                    {
-                        value = "<skipped - may create instance>";
-                        return false;
-                    }
+                    return otherProp;
                 }
             }
 
+            return null;
+        }
+
+        private static bool TryGetPropertyValue( System.Reflection.PropertyInfo prop, object component, out object value )
+        {
+            value = null;
+
+            if ( SharedTwin( prop ) != null )
+            {
+                value = "<skipped - may create instance>";
+                return false;
+            }
+
+            var accessor = prop.GetGetMethod() ?? prop.GetGetMethod( true );
+            bool isStatic = accessor != null && accessor.IsStatic;
+
             try
             {
-                value = prop.GetValue( component, null );
+                value = prop.GetValue( isStatic ? null : component, null );
                 return true;
             }
             catch
@@ -195,38 +330,53 @@ namespace Unity_Inspector_Mod
                 };
             }
 
-            var fields = type.GetFields( BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance );
             int fieldCount = 0;
-            foreach ( var field in fields )
+            int propCount = 0;
+            var seen = new HashSet<string>();
+
+            // Most-derived first, so a shadowed member reads the way modify_component writes it.
+            for ( Type t = type; t != null; t = t.BaseType )
             {
-                try
+                var fields = t.GetFields( BindingFlags.DeclaredOnly | BindingFlags.Public
+                    | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static );
+                foreach ( var field in fields )
                 {
-                    if ( field.Name.Contains( "k__BackingField" ) ||
-                        field.Name.Contains( "m_" ) ||
-                        field.FieldType.FullName.Contains( "System.Action" ) ||
-                        field.FieldType.FullName.Contains( "System.Func" ) )
+                    // Reserved before the filters, so a dropped derived member still hides its base shadow.
+                    if ( !seen.Add( field.Name ) )
                         continue;
 
-                    object value;
-                    if ( TryGetFieldValue( field, component, out value ) )
+                    try
                     {
-                        properties[field.Name] = SerializeValue( value );
-                    }
-                    else
-                    {
-                        properties[field.Name] = $"<timeout or error reading {field.FieldType.Name}>";
-                    }
-                    fieldCount++;
-                }
-                catch { }
-            }
+                        if ( field.Name.Contains( "k__BackingField" ) ||
+                            field.Name.Contains( "m_" ) ||
+                            field.FieldType.FullName.Contains( "System.Action" ) ||
+                            field.FieldType.FullName.Contains( "System.Func" ) )
+                            continue;
 
-            var props = type.GetProperties( BindingFlags.Public | BindingFlags.Instance );
-            int propCount = 0;
-            foreach ( var prop in props )
-            {
-                if ( prop.CanRead && prop.GetIndexParameters().Length == 0 )
+                        object value;
+                        if ( TryGetFieldValue( field, component, out value ) )
+                        {
+                            properties[field.Name] = SerializeValue( value );
+                        }
+                        else
+                        {
+                            properties[field.Name] = $"<timeout or error reading {field.FieldType.Name}>";
+                        }
+                        fieldCount++;
+                    }
+                    catch { }
+                }
+
+                var props = t.GetProperties( BindingFlags.DeclaredOnly | BindingFlags.Public
+                    | BindingFlags.Instance | BindingFlags.Static );
+                foreach ( var prop in props )
                 {
+                    if ( !seen.Add( prop.Name ) )
+                        continue;
+
+                    if ( !prop.CanRead || prop.GetIndexParameters().Length != 0 )
+                        continue;
+
                     try
                     {
                         if ( prop.PropertyType.FullName.Contains( "System.Action" ) ||

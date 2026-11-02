@@ -8,6 +8,25 @@ namespace Unity_Inspector_Mod
     {
         private static MainThreadDispatcher instance;
         private static readonly Queue<Action> executionQueue = new Queue<Action>();
+        private static volatile int mainThreadId;
+
+        // A TimeoutException means the action did not run and will not run. The wrapper and the
+        // waiter race for the same state through one interlocked exchange: the wrapper claims Pending
+        // for Running or returns without touching the action, and the waiter claims Pending for
+        // Abandoned or - having lost, so the action is already running - waits it out for one more
+        // budget and reports its real outcome. An action still running past that second budget has
+        // the main thread hung; the waiter then throws MainThreadActionRunningException, a different
+        // type, so nothing reads that as an action that never ran.
+        private const int StatePending = 0;
+        private const int StateRunning = 1;
+        private const int StateAbandoned = 2;
+
+        private sealed class PendingAction
+        {
+            public int State;
+            public volatile bool Completed;
+            public Exception Error;
+        }
         
         public static MainThreadDispatcher Instance
         {
@@ -31,8 +50,18 @@ namespace Unity_Inspector_Mod
             }
         }
         
+        void Awake()
+        {
+            mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        }
+
         public void Update()
         {
+            if (mainThreadId == 0)
+            {
+                mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            }
+
             lock (executionQueue)
             {
                 while (executionQueue.Count > 0)
@@ -70,43 +99,91 @@ namespace Unity_Inspector_Mod
                 return;
             }
             
-            bool completed = false;
-            Exception exception = null;
+            // Already on the main thread: the queue cannot drain while this call waits, so waiting
+            // on it would only spend the whole budget and time out.
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId)
+            {
+                action();
+                return;
+            }
 
-            // Enqueue itself blocks while Update drains the queue, so the budget has to cover it.
+            var pending = new PendingAction();
+
+            // Update holds the queue lock for the whole drain, so the enqueue itself can block for as
+            // long as the action running now takes; the budget covers that wait, and running out of it
+            // while still outside the lock is a timeout with nothing queued at all.
             var startTime = DateTime.Now;
 
-            Enqueue(() =>
+            Action wrapper = () =>
             {
+                if (System.Threading.Interlocked.CompareExchange(
+                        ref pending.State, StateRunning, StatePending) != StatePending)
+                {
+                    return;
+                }
+
                 try
                 {
                     action();
                 }
                 catch (Exception ex)
                 {
-                    exception = ex;
+                    pending.Error = ex;
                 }
                 finally
                 {
-                    completed = true;
+                    pending.Completed = true;
                 }
-            });
+            };
 
-            while (!completed)
+            if (!System.Threading.Monitor.TryEnter(executionQueue, timeoutMs))
             {
-                if ((DateTime.Now - startTime).TotalMilliseconds > timeoutMs)
+                throw new TimeoutException($"Main thread action timed out after {timeoutMs}ms");
+            }
+            try
+            {
+                executionQueue.Enqueue(wrapper);
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit(executionQueue);
+            }
+
+            bool started = false;
+            while (!pending.Completed)
+            {
+                double elapsed = (DateTime.Now - startTime).TotalMilliseconds;
+                if (!started && elapsed > timeoutMs)
                 {
-                    throw new TimeoutException($"Main thread action timed out after {timeoutMs}ms");
+                    if (System.Threading.Interlocked.CompareExchange(
+                            ref pending.State, StateAbandoned, StatePending) == StatePending)
+                    {
+                        throw new TimeoutException($"Main thread action timed out after {timeoutMs}ms");
+                    }
+
+                    // The action beat the deadline to the state and is running now, so it will finish
+                    // and set Completed; the caller gets its return or its exception, never a timeout.
+                    started = true;
+                }
+                else if (started && elapsed > timeoutMs * 2)
+                {
+                    throw new MainThreadActionRunningException(
+                        $"Main thread action started but has not finished after {timeoutMs * 2}ms - the main thread is not advancing");
                 }
                 System.Threading.Thread.Sleep(10);
             }
-            
-            if (exception != null)
+
+            if (pending.Error != null)
             {
-                throw exception;
+                throw pending.Error;
             }
         }
         
+        public sealed class MainThreadActionRunningException : Exception
+        {
+            public MainThreadActionRunningException(string message) : base(message) { }
+        }
+
         void OnDestroy()
         {
             instance = null;

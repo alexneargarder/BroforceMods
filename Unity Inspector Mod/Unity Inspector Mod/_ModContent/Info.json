@@ -3,6 +3,8 @@
 	"DisplayName": "Unity Inspector Mod",
 	"Author": "AlexN",
 	"Version": "1.0.0",
+	"Requirements": [ "RocketLib" ],
+	"LoadAfter": [ "RocketLib" ],
 	"AssemblyName": "Unity Inspector Mod.dll",
 	"EntryMethod": "Unity_Inspector_Mod.Main.Load"
 }

@@ -20,6 +20,12 @@ namespace Unity_Inspector_Mod
             public string SourceHash;
             public Action<string> Logger;
             public Dictionary<string, string> Args;
+
+            // A teardown stage that timed out never ran, so a later cleanup has to run it again while
+            // the stages that did run must not be repeated. The destroy stage records itself: the
+            // action's own Clear() leaves TrackedGameObjects empty only when it ran.
+            public bool UnloadRan;
+            public bool HarmonyUnpatched;
         }
 
         private class MainOutputCapture
@@ -48,6 +54,20 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        // A teardown wait that timed out did not run, so the script has to stay registered: its
+        // registration holds the only handles on the objects a later unload_script must still destroy.
+        private class CleanupResult
+        {
+            public readonly List<string> Errors = new List<string>();
+            public string TimedOut;
+
+            public void AddTimeout(string message)
+            {
+                Errors.Add(message);
+                TimedOut = TimedOut == null ? message : TimedOut + "; " + message;
+            }
+        }
+
         private static readonly Dictionary<string, ActiveScript> activeScripts =
             new Dictionary<string, ActiveScript>(StringComparer.OrdinalIgnoreCase);
 
@@ -62,13 +82,29 @@ namespace Unity_Inspector_Mod
             ActiveScript existing;
             if (activeScripts.TryGetValue(name, out existing) && existing.SourceHash == hash)
             {
-                LogCleanupWarnings(name, "restart", CleanupScript(name, existing));
+                var restart = CleanupScript(name, existing);
+                LogCleanupWarnings(name, "restart", restart.Errors);
+
+                if (restart.TimedOut != null)
+                {
+                    return StillLoadedRefusal(name, "restarted", restart);
+                }
+
+                // Main() runs again, so the next teardown starts from the top.
+                existing.UnloadRan = false;
+                existing.HarmonyUnpatched = false;
                 return InvokeMain(name, existing, args);
             }
 
             if (existing != null)
             {
-                LogCleanupWarnings(name, "replace", UnloadInternal(name, existing));
+                var cleanup = UnloadInternal(name, existing);
+                LogCleanupWarnings(name, "replace", cleanup.Errors);
+
+                if (cleanup.TimedOut != null)
+                {
+                    return StillLoadedRefusal(name, "replaced", cleanup);
+                }
             }
 
             var result = ScriptCompiler.Compile(name, source);
@@ -144,11 +180,15 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static List<string> CleanupScript(string name, ActiveScript script)
+        // The stages run in order and each is skipped once it is done, so a retry picks up where the
+        // timeout left off. A timed-out stage returns at once: the ones after it depend on it having
+        // run, and stripping the patches of a script whose Unload() was abandoned is not a teardown.
+        // A stage that threw anything else did run, and is not retried.
+        private static CleanupResult CleanupScript(string name, ActiveScript script)
         {
-            var errors = new List<string>();
+            var result = new CleanupResult();
 
-            if (script.UnloadMethod != null)
+            if (script.UnloadMethod != null && !script.UnloadRan)
             {
                 try
                 {
@@ -166,19 +206,31 @@ namespace Unity_Inspector_Mod
                         }
                     }, 10000);
                 }
+                catch (TimeoutException ex)
+                {
+                    result.AddTimeout("Unload() timed out: " + ex.Message);
+                    return result;
+                }
                 catch (Exception ex)
                 {
-                    errors.Add("Unload() failed: " + ex.Message);
+                    result.Errors.Add("Unload() failed: " + ex.Message);
                 }
+
+                script.UnloadRan = true;
             }
 
-            try
+            if (!script.HarmonyUnpatched)
             {
-                script.HarmonyInstance.UnpatchAll("script." + name);
-            }
-            catch (Exception ex)
-            {
-                errors.Add("Harmony unpatch failed: " + ex.Message);
+                try
+                {
+                    script.HarmonyInstance.UnpatchAll("script." + name);
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add("Harmony unpatch failed: " + ex.Message);
+                }
+
+                script.HarmonyUnpatched = true;
             }
 
             if (script.TrackedGameObjects.Count > 0)
@@ -195,17 +247,39 @@ namespace Unity_Inspector_Mod
                             }
                         }
 
-                        // EnqueueAndWait's timeout only stops waiting; the action stays queued, so clear inside it.
+                        // Cleared inside the action: a wait that timed out destroyed nothing, and a clear
+                        // outside it would drop the only handles on objects that are still alive.
                         script.TrackedGameObjects.Clear();
                     }, 5000);
                 }
+                catch (TimeoutException ex)
+                {
+                    result.AddTimeout("GameObject cleanup timed out: " + ex.Message);
+                    return result;
+                }
                 catch (Exception ex)
                 {
-                    errors.Add("GameObject cleanup failed: " + ex.Message);
+                    result.Errors.Add("GameObject cleanup failed: " + ex.Message);
                 }
             }
 
-            return errors;
+            return result;
+        }
+
+        // Main() must not run again over an instance whose teardown never ran, so both the restart and
+        // the replace path answer with this instead of loading the source.
+        private static object StillLoadedRefusal(string name, string action, CleanupResult cleanup)
+        {
+            return new
+            {
+                success = false,
+                error = "Script '" + name + "' is still loaded and was not " + action + ": "
+                    + cleanup.TimedOut
+                    + ". That teardown and the ones after it did not run; the ones before it did and"
+                    + " stay done, so unload_script can be called to retry the rest before the script"
+                    + " is loaded again.",
+                warnings = cleanup.Errors.ToArray()
+            };
         }
 
         private static void LogCleanupWarnings(string name, string action, List<string> warnings)
@@ -214,14 +288,19 @@ namespace Unity_Inspector_Mod
                 Main.Log("[Script:" + name + "] " + action + ": " + warning);
         }
 
-        private static List<string> UnloadInternal(string name, ActiveScript script)
+        private static CleanupResult UnloadInternal(string name, ActiveScript script)
         {
-            var errors = CleanupScript(name, script);
+            var result = CleanupScript(name, script);
+
+            if (result.TimedOut != null)
+            {
+                return result;
+            }
 
             activeScripts.Remove(name);
             CodeExecutor.UnregisterScriptAssembly(script.Assembly);
 
-            return errors;
+            return result;
         }
 
         public static object UnloadScript(string name)
@@ -232,14 +311,26 @@ namespace Unity_Inspector_Mod
                 return new { success = false, error = "Script not found: " + name };
             }
 
-            var errors = UnloadInternal(name, script);
+            var result = UnloadInternal(name, script);
 
-            if (errors.Count > 0)
+            if (result.TimedOut != null)
+            {
+                return new
+                {
+                    success = false,
+                    error = "Script '" + name + "' is still loaded: " + result.TimedOut
+                        + ". That teardown and the ones after it did not run; the ones before it did"
+                        + " and stay done, so unload_script can be called again to retry the rest.",
+                    warnings = result.Errors.ToArray()
+                };
+            }
+
+            if (result.Errors.Count > 0)
             {
                 return new
                 {
                     success = true,
-                    warnings = errors.ToArray()
+                    warnings = result.Errors.ToArray()
                 };
             }
 

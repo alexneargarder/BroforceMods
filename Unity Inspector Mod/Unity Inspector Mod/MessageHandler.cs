@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using RocketLib.Utils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -150,24 +151,8 @@ namespace Unity_Inspector_Mod
 
             var detailed = parameters?["detailed"]?.ToObject<bool>() ?? false;
 
-            // GameObject.Find only searches the active scene hierarchy.
-            GameObject go = null;
-            
-            go = GameObject.Find( path );
-            
-            if ( go == null )
-            {
-                var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
-                foreach ( var transform in allTransforms )
-                {
-                    if ( transform.gameObject != null && GetGameObjectPath( transform.gameObject ) == path )
-                    {
-                        go = transform.gameObject;
-                        break;
-                    }
-                }
-            }
-            
+            GameObject go = FindGameObjectByPath( path );
+
             if ( go == null )
             {
                 throw new ArgumentException( $"GameObject not found: {path}" );
@@ -180,6 +165,7 @@ namespace Unity_Inspector_Mod
         {
             var path = parameters?["path"]?.ToString();
             var componentType = parameters?["componentType"]?.ToString();
+            var memberPath = parameters?["memberPath"]?.ToString();
             
             if ( string.IsNullOrEmpty( path ) )
             {
@@ -191,29 +177,28 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( "Component type is required" );
             }
 
-            GameObject go = null;
-            
-            go = GameObject.Find( path );
-            
-            if ( go == null )
-            {
-                var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
-                foreach ( var transform in allTransforms )
-                {
-                    if ( transform.gameObject != null && GetGameObjectPath( transform.gameObject ) == path )
-                    {
-                        go = transform.gameObject;
-                        break;
-                    }
-                }
-            }
-            
+            GameObject go = FindGameObjectByPath( path );
+
             if ( go == null )
             {
                 throw new ArgumentException( $"GameObject not found: {path}" );
             }
 
-            return GameObjectInspector.InspectSpecificComponent( go, componentType );
+            if ( string.IsNullOrEmpty( memberPath ) )
+            {
+                return GameObjectInspector.InspectSpecificComponent( go, componentType, null );
+            }
+
+            // A dotted path reads a struct link and its leaf out of one object graph; the main
+            // thread is where the game leaves that graph consistent.
+            object result = null;
+
+            MainThreadDispatcher.EnqueueAndWait( () =>
+            {
+                result = GameObjectInspector.InspectSpecificComponent( go, componentType, memberPath );
+            }, 5000 );
+
+            return result;
         }
 
         private object HandleQueryGameObjects( JObject parameters )
@@ -277,49 +262,144 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                
-                var enemies = UnityEngine.Object.FindObjectsOfType<Unit>()
-                    .Where( u => u != null && u.gameObject != null &&
-                           (u.GetType().Name.Contains( "Mook" ) || u.GetType().Name.Contains( "Enemy" )) )
-                    .Select( e => 
-                    {
-                        try
-                        {
-                            return new
-                            {
-                                name = e.name,
-                                type = e.GetType().Name,
-                                position = new { x = e.X, y = e.Y },
-                                health = e.health,
-                                isAlive = e.health > 0
-                            };
-                        }
-                        catch ( Exception ex )
-                        {
-                            Main.Log( $"HandleListEnemies - Error processing enemy {e.name}: {ex.Message}" );
-                            return null;
-                        }
-                    } )
-                    .Where( e => e != null )
-                    .ToArray();
+                object result = null;
 
-                return new { count = enemies.Length, enemies };
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    result = ListEnemiesOnMainThread();
+                }, 5000 );
+
+                return result;
             }
             catch ( Exception ex )
             {
                 Main.Log( $"HandleListEnemies - Fatal error: {ex.Message}\n{ex.StackTrace}" );
-                return new { error = ex.Message, count = 0, enemies = new object[0] };
+                return new { error = ex.Message, count = 0, mapLoaded = false, enemies = new object[0] };
+            }
+        }
+
+        private static object ListEnemiesOnMainThread()
+        {
+            var registry = Map.units;
+            bool mapLoaded = Map.Instance != null && registry != null;
+
+            var enemies = new List<object>();
+            var seen = new HashSet<int>();
+
+            if ( registry != null )
+            {
+                for ( int i = 0; i < registry.Count; i++ )
+                {
+                    AddEnemy( registry[i], seen, enemies );
+                }
+            }
+
+            if ( mapLoaded )
+            {
+                // Boss derives from NetworkedUnit rather than Unit, and sandworms never call RegisterUnit.
+                foreach ( var unit in UnityEngine.Object.FindObjectsOfType<NetworkedUnit>() )
+                {
+                    AddEnemy( unit, seen, enemies );
+                }
+            }
+
+            if ( enemies.Count > 0 )
+            {
+                return new { count = enemies.Count, mapLoaded, enemies = enemies.ToArray() };
+            }
+
+            string[] suppressedBy = mapLoaded ? StateModifier.GetActiveEnemySpawnSuppressors() : new string[0];
+            string[] enemySpawnPrefixOwners = mapLoaded ? StateModifier.GetEnemySpawnPrefixOwners() : new string[0];
+            return new
+            {
+                count = 0,
+                mapLoaded,
+                enemies = new object[0],
+                enemySpawnSuppressed = suppressedBy.Length > 0,
+                suppressedBy,
+                enemySpawnPrefixOwners
+            };
+        }
+
+        // RocketLib's group arrays are disjoint today; first group named wins if that ever stops holding.
+        private static readonly Dictionary<UnitType, string> unitCategories = BuildUnitCategories();
+
+        private static Dictionary<UnitType, string> BuildUnitCategories()
+        {
+            var categories = new Dictionary<UnitType, string>();
+            AddUnitCategory( categories, UnitTypes.NormalUnits, "normal" );
+            AddUnitCategory( categories, UnitTypes.AlienUnits, "alien" );
+            AddUnitCategory( categories, UnitTypes.HellUnits, "hell" );
+            AddUnitCategory( categories, UnitTypes.BossUnits, "boss" );
+            AddUnitCategory( categories, UnitTypes.WormUnits, "worm" );
+            AddUnitCategory( categories, UnitTypes.VehicleEnemies, "vehicle" );
+            AddUnitCategory( categories, UnitTypes.FriendlyUnits, "friendly" );
+            AddUnitCategory( categories, UnitTypes.OtherUnits, "other" );
+            categories[UnitType.None] = "none";
+            return categories;
+        }
+
+        private static void AddUnitCategory( Dictionary<UnitType, string> categories, UnitType[] types, string category )
+        {
+            for ( int i = 0; i < types.Length; i++ )
+            {
+                if ( !categories.ContainsKey( types[i] ) )
+                {
+                    categories[types[i]] = category;
+                }
+            }
+        }
+
+        private static void AddEnemy( NetworkedUnit unit, HashSet<int> seen, List<object> enemies )
+        {
+            try
+            {
+                if ( unit == null || unit.gameObject == null ) return;
+                // Map.units holds units whose GameObject is inactive - 52 pre-spawned face huggers on Challenge_Alien.
+                if ( !unit.gameObject.activeInHierarchy ) return;
+                if ( !unit.IsEnemy ) return;
+                if ( !seen.Add( unit.GetInstanceID() ) ) return;
+
+                // RocketLib classifies Unit and TestVanDammeAnim; a NetworkedUnit that is neither has no classification.
+                Unit classifiable = unit as Unit;
+                string unitType = null;
+                string category = null;
+                if ( classifiable != null )
+                {
+                    UnitType resolved = classifiable.GetUnitType();
+                    unitType = resolved.ToString();
+                    string named;
+                    category = unitCategories.TryGetValue( resolved, out named ) ? named : "unknown";
+                }
+
+                enemies.Add( new
+                {
+                    name = unit.name,
+                    type = unit.GetType().Name,
+                    unitType,
+                    category,
+                    isMook = unit.IsMook,
+                    position = new { x = unit.X, y = unit.Y },
+                    health = unit.health,
+                    isAlive = unit.health > 0
+                } );
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"HandleListEnemies - Error processing unit: {ex.Message}" );
             }
         }
 
         private object HandleScreenshot( JObject parameters )
         {
-            var screenshotPath = ScreenshotCapture.TakeScreenshot();
+            var capture = ScreenshotCapture.TakeScreenshot( parameters?["highlight"] );
 
             return new
             {
                 success = true,
-                path = screenshotPath,
+                path = capture.Path,
+                highlighted = capture.Highlighted,
+                highlightError = capture.HighlightError,
                 timestamp = DateTime.UtcNow
             };
         }
@@ -350,7 +430,29 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private string GetGameObjectPath( GameObject go )
+        // The path resolution inspect_gameobject and inspect_component take: GameObject.Find first,
+        // then a scan by built path, since GameObject.Find only searches the active scene hierarchy.
+        public static GameObject FindGameObjectByPath( string path )
+        {
+            GameObject go = GameObject.Find( path );
+
+            if ( go == null )
+            {
+                var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
+                foreach ( var transform in allTransforms )
+                {
+                    if ( transform.gameObject != null && GetGameObjectPath( transform.gameObject ) == path )
+                    {
+                        go = transform.gameObject;
+                        break;
+                    }
+                }
+            }
+
+            return go;
+        }
+
+        private static string GetGameObjectPath( GameObject go )
         {
             var path = go.name;
             var parent = go.transform.parent;
@@ -562,15 +664,41 @@ namespace Unity_Inspector_Mod
                 catch { }
 
                 int? levelIndex = null;
+                int? levelNumber = null;
                 string campaignName = null;
                 bool isInGame = false;
                 try
                 {
                     levelIndex = LevelSelectionController.CurrentLevelNum;
-                    var campaign = LevelSelectionController.currentCampaign;
-                    if ( campaign != null )
+                    levelNumber = levelIndex + 1;
+                    var currentCampaign = LevelSelectionController.currentCampaign;
+                    if ( currentCampaign != null )
                     {
-                        campaignName = campaign.name;
+                        campaignName = StateModifier.GetCanonicalCampaignName( currentCampaign.name );
+                    }
+                }
+                catch { }
+
+                string campaignDisplay = null;
+                try
+                {
+                    campaignDisplay = StateModifier.GetCampaignDisplayName( campaignName );
+                }
+                catch { }
+
+                bool isCampaignScene = false;
+                try
+                {
+                    isCampaignScene = LevelSelectionController.IsCampaignScene;
+                }
+                catch { }
+
+                string levelName = null;
+                try
+                {
+                    if ( Map.MapData != null && !string.IsNullOrEmpty( Map.MapData.levelDescription ) )
+                    {
+                        levelName = Map.MapData.levelDescription;
                     }
                 }
                 catch { }
@@ -644,12 +772,16 @@ namespace Unity_Inspector_Mod
                 return new
                 {
                     scene = scene.name,
+                    isCampaignScene,
                     gameMode,
                     isInGame,
                     levelFinished,
                     pauseState,
-                    levelIndex,
+                    campaignDisplay,
                     campaignName,
+                    levelIndex,
+                    levelNumber,
+                    levelName,
                     timeScale,
                     playerCount = players.Count,
                     players

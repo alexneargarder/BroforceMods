@@ -49,6 +49,9 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(LibPath)\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(LibPath)\UnityEngine.PhysicsModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
       <HintPath>$(LibPath)\UnityEngine.IMGUIModule.dll</HintPath>
     </Reference>
@@ -70,12 +73,16 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(LibPath)\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="RocketLib">
+      <HintPath>$(RocketLibPath)</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />
     <Compile Include="TcpServer.cs" />
     <Compile Include="MessageHandler.cs" />
     <Compile Include="GameObjectInspector.cs" />
+    <Compile Include="MemberPath.cs" />
     <Compile Include="ScreenshotCapture.cs" />
     <Compile Include="CodeExecutor.cs" />
     <Compile Include="StateModifier.cs" />

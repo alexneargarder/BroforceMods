@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using RocketLib.Collections;
 using UnityModManagerNet;
 
 namespace Unity_Inspector_Mod
@@ -129,7 +130,7 @@ namespace Unity_Inspector_Mod
 
         public static int GetCurrentBroIndex( int playerNum )
         {
-            if ( !IsAvailable || _getSelectedBroIndexMethod == null || playerNum < 0 || playerNum > 3 )
+            if ( !IsAvailable || _getSelectedBroIndexMethod == null || playerNum < Nums.PLAYER_MIN || playerNum >= Nums.PLAYER_MAX )
                 return -1;
 
             try
