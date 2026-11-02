@@ -92,6 +92,7 @@
     <Compile Include="ScriptCompiler.cs" />
     <Compile Include="ScriptContext.cs" />
     <Compile Include="ScriptManager.cs" />
+    <Compile Include="SpawnTrace.cs" />
     <Compile Include="SwapBrosIntegration.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

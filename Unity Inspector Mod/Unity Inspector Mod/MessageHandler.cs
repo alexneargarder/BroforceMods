@@ -13,6 +13,8 @@ namespace Unity_Inspector_Mod
     {
         private readonly Dictionary<string, Func<JObject, object>> handlers;
 
+        private readonly Dictionary<string, Func<JObject, object, object>> clientHandlers;
+
         public MessageHandler()
         {
             handlers = new Dictionary<string, Func<JObject, object>>
@@ -45,9 +47,14 @@ namespace Unity_Inspector_Mod
                 ["list_bros"] = HandleListBros,
                 ["restart_level"] = HandleRestartLevel
             };
+
+            clientHandlers = new Dictionary<string, Func<JObject, object, object>>
+            {
+                ["trace_spawns"] = HandleTraceSpawns
+            };
         }
 
-        public string HandleMessage( string message )
+        public string HandleMessage( string message, object client )
         {
             try
             {
@@ -64,6 +71,11 @@ namespace Unity_Inspector_Mod
                 if ( handlers.ContainsKey( method ) )
                 {
                     var result = handlers[method]( parameters );
+                    return CreateSuccessResponse( id, result );
+                }
+                else if ( clientHandlers.ContainsKey( method ) )
+                {
+                    var result = clientHandlers[method]( parameters, client );
                     return CreateSuccessResponse( id, result );
                 }
                 else
@@ -519,7 +531,8 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException("Entity type and coordinates are required");
             }
 
-            return StateModifier.SpawnEntity(entityType, x.Value, y.Value, xI ?? 0f, yI ?? 0f);
+            var ignoreSuppression = parameters?["ignoreSuppression"]?.ToObject<bool?>() ?? false;
+            return StateModifier.SpawnEntity(entityType, x.Value, y.Value, xI ?? 0f, yI ?? 0f, ignoreSuppression);
         }
 
         private object HandleSetGameSpeed(JObject parameters)
@@ -801,7 +814,8 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( "Bro name is required" );
 
             var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
-            return StateModifier.SwapBro( broName, playerNum );
+            var ignoreUnlocks = parameters?["ignoreUnlocks"]?.ToObject<bool?>() ?? false;
+            return StateModifier.SwapBro( broName, playerNum, ignoreUnlocks );
         }
 
         private object HandleSetBro( JObject parameters )
@@ -823,6 +837,52 @@ namespace Unity_Inspector_Mod
         private object HandleRestartLevel( JObject parameters )
         {
             return StateModifier.RestartLevel();
+        }
+
+        private object HandleTraceSpawns( JObject parameters, object client )
+        {
+            var action = parameters?["action"]?.ToString();
+
+            try
+            {
+                object result = null;
+
+                switch ( action )
+                {
+                    case "start":
+                        string[] targets = null;
+                        var rawTargets = parameters?["targets"];
+                        if ( rawTargets != null && rawTargets.Type != JTokenType.Null )
+                        {
+                            var array = rawTargets as JArray;
+                            if ( array == null )
+                            {
+                                return new { success = false, error = "targets must be an array of target names" };
+                            }
+                            targets = array.Select( t => t.ToString() ).ToArray();
+                        }
+
+                        MainThreadDispatcher.EnqueueAndWait( () => { result = SpawnTrace.Start( targets, client ); }, 5000 );
+                        return result;
+
+                    case "read":
+                        long since = parameters?["since"]?.ToObject<long?>() ?? 0;
+                        MainThreadDispatcher.EnqueueAndWait( () => { result = SpawnTrace.Read( since ); }, 5000 );
+                        return result;
+
+                    case "stop":
+                        MainThreadDispatcher.EnqueueAndWait( () => { result = SpawnTrace.Stop(); }, 5000 );
+                        return result;
+
+                    default:
+                        return new { success = false, error = "action must be 'start', 'read' or 'stop'" };
+                }
+            }
+            catch ( Exception ex )
+            {
+                Main.Log( $"HandleTraceSpawns error: {ex.Message}" );
+                return new { success = false, error = ex.Message };
+            }
         }
     }
 }
