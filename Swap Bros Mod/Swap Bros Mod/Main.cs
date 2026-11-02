@@ -198,7 +198,7 @@ namespace Swap_Bros_Mod
             }
 
             settings.ignoreForcedBros = GUILayout.Toggle( settings.ignoreForcedBros, new GUIContent( "Ignore Forced Bros",
-                "Controls whether levels which force you to use specific bros can be overidden by filtering or always spawn as chosen." ), GUILayout.ExpandWidth( false ) );
+                "Controls whether levels which force you to use specific bros, and the bro each player picks in Deathmatch, Bro Down, and Race, can be overidden by filtering or always spawn as chosen." ), GUILayout.ExpandWidth( false ) );
 
             // Display the tooltip from the element that has mouseover or keyboard focus
             Rect lastRect = GUILayoutUtility.GetLastRect();

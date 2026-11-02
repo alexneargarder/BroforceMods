@@ -1,5 +1,6 @@
 ## v2.2.0 (unreleased)
 - Added API for cross-mod integration.
+- Fixed the chosen or filtered bro replacing a player's pick in Deathmatch, Bro Down, and Race.
 
 ## v2.1.5
 - Fix bug with errors being thrown sometimes when enabling / disabling BroMaker bros.

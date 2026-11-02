@@ -32,7 +32,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 **Include Unfinished Bros** - Adds Chev Brolios, Casey Broback, and The Scorpion Bro to the available bros to swap between.
 
-**Ignore Forced Bros** - Controls whether the Filter Bros option will override forced bros for specific levels such as the Muscle Temples, where you are supposed to be forced to spawn as Indiana Brones.
+**Ignore Forced Bros** - Controls whether Filter Bros or Always spawn as chosen bro override forced bros for specific levels (such as the Muscle Temples, where you are supposed to be forced to spawn as Indiana Brones) and the bro each player picks in Deathmatch, Bro Down, and Race.
 
 **Please note if you would like the Expendabros, BroMaker Bros, or Unfinished Bros to be part of the spawning pool, you have to enable the include option for them and then make sure the "Filter Bros" option is checked. If you only enable the include option they will only be added to the pool of bros you can swap between.**
 

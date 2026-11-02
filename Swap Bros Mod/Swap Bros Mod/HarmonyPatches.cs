@@ -47,10 +47,13 @@ namespace Swap_Bros_Mod
                         // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
                         if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
                         {
-                            // Check if ignore is enabled and map has a forced bro
-                            if ( !Main.settings.ignoreForcedBros && Map.MapData.forcedBro != HeroType.Random )
+                            // Check if ignore is disabled and map has a forced bro or this is a versus mode's pick
+                            if ( !Main.settings.ignoreForcedBros && ( IsVersusPickMode() || Map.MapData.forcedBro != HeroType.Random ) )
                             {
-                                nextHeroType = Map.MapData.forcedBro;
+                                if ( !IsVersusPickMode() )
+                                {
+                                    nextHeroType = Map.MapData.forcedBro;
+                                }
 
                                 int nextHero = Main.currentBroList.IndexOf( API.HeroTypeToString( nextHeroType ) );
 
@@ -142,8 +145,8 @@ namespace Swap_Bros_Mod
                         }
                         return;
                     }
-                    // Ensure we aren't overwriting forced bros, even if always chosen is enabled
-                    else if ( !Main.settings.ignoreForcedBros && Map.MapData != null && ( Map.MapData.forcedBro != HeroType.Random || ( Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 ) ) )
+                    // Ensure we aren't overwriting forced bros or a versus mode's pick, even if always chosen is enabled
+                    else if ( !Main.settings.ignoreForcedBros && ( IsVersusPickMode() || ( Map.MapData != null && ( Map.MapData.forcedBro != HeroType.Random || ( Map.MapData.forcedBros != null && Map.MapData.forcedBros.Count() > 0 ) ) ) ) )
                     {
                         return;
                     }
@@ -188,6 +191,17 @@ namespace Swap_Bros_Mod
                     Main.Log( "Exception occurred while spawning bro: " + ex.ToString() );
                 }
             }
+            static bool IsVersusPickMode()
+            {
+                if ( GameModeController.GameMode == GameMode.BroDown )
+                {
+                    // A Bro Down after an Explosion Run tie spawns the bro vanilla rolled there, not a pick
+                    GameMode before = Traverse.Create( typeof( GameModeController ) ).Field( "gameModeBeforeBrodown" ).GetValue<GameMode>();
+                    return before == GameMode.DeathMatch || before == GameMode.Race;
+                }
+                return GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.Race;
+            }
+
             static void Postfix( Player __instance, ref HeroType nextHeroType )
             {
                 if ( !Main.enabled )
