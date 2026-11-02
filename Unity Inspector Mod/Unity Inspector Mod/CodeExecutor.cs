@@ -52,12 +52,15 @@ namespace Unity_Inspector_Mod
 
         private const int MainThreadBudgetMs = 9000;
 
-        // A block, not a lambda wrapper: a lambda in statement position at the Evaluator's top level whose body-declared local a nested lambda captures null-refs in HoistedVariable.GetFieldExpression (initializer position compiles).
-        private const string BlockPrefix = "{\n";
         private const string BlockSuffix = "\n}";
 
         private const string CaptureOpen = "Unity_Inspector_Mod.CodeExecutor.__Set(";
         private const string CaptureClose = ");";
+
+        private const string MarkerOpen = "Unity_Inspector_Mod.CodeExecutor.__At(";
+        private const string MarkerClose = ");";
+
+        private const int StatementTextLimit = 200;
 
         private const int SerializeDepthLimit = 4;
 
@@ -65,6 +68,8 @@ namespace Unity_Inspector_Mod
 
         private static object runValue;
         private static bool runValueSet;
+
+        private static int lastStatement = -1;
 
         private static ConsoleReportPrinter reportPrinter;
 
@@ -74,6 +79,22 @@ namespace Unity_Inspector_Mod
             runValueSet = true;
         }
 
+        public static void __At(int statement)
+        {
+            lastStatement = statement;
+        }
+
+        // A block, not a lambda wrapper: a lambda in statement position at the Evaluator's top level whose body-declared local a nested lambda captures null-refs in HoistedVariable.GetFieldExpression (initializer position compiles).
+        private static string BlockPrefix()
+        {
+            return "{ " + Marker(0) + "\n";
+        }
+
+        private static string Marker(int statement)
+        {
+            return MarkerOpen + statement + MarkerClose;
+        }
+
         private sealed class Attempt
         {
             public string Label;
@@ -81,11 +102,17 @@ namespace Unity_Inspector_Mod
 
             public int RowOffset;
 
-            public int AdjustRow;
-            public int ColumnFrom;
-            public int ColumnDelta;
+            public List<Splice> Splices = new List<Splice>();
+            public List<StatementInfo> Statements = new List<StatementInfo>();
 
             public int MaxRow;
+        }
+
+        private sealed class StatementInfo
+        {
+            public int Row;
+            public int Column;
+            public string Text;
         }
 
         private sealed class Diagnostic
@@ -255,8 +282,7 @@ namespace Unity_Inspector_Mod
                         {
                             var attempt = attempts[i];
 
-                            reportPrinter.BeginAttempt(attempt.RowOffset, attempt.AdjustRow,
-                                attempt.ColumnFrom, attempt.ColumnDelta, attempt.MaxRow);
+                            reportPrinter.BeginAttempt(attempt.RowOffset, attempt.Splices, attempt.MaxRow);
 
                             CompiledMethod compiled = null;
                             string partialInput = null;
@@ -313,13 +339,14 @@ namespace Unity_Inspector_Mod
                             try
                             {
                                 invokeStarted = true;
+                                lastStatement = -1;
                                 compiled.Invoke(ref retval);
                             }
                             catch (Exception ex)
                             {
                                 runValue = null;
                                 runValueSet = false;
-                                executionResult = UserFault(ex);
+                                executionResult = UserFault(ex, attempt);
                                 return;
                             }
 
@@ -332,7 +359,7 @@ namespace Unity_Inspector_Mod
                             }
                             catch (Exception ex)
                             {
-                                executionResult = UserFault(ex);
+                                executionResult = UserFault(ex, attempt);
                                 return;
                             }
                             finally
@@ -356,6 +383,8 @@ namespace Unity_Inspector_Mod
                             success = false,
                             error = JoinDiagnostics(diagnostics),
                             stackTrace = (string)null,
+                            position = (object)null,
+                            statement = (string)null,
                             result = (object)null
                         };
                     }
@@ -404,6 +433,8 @@ namespace Unity_Inspector_Mod
                         success = false,
                         error = errorMessage,
                         stackTrace = executionException.StackTrace,
+                        position = (object)null,
+                        statement = (string)null,
                         result = (object)null
                     };
                 }
@@ -418,6 +449,8 @@ namespace Unity_Inspector_Mod
                     success = false,
                     error = "Code execution timed out after " + (MainThreadBudgetMs / 1000) + " seconds",
                     stackTrace = (string)null,
+                    position = (object)null,
+                    statement = (string)null,
                     result = (object)null
                 };
             }
@@ -429,6 +462,8 @@ namespace Unity_Inspector_Mod
                     success = false,
                     error = DescribeException(ex),
                     stackTrace = ex.StackTrace,
+                    position = (object)null,
+                    statement = (string)null,
                     result = (object)null
                 };
             }
@@ -437,10 +472,11 @@ namespace Unity_Inspector_Mod
         private static List<Attempt> BuildAttempts(string code)
         {
             var attempts = new List<Attempt>();
+            var splits = FindStatementSplits(code);
 
             attempts.Add(WholeExpression("as expression", code));
-            attempts.Add(BuildValueReturningAttempt(code));
-            attempts.Add(Statements("as statements", code));
+            attempts.Add(BuildValueReturningAttempt(code, splits));
+            attempts.Add(Statements("as statements", code, splits));
 
             if (OpensWithDeclaration(code))
             {
@@ -450,9 +486,10 @@ namespace Unity_Inspector_Mod
                     Source = code,
                     RowOffset = 0,
                     // mcs pushes a putback character ahead of interactive statement input, shifting row 1's columns by one.
-                    AdjustRow = 1,
-                    ColumnFrom = 1,
-                    ColumnDelta = 1
+                    Splices = new List<Splice>
+                    {
+                        new Splice { Row = 1, ColumnFrom = 1, Delta = 1 }
+                    }
                 });
             }
 
@@ -471,21 +508,29 @@ namespace Unity_Inspector_Mod
             return new Attempt
             {
                 Label = label,
-                Source = BlockPrefix + CaptureOpen + "\n" + code + "\n" + CaptureClose + BlockSuffix,
-                RowOffset = 2
+                Source = BlockPrefix() + CaptureOpen + "\n" + code + "\n" + CaptureClose + BlockSuffix,
+                RowOffset = 2,
+                Statements = BuildStatementTable(code, new List<int>())
             };
         }
 
-        private static Attempt Statements(string label, string code)
+        private static Attempt Statements(string label, string code, List<int> splits)
         {
+            var splices = new List<Splice>();
+            int endRow;
+            int endColumn;
+            string body = InsertMarkers(code, code.Length, splits, splices, out endRow, out endColumn);
+
             // Terse mode supplies a missing `;` only when the whole input failed to parse, and a block always parses.
-            string body = NeedsTerminator(code) ? code + ";" : code;
+            if (NeedsTerminator(code)) body += ";";
 
             return new Attempt
             {
                 Label = label,
-                Source = BlockPrefix + body + BlockSuffix,
-                RowOffset = 1
+                Source = BlockPrefix() + body + BlockSuffix,
+                RowOffset = 1,
+                Splices = splices,
+                Statements = BuildStatementTable(code, splits)
             };
         }
 
@@ -497,13 +542,12 @@ namespace Unity_Inspector_Mod
             return code[last] != ';';
         }
 
-        private static Attempt BuildValueReturningAttempt(string code)
+        private static Attempt BuildValueReturningAttempt(string code, List<int> splits)
         {
             const string Label = "as statements with value";
 
-            int split = FindLastStatementSplit(code);
+            int split = splits.Count > 0 ? splits[splits.Count - 1] : -1;
 
-            string head = split >= 0 ? code.Substring(0, split + 1) : string.Empty;
             var tail = new StringBuilder(code.Substring(split + 1));
 
             int first = IndexOfNonWhitespace(tail, 0);
@@ -515,34 +559,148 @@ namespace Unity_Inspector_Mod
             int last = LastIndexOfNonWhitespace(tail);
             if (last >= 0 && tail[last] == ';') tail[last] = ' ';
 
-            if (IndexOfNonWhitespace(tail, 0) < 0) return Statements(Label, code);
+            if (IndexOfNonWhitespace(tail, 0) < 0) return Statements(Label, code, splits);
 
-            if (head.Length == 0)
+            if (split < 0)
             {
                 return new Attempt
                 {
                     Label = Label,
-                    Source = BlockPrefix + CaptureOpen + "\n" + tail + "\n" + CaptureClose + BlockSuffix,
-                    RowOffset = 2
+                    Source = BlockPrefix() + CaptureOpen + "\n" + tail + "\n" + CaptureClose + BlockSuffix,
+                    RowOffset = 2,
+                    Statements = BuildStatementTable(code, splits)
                 };
             }
 
-            int row = 1;
-            int rowStart = 0;
-            for (int i = 0; i <= split; i++)
+            var splices = new List<Splice>();
+            int endRow;
+            int endColumn;
+            string head = InsertMarkers(code, split + 1, splits, splices, out endRow, out endColumn);
+
+            splices.Add(new Splice
             {
-                if (code[i] == '\n') { row++; rowStart = i + 1; }
-            }
+                Row = endRow,
+                ColumnFrom = endColumn + CaptureOpen.Length,
+                Delta = CaptureOpen.Length
+            });
 
             return new Attempt
             {
                 Label = Label,
-                Source = BlockPrefix + head + CaptureOpen + tail + "\n" + CaptureClose + BlockSuffix,
+                Source = BlockPrefix() + head + CaptureOpen + tail + "\n" + CaptureClose + BlockSuffix,
                 RowOffset = 1,
-                AdjustRow = row,
-                ColumnFrom = (split + 1 - rowStart) + 1 + CaptureOpen.Length,
-                ColumnDelta = CaptureOpen.Length
+                Splices = splices,
+                Statements = BuildStatementTable(code, splits)
             };
+        }
+
+        // Markers carry no newline, so a row's inserted length only shifts columns on that row.
+        private static string InsertMarkers(string code, int limit, List<int> splits,
+            List<Splice> splices, out int endRow, out int endColumn)
+        {
+            var text = new StringBuilder(code.Length + 64);
+
+            int row = 1;
+            int rowStart = 0;
+            int rowDelta = 0;
+            int next = 0;
+
+            for (int i = 0; i < limit; i++)
+            {
+                char c = code[i];
+                text.Append(c);
+
+                if (c == '\n')
+                {
+                    row++;
+                    rowStart = i + 1;
+                    rowDelta = 0;
+                    continue;
+                }
+
+                if (next < splits.Count && splits[next] == i)
+                {
+                    string marker = Marker(next + 1);
+
+                    splices.Add(new Splice
+                    {
+                        Row = row,
+                        ColumnFrom = (i + 1 - rowStart) + 1 + rowDelta,
+                        Delta = marker.Length
+                    });
+
+                    text.Append(marker);
+                    rowDelta += marker.Length;
+                    next++;
+                }
+            }
+
+            endRow = row;
+            endColumn = (limit - rowStart) + 1 + rowDelta;
+            return text.ToString();
+        }
+
+        private static List<StatementInfo> BuildStatementTable(string code, List<int> splits)
+        {
+            var statements = new List<StatementInfo>();
+
+            int start = IndexOfNonWhitespace(code, 0);
+            if (start < 0) return statements;
+
+            int row = 1;
+            int rowStart = 0;
+            int scan = 0;
+
+            for (int k = 0; k <= splits.Count; k++)
+            {
+                while (scan < start)
+                {
+                    if (code[scan] == '\n') { row++; rowStart = scan + 1; }
+                    scan++;
+                }
+
+                int end = k < splits.Count ? splits[k] : code.Length - 1;
+
+                string text = end >= start ? code.Substring(start, end - start + 1).Trim() : string.Empty;
+                if (text.Length > StatementTextLimit)
+                {
+                    text = text.Substring(0, StatementTextLimit) + "...";
+                }
+
+                statements.Add(new StatementInfo
+                {
+                    Row = row,
+                    Column = start - rowStart + 1,
+                    Text = text
+                });
+
+                if (k < splits.Count)
+                {
+                    int following = IndexOfNonWhitespace(code, splits[k] + 1);
+                    if (following < 0) break;
+                    start = following;
+                }
+            }
+
+            return statements;
+        }
+
+        internal static int MapColumn(int row, int column, List<Splice> splices)
+        {
+            if (splices == null) return column;
+
+            int mapped = column;
+
+            for (int i = 0; i < splices.Count; i++)
+            {
+                var splice = splices[i];
+                if (splice.Row == row && splice.ColumnFrom <= column)
+                {
+                    mapped -= splice.Delta;
+                }
+            }
+
+            return mapped < 1 ? 1 : mapped;
         }
 
         private static bool OpensWithDeclaration(string code)
@@ -586,6 +744,15 @@ namespace Unity_Inspector_Mod
             return -1;
         }
 
+        private static int IndexOfNonWhitespace(string text, int from)
+        {
+            for (int i = from; i < text.Length; i++)
+            {
+                if (!char.IsWhiteSpace(text[i])) return i;
+            }
+            return -1;
+        }
+
         private static int LastIndexOfNonWhitespace(StringBuilder text)
         {
             for (int i = text.Length - 1; i >= 0; i--)
@@ -618,20 +785,13 @@ namespace Unity_Inspector_Mod
             return string.Join("\n", texts.ToArray());
         }
 
-        private static int FindLastStatementSplit(string code)
+        private static List<int> FindStatementSplits(string code)
         {
-            int lastMeaningful = -1;
-            for (int i = code.Length - 1; i >= 0; i--)
-            {
-                if (!char.IsWhiteSpace(code[i]))
-                {
-                    lastMeaningful = i;
-                    break;
-                }
-            }
+            var splits = new List<int>();
+
+            int lastMeaningful = LastIndexOfNonWhitespace(code);
 
             int depth = 0;
-            int split = -1;
             int index = 0;
 
             while (index < code.Length)
@@ -662,20 +822,50 @@ namespace Unity_Inspector_Mod
                 else if (c == '}')
                 {
                     depth--;
-                    if (depth == 0 && index != lastMeaningful && ClosesStatement(code, index))
+                    if (depth == 0 && index != lastMeaningful && ClosesStatement(code, index) &&
+                        !ContinuesStatement(code, index))
                     {
-                        split = index;
+                        splits.Add(index);
                     }
                 }
-                else if (c == ';' && depth == 0 && index != lastMeaningful)
+                else if (c == ';' && depth == 0 && index != lastMeaningful &&
+                         !ContinuesStatement(code, index))
                 {
-                    split = index;
+                    splits.Add(index);
                 }
 
                 index++;
             }
 
-            return split;
+            return splits;
+        }
+
+        // Splitting before `else`/`catch`/`finally`/`while` would strand the tail of one statement as its own.
+        private static bool ContinuesStatement(string code, int split)
+        {
+            int i = split + 1;
+            while (i < code.Length)
+            {
+                if (char.IsWhiteSpace(code[i])) { i++; continue; }
+                if (code[i] == '/' && i + 1 < code.Length && code[i + 1] == '*') { i = SkipBlockComment(code, i); continue; }
+                break;
+            }
+            if (i >= code.Length) return false;
+
+            return IsWordAt(code, i, "else") || IsWordAt(code, i, "catch") || IsWordAt(code, i, "finally") ||
+                   IsWordAt(code, i, "while");
+        }
+
+        private static bool IsWordAt(string code, int start, string word)
+        {
+            if (start + word.Length > code.Length) return false;
+            if (string.CompareOrdinal(code, start, word, 0, word.Length) != 0) return false;
+
+            int after = start + word.Length;
+            if (after == code.Length) return true;
+
+            char next = code[after];
+            return !(char.IsLetterOrDigit(next) || next == '_');
         }
 
         // A `}` also closes an initializer, where the expression continues into an indexer, a call, or an operator.
@@ -756,15 +946,32 @@ namespace Unity_Inspector_Mod
             return message.ToString();
         }
 
-        private static object UserFault(Exception ex)
+        private static object UserFault(Exception ex, Attempt attempt)
         {
             var userException = Unwrap(ex);
+            string error = DescribeException(userException);
+
+            StatementInfo info = null;
+            if (attempt != null && attempt.Statements != null &&
+                lastStatement >= 0 && lastStatement < attempt.Statements.Count)
+            {
+                info = attempt.Statements[lastStatement];
+            }
+
+            object position = null;
+            if (info != null)
+            {
+                position = new { line = info.Row, column = info.Column };
+                error += "\n  Statement at (" + info.Row + "," + info.Column + "): " + info.Text;
+            }
 
             return new
             {
                 success = false,
-                error = DescribeException(userException),
+                error = error,
                 stackTrace = userException.StackTrace,
+                position = position,
+                statement = info != null ? info.Text : null,
                 result = (object)null
             };
         }
@@ -982,15 +1189,21 @@ namespace Unity_Inspector_Mod
         }
     }
     
+    // A splice is one run of generated text inside a user row: Row is an input row, ColumnFrom a wrapped-source column.
+    internal sealed class Splice
+    {
+        public int Row;
+        public int ColumnFrom;
+        public int Delta;
+    }
+
     public class ConsoleReportPrinter : ReportPrinter
     {
         private readonly StringBuilder output;
 
-        public int RowOffset;
+        private List<Splice> splices;
 
-        public int AdjustRow;
-        public int ColumnFrom;
-        public int ColumnDelta;
+        public int RowOffset;
 
         public int MaxRow;
 
@@ -1002,13 +1215,10 @@ namespace Unity_Inspector_Mod
             this.output = output;
         }
 
-        public void BeginAttempt(int rowOffset, int adjustRow, int columnFrom, int columnDelta,
-            int maxRow)
+        internal void BeginAttempt(int rowOffset, List<Splice> splices, int maxRow)
         {
             RowOffset = rowOffset;
-            AdjustRow = adjustRow;
-            ColumnFrom = columnFrom;
-            ColumnDelta = columnDelta;
+            this.splices = splices;
             MaxRow = maxRow;
             FirstErrorRow = 0;
             FirstErrorColumn = 0;
@@ -1029,12 +1239,7 @@ namespace Unity_Inspector_Mod
                 int row = location.Row - RowOffset;
                 if (row < 1) row = location.Row;
 
-                int column = location.Column;
-                if (AdjustRow > 0 && row == AdjustRow && column >= ColumnFrom)
-                {
-                    int adjusted = column - ColumnDelta;
-                    if (adjusted >= 1) column = adjusted;
-                }
+                int column = CodeExecutor.MapColumn(row, location.Column, splices);
 
                 if (MaxRow > 0 && row > MaxRow)
                 {
