@@ -28,7 +28,17 @@ namespace Unity_Inspector_Mod
             "Unity_Inspector_Mod"
         };
 
-        private static readonly HashSet<string> CompiledAssemblies = new HashSet<string>();
+        internal static readonly string[] PreambleAliases =
+        {
+            "Object = UnityEngine.Object"
+        };
+
+        private static bool propertyDefinePatched;
+        private static readonly object propertyDefinePatchLock = new object();
+        private static bool foreignBuilderTokensPatched;
+        private static readonly object foreignBuilderTokensPatchLock = new object();
+
+        private static readonly Regex EvalAssemblyName = new Regex(@"^eval-(\d+)");
         private static bool tokenCheckPatched;
         private static bool extensionMethodCrashPatched;
         private static bool assemblyImportPatched;
@@ -37,6 +47,8 @@ namespace Unity_Inspector_Mod
         private static readonly object constantImportPatchLock = new object();
         private static bool assemblyLocationPatched;
         private static readonly object assemblyLocationPatchLock = new object();
+        private static bool nestedTypeImportPatched;
+        private static readonly object nestedTypeImportPatchLock = new object();
 
         private static readonly HashSet<string> reportedImportFailures = new HashSet<string>();
 
@@ -359,6 +371,269 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
+        public static void PatchNestedTypeImport()
+        {
+            lock (nestedTypeImportPatchLock)
+            {
+                if (nestedTypeImportPatched) return;
+
+                nestedTypeImportPatched = true;
+
+                try
+                {
+                    var readerType = typeof(MetadataImporter).GetNestedType("AttributesTypeInfoReader",
+                        BindingFlags.Public | BindingFlags.NonPublic);
+                    var createType = readerType == null
+                        ? null
+                        : typeof(MetadataImporter).GetMethod("CreateType",
+                            BindingFlags.Instance | BindingFlags.NonPublic, null,
+                            new[] { typeof(Type), readerType, typeof(bool) }, null);
+
+                    if (createType == null)
+                    {
+                        Main.Log("Mono.CSharp.MetadataImporter.CreateType(Type, AttributesTypeInfoReader, bool) not found — " +
+                                 NestedTypeImportWarning);
+                        return;
+                    }
+
+                    var reads = PatchProcessor.GetOriginalInstructions(createType).Count(ReadsDeclaringType);
+                    if (reads != 2)
+                    {
+                        Main.Log("Mono.CSharp.MetadataImporter.CreateType reads Type.DeclaringType " + reads +
+                                 " times, expected twice — " + NestedTypeImportWarning);
+                        return;
+                    }
+
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    harmony.Patch(createType,
+                        transpiler: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("OpenDeclaringTypeTranspiler",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch Mono.CSharp.MetadataImporter.CreateType (" + e.GetType().Name + ": " +
+                             e.Message + ") — " + NestedTypeImportWarning);
+                }
+            }
+        }
+
+        private const string NestedTypeImportWarning =
+            "foreach over Dictionary.Keys, Dictionary.Values or a SortedDictionary will fail with CS0584 " +
+            "(internal compiler error); copy the collection first, e.g. foreach (var v in new List<V>(d.Values))";
+
+        private static bool ReadsDeclaringType(CodeInstruction instruction)
+        {
+            var method = instruction.operand as MethodInfo;
+            return method != null && method.Name == "get_DeclaringType" &&
+                   method.DeclaringType != null && method.DeclaringType.IsAssignableFrom(typeof(Type));
+        }
+
+        private static IEnumerable<CodeInstruction> OpenDeclaringTypeTranspiler(
+            IEnumerable<CodeInstruction> instructions)
+        {
+            var openDeclaringType = typeof(ScriptCompiler).GetMethod("OpenDeclaringType",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            foreach (var instruction in instructions)
+            {
+                if (ReadsDeclaringType(instruction))
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = openDeclaringType;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        private static Type OpenDeclaringType(Type type)
+        {
+            // Unity's Mono answers a nested generic instance's DeclaringType already inflated, and mcs inflates it again and throws.
+            var declaring = type.DeclaringType;
+            if (declaring == null || !declaring.IsGenericType || declaring.IsGenericTypeDefinition) return declaring;
+            return declaring.GetGenericTypeDefinition();
+        }
+
+        public static void PatchPropertyDefine()
+        {
+            lock (propertyDefinePatchLock)
+            {
+                if (propertyDefinePatched) return;
+
+                propertyDefinePatched = true;
+
+                try
+                {
+                    var defineBuilders = typeof(PropertyBase).GetMethod("DefineBuilders",
+                        BindingFlags.Instance | BindingFlags.NonPublic, null,
+                        new[] { typeof(MemberKind), typeof(ParametersCompiled) }, null);
+                    if (defineBuilders == null || PropertyBuilderField == null || CheckMissingAccessorMethod == null)
+                    {
+                        Main.Log("Mono.CSharp.PropertyBase members not found — " + PropertyDefineWarning);
+                        return;
+                    }
+
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    // DefineBuilders calls a TypeBuilder.DefineProperty overload this mscorlib lacks, and Harmony cannot read a body that cannot JIT.
+                    foreach (var caller in new[] { typeof(Property), typeof(Indexer) })
+                    {
+                        var define = caller.GetMethod("Define", BindingFlags.Instance | BindingFlags.Public,
+                            null, Type.EmptyTypes, null);
+                        int calls = define == null
+                            ? 0
+                            : PatchProcessor.GetOriginalInstructions(define).Count(i => i.Calls(defineBuilders));
+                        if (calls != 1)
+                        {
+                            Main.Log("Mono.CSharp." + caller.Name + ".Define calls DefineBuilders " + calls +
+                                     " times, expected once — " + PropertyDefineWarning);
+                            continue;
+                        }
+
+                        harmony.Patch(define,
+                            transpiler: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("RedirectDefineBuilders",
+                                BindingFlags.Static | BindingFlags.NonPublic)));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch Mono.CSharp property definition (" + e.GetType().Name + ": " +
+                             e.Message + ") — " + PropertyDefineWarning);
+                }
+            }
+        }
+
+        private const string PropertyDefineWarning =
+            "properties, anonymous types and iterators will fail with MissingMethodException: TypeBuilder.DefineProperty";
+
+        private static readonly FieldInfo PropertyBuilderField =
+            typeof(PropertyBase).GetField("PropertyBuilder", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static readonly MethodInfo CheckMissingAccessorMethod =
+            typeof(PropertyBase).GetMethod("CheckMissingAccessor", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static IEnumerable<CodeInstruction> RedirectDefineBuilders(IEnumerable<CodeInstruction> instructions)
+        {
+            var defineBuilders = typeof(PropertyBase).GetMethod("DefineBuilders",
+                BindingFlags.Instance | BindingFlags.NonPublic, null,
+                new[] { typeof(MemberKind), typeof(ParametersCompiled) }, null);
+            var replacement = typeof(ScriptCompiler).GetMethod("DefinePropertyBuilders",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(defineBuilders))
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = replacement;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        private static void DefinePropertyBuilders(PropertyBase property, MemberKind kind, ParametersCompiled parameters)
+        {
+            var parent = property.Parent;
+            // Mono encodes no calling convention in a property signature, so this overload loses nothing.
+            var builder = parent.TypeBuilder.DefineProperty(
+                property.GetFullName(property.MemberName), PropertyAttributes.None,
+                property.MemberType.GetMetaInfo(), null, null,
+                parameters.GetMetaInfo(), null, null);
+            PropertyBuilderField.SetValue(property, builder);
+
+            PropertySpec spec = kind == MemberKind.Indexer
+                ? new IndexerSpec(parent.Definition, property, property.MemberType, parameters, builder, property.ModFlags)
+                : new PropertySpec(kind, parent.Definition, property, property.MemberType, builder, property.ModFlags);
+
+            if (property.Get != null)
+            {
+                spec.Get = property.Get.Spec;
+                parent.MemberCache.AddMember(property, property.Get.Spec.Name, property.Get.Spec);
+            }
+            else
+            {
+                CheckMissingAccessorMethod.Invoke(property, new object[] { kind, parameters, true });
+            }
+
+            if (property.Set != null)
+            {
+                spec.Set = property.Set.Spec;
+                parent.MemberCache.AddMember(property, property.Set.Spec.Name, property.Set.Spec);
+            }
+            else
+            {
+                CheckMissingAccessorMethod.Invoke(property, new object[] { kind, parameters, false });
+            }
+
+            parent.MemberCache.AddMember(property, builder.Name, spec);
+        }
+
+        public static void PatchForeignBuilderTokens()
+        {
+            lock (foreignBuilderTokensPatchLock)
+            {
+                if (foreignBuilderTokensPatched) return;
+
+                foreignBuilderTokensPatched = true;
+
+                try
+                {
+                    var fieldEmit = typeof(ILGenerator).GetMethod("Emit", new[] { typeof(OpCode), typeof(FieldInfo) });
+                    var typeEmit = typeof(ILGenerator).GetMethod("Emit", new[] { typeof(OpCode), typeof(Type) });
+                    if (fieldEmit == null || typeEmit == null || ILGeneratorModule == null)
+                    {
+                        Main.Log("System.Reflection.Emit.ILGenerator members not found — " + ForeignBuilderWarning);
+                        return;
+                    }
+
+                    // Mono's mono_image_create_token gives another module's FieldBuilder or TypeBuilder a token of the emitting module.
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    harmony.Patch(fieldEmit,
+                        prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("ForeignFieldToken",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                    harmony.Patch(typeEmit,
+                        prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("ForeignTypeToken",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch System.Reflection.Emit.ILGenerator.Emit (" + e.GetType().Name + ": " +
+                             e.Message + ") — " + ForeignBuilderWarning);
+                }
+            }
+        }
+
+        private const string ForeignBuilderWarning =
+            "execute_code naming a static of a type an earlier execute_code declared may read or write the wrong field";
+
+        private static readonly FieldInfo ILGeneratorModule =
+            typeof(ILGenerator).GetField("module", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static Type CreatedForeignType(ILGenerator generator, Type type)
+        {
+            var builder = type as TypeBuilder;
+            if (builder == null || !builder.IsCreated() || builder.IsGenericTypeDefinition) return null;
+            if (builder.Module == (Module)ILGeneratorModule.GetValue(generator)) return null;
+            return builder.CreateType();
+        }
+
+        private static void ForeignFieldToken(ILGenerator __instance, ref FieldInfo field)
+        {
+            if (!(field is FieldBuilder)) return;
+
+            var created = CreatedForeignType(__instance, field.DeclaringType);
+            if (created == null) return;
+
+            var runtimeField = created.GetField(field.Name,
+                BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Instance |
+                BindingFlags.Public | BindingFlags.NonPublic);
+            if (runtimeField != null) field = runtimeField;
+        }
+
+        private static void ForeignTypeToken(ILGenerator __instance, ref Type cls)
+        {
+            var created = CreatedForeignType(__instance, cls);
+            if (created != null) cls = created;
+        }
+
         internal static string SafeAssemblyName(Assembly assembly)
         {
             try
@@ -393,10 +668,11 @@ namespace Unity_Inspector_Mod
                      " (further " + e.GetType().Name + "s from this assembly will not be logged)");
         }
 
-        private static string DetectEnumUsageError(string source)
+        private static string DetectEnumUsageError(string name, string source)
         {
             bool ownEnum;
-            var referenced = FindEnumUsage(source, DynamicEnumNames(includeScriptAssemblies: false), out ownEnum);
+            var visible = EvalAssemblies().Concat(ScriptManager.LoadedScriptAssemblies(name));
+            var referenced = FindEnumUsage(source, DynamicEnumNames(visible), out ownEnum);
             if (referenced == null) return null;
             if (!ownEnum) return DynamicEnumUsageMessage(referenced);
 
@@ -478,14 +754,16 @@ namespace Unity_Inspector_Mod
             return null;
         }
 
-        internal static List<string> DynamicEnumNames(bool includeScriptAssemblies)
+        internal static List<string> DynamicEnumNames()
+        {
+            return DynamicEnumNames(AppDomain.CurrentDomain.GetAssemblies().Where(a => a is AssemblyBuilder));
+        }
+
+        private static List<string> DynamicEnumNames(IEnumerable<Assembly> assemblies)
         {
             var names = new List<string>();
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in assemblies)
             {
-                if (!(assembly is AssemblyBuilder)) continue;
-                if (!includeScriptAssemblies && CompiledAssemblies.Contains(SafeAssemblyName(assembly))) continue;
-
                 Type[] types;
                 try
                 {
@@ -586,9 +864,28 @@ namespace Unity_Inspector_Mod
             return sb.ToString();
         }
 
+        internal static string PreambleSource(string source)
+        {
+            var preamble = new StringBuilder();
+            foreach (var ns in PreambleNamespaces)
+            {
+                preamble.Append("using ").Append(ns).Append(";\n");
+            }
+            var clean = StripCommentsAndStrings(source);
+            foreach (var alias in PreambleAliases)
+            {
+                var aliasName = alias.Substring(0, alias.IndexOf('=')).Trim();
+                if (Regex.IsMatch(clean, @"\busing\s+" + Regex.Escape(aliasName) + @"\s*=")) continue;
+
+                preamble.Append("using ").Append(alias).Append(";\n");
+            }
+            preamble.Append("#line 1\n");
+            return preamble.ToString();
+        }
+
         public static CompileResult Compile(string name, string source)
         {
-            var enumError = DetectEnumUsageError(source);
+            var enumError = DetectEnumUsageError(name, source);
             if (enumError != null)
             {
                 return new CompileResult
@@ -598,13 +895,14 @@ namespace Unity_Inspector_Mod
                 };
             }
 
+            PatchPropertyDefine();
+
             var errorOutput = new StringBuilder();
             var reporter = new StreamReportPrinter(new StringWriter(errorOutput));
 
             Location.Reset();
 
             var dllName = "script_" + name + "_" + DateTime.Now.Ticks;
-            CompiledAssemblies.Add(dllName);
 
             var settings = new CompilerSettings
             {
@@ -613,19 +911,15 @@ namespace Unity_Inspector_Mod
                 StdLib = true,
                 Target = Target.Library,
                 WarningLevel = 0,
-                EnhancedWarnings = false
+                EnhancedWarnings = false,
+                // Otherwise an internal error is reported as CS0584 with its cause dropped.
+                BreakOnInternalError = true
             };
 
             var ctx = new CompilerContext(settings, reporter);
             ctx.Settings.SourceFiles.Clear();
 
-            // One using per line: the preamble shifts line numbers in reported compiler errors.
-            var preamble = new StringBuilder();
-            foreach (var ns in PreambleNamespaces)
-            {
-                preamble.Append("using ").Append(ns).Append(";\n");
-            }
-            source = preamble + source;
+            source = PreambleSource(source) + source;
 
             var sourceBytes = Encoding.UTF8.GetBytes(source);
             var fileName = name + ".cs";
@@ -675,6 +969,25 @@ namespace Unity_Inspector_Mod
                     null, new object[] { importer, ctx }, null);
 
                 ImportAppDomainAssemblies(a => importer.ImportAssembly(a, container.GlobalRootNamespace));
+                foreach (var script in ScriptManager.LoadedScriptAssemblies(name))
+                {
+                    try
+                    {
+                        importer.ImportAssembly(script, container.GlobalRootNamespace);
+                    }
+                    catch (Exception e)
+                    {
+                        ReportImportFailure(SafeAssemblyName(script), "any type", e);
+                    }
+                }
+                try
+                {
+                    importer.ImportTypes(LatestEvalTypes(), container.GlobalRootNamespace, true);
+                }
+                catch (Exception e)
+                {
+                    ReportImportFailure("eval", "execute_code types", e);
+                }
 
                 dynamicLoaderType.GetMethod("LoadReferences",
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
@@ -698,8 +1011,29 @@ namespace Unity_Inspector_Mod
 
                 ass.Resolve();
                 ass.Emit();
+
+                // Method bodies are resolved during Emit; closing the container after an error there fails on the bodyless method.
+                if (ctx.Report.Errors > 0)
+                {
+                    return new CompileResult
+                    {
+                        Success = false,
+                        Errors = errorOutput.ToString()
+                    };
+                }
+
                 container.CloseContainer();
                 ass.EmbedResources();
+
+                var lambdaError = DetectEmptyGenericLambdas(ass.Builder);
+                if (lambdaError != null)
+                {
+                    return new CompileResult
+                    {
+                        Success = false,
+                        Errors = lambdaError
+                    };
+                }
 
                 return new CompileResult
                 {
@@ -709,13 +1043,12 @@ namespace Unity_Inspector_Mod
             }
             catch (Exception e)
             {
-                var detail = DescribeExceptionChain(e);
+                Main.Log("Script compiler failure in '" + name + "':\n" + DescribeExceptionChain(e));
+
                 return new CompileResult
                 {
                     Success = false,
-                    Errors = errorOutput.Length > 0
-                        ? errorOutput.ToString() + "\n" + detail
-                        : detail
+                    Errors = ctx.Report.Errors > 0 ? errorOutput.ToString() : DescribeInternalError(e)
                 };
             }
             finally
@@ -726,16 +1059,43 @@ namespace Unity_Inspector_Mod
 
         private const int ExceptionChainLimit = 32;
 
-        private static string DescribeExceptionChain(Exception e)
+        private static List<Exception> ExceptionChain(Exception e)
         {
-            if (e == null) return "no exception";
-
             var chain = new List<Exception>();
             for (var current = e; current != null && chain.Count < ExceptionChainLimit; current = current.InnerException)
             {
                 chain.Add(current);
             }
+            return chain;
+        }
 
+        private static readonly Regex InternalErrorLocation = new Regex(@"^\S*\(\d+(,\d+\+?)?\):");
+
+        internal static string DescribeInternalError(Exception e)
+        {
+            var chain = ExceptionChain(e);
+            var cause = chain[chain.Count - 1];
+
+            var sb = new StringBuilder();
+            sb.Append("Internal compiler error: ").Append(cause.GetType().FullName).Append(": ").Append(cause.Message);
+
+            for (int i = 0; i < chain.Count - 1; i++)
+            {
+                if (!(chain[i] is InternalErrorException)) continue;
+
+                var where = chain[i].Message.Trim();
+                if (where.EndsWith(":")) continue;
+                sb.Append(InternalErrorLocation.IsMatch(where) ? "\n  while compiling " : "\n  ").Append(where);
+            }
+
+            return sb.ToString();
+        }
+
+        private static string DescribeExceptionChain(Exception e)
+        {
+            if (e == null) return "no exception";
+
+            var chain = ExceptionChain(e);
             var innermost = chain[chain.Count - 1];
             var sb = new StringBuilder();
             sb.Append("Cause: ").Append(innermost.GetType().FullName).Append(": ").Append(innermost.Message);
@@ -762,6 +1122,52 @@ namespace Unity_Inspector_Mod
             return sb.ToString();
         }
 
+        internal static string DetectEmptyGenericLambdas(Assembly assembly)
+        {
+            var found = new List<string>();
+            Type[] types;
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                types = e.Types;
+            }
+
+            var pending = new Stack<Type>(types.Where(t => t != null));
+            while (pending.Count > 0)
+            {
+                var type = pending.Pop();
+                foreach (var nested in type.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    pending.Push(nested);
+                }
+
+                foreach (var method in type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Static |
+                                                       BindingFlags.Instance | BindingFlags.Public |
+                                                       BindingFlags.NonPublic))
+                {
+                    // mcs hosts a non-capturing lambda of a generic method as a generic <Method>m__N, which Unity's Mono runs with an empty body.
+                    if (!method.IsGenericMethodDefinition || !method.Name.StartsWith("<")) continue;
+
+                    int close = method.Name.IndexOf(">m__", StringComparison.Ordinal);
+                    if (close < 0) continue;
+
+                    found.Add(type.FullName + "." + method.Name.Substring(1, close - 1));
+                }
+            }
+
+            if (found.Count == 0) return null;
+
+            return "Generic method " + string.Join(", ", found.Distinct().ToArray()) +
+                   " holds a lambda that captures nothing, which this runtime compiles with an empty body " +
+                   "(InvalidProgramException: method body is empty, when it runs).\n" +
+                   "Workarounds:\n" +
+                   "  - Make the lambda use a parameter or local of the method, so it captures\n" +
+                   "  - Move the lambda into a non-generic method";
+        }
+
         private static AssemblyName ParseName(string fullName)
         {
             try
@@ -777,6 +1183,7 @@ namespace Unity_Inspector_Mod
         private static void ImportAppDomainAssemblies(Action<Assembly> import)
         {
             var dedupedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !(a is AssemblyBuilder))
                 .Select(a => new { ass = a, name = ParseName(a.FullName) })
                 .Where(a => a.name != null)
                 .GroupBy(a => a.name.Name)
@@ -784,7 +1191,7 @@ namespace Unity_Inspector_Mod
 
             foreach (var ass in dedupedAssemblies)
             {
-                if (StdLib.Contains(ass.name.Name) || CompiledAssemblies.Contains(ass.name.Name))
+                if (StdLib.Contains(ass.name.Name))
                     continue;
                 try
                 {
@@ -795,6 +1202,72 @@ namespace Unity_Inspector_Mod
                     ReportImportFailure(ass.name.Name, "any type", e);
                 }
             }
+        }
+
+        private static IEnumerable<Assembly> EvalAssemblies()
+        {
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => a is AssemblyBuilder && EvalAssemblyName.IsMatch(SafeAssemblyName(a)));
+        }
+
+        internal static Assembly NewestEvalAssembly()
+        {
+            Assembly newest = null;
+            int newestNumber = -1;
+            foreach (var assembly in EvalAssemblies())
+            {
+                int number;
+                if (int.TryParse(EvalAssemblyName.Match(SafeAssemblyName(assembly)).Groups[1].Value, out number)
+                    && number > newestNumber)
+                {
+                    newest = assembly;
+                    newestNumber = number;
+                }
+            }
+            return newest;
+        }
+
+        internal static Type[] LatestEvalTypes()
+        {
+            var latest = new Dictionary<string, KeyValuePair<int, Type>>();
+            foreach (var assembly in EvalAssemblies())
+            {
+                int number;
+                if (!int.TryParse(EvalAssemblyName.Match(SafeAssemblyName(assembly)).Groups[1].Value, out number))
+                    continue;
+
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException e)
+                {
+                    types = e.Types;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (types == null) continue;
+
+                foreach (var type in types)
+                {
+                    if (type == null || type is TypeBuilder || type.IsNested) continue;
+
+                    string fullName = type.FullName;
+                    if (fullName == null || fullName.IndexOf('<') >= 0) continue;
+
+                    KeyValuePair<int, Type> held;
+                    if (!latest.TryGetValue(fullName, out held) || held.Key < number)
+                    {
+                        latest[fullName] = new KeyValuePair<int, Type>(number, type);
+                    }
+                }
+            }
+
+            return latest.Values.Select(v => v.Value).ToArray();
         }
     }
 }

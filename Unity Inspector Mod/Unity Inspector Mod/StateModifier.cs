@@ -43,22 +43,13 @@ namespace Unity_Inspector_Mod
                 return new { success = false, error = "No properties were given - pass at least one member name and value to write" };
             }
 
-            GameObject go = FindGameObjectByPath(gameObjectPath);
+            GameObject go = MessageHandler.FindGameObjectByPath(gameObjectPath);
             if (go == null)
             {
                 return new { success = false, error = $"GameObject not found at path: {gameObjectPath}" };
             }
 
-            Component component = null;
-            
-            foreach (var comp in go.GetComponents<Component>())
-            {
-                if (comp.GetType().Name == componentType || comp.GetType().FullName == componentType)
-                {
-                    component = comp;
-                    break;
-                }
-            }
+            Component component = GameObjectInspector.FindComponent(go, componentType);
 
             if (component == null)
             {
@@ -274,41 +265,112 @@ namespace Unity_Inspector_Mod
             return value.ToObject(targetType);
         }
 
-        private static GameObject FindGameObjectByPath(string path)
+        #region Level and Player Slots
+
+        public static string NotPlayingReason()
         {
-            if (string.IsNullOrEmpty(path))
-                return null;
+            string scene = SceneManager.GetActiveScene().name;
 
-            if (path == "/")
-                return null;
+            if ( LevelSelectionController.IsMainMenuScene ) return $"no level is being played - the main menu ({scene}) is showing";
+            if ( LevelSelectionController.IsWorldMapScene ) return $"no level is being played - the world map ({scene}) is showing";
+            if ( LevelSelectionController.IsLoadingScene ) return $"no level is being played - a level is loading ({scene})";
 
-            string[] parts = path.TrimStart('/').Split('/');
-            
-            GameObject[] rootObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
-            GameObject current = null;
+            string levelScene;
+            try { levelScene = LevelSelectionController.CurrentGameModeScene; }
+            catch { levelScene = LevelSelectionController.CampaignScene; }
 
-            foreach (var obj in rootObjects)
-            {
-                if (obj.transform.parent == null && obj.name == parts[0])
-                {
-                    current = obj;
-                    break;
-                }
-            }
-
-            if (current == null)
-                return null;
-
-            for (int i = 1; i < parts.Length; i++)
-            {
-                Transform child = current.transform.Find(parts[i]);
-                if (child == null)
-                    return null;
-                current = child.gameObject;
-            }
-
-            return current;
+            if ( !string.Equals( scene, levelScene, StringComparison.OrdinalIgnoreCase ) ) return $"no level is being played - scene {scene} is not a level";
+            if ( Map.MapData == null ) return $"no level is loaded (scene {scene})";
+            return null;
         }
+
+        public sealed class SlotState
+        {
+            public int Index;
+            public TestVanDammeAnim Character;
+            public string State;
+            public string Piloting;
+        }
+
+        public static SlotState ReadSlot( int index )
+        {
+            var slot = new SlotState { Index = index, State = "empty" };
+            Player[] players = HeroController.players;
+            if ( players == null || index < 0 || index >= players.Length )
+            {
+                return slot;
+            }
+
+            // The join screen keeps the previous level's destroyed Player in the slot.
+            if ( players[index] == null )
+            {
+                if ( HeroController.IsPlaying( index ) ) slot.State = "joined";
+                return slot;
+            }
+
+            TestVanDammeAnim character = players[index].character;
+            if ( character == null )
+            {
+                slot.State = "respawning";
+                return slot;
+            }
+
+            slot.Character = character;
+            slot.State = CharacterIsAlive( character ) ? "alive" : "dead";
+            if ( character.pilottedUnit != null )
+            {
+                slot.Piloting = VehicleName( character.pilottedUnit );
+            }
+
+            return slot;
+        }
+
+        public static bool CharacterIsAlive( TestVanDammeAnim character )
+        {
+            // Some IsAlive overrides read Time.time, which may throw off the main thread.
+            try { return character.IsAlive(); }
+            catch { return character.health > 0; }
+        }
+
+        public static string VehicleName( Unit vehicle )
+        {
+            try { return vehicle.name; }
+            catch { return vehicle.GetType().Name; }
+        }
+
+        public static string SlotRefusal( SlotState slot, bool refusePiloting )
+        {
+            switch ( slot.State )
+            {
+                case "empty": return $"no player in slot {slot.Index}";
+                case "joined": return $"player {slot.Index} has joined but has no bro yet";
+                case "respawning": return $"player {slot.Index} is dead and waiting to respawn";
+                case "dead": return $"player {slot.Index} is dead";
+            }
+
+            if ( refusePiloting && slot.Piloting != null ) return $"player {slot.Index} is piloting {slot.Piloting}";
+            return null;
+        }
+
+        public static string SlotReasonCode( SlotState slot )
+        {
+            switch ( slot.State )
+            {
+                case "empty":
+                case "joined": return "no-player";
+                case "respawning":
+                case "dead": return "player-dead";
+            }
+
+            return slot.Piloting != null ? "piloting" : null;
+        }
+
+        private static object SkippedSlot( SlotState slot, string refusal )
+        {
+            return new { playerNum = slot.Index, reason = SlotReasonCode( slot ), message = refusal };
+        }
+
+        #endregion
 
         // High-level convenience methods
         public static object TeleportPlayer(float x, float y, float? z = null, int playerNum = 0)
@@ -320,66 +382,120 @@ namespace Unity_Inspector_Mod
                     return new { success = false, error = "Player number must be 0-3, or -1 for all players" };
                 }
 
-                var players = HeroController.players;
-
-                if (playerNum == -1)
-                {
-                    if (players == null || players.Length == 0)
-                    {
-                        return new { success = false, error = "No players found" };
-                    }
-
-                    var results = new List<object>();
-                    float finalZ = z ?? 0f;
-                    for (int i = 0; i < players.Length; i++)
-                    {
-                        var p = players[i]?.character;
-                        if (p == null) continue;
-                        float pz = z ?? p.transform.position.z;
-                        finalZ = pz;
-                        p.transform.position = new Vector3(x, y, pz);
-                        p.X = x;
-                        p.Y = y;
-                        results.Add(new { playerNum = i, playerName = p.name });
-                    }
-
-                    if (results.Count == 0)
-                    {
-                        return new { success = false, error = "No active players found" };
-                    }
-
-                    return new {
-                        success = true,
-                        newPosition = new { x = x, y = y, z = finalZ },
-                        playerNum = -1,
-                        results = results.ToArray()
-                    };
-                }
-
-                if (players == null || players.Length <= playerNum || players[playerNum]?.character == null)
-                {
-                    return new { success = false, error = $"No player found at index {playerNum}" };
-                }
-
-                var player = players[playerNum].character;
-                Vector3 newPosition = new Vector3(x, y, z ?? player.transform.position.z);
-                player.transform.position = newPosition;
-
-                player.X = x;
-                player.Y = y;
-
-                return new {
-                    success = true,
-                    newPosition = new { x = x, y = y, z = newPosition.z },
-                    playerNum = playerNum,
-                    playerName = player.name
-                };
+                object result = null;
+                MainThreadDispatcher.EnqueueAndWait(() => { result = TeleportOnMainThread(x, y, z, playerNum); }, 5000);
+                return result;
             }
             catch (Exception ex)
             {
                 Main.Log($"TeleportPlayer error: {ex.Message}");
                 return new { success = false, error = ex.Message };
             }
+        }
+
+        private static object TeleportOnMainThread(float x, float y, float? z, int playerNum)
+        {
+            string notPlaying = NotPlayingReason();
+            if (notPlaying != null)
+            {
+                return new { success = false, error = $"Cannot teleport: {notPlaying}", reason = "no-level" };
+            }
+
+            // Map.IsWithinBounds passes an infinite x or y, since the column cast of infinity wraps.
+            if (float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y) || !Map.IsWithinBounds(new Vector3(x, y, 0f)))
+            {
+                return new
+                {
+                    success = false,
+                    error = $"({x}, {y}) is outside the map: {DescribeMapBounds()}",
+                    reason = "out-of-bounds",
+                    bounds = new { minX = 0f, maxX = MapMaxX(), minY = 0f, maxY = MapMaxY() }
+                };
+            }
+
+            string zNote = z.HasValue ? "z cannot be set: the game rewrites it from the unit's own z offset every frame" : null;
+
+            if (playerNum == -1)
+            {
+                var results = new List<object>();
+                var skipped = new List<object>();
+                object lastPosition = null;
+
+                for (int i = 0; i < Nums.PLAYER_MAX; i++)
+                {
+                    SlotState slot = ReadSlot(i);
+                    string refusal = SlotRefusal(slot, true);
+                    if (refusal != null)
+                    {
+                        skipped.Add(SkippedSlot(slot, refusal));
+                        continue;
+                    }
+
+                    lastPosition = MoveCharacter(slot.Character, x, y);
+                    results.Add(new { playerNum = i, playerName = slot.Character.name, newPosition = lastPosition });
+                }
+
+                if (results.Count == 0)
+                {
+                    return new { success = false, error = "No player could be teleported", skipped = skipped.ToArray() };
+                }
+
+                var all = JObject.FromObject(new
+                {
+                    success = true,
+                    newPosition = lastPosition,
+                    playerNum = -1,
+                    results = results.ToArray(),
+                    skipped = skipped.ToArray()
+                });
+                if (zNote != null) all["note"] = zNote;
+                return all;
+            }
+
+            SlotState target = ReadSlot(playerNum);
+            string targetRefusal = SlotRefusal(target, true);
+            if (targetRefusal != null)
+            {
+                return new { success = false, error = $"Cannot teleport: {targetRefusal}", reason = SlotReasonCode(target) };
+            }
+
+            var reply = JObject.FromObject(new
+            {
+                success = true,
+                newPosition = MoveCharacter(target.Character, x, y),
+                playerNum = playerNum,
+                playerName = target.Character.name
+            });
+            if (zNote != null) reply["note"] = zNote;
+            return reply;
+        }
+
+        private static object MoveCharacter(TestVanDammeAnim character, float x, float y)
+        {
+            character.SetXY(x, y);
+            character.SetPosition();
+            character.xI = 0f;
+            character.yI = 0f;
+            character.xIBlast = 0f;
+            character.yIBlast = 0f;
+
+            Vector3 held = character.transform.position;
+            return new { x = held.x, y = held.y, z = held.z };
+        }
+
+        private static float MapMaxX()
+        {
+            return Map.Width * Map.TileSize - Map.HalfTileSize;
+        }
+
+        private static float MapMaxY()
+        {
+            return Map.Height * Map.TileSize - Map.HalfTileSize;
+        }
+
+        private static string DescribeMapBounds()
+        {
+            return $"the map spans x from 0 to below {MapMaxX()} and y from 0 to below {MapMaxY()}";
         }
 
         public static object SetPlayerHealth(int health, int playerNum = 0)
@@ -391,66 +507,140 @@ namespace Unity_Inspector_Mod
                     return new { success = false, error = "Player number must be 0-3, or -1 for all players" };
                 }
 
-                var players = HeroController.players;
-
-                if (playerNum == -1)
-                {
-                    if (players == null || players.Length == 0)
-                    {
-                        return new { success = false, error = "No players found" };
-                    }
-
-                    var results = new List<object>();
-                    for (int i = 0; i < players.Length; i++)
-                    {
-                        var p = players[i]?.character;
-                        if (p == null) continue;
-                        p.health = health;
-                        if (health > 0 && p.actionState == ActionState.Dead)
-                        {
-                            p.actionState = ActionState.Idle;
-                        }
-                        results.Add(new { playerNum = i, playerName = p.name });
-                    }
-
-                    if (results.Count == 0)
-                    {
-                        return new { success = false, error = "No active players found" };
-                    }
-
-                    return new {
-                        success = true,
-                        health = health,
-                        playerNum = -1,
-                        results = results.ToArray()
-                    };
-                }
-
-                if (players == null || players.Length <= playerNum || players[playerNum]?.character == null)
-                {
-                    return new { success = false, error = $"No player found at index {playerNum}" };
-                }
-
-                var player = players[playerNum].character;
-                player.health = health;
-
-                if (health > 0 && player.actionState == ActionState.Dead)
-                {
-                    player.actionState = ActionState.Idle;
-                }
-
-                return new {
-                    success = true,
-                    health = health,
-                    playerNum = playerNum,
-                    playerName = player.name
-                };
+                object result = null;
+                MainThreadDispatcher.EnqueueAndWait(() => { result = SetPlayerHealthOnMainThread(health, playerNum); }, 5000);
+                return result;
             }
             catch (Exception ex)
             {
                 Main.Log($"SetPlayerHealth error: {ex.Message}");
                 return new { success = false, error = ex.Message };
             }
+        }
+
+        private static object SetPlayerHealthOnMainThread(int health, int playerNum)
+        {
+            string notPlaying = NotPlayingReason();
+            if (notPlaying != null)
+            {
+                return new { success = false, error = $"Cannot set health: {notPlaying}", reason = "no-level" };
+            }
+
+            if (playerNum == -1)
+            {
+                var results = new List<object>();
+                var skipped = new List<object>();
+                string failure = null;
+
+                for (int i = 0; i < Nums.PLAYER_MAX; i++)
+                {
+                    SlotState slot = ReadSlot(i);
+                    // Killing a hidden pilot leaves the vehicle holding a corpse that the discharge later revives.
+                    string refusal = SlotRefusal(slot, health <= 0);
+                    if (refusal != null)
+                    {
+                        skipped.Add(SkippedSlot(slot, refusal));
+                        continue;
+                    }
+
+                    string error;
+                    bool killed = ApplyHealth(slot, health, out error);
+                    if (error != null)
+                    {
+                        failure = failure == null ? error : failure + "; " + error;
+                    }
+                    results.Add(new { playerNum = i, playerName = slot.Character.name, health = slot.Character.health, killed });
+                }
+
+                if (results.Count == 0)
+                {
+                    return new { success = false, error = "No player's health could be set", skipped = skipped.ToArray() };
+                }
+
+                var all = JObject.FromObject(new
+                {
+                    success = failure == null,
+                    health = health,
+                    playerNum = -1,
+                    results = results.ToArray(),
+                    skipped = skipped.ToArray()
+                });
+                if (failure != null) all["error"] = failure;
+                return all;
+            }
+
+            SlotState target = ReadSlot(playerNum);
+            string targetRefusal = SlotRefusal(target, health <= 0);
+            if (targetRefusal != null)
+            {
+                return new { success = false, error = $"Cannot set health: {targetRefusal}", reason = SlotReasonCode(target) };
+            }
+
+            string targetError;
+            bool targetKilled = ApplyHealth(target, health, out targetError);
+            var reply = JObject.FromObject(new
+            {
+                success = targetError == null,
+                health = target.Character.health,
+                killed = targetKilled,
+                playerNum = playerNum,
+                playerName = target.Character.name
+            });
+            if (targetError != null) reply["error"] = targetError;
+            return reply;
+        }
+
+        private static bool ApplyHealth(SlotState slot, int health, out string error)
+        {
+            error = null;
+            TestVanDammeAnim character = slot.Character;
+
+            if (health > 0)
+            {
+                character.health = health;
+                return false;
+            }
+
+            // The hit itself clears some damage absorbers (a parachute closes).
+            string absorber = DamageAbsorber(character);
+
+            character.Damage(character.health, DamageType.Crush, 0f, 0f, 0, null, character.X, character.Y);
+
+            bool killed = character.health <= 0 || character.actionState == ActionState.Dead;
+            if (!killed)
+            {
+                error = $"player {slot.Index} survived: the game's damage path absorbed it" + (absorber != null ? $" ({absorber})" : "");
+            }
+
+            return killed;
+        }
+
+        private static FieldInfo _flexInvulnerabilityField;
+
+        private static string DamageAbsorber(TestVanDammeAnim character)
+        {
+            try
+            {
+                if (character.inseminatorUnit != null) return "a facehugger takes the damage";
+                if (character.IsParachuteActive) return "an open parachute";
+                if (character.hasBeenCoverInAcid) return "an acid coating";
+
+                if (character is BroBase)
+                {
+                    if (_flexInvulnerabilityField == null)
+                    {
+                        _flexInvulnerabilityField = typeof(BroBase).GetField("flexInvulnerability", BindingFlags.Instance | BindingFlags.NonPublic);
+                    }
+
+                    if (_flexInvulnerabilityField != null && (float)_flexInvulnerabilityField.GetValue(character) > 0f) return "flex invulnerability";
+                }
+            }
+            catch (Exception ex)
+            {
+                Main.Log($"Reading what absorbs damage failed: {ex.Message}");
+            }
+
+            return null;
         }
 
         public static object SpawnEntity(string entityType, float x, float y, float xI = 0f, float yI = 0f, bool ignoreSuppression = false)
@@ -529,7 +719,7 @@ namespace Unity_Inspector_Mod
                     return new
                     {
                         success = false,
-                        error = "'Bro' is a RocketLib unit type but cannot be spawned here - bros come from the character roster, so use set_bro or swap_bro to change the bro a player has"
+                        error = "'Bro' is a RocketLib unit type but cannot be spawned here - bros come from the character roster, so use swap_bro to change the bro a player has"
                     };
                 }
 
@@ -571,37 +761,54 @@ namespace Unity_Inspector_Mod
             }
 
             Unit spawned;
-            bool networked;
+            bool networked = false;
+            string mookSpawn = null;
 
-            if (unitType == UnitType.Facehugger)
+            try
             {
-                spawned = Map.SpawnFaceHugger(x, y, xI, yI);
-                networked = false;
+                if (unitType == UnitType.Facehugger)
+                {
+                    spawned = Map.SpawnFaceHugger(x, y, xI, yI);
+                }
+                else if (unitType == UnitType.Screecher)
+                {
+                    spawned = Map.SpawnFaceBaneling(x, y, xI, yI);
+                }
+                else if (prefab is Mook && InstantiationController.GetPrefabIndex(prefab.gameObject) >= 0)
+                {
+                    mookSpawn = "SpawnMook_Networked";
+                    spawned = MapController.SpawnMook_Networked(prefab as Mook, x, y, xI, yI, false, false, false, false, true);
+                    networked = true;
+                }
+                else if (prefab is Mook)
+                {
+                    // SpawnMook_Networked dereferences null for a prefab outside the game's networked prefab list.
+                    mookSpawn = "SpawnMook_Local";
+                    spawned = SpawnMookLocal(prefab as Mook, x, y, xI, yI);
+                }
+                else
+                {
+                    spawned = SpawnUnitLocal(prefab, x, y, xI, yI);
+                }
             }
-            else if (unitType == UnitType.Screecher)
+            catch (Exception ex)
             {
-                spawned = Map.SpawnFaceBaneling(x, y, xI, yI);
-                networked = false;
-            }
-            else if (prefab is Mook)
-            {
-                spawned = MapController.SpawnMook_Networked(prefab as Mook, x, y, xI, yI, false, false, false, false, true);
-                networked = true;
-            }
-            else
-            {
-                spawned = SpawnUnitLocal(prefab, x, y, xI, yI);
-                networked = false;
+                return new
+                {
+                    success = false,
+                    error = $"Spawning '{displayName}' threw {ex.GetType().Name}: {ex.Message}",
+                    unitType = unitType.ToString()
+                };
             }
 
             if (spawned == null)
             {
-                if (networked)
+                if (mookSpawn != null)
                 {
                     return new
                     {
                         success = false,
-                        error = $"Networked spawn of '{displayName}' returned no instance{DescribeSpawnMookPrefixes()}"
+                        error = $"{(networked ? "Networked" : "Local")} spawn of '{displayName}' returned no instance{DescribeSpawnMookPrefixes(mookSpawn)}"
                     };
                 }
 
@@ -636,15 +843,33 @@ namespace Unity_Inspector_Mod
                 return null;
             }
 
+            PlaceLocalUnit(unit);
+            unit.xI = xI;
+            unit.yI = yI;
+            return unit;
+        }
+
+        private static Unit SpawnMookLocal(Mook prefab, float x, float y, float xI, float yI)
+        {
+            Mook mook = MapController.SpawnMook_Local(prefab, x, y, xI, yI, false, false, false, false, true);
+
+            if (mook == null)
+            {
+                return null;
+            }
+
+            PlaceLocalUnit(mook);
+            return mook;
+        }
+
+        private static void PlaceLocalUnit(Unit unit)
+        {
             if (Map.Instance != null)
             {
                 unit.transform.parent = Map.Instance.transform;
             }
 
             Registry.RegisterDeterminsiticGameObject(unit.gameObject);
-            unit.xI = xI;
-            unit.yI = yI;
-            return unit;
         }
 
         private static UnitType ResolveUnitType(string requested)
@@ -714,11 +939,11 @@ namespace Unity_Inspector_Mod
         }
 
         // A prefix that returns false leaves __result null, so the spawn silently produces nothing.
-        private static string DescribeSpawnMookPrefixes()
+        private static string DescribeSpawnMookPrefixes(string method)
         {
             string[] owners = GetPrefixOwners(new[]
             {
-                new KeyValuePair<Type, string>(typeof(MapController), "SpawnMook_Networked")
+                new KeyValuePair<Type, string>(typeof(MapController), method)
             });
 
             if (owners.Length == 0)
@@ -888,12 +1113,40 @@ namespace Unity_Inspector_Mod
             return owners.ToArray();
         }
 
+        // The game clamps a unit's per-frame step at 0.0334s, so past about 2x at 60fps units stop speeding up while timers keep scaling.
+        public const float MaxGameSpeed = 10f;
+
+        private static FieldInfo _timescaleWhenPausedField;
+
         public static object SetGameSpeed(float speed)
         {
             try
             {
+                if (float.IsNaN(speed) || float.IsInfinity(speed) || speed < 0f || speed > MaxGameSpeed)
+                {
+                    return new { success = false, error = $"Speed {speed} is out of range - give a number from 0 to {MaxGameSpeed}" };
+                }
+
                 Time.timeScale = speed;
-                return new { success = true, timeScale = speed };
+                var reply = JObject.FromObject(new { success = true, timeScale = Time.timeScale });
+
+                // The offline pause menu holds timeScale at 1 and restores the value it saved when it closes.
+                PauseController pause = PauseController.instance;
+                if (PauseController.pauseStatus == PauseStatus.MenuPause && Connect.IsOffline && pause != null)
+                {
+                    if (_timescaleWhenPausedField == null)
+                    {
+                        _timescaleWhenPausedField = typeof(PauseController).GetField("timescaleWhenPaused", BindingFlags.Instance | BindingFlags.NonPublic);
+                    }
+
+                    if (_timescaleWhenPausedField != null)
+                    {
+                        _timescaleWhenPausedField.SetValue(pause, speed);
+                        reply["timeScaleAfterUnpause"] = (float)_timescaleWhenPausedField.GetValue(pause);
+                    }
+                }
+
+                return reply;
             }
             catch (Exception ex)
             {
@@ -1014,34 +1267,38 @@ namespace Unity_Inspector_Mod
                     };
                 }
 
-                if (!HeroController.IsPlayerPlaying(0))
-                {
-                    PlayerProgress.currentWorldMapSaveSlot = 0;
-                    GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[0];
-                    
-                    HeroController.PIDS[0] = PID.MyID;
-                    HeroController.playerControllerIDs[0] = 0;
-                    HeroController.SetPlayerName(0, PlayerOptions.Instance.playerName);
-                    HeroController.SetIsPlaying(0, true);
-                }
-                
-                LevelSelectionController.ResetLevelAndGameModeToDefault();
-                GameState.Instance.ResetToDefault();
-                
-                GameState.Instance.campaignName = CampaignNames[campaignIndex];
-                LevelSelectionController.CurrentLevelNum = levelIndex;
-                
-                GameState.Instance.loadMode = MapLoadMode.Campaign;
-                GameState.Instance.gameMode = GameMode.Campaign;
-                GameState.Instance.returnToWorldMap = true;
-                GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
-                GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
-                
+                string[] suppressedBy = null;
+
                 try
                 {
                     MainThreadDispatcher.EnqueueAndWait(() =>
                     {
+                        if (!HeroController.IsPlayerPlaying(0))
+                        {
+                            PlayerProgress.currentWorldMapSaveSlot = 0;
+                            GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[0];
+
+                            HeroController.PIDS[0] = PID.MyID;
+                            HeroController.playerControllerIDs[0] = 0;
+                            HeroController.SetPlayerName(0, PlayerOptions.Instance.playerName);
+                            HeroController.SetIsPlaying(0, true);
+                        }
+
+                        LevelSelectionController.ResetLevelAndGameModeToDefault();
+                        GameState.Instance.ResetToDefault();
+
+                        GameState.Instance.campaignName = CampaignNames[campaignIndex];
+                        LevelSelectionController.CurrentLevelNum = levelIndex;
+
+                        GameState.Instance.loadMode = MapLoadMode.Campaign;
+                        GameState.Instance.gameMode = GameMode.Campaign;
+                        GameState.Instance.returnToWorldMap = true;
+                        GameState.Instance.sceneToLoad = LevelSelectionController.CampaignScene;
+                        GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
+
                         GameModeController.LoadNextScene(GameState.Instance);
+
+                        suppressedBy = GetActiveEnemySpawnSuppressors();
                     }, 3000);
                 }
                 catch (Exception ex)
@@ -1049,13 +1306,18 @@ namespace Unity_Inspector_Mod
                     Main.Log($"[GoToLevel] Failed to execute on main thread: {ex.Message}");
                     throw;
                 }
-                
-                var result = new
+
+                var result = JObject.FromObject(new
                 {
                     success = true,
                     message = $"Loading {CampaignNames[campaignIndex]} - Level {levelIndex + 1}"
-                };
-                
+                });
+
+                if (suppressedBy != null && suppressedBy.Length > 0)
+                {
+                    result["warning"] = $"Enemy spawning is suppressed by {string.Join(", ", suppressedBy)}: enemies and bosses the level places are skipped, so a level that finishes on a boss cannot finish";
+                }
+
                 return result;
             }
             catch (Exception ex)
@@ -1073,6 +1335,35 @@ namespace Unity_Inspector_Mod
 
         private const string SwapBrosRequired = "Swap Bros Mod is required but not active";
 
+        private static JObject BroFailure( string error, string reason )
+        {
+            return JObject.FromObject( new
+            {
+                success = false,
+                error,
+                reason,
+                availableBros = SwapBrosIntegration.GetAvailableBros().ToArray(),
+                allNormal = SwapBrosIntegration.GetAllNormalBros().ToArray(),
+                allExpendabros = SwapBrosIntegration.GetAllExpendabros().ToArray(),
+                allUnfinished = SwapBrosIntegration.GetAllUnfinishedBros().ToArray()
+            } );
+        }
+
+        private static JObject UnknownBro( string broName, out string known, out string origin )
+        {
+            known = SwapBrosIntegration.FindKnownBro( broName, out origin );
+            if ( known != null )
+            {
+                return null;
+            }
+
+            string[] suggestions = MemberPath.ClosestNames( SwapBrosIntegration.AllKnownBros(), broName );
+            string hint = suggestions.Length > 0 ? $" - did you mean {string.Join( ", ", suggestions.Select( name => $"'{name}'" ).ToArray() )}?" : "";
+            JObject failure = BroFailure( $"Bro '{broName}' not found in any roster (vanilla, Expendabros, unfinished or BroMaker){hint}", "unknown-bro" );
+            failure["suggestions"] = JArray.FromObject( suggestions );
+            return failure;
+        }
+
         public static object SwapBro( string broName, int playerNum, bool ignoreUnlocks = false )
         {
             try
@@ -1084,7 +1375,7 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired };
+                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
                 }
 
                 object result = null;
@@ -1093,21 +1384,43 @@ namespace Unity_Inspector_Mod
 
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
+                    string notPlaying = NotPlayingReason();
+                    if ( notPlaying != null )
+                    {
+                        result = BroFailure( $"Cannot swap player {playerNum} to '{broName}': {notPlaying}", "no-level" );
+                        return;
+                    }
+
+                    SlotState slot = ReadSlot( playerNum );
+                    string refusal = SlotRefusal( slot, true );
+                    if ( refusal != null )
+                    {
+                        result = BroFailure( $"Cannot swap player {playerNum} to '{broName}': {refusal}", SlotReasonCode( slot ) );
+                        return;
+                    }
+
+                    string known;
+                    string origin;
+                    JObject unknown = UnknownBro( broName, out known, out origin );
+                    if ( unknown != null )
+                    {
+                        result = unknown;
+                        return;
+                    }
+
                     Func<bool> swap = () =>
                     {
+                        if ( !SwapBrosIntegration.IsInCurrentList( broName ) )
+                        {
+                            string why = SwapBrosIntegration.UnreachableReason( known, origin, !ignoreUnlocks );
+                            result = BroFailure( $"Bro '{known}' is not in Swap Bros Mod's current list: {why}", "unreachable" );
+                            return false;
+                        }
+
                         bool swapped = SwapBrosIntegration.SwapToBroByName( playerNum, broName );
                         if ( !swapped )
                         {
-                            var available = SwapBrosIntegration.GetAvailableBros();
-                            result = new
-                            {
-                                success = false,
-                                error = $"Bro '{broName}' not found or swap failed",
-                                availableBros = available.ToArray(),
-                                allNormal = SwapBrosIntegration.GetAllNormalBros().ToArray(),
-                                allExpendabros = SwapBrosIntegration.GetAllExpendabros().ToArray(),
-                                allUnfinished = SwapBrosIntegration.GetAllUnfinishedBros().ToArray()
-                            };
+                            result = BroFailure( $"Swap Bros Mod did not swap player {playerNum} to '{known}' - its log names any exception", "swap-failed" );
                             return false;
                         }
 
@@ -1158,33 +1471,43 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired };
+                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
                 }
 
                 object result = null;
 
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
-                    bool set = SwapBrosIntegration.SetNextBroByName( playerNum, broName );
-                    if ( !set )
+                    string known;
+                    string origin;
+                    JObject unknown = UnknownBro( broName, out known, out origin );
+                    if ( unknown != null )
                     {
-                        var available = SwapBrosIntegration.GetAvailableBros();
-                        result = new
-                        {
-                            success = false,
-                            error = $"Bro '{broName}' not found",
-                            availableBros = available.ToArray(),
-                            allNormal = SwapBrosIntegration.GetAllNormalBros().ToArray(),
-                            allExpendabros = SwapBrosIntegration.GetAllExpendabros().ToArray(),
-                            allUnfinished = SwapBrosIntegration.GetAllUnfinishedBros().ToArray()
-                        };
+                        result = unknown;
                         return;
                     }
 
+                    if ( !SwapBrosIntegration.IsInCurrentList( broName ) )
+                    {
+                        string why = SwapBrosIntegration.UnreachableReason( known, origin, false );
+                        result = BroFailure( $"Bro '{known}' is not in Swap Bros Mod's current list: {why}", "unreachable" );
+                        return;
+                    }
+
+                    bool? alwaysChosenBefore = SwapBrosIntegration.ReadAlwaysChosen();
+                    bool set = SwapBrosIntegration.SetNextBroByName( playerNum, broName );
+                    if ( !set )
+                    {
+                        result = BroFailure( $"Swap Bros Mod did not select '{known}' for player {playerNum} - its log names any exception", "swap-failed" );
+                        return;
+                    }
+
+                    // Swap Bros Mod's SetSelectedBroByName turns alwaysChosen on and saves nothing back.
                     result = new
                     {
                         success = true,
-                        nextBro = broName
+                        nextBro = broName,
+                        alwaysChosen = new { before = alwaysChosenBefore, after = SwapBrosIntegration.ReadAlwaysChosen() }
                     };
                 }, 5000 );
 
@@ -1208,7 +1531,7 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired };
+                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
                 }
 
                 object result = null;
@@ -1220,24 +1543,21 @@ namespace Unity_Inspector_Mod
                     var expendabros = SwapBrosIntegration.GetAllExpendabros();
                     var unfinished = SwapBrosIntegration.GetAllUnfinishedBros();
 
-                    string currentBro = null;
-                    try
-                    {
-                        currentBro = SwapBrosIntegration.GetCurrentBroName( playerNum );
-                    }
-                    catch { }
+                    var players = HeroController.players;
+                    TestVanDammeAnim character = players != null && playerNum < players.Length ? players[playerNum]?.character : null;
 
                     var currentBros = new List<object>();
-                    var players = HeroController.players;
                     if ( players != null )
                     {
                         for ( int i = 0; i < players.Length; i++ )
                         {
                             if ( players[i]?.character == null ) continue;
-                            string name = null;
-                            try { name = SwapBrosIntegration.GetCurrentBroName( i ); }
-                            catch { }
-                            currentBros.Add( new { playerNum = i, currentBro = name } );
+                            currentBros.Add( new
+                            {
+                                playerNum = i,
+                                currentBro = SwapBrosIntegration.GetLiveBroName( players[i].character ),
+                                selectedBro = SwapBrosIntegration.GetSelectedBroName( i )
+                            } );
                         }
                     }
 
@@ -1245,7 +1565,8 @@ namespace Unity_Inspector_Mod
                     {
                         success = true,
                         playerNum,
-                        currentBro,
+                        currentBro = SwapBrosIntegration.GetLiveBroName( character ),
+                        selectedBro = SwapBrosIntegration.GetSelectedBroName( playerNum ),
                         currentBros = currentBros.ToArray(),
                         currentlyAvailable = available.ToArray(),
                         allNormal = normal.ToArray(),
@@ -1276,6 +1597,13 @@ namespace Unity_Inspector_Mod
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
                     string sceneName = SceneManager.GetActiveScene().name;
+
+                    string notPlaying = NotPlayingReason();
+                    if ( notPlaying != null )
+                    {
+                        result = new { success = false, error = $"Cannot restart: {notPlaying}", scene = sceneName };
+                        return;
+                    }
 
                     Map.ClearSuperCheckpointStatus();
 

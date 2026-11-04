@@ -16,6 +16,17 @@ namespace Unity_Inspector_Mod
 
         private static readonly List<Assembly> scriptAssemblies = new List<Assembly>();
 
+        private static readonly List<string> recordedUsings = new List<string>();
+
+        private static bool compileBlockPatched;
+        private static bool compileBlockReached;
+
+        private static bool genericDeclared;
+
+        private static readonly HashSet<Type> importedEvalTypes = new HashSet<Type>();
+
+        private static InternalErrorException lastInternalError;
+
         internal static void RegisterScriptAssembly(Assembly assembly)
         {
             lock (initLock)
@@ -35,7 +46,6 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        // The Evaluator cannot drop a referenced assembly: a replaced script's types would collide (CS0433).
         internal static void UnregisterScriptAssembly(Assembly assembly)
         {
             lock (initLock)
@@ -45,6 +55,7 @@ namespace Unity_Inspector_Mod
 
                 if (evaluator == null) return;
 
+                // The Evaluator cannot drop a referenced assembly, and a replaced script's types would collide (CS0433).
                 initialized = false;
                 evaluator = null;
             }
@@ -106,20 +117,34 @@ namespace Unity_Inspector_Mod
             public List<StatementInfo> Statements = new List<StatementInfo>();
 
             public int MaxRow;
+
+            public List<string> Usings;
+        }
+
+        private sealed class AttemptOutcome
+        {
+            public Attempt Attempt;
+            public int Order;
+            public bool Parsed;
+            public int ErrorCount;
+            public int FirstRow;
+            public int FirstColumn;
+            public string Text;
+
+            public bool Refusal;
+        }
+
+        private sealed class Insertion
+        {
+            public int At;
+            public int Order;
+            public string Text;
         }
 
         private sealed class StatementInfo
         {
             public int Row;
             public int Column;
-            public string Text;
-        }
-
-        private sealed class Diagnostic
-        {
-            public int Row;
-            public int Column;
-            public int Order;
             public string Text;
         }
 
@@ -136,6 +161,10 @@ namespace Unity_Inspector_Mod
                     ScriptCompiler.PatchAssemblyImport();
                     ScriptCompiler.PatchConstantImport();
                     ScriptCompiler.PatchAssemblyLocation();
+                    ScriptCompiler.PatchNestedTypeImport();
+                    ScriptCompiler.PatchPropertyDefine();
+                    ScriptCompiler.PatchForeignBuilderTokens();
+                    PatchEvaluator();
 
                     // AppDomain.GetAssemblies() misses game assemblies until a type in them is touched
                     var typesToPreload = new[]
@@ -213,9 +242,36 @@ namespace Unity_Inspector_Mod
                         }
                     }
 
+                    try
+                    {
+                        var evalTypes = ScriptCompiler.LatestEvalTypes();
+                        importedEvalTypes.Clear();
+                        importedEvalTypes.UnionWith(evalTypes);
+                        evaluator.ImportTypes(true, evalTypes);
+                    }
+                    catch (Exception ex)
+                    {
+                        ScriptCompiler.ReportImportFailure("eval", "execute_code types", ex);
+                    }
+
                     foreach (var ns in ScriptCompiler.PreambleNamespaces)
                     {
                         evaluator.Run("using " + ns + ";");
+                    }
+                    foreach (var alias in ScriptCompiler.PreambleAliases)
+                    {
+                        evaluator.Run("using " + alias + ";");
+                    }
+                    foreach (var directive in recordedUsings)
+                    {
+                        try
+                        {
+                            evaluator.Run(directive);
+                        }
+                        catch (Exception ex)
+                        {
+                            Main.Log("Could not restore '" + directive + "' in the rebuilt Evaluator: " + ex.Message);
+                        }
                     }
 
                     // The Evaluator resolves nothing until real type-system code has run; 1+1 is not enough
@@ -279,63 +335,75 @@ namespace Unity_Inspector_Mod
 
                         // A local of an enum from a runtime-generated assembly kills the game while Mono compiles the method.
                         bool ownEnum;
-                        var dynamicEnum = ScriptCompiler.FindEnumUsage(code,
-                            ScriptCompiler.DynamicEnumNames(includeScriptAssemblies: true), out ownEnum);
+                        var dynamicEnum = ScriptCompiler.FindEnumUsage(code, ScriptCompiler.DynamicEnumNames(), out ownEnum);
                         if (dynamicEnum != null)
                         {
-                            executionResult = new
-                            {
-                                success = false,
-                                error = ScriptCompiler.DynamicEnumUsageMessage(dynamicEnum),
-                                stackTrace = (string)null,
-                                position = (object)null,
-                                statement = (string)null,
-                                result = (object)null
-                            };
+                            executionResult = Failure(ScriptCompiler.DynamicEnumUsageMessage(dynamicEnum));
                             return;
                         }
 
-                        var diagnostics = new List<Diagnostic>();
-                        var attempts = BuildAttempts(StripComments(code));
+                        string input = StripComments(code);
+                        CompiledMethod compiled;
+                        string messages;
+                        Exception thrown;
+
+                        // The Evaluator reads one input as declarations or as statements, never both.
+                        int statementsStart = LeadingDeclarationsEnd(input);
+                        if (statementsStart > 0)
+                        {
+                            var declarations = DeclarationsAttempt(input.Substring(0, statementsStart), MaxRowOf(input));
+                            var declarationFailure = CompileAttempt(activeEvaluator, declarations, 0,
+                                out compiled, out messages, out thrown);
+                            if (thrown != null)
+                            {
+                                executionException = thrown;
+                                failedLabel = declarations.Label;
+                                return;
+                            }
+                            if (declarationFailure != null)
+                            {
+                                executionResult = Failure(declarationFailure.Refusal
+                                    ? declarationFailure.Text
+                                    : DescribeFailure(new List<AttemptOutcome> { declarationFailure }, declarations.Source));
+                                return;
+                            }
+
+                            // Unity's Mono runs a generic method with an empty body when the Evaluator that declared it compiles the call; a rebuilt one imports the baked type.
+                            if (genericDeclared)
+                            {
+                                DiscardEvaluator();
+                                Initialize();
+                                activeEvaluator = evaluator;
+                            }
+
+                            input = BlankThrough(input, statementsStart);
+                        }
+
+                        var failures = new List<AttemptOutcome>();
+                        var attempts = BuildAttempts(input);
 
                         for (int i = 0; i < attempts.Count; i++)
                         {
                             var attempt = attempts[i];
 
-                            reportPrinter.BeginAttempt(attempt.RowOffset, attempt.Splices, attempt.MaxRow);
+                            var failure = CompileAttempt(activeEvaluator, attempt, i, out compiled, out messages, out thrown);
 
-                            CompiledMethod compiled = null;
-                            string partialInput = null;
-                            Exception compileException = null;
-
-                            try
+                            if (thrown != null)
                             {
-                                partialInput = activeEvaluator.Compile(attempt.Source, out compiled);
-                            }
-                            catch (Exception ex)
-                            {
-                                compileException = ex;
-                            }
-
-                            string messages = output.ToString();
-
-                            if (compileException != null)
-                            {
-                                executionException = compileException;
+                                executionException = thrown;
                                 failedLabel = attempt.Label;
                                 return;
                             }
 
-                            if (partialInput != null || reportPrinter.ErrorsCount > 0)
+                            if (failure != null && failure.Refusal)
                             {
-                                diagnostics.Add(new Diagnostic
-                                {
-                                    Row = reportPrinter.FirstErrorRow,
-                                    Column = reportPrinter.FirstErrorColumn,
-                                    Order = i,
-                                    Text = Describe(attempt.Label, messages,
-                                        partialInput != null ? "incomplete input" : null)
-                                });
+                                executionResult = Failure(failure.Text);
+                                return;
+                            }
+
+                            if (failure != null)
+                            {
+                                failures.Add(failure);
                                 continue;
                             }
 
@@ -344,6 +412,7 @@ namespace Unity_Inspector_Mod
 
                             if (compiled == null)
                             {
+                                if (genericDeclared) DiscardEvaluator();
                                 executionResult = new
                                 {
                                     success = true,
@@ -398,15 +467,7 @@ namespace Unity_Inspector_Mod
                             return;
                         }
 
-                        executionResult = new
-                        {
-                            success = false,
-                            error = JoinDiagnostics(diagnostics),
-                            stackTrace = (string)null,
-                            position = (object)null,
-                            statement = (string)null,
-                            result = (object)null
-                        };
+                        executionResult = Failure(DescribeFailure(failures, input));
                     }
                     catch (Exception ex)
                     {
@@ -416,10 +477,8 @@ namespace Unity_Inspector_Mod
 
                 if (executionException != null)
                 {
-                    if (retriesRemaining > 0 && !invokeStarted &&
+                    if (retriesRemaining > 0 && !invokeStarted && !IsCompilerFailure(executionException) &&
                         (executionException.Message.Contains(EvaluatorDiscardedMarker) ||
-                         executionException.Message.Contains("InteractiveHost") ||
-                         executionException.Message.Contains("Unexpected error when loading type") ||
                          executionException is TypeLoadException))
                     {
                         System.Threading.Thread.Sleep(300);
@@ -489,10 +548,300 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        private static object Failure(string error)
+        {
+            return new
+            {
+                success = false,
+                error = error,
+                stackTrace = (string)null,
+                position = (object)null,
+                statement = (string)null,
+                result = (object)null
+            };
+        }
+
+        private static bool IsCompilerFailure(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is InternalErrorException) return true;
+            }
+            return false;
+        }
+
+        private static void PatchEvaluator()
+        {
+            if (evaluatorPatched) return;
+            evaluatorPatched = true;
+
+            var harmony = new HarmonyLib.Harmony("scriptcompiler.internal");
+
+            // mcs reaches CompileBlock only for an input that parsed.
+            try
+            {
+                var compileBlock = typeof(Evaluator).GetMethod("CompileBlock",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                if (compileBlock == null)
+                {
+                    Main.Log("Mono.CSharp.Evaluator.CompileBlock not found — execute_code compile errors will be " +
+                             "reported from the attempt whose first error sits deepest");
+                }
+                else
+                {
+                    harmony.Patch(compileBlock,
+                        prefix: new HarmonyLib.HarmonyMethod(typeof(CodeExecutor).GetMethod("MarkCompileBlockReached",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                    compileBlockPatched = true;
+                }
+            }
+            catch (Exception e)
+            {
+                Main.Log("Failed to patch Mono.CSharp.Evaluator.CompileBlock (" + e.GetType().Name + ": " +
+                         e.Message + ") — execute_code compile errors will be reported from the attempt whose " +
+                         "first error sits deepest");
+            }
+
+            // Undo.AddTypeContainer drops a redeclared type's defined predecessor but not an imported one, on which NamespaceContainer.AddTypeContainer throws.
+            try
+            {
+                var addTypeContainer = typeof(Undo).GetMethod("AddTypeContainer",
+                    new[] { typeof(TypeContainer), typeof(TypeDefinition) });
+                if (addTypeContainer == null || NamespaceTypes == null || NamespaceCachedTypes == null ||
+                    UndoActions == null)
+                {
+                    Main.Log("Mono.CSharp.Undo or Namespace members not found — " + RedeclareWarning);
+                }
+                else
+                {
+                    harmony.Patch(addTypeContainer,
+                        prefix: new HarmonyLib.HarmonyMethod(typeof(CodeExecutor).GetMethod("DropImportedPredecessor",
+                            BindingFlags.Static | BindingFlags.NonPublic)),
+                        postfix: new HarmonyLib.HarmonyMethod(typeof(CodeExecutor).GetMethod("RestoreImportedOnUndo",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+            }
+            catch (Exception e)
+            {
+                Main.Log("Failed to patch Mono.CSharp.Undo.AddTypeContainer (" + e.GetType().Name + ": " +
+                         e.Message + ") — " + RedeclareWarning);
+            }
+
+            try
+            {
+                var record = new HarmonyLib.HarmonyMethod(typeof(CodeExecutor).GetMethod("RecordInternalError",
+                    BindingFlags.Static | BindingFlags.NonPublic));
+                foreach (var constructor in typeof(InternalErrorException).GetConstructors(
+                             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    harmony.Patch(constructor, postfix: record);
+                }
+            }
+            catch (Exception e)
+            {
+                Main.Log("Failed to patch Mono.CSharp.InternalErrorException (" + e.GetType().Name + ": " +
+                         e.Message + ") — execute_code CS0584 errors will not name their cause");
+            }
+        }
+
+        private static bool evaluatorPatched;
+
+        private const string RedeclareWarning =
+            "after an Evaluator rebuild, execute_code cannot declare again a type an earlier call declared";
+
+        private static readonly FieldInfo NamespaceTypes =
+            typeof(Namespace).GetField("types", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static readonly FieldInfo NamespaceCachedTypes =
+            typeof(Namespace).GetField("cached_types", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static readonly FieldInfo UndoActions =
+            typeof(Undo).GetField("undo_actions", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private static void DropImportedPredecessor(TypeContainer current_container, TypeDefinition tc,
+            out List<TypeSpec> __state)
+        {
+            __state = null;
+
+            var container = current_container as NamespaceContainer;
+            if (container == null || importedEvalTypes.Count == 0) return;
+
+            var ns = container.NS;
+            var types = NamespaceTypes.GetValue(ns) as Dictionary<string, IList<TypeSpec>>;
+            IList<TypeSpec> found;
+            if (types == null || !types.TryGetValue(tc.MemberName.Name, out found)) return;
+
+            var kept = new List<TypeSpec>();
+            foreach (var spec in found)
+            {
+                if (spec.Arity == tc.MemberName.Arity && spec.MemberDefinition.IsImported &&
+                    importedEvalTypes.Contains(spec.GetMetaInfo()))
+                {
+                    if (__state == null) __state = new List<TypeSpec>();
+                    __state.Add(spec);
+                }
+                else
+                {
+                    kept.Add(spec);
+                }
+            }
+
+            if (__state == null) return;
+
+            if (kept.Count == 0) types.Remove(tc.MemberName.Name);
+            else types[tc.MemberName.Name] = kept;
+
+            var cached = NamespaceCachedTypes.GetValue(ns) as Dictionary<string, TypeSpec>;
+            if (cached != null) cached.Remove(tc.MemberName.Basename);
+        }
+
+        private static void RestoreImportedOnUndo(Undo __instance, TypeContainer current_container,
+            List<TypeSpec> __state)
+        {
+            if (__state == null) return;
+
+            var container = (NamespaceContainer)current_container;
+            var actions = UndoActions.GetValue(__instance) as List<Action>;
+            if (actions == null) return;
+
+            foreach (var spec in __state)
+            {
+                var restored = spec;
+                actions.Add(() => container.NS.AddType(container.Module, restored));
+            }
+        }
+
+        private static void RecordInternalError(InternalErrorException __instance)
+        {
+            lastInternalError = __instance;
+        }
+
+        internal static string InternalErrorCause(string reported)
+        {
+            var last = lastInternalError;
+            if (last == null || reported == null || !reported.EndsWith(last.Message)) return string.Empty;
+
+            var cause = new StringBuilder();
+            for (var inner = last.InnerException; inner != null; inner = inner.InnerException)
+            {
+                cause.Append("\n  Cause: ").Append(inner.GetType().FullName).Append(": ").Append(inner.Message);
+            }
+            return cause.ToString();
+        }
+
+        private static void MarkCompileBlockReached()
+        {
+            compileBlockReached = true;
+        }
+
+        private static AttemptOutcome CompileAttempt(Evaluator activeEvaluator, Attempt attempt, int order,
+            out CompiledMethod compiled, out string messages, out Exception thrown)
+        {
+            reportPrinter.BeginAttempt(attempt.RowOffset, attempt.Splices, attempt.MaxRow);
+            compileBlockReached = false;
+            genericDeclared = false;
+            lastInternalError = null;
+
+            compiled = null;
+            thrown = null;
+            string partialInput = null;
+
+            try
+            {
+                partialInput = activeEvaluator.Compile(attempt.Source, out compiled);
+            }
+            catch (Exception ex)
+            {
+                thrown = ex;
+            }
+
+            messages = output.ToString();
+            if (thrown != null) return null;
+
+            if (partialInput == null && reportPrinter.ErrorsCount == 0)
+            {
+                var declared = attempt.Usings != null ? ScriptCompiler.NewestEvalAssembly() : null;
+                var lambdaError = declared != null ? ScriptCompiler.DetectEmptyGenericLambdas(declared) : null;
+                if (lambdaError != null)
+                {
+                    return new AttemptOutcome
+                    {
+                        Attempt = attempt,
+                        Order = order,
+                        Parsed = true,
+                        Refusal = true,
+                        Text = lambdaError
+                    };
+                }
+
+                genericDeclared = declared != null && DeclaresGenericMethod(declared);
+                RecordUsings(attempt.Usings);
+                return null;
+            }
+
+            return new AttemptOutcome
+            {
+                Attempt = attempt,
+                Order = order,
+                Parsed = compileBlockPatched && compileBlockReached,
+                ErrorCount = reportPrinter.ErrorsCount,
+                FirstRow = reportPrinter.FirstErrorRow,
+                FirstColumn = reportPrinter.FirstErrorColumn,
+                Text = Describe(attempt.Label, messages, partialInput != null ? "incomplete input" : null)
+            };
+        }
+
+        private static bool DeclaresGenericMethod(Assembly assembly)
+        {
+            Type[] types;
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                types = e.Types;
+            }
+
+            foreach (var type in types)
+            {
+                if (type == null) continue;
+                foreach (var method in type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Static |
+                                                       BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (method.IsGenericMethodDefinition && !method.Name.StartsWith("<")) return true;
+                }
+            }
+            return false;
+        }
+
+        private static void DiscardEvaluator()
+        {
+            lock (initLock)
+            {
+                initialized = false;
+                evaluator = null;
+            }
+        }
+
+        private static void RecordUsings(List<string> usings)
+        {
+            if (usings == null || usings.Count == 0) return;
+
+            lock (initLock)
+            {
+                foreach (var directive in usings)
+                {
+                    if (!recordedUsings.Contains(directive)) recordedUsings.Add(directive);
+                }
+            }
+        }
+
         private static List<Attempt> BuildAttempts(string code)
         {
             var attempts = new List<Attempt>();
             var splits = FindStatementSplits(code);
+            int maxRow = MaxRowOf(code);
 
             attempts.Add(WholeExpression("as expression", code));
             attempts.Add(BuildValueReturningAttempt(code, splits));
@@ -500,27 +849,43 @@ namespace Unity_Inspector_Mod
 
             if (OpensWithDeclaration(code))
             {
-                attempts.Add(new Attempt
-                {
-                    Label = "as declarations",
-                    Source = code,
-                    RowOffset = 0,
-                    // mcs pushes a putback character ahead of interactive statement input, shifting row 1's columns by one.
-                    Splices = new List<Splice>
-                    {
-                        new Splice { Row = 1, ColumnFrom = 1, Delta = 1 }
-                    }
-                });
+                attempts.Add(DeclarationsAttempt(code, maxRow));
             }
 
+            foreach (var attempt in attempts) attempt.MaxRow = maxRow;
+
+            return attempts;
+        }
+
+        private static int MaxRowOf(string code)
+        {
             int maxRow = 1;
             for (int i = 0; i < code.Length; i++)
             {
                 if (code[i] == '\n') maxRow++;
             }
-            foreach (var attempt in attempts) attempt.MaxRow = maxRow;
+            return maxRow;
+        }
 
-            return attempts;
+        private static Attempt DeclarationsAttempt(string code, int maxRow)
+        {
+            var usings = new List<string>();
+            int consumed;
+            ScanLeadingDeclarations(code, usings, null, out consumed);
+
+            return new Attempt
+            {
+                Label = "as declarations",
+                Source = code,
+                RowOffset = 0,
+                // mcs pushes a putback character ahead of interactive statement input, shifting row 1's columns by one.
+                Splices = new List<Splice>
+                {
+                    new Splice { Row = 1, ColumnFrom = 1, Delta = 1 }
+                },
+                MaxRow = maxRow,
+                Usings = usings
+            };
         }
 
         private static Attempt WholeExpression(string label, string code)
@@ -539,7 +904,7 @@ namespace Unity_Inspector_Mod
             var splices = new List<Splice>();
             int endRow;
             int endColumn;
-            string body = InsertMarkers(code, code.Length, splits, splices, out endRow, out endColumn);
+            string body = Rewrite(code, code.Length, splits, splices, out endRow, out endColumn);
 
             // Terse mode supplies a missing `;` only when the whole input failed to parse, and a block always parses.
             if (NeedsTerminator(code)) body += ";";
@@ -570,8 +935,8 @@ namespace Unity_Inspector_Mod
 
             var tail = new StringBuilder(code.Substring(split + 1));
 
-            int first = IndexOfNonWhitespace(tail, 0);
-            if (first >= 0 && StartsWithReturnKeyword(tail, first))
+            int first = SkipTrivia(tail.ToString(), 0);
+            if (first < tail.Length && StartsWithReturnKeyword(tail, first))
             {
                 for (int i = first; i < first + "return".Length; i++) tail[i] = ' ';
             }
@@ -595,12 +960,12 @@ namespace Unity_Inspector_Mod
             var splices = new List<Splice>();
             int endRow;
             int endColumn;
-            string head = InsertMarkers(code, split + 1, splits, splices, out endRow, out endColumn);
+            string head = Rewrite(code, split + 1, splits, splices, out endRow, out endColumn);
 
             splices.Add(new Splice
             {
                 Row = endRow,
-                ColumnFrom = endColumn + CaptureOpen.Length,
+                ColumnFrom = endColumn,
                 Delta = CaptureOpen.Length
             });
 
@@ -614,49 +979,361 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        // Markers carry no newline, so a row's inserted length only shifts columns on that row.
-        private static string InsertMarkers(string code, int limit, List<int> splits,
+        private static string Rewrite(string code, int limit, List<int> splits,
             List<Splice> splices, out int endRow, out int endColumn)
         {
-            var text = new StringBuilder(code.Length + 64);
+            var insertions = new List<Insertion>();
+            for (int k = 0; k < splits.Count && splits[k] < limit; k++)
+            {
+                insertions.Add(new Insertion { At = splits[k] + 1, Order = 1, Text = Marker(k + 1) });
+            }
+
+            var blanked = new HashSet<int>();
+            foreach (var valueReturn in FindValueReturns(code, limit))
+            {
+                int keyword = valueReturn[0];
+                int terminator = valueReturn[1];
+
+                insertions.Add(new Insertion { At = keyword, Order = 2, Text = "{" + CaptureOpen });
+                for (int i = keyword; i < keyword + "return".Length; i++) blanked.Add(i);
+
+                if (terminator >= 0)
+                {
+                    insertions.Add(new Insertion { At = terminator, Order = 0, Text = CaptureClose.Substring(0, 1) });
+                    insertions.Add(new Insertion { At = terminator + 1, Order = 0, Text = "return;}" });
+                }
+                else
+                {
+                    insertions.Add(new Insertion { At = limit, Order = 0, Text = CaptureClose + "return;}" });
+                }
+            }
+
+            insertions.Sort((a, b) => a.At != b.At ? a.At.CompareTo(b.At) : a.Order.CompareTo(b.Order));
+
+            var text = new StringBuilder(code.Length + 64 * (insertions.Count + 1));
 
             int row = 1;
             int rowStart = 0;
             int rowDelta = 0;
             int next = 0;
 
-            for (int i = 0; i < limit; i++)
+            for (int i = 0; i <= limit; i++)
             {
+                while (next < insertions.Count && insertions[next].At == i)
+                {
+                    var insertion = insertions[next++];
+                    splices.Add(new Splice
+                    {
+                        Row = row,
+                        ColumnFrom = (i - rowStart) + 1 + rowDelta,
+                        Delta = insertion.Text.Length
+                    });
+                    text.Append(insertion.Text);
+                    rowDelta += insertion.Text.Length;
+                }
+
+                if (i == limit) break;
+
                 char c = code[i];
-                text.Append(c);
+                text.Append(blanked.Contains(i) ? ' ' : c);
 
                 if (c == '\n')
                 {
                     row++;
                     rowStart = i + 1;
                     rowDelta = 0;
-                    continue;
-                }
-
-                if (next < splits.Count && splits[next] == i)
-                {
-                    string marker = Marker(next + 1);
-
-                    splices.Add(new Splice
-                    {
-                        Row = row,
-                        ColumnFrom = (i + 1 - rowStart) + 1 + rowDelta,
-                        Delta = marker.Length
-                    });
-
-                    text.Append(marker);
-                    rowDelta += marker.Length;
-                    next++;
                 }
             }
 
             endRow = row;
             endColumn = (limit - rowStart) + 1 + rowDelta;
+            return text.ToString();
+        }
+
+        private static List<int[]> FindValueReturns(string code, int limit)
+        {
+            var found = new List<int[]>();
+            var braceIsLambda = new List<bool>();
+            int lambdaDepth = 0;
+            var openParens = new Stack<int>();
+            int lastClosedParen = -1;
+
+            int index = 0;
+            while (index < limit)
+            {
+                char c = code[index];
+
+                if (c == '"' || c == '\'' ||
+                    (c == '@' && index + 1 < code.Length && code[index + 1] == '"'))
+                {
+                    index = SkipLiteral(code, index);
+                    continue;
+                }
+
+                if (c == '/' && index + 1 < code.Length && code[index + 1] == '*')
+                {
+                    index = SkipBlockComment(code, index);
+                    continue;
+                }
+
+                if (c == '(')
+                {
+                    openParens.Push(index);
+                }
+                else if (c == ')')
+                {
+                    lastClosedParen = openParens.Count > 0 ? openParens.Pop() : -1;
+                }
+                else if (c == '{')
+                {
+                    bool lambda = OpensLambdaBody(code, index, lastClosedParen);
+                    braceIsLambda.Add(lambda);
+                    if (lambda) lambdaDepth++;
+                }
+                else if (c == '}')
+                {
+                    if (braceIsLambda.Count > 0)
+                    {
+                        if (braceIsLambda[braceIsLambda.Count - 1]) lambdaDepth--;
+                        braceIsLambda.RemoveAt(braceIsLambda.Count - 1);
+                    }
+                }
+                else if (lambdaDepth == 0 && IsKeywordAt(code, index, "return") &&
+                         !IsKeywordAt(code, PreviousWordStart(code, index), "yield"))
+                {
+                    int value = SkipTrivia(code, index + "return".Length);
+                    if (value < limit && code[value] != ';')
+                    {
+                        int terminator = ReturnTerminator(code, value, limit);
+                        if (terminator != -2) found.Add(new[] { index, terminator });
+                    }
+
+                    index += "return".Length;
+                    continue;
+                }
+
+                index++;
+            }
+
+            return found;
+        }
+
+        private static int ReturnTerminator(string code, int from, int limit)
+        {
+            int depth = 0;
+            int index = from;
+            while (index < limit)
+            {
+                char c = code[index];
+
+                if (c == '"' || c == '\'' ||
+                    (c == '@' && index + 1 < code.Length && code[index + 1] == '"'))
+                {
+                    index = SkipLiteral(code, index);
+                    continue;
+                }
+
+                if (c == '/' && index + 1 < code.Length && code[index + 1] == '*')
+                {
+                    index = SkipBlockComment(code, index);
+                    continue;
+                }
+
+                if (c == '(' || c == '[' || c == '{') depth++;
+                else if (c == ')' || c == ']' || c == '}')
+                {
+                    if (--depth < 0) return -2;
+                }
+                else if (c == ';' && depth == 0) return index;
+
+                index++;
+            }
+
+            return depth == 0 ? -1 : -2;
+        }
+
+        private static bool OpensLambdaBody(string code, int brace, int lastClosedParen)
+        {
+            int previous = PreviousSignificant(code, brace);
+            if (previous < 0) return false;
+
+            if (code[previous] == '>' && previous > 0 && code[previous - 1] == '=') return true;
+
+            if (code[previous] == ')')
+            {
+                if (lastClosedParen < 0) return false;
+                return IsKeywordAt(code, PreviousWordStart(code, lastClosedParen), "delegate");
+            }
+
+            return IsKeywordAt(code, PreviousWordStart(code, previous + 1), "delegate");
+        }
+
+        private static int PreviousSignificant(string code, int before)
+        {
+            int index = before - 1;
+            while (index >= 0)
+            {
+                if (char.IsWhiteSpace(code[index]))
+                {
+                    index--;
+                    continue;
+                }
+
+                if (code[index] == '/' && index > 0 && code[index - 1] == '*')
+                {
+                    int open = code.LastIndexOf("/*", index - 1, StringComparison.Ordinal);
+                    if (open < 0) return index;
+                    index = open - 1;
+                    continue;
+                }
+
+                return index;
+            }
+
+            return -1;
+        }
+
+        private static int PreviousWordStart(string code, int before)
+        {
+            int end = PreviousSignificant(code, before);
+            if (end < 0 || !(char.IsLetterOrDigit(code[end]) || code[end] == '_')) return -1;
+
+            int start = end;
+            while (start > 0 && (char.IsLetterOrDigit(code[start - 1]) || code[start - 1] == '_')) start--;
+            return start;
+        }
+
+        private static bool IsKeywordAt(string code, int start, string word)
+        {
+            if (start < 0 || !IsWordAt(code, start, word)) return false;
+            if (start == 0) return true;
+
+            char before = code[start - 1];
+            return !(char.IsLetterOrDigit(before) || before == '_' || before == '@' || before == '.');
+        }
+
+        private static int SkipTrivia(string code, int from)
+        {
+            int index = from;
+            while (index < code.Length)
+            {
+                if (char.IsWhiteSpace(code[index]))
+                {
+                    index++;
+                    continue;
+                }
+
+                if (code[index] == '/' && index + 1 < code.Length && code[index + 1] == '*')
+                {
+                    index = SkipBlockComment(code, index);
+                    continue;
+                }
+
+                break;
+            }
+
+            return index;
+        }
+
+        private static int LeadingDeclarationsEnd(string code)
+        {
+            int consumed;
+            int end = ScanLeadingDeclarations(code, null, null, out consumed);
+            if (consumed == 0 || end < 0 || end >= code.Length) return -1;
+            return end;
+        }
+
+        private static int ScanLeadingDeclarations(string code, List<string> usings, StringBuilder bodies, out int consumed)
+        {
+            consumed = 0;
+            int position = SkipTrivia(code, 0);
+
+            while (position < code.Length && OpensWithDeclarationAt(code, position))
+            {
+                bool usingDirective = IsWordAt(code, position, "using");
+                if (usingDirective)
+                {
+                    int after = SkipTrivia(code, position + "using".Length);
+                    if (after < code.Length && code[after] == '(') break;
+                }
+
+                int body;
+                int end = DeclarationEnd(code, position, out body);
+                if (bodies != null && body >= 0)
+                {
+                    for (int i = body + 1; i < (end < 0 ? code.Length : end); i++)
+                    {
+                        if (bodies[i] != '\n') bodies[i] = ' ';
+                    }
+                }
+                if (end < 0) return -1;
+
+                if (usingDirective && usings != null) usings.Add(code.Substring(position, end - position).Trim());
+
+                consumed++;
+                position = SkipTrivia(code, end);
+            }
+
+            return position;
+        }
+
+        private static int DeclarationEnd(string code, int start, out int body)
+        {
+            int parens = 0;
+            int braces = 0;
+            body = -1;
+            int index = start;
+
+            while (index < code.Length)
+            {
+                char c = code[index];
+
+                if (c == '"' || c == '\'' ||
+                    (c == '@' && index + 1 < code.Length && code[index + 1] == '"'))
+                {
+                    index = SkipLiteral(code, index);
+                    continue;
+                }
+
+                if (c == '/' && index + 1 < code.Length && code[index + 1] == '*')
+                {
+                    index = SkipBlockComment(code, index);
+                    continue;
+                }
+
+                if (c == '(' || c == '[') parens++;
+                else if (c == ')' || c == ']') parens--;
+                else if (c == '{')
+                {
+                    if (braces++ == 0 && body < 0) body = index;
+                }
+                else if (c == '}')
+                {
+                    if (--braces == 0)
+                    {
+                        int after = SkipTrivia(code, index + 1);
+                        return after < code.Length && code[after] == ';' ? after + 1 : index + 1;
+                    }
+                    if (braces < 0) return -1;
+                }
+                else if (c == ';' && parens == 0 && braces == 0)
+                {
+                    return index + 1;
+                }
+
+                index++;
+            }
+
+            return -1;
+        }
+
+        private static string BlankThrough(string code, int end)
+        {
+            var text = new StringBuilder(code);
+            for (int i = 0; i < end; i++)
+            {
+                if (text[i] != '\n') text[i] = ' ';
+            }
             return text.ToString();
         }
 
@@ -716,7 +1393,7 @@ namespace Unity_Inspector_Mod
                 var splice = splices[i];
                 if (splice.Row == row && splice.ColumnFrom <= column)
                 {
-                    mapped -= splice.Delta;
+                    mapped -= System.Math.Min(splice.Delta, column - splice.ColumnFrom);
                 }
             }
 
@@ -725,8 +1402,11 @@ namespace Unity_Inspector_Mod
 
         private static bool OpensWithDeclaration(string code)
         {
-            int start = 0;
-            while (start < code.Length && char.IsWhiteSpace(code[start])) start++;
+            return OpensWithDeclarationAt(code, SkipTrivia(code, 0));
+        }
+
+        private static bool OpensWithDeclarationAt(string code, int start)
+        {
             if (start >= code.Length) return false;
 
             if (code[start] == '[') return true;
@@ -791,19 +1471,50 @@ namespace Unity_Inspector_Mod
             return -1;
         }
 
-        private static string JoinDiagnostics(List<Diagnostic> diagnostics)
+        private static string DescribeFailure(List<AttemptOutcome> failures, string code)
         {
-            diagnostics.Sort((a, b) =>
+            AttemptOutcome chosen = null;
+            foreach (var failure in failures)
             {
-                if (a.Row != b.Row) return b.Row.CompareTo(a.Row);
-                if (a.Column != b.Column) return b.Column.CompareTo(a.Column);
-                return a.Order.CompareTo(b.Order);
-            });
+                if (chosen == null)
+                {
+                    chosen = failure;
+                    continue;
+                }
 
-            var texts = new List<string>(diagnostics.Count);
-            foreach (var diagnostic in diagnostics) texts.Add(diagnostic.Text);
-            return string.Join("\n", texts.ToArray());
+                if (failure.Parsed != chosen.Parsed)
+                {
+                    if (failure.Parsed) chosen = failure;
+                    continue;
+                }
+
+                bool better = failure.Parsed
+                    ? failure.ErrorCount < chosen.ErrorCount
+                    : failure.FirstRow > chosen.FirstRow ||
+                      (failure.FirstRow == chosen.FirstRow && failure.FirstColumn > chosen.FirstColumn);
+                if (better) chosen = failure;
+            }
+
+            string text = chosen != null ? chosen.Text : "compilation failed with no diagnostics";
+
+            int consumed;
+            var outsideBodies = new StringBuilder(code);
+            ScanLeadingDeclarations(code, null, outsideBodies, out consumed);
+
+            if (LocalFunction.IsMatch(outsideBodies.ToString()))
+            {
+                text += "\n  Local functions are not supported by this compiler; declare a delegate local instead, " +
+                        "e.g. Func<int, int> twice = v => v * 2;";
+            }
+
+            return text;
         }
+
+        private static readonly System.Text.RegularExpressions.Regex LocalFunction =
+            new System.Text.RegularExpressions.Regex(
+                @"(?:^|[;{}])\s*(?:(?:public|private|protected|internal|static|unsafe|extern|async)\s+)*" +
+                @"(?!(?:return|new|throw|await|else|case|yield|using|lock|fixed|foreach|while|if|for|switch|catch|var)\b)" +
+                @"[A-Za-z_][\w.]*(?:<[^;{}()]*>)?(?:\[\])*\??\s+[A-Za-z_]\w*\s*(?:<[^;{}()]*>)?\s*\([^;{}]*\)\s*(?:\{|=>)");
 
         private static List<int> FindStatementSplits(string code)
         {
@@ -1131,6 +1842,17 @@ namespace Unity_Inspector_Mod
             // Unity's Mono turns runaway recursion into a hard crash, not a catchable exception.
             if (depth >= SerializeDepthLimit) return "... depth limit";
 
+            // A destroyed Unity object is not null to C#, and reading its name throws.
+            var unityObject = result as UnityEngine.Object;
+            if (!ReferenceEquals(unityObject, null) && unityObject == null)
+            {
+                return new
+                {
+                    type = result.GetType().FullName,
+                    destroyed = true
+                };
+            }
+
             if (result is GameObject go)
             {
                 return new
@@ -1186,7 +1908,7 @@ namespace Unity_Inspector_Mod
                 }
             }
             
-            if (result.GetType().IsPrimitive || result is string)
+            if (result.GetType().IsPrimitive || result is string || result is decimal)
             {
                 return result;
             }
@@ -1279,6 +2001,8 @@ namespace Unity_Inspector_Mod
 
             line.Append(msg.MessageType).Append(" CS").Append(msg.Code.ToString("0000"))
                 .Append(": ").Append(msg.Text);
+
+            if (msg.Code == 584) line.Append(CodeExecutor.InternalErrorCause(msg.Text));
 
             output.AppendLine(line.ToString());
         }

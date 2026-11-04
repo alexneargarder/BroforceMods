@@ -25,6 +25,7 @@ namespace Unity_Inspector_Mod
         private static MethodInfo _swapToSpecificBroMethod;
         private static MethodInfo _swapByNameMethod;
         private static MethodInfo _setSelectedBroByNameMethod;
+        private static MethodInfo _heroTypeToStringMethod;
 
         private static FieldInfo _settingsField;
         private static FieldInfo _ignoreCurrentUnlockedField;
@@ -34,6 +35,12 @@ namespace Unity_Inspector_Mod
         private static FieldInfo _actuallyAllCustomBrosField;
         private static FieldInfo _customBroCountField;
         private static MethodInfo _createBroListMethod;
+
+        private static FieldInfo _enableBromakerField;
+        private static FieldInfo _includeExpendabrosField;
+        private static FieldInfo _includeUnfinishedField;
+        private static FieldInfo _filterBrosField;
+        private static FieldInfo _enabledBrosField;
 
         public static void Initialize( Action<string> logger )
         {
@@ -74,6 +81,7 @@ namespace Unity_Inspector_Mod
                 _swapToSpecificBroMethod = mainType.GetMethod( "SwapToSpecificBro", pub );
                 _swapByNameMethod = mainType.GetMethod( "SwapByName", pub );
                 _setSelectedBroByNameMethod = mainType.GetMethod( "SetSelectedBroByName", pub );
+                _heroTypeToStringMethod = mainType.GetMethod( "HeroTypeToString", pub, null, new[] { typeof( HeroType ) }, null );
 
                 _isAvailable = _getAvailableBrosMethod != null &&
                                _swapToSpecificBroMethod != null;
@@ -93,6 +101,11 @@ namespace Unity_Inspector_Mod
                         _ignoreCurrentUnlockedField = _settingsField.FieldType.GetField( "ignoreCurrentUnlocked", inst );
                         _alwaysChosenField = _settingsField.FieldType.GetField( "alwaysChosen", inst );
                         _selGridIntField = _settingsField.FieldType.GetField( "selGridInt", inst );
+                        _enableBromakerField = _settingsField.FieldType.GetField( "enableBromaker", inst );
+                        _includeExpendabrosField = _settingsField.FieldType.GetField( "includeExpendabros", inst );
+                        _includeUnfinishedField = _settingsField.FieldType.GetField( "includeUnfinishedCharacters", inst );
+                        _filterBrosField = _settingsField.FieldType.GetField( "filterBros", inst );
+                        _enabledBrosField = _settingsField.FieldType.GetField( "enabledBros", inst );
                     }
                 }
             }
@@ -169,7 +182,7 @@ namespace Unity_Inspector_Mod
             catch { return -1; }
         }
 
-        public static string GetCurrentBroName( int playerNum )
+        public static string GetSelectedBroName( int playerNum )
         {
             if ( !IsAvailable || _getSelectedBroNameMethod == null ) return null;
 
@@ -178,6 +191,153 @@ namespace Unity_Inspector_Mod
                 return _getSelectedBroNameMethod.Invoke( null, new object[] { playerNum } ) as string;
             }
             catch { return null; }
+        }
+
+        public static string GetLiveBroName( TestVanDammeAnim character )
+        {
+            if ( character == null ) return null;
+
+            string custom = CustomHeroName( character );
+            if ( custom != null ) return custom;
+
+            if ( IsAvailable && _heroTypeToStringMethod != null )
+            {
+                try
+                {
+                    string name = _heroTypeToStringMethod.Invoke( null, new object[] { character.heroType } ) as string;
+                    if ( !string.IsNullOrEmpty( name ) ) return name;
+                }
+                catch { }
+            }
+
+            return character.heroType.ToString();
+        }
+
+        private static string CustomHeroName( TestVanDammeAnim character )
+        {
+            try
+            {
+                foreach ( Type iface in character.GetType().GetInterfaces() )
+                {
+                    if ( iface.FullName != "BroMakerLib.CustomObjects.ICustomHero" ) continue;
+
+                    PropertyInfo infoProperty = iface.GetProperty( "Info" );
+                    object info = infoProperty == null ? null : infoProperty.GetValue( character, null );
+                    FieldInfo nameField = info == null ? null : info.GetType().GetField( "name", BindingFlags.Public | BindingFlags.Instance );
+                    string name = nameField == null ? null : nameField.GetValue( info ) as string;
+                    return string.IsNullOrEmpty( name ) ? null : name;
+                }
+            }
+            catch ( Exception ex )
+            {
+                Log( "Failed to read a BroMaker bro's name: " + ex.Message );
+            }
+
+            return null;
+        }
+
+        #endregion
+
+        #region Roster Diagnosis
+
+        public static string FindKnownBro( string broName, out string origin )
+        {
+            origin = null;
+            string match;
+
+            if ( ( match = FindIn( GetAllNormalBros(), broName ) ) != null ) origin = "vanilla";
+            else if ( ( match = FindIn( GetAllExpendabros(), broName ) ) != null ) origin = "expendabros";
+            else if ( ( match = FindIn( GetAllUnfinishedBros(), broName ) ) != null ) origin = "unfinished";
+            else
+            {
+                List<string> unlocked;
+                string failure;
+                match = FindIn( ReadBroMakerBros( out unlocked, out failure ), broName );
+                if ( match != null ) origin = "custom";
+            }
+
+            return match;
+        }
+
+        public static List<string> AllKnownBros()
+        {
+            var names = new List<string>();
+            names.AddRange( GetAllNormalBros() );
+            names.AddRange( GetAllExpendabros() );
+            names.AddRange( GetAllUnfinishedBros() );
+
+            List<string> unlocked;
+            string failure;
+            List<string> custom = ReadBroMakerBros( out unlocked, out failure );
+            if ( custom != null ) names.AddRange( custom );
+
+            return names;
+        }
+
+        public static bool IsInCurrentList( string broName )
+        {
+            return FindIn( GetAvailableBros(), broName ) != null;
+        }
+
+        public static string UnreachableReason( string broName, string origin, bool suggestIgnoreUnlocks )
+        {
+            object settings = null;
+            try { settings = _settingsField == null ? null : _settingsField.GetValue( null ); }
+            catch { }
+
+            Func<FieldInfo, bool> option = field =>
+            {
+                try { return settings != null && field != null && (bool)field.GetValue( settings ); }
+                catch { return false; }
+            };
+
+            string hint = suggestIgnoreUnlocks ? " - pass ignoreUnlocks: true to swap it in anyway" : "";
+            bool ironBroGate = GameModeController.IsHardcoreMode && !option( _ignoreCurrentUnlockedField );
+
+            if ( origin == "custom" )
+            {
+                if ( !option( _enableBromakerField ) ) return "Swap Bros Mod's Include BroMaker Bros option is off";
+                if ( ironBroGate ) return "this IronBro run's roster does not hold it" + hint;
+
+                List<string> unlocked;
+                string failure;
+                ReadBroMakerBros( out unlocked, out failure );
+                if ( unlocked != null && FindIn( unlocked, broName ) == null ) return "it is locked" + hint;
+            }
+            else
+            {
+                if ( ironBroGate ) return "this IronBro run's roster does not hold it" + hint;
+                if ( origin == "expendabros" && !option( _includeExpendabrosField ) ) return "Swap Bros Mod's Include Expendabro Bros option is off";
+                if ( origin == "unfinished" && !option( _includeUnfinishedField ) ) return "Swap Bros Mod's Include Unfinished Bros option is off";
+            }
+
+            if ( option( _filterBrosField ) )
+            {
+                List<string> enabled = null;
+                try { enabled = _enabledBrosField == null ? null : _enabledBrosField.GetValue( settings ) as List<string>; }
+                catch { }
+
+                if ( enabled != null && enabled.Count > 0 && !enabled.Contains( broName ) ) return "Swap Bros Mod's Filter Bros option leaves it out";
+            }
+
+            return "Swap Bros Mod's settings do not say why";
+        }
+
+        public static bool? ReadAlwaysChosen()
+        {
+            try
+            {
+                object settings = _settingsField == null ? null : _settingsField.GetValue( null );
+                if ( settings == null || _alwaysChosenField == null ) return null;
+                return (bool)_alwaysChosenField.GetValue( settings );
+            }
+            catch { return null; }
+        }
+
+        private static string FindIn( IEnumerable<string> names, string broName )
+        {
+            if ( names == null ) return null;
+            return names.FirstOrDefault( name => string.Equals( name, broName, StringComparison.OrdinalIgnoreCase ) );
         }
 
         #endregion
@@ -261,7 +421,9 @@ namespace Unity_Inspector_Mod
             bool rosterGate = GameModeController.IsHardcoreMode && !savedIgnore;
             int unlockedCount;
             string bromakerFailure;
-            List<string> installedBros = ReadBroMakerInstalledBros( out unlockedCount, out bromakerFailure );
+            List<string> unlockedBros;
+            List<string> installedBros = ReadBroMakerBros( out unlockedBros, out bromakerFailure );
+            unlockedCount = unlockedBros == null ? 0 : unlockedBros.Count;
             IEnumerable<string> customInEffect = installedBros ?? savedCustom as IEnumerable<string>;
             bool swapped = false;
 
@@ -328,9 +490,9 @@ namespace Unity_Inspector_Mod
             return null;
         }
 
-        private static List<string> ReadBroMakerInstalledBros( out int unlockedCount, out string failure )
+        private static List<string> ReadBroMakerBros( out List<string> unlockedNames, out string failure )
         {
-            unlockedCount = 0;
+            unlockedNames = null;
             failure = null;
 
             try
@@ -379,7 +541,12 @@ namespace Unity_Inspector_Mod
                     }
                 }
 
-                unlockedCount = unlocked.Count;
+                unlockedNames = new List<string>();
+                foreach ( object name in unlocked )
+                {
+                    if ( name is string ) unlockedNames.Add( (string)name );
+                }
+
                 return names;
             }
             catch ( Exception ex )

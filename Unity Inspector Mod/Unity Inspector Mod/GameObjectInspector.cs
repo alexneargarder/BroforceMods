@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace Unity_Inspector_Mod
@@ -27,6 +30,9 @@ namespace Unity_Inspector_Mod
             return rootObjects.OrderBy( go => go.name ).ToList();
         }
 
+        public const int MaxChildrenListed = 100;
+        public const int DetailedComponentsBudget = 30000;
+
         public static object InspectGameObject( GameObject go, bool detailed = false )
         {
             if ( go == null ) return null;
@@ -36,13 +42,20 @@ namespace Unity_Inspector_Mod
 
             if ( detailed )
             {
+                int remaining = DetailedComponentsBudget;
+                int left = components.Count( c => c != null );
+
                 foreach ( var component in components )
                 {
                     if ( component == null ) continue;
 
+                    int share = remaining / left;
+                    var budget = new ListingBudget { Remaining = share };
+                    left--;
+
                     try
                     {
-                        componentList.Add( InspectComponent( component ) );
+                        componentList.Add( InspectComponent( component, budget ) );
                     }
                     catch ( Exception ex )
                     {
@@ -52,6 +65,8 @@ namespace Unity_Inspector_Mod
                             error = $"Failed to inspect: {ex.Message}"
                         } );
                     }
+
+                    remaining -= share - budget.Remaining;
                 }
             }
             else
@@ -70,6 +85,8 @@ namespace Unity_Inspector_Mod
             var children = new List<object>();
             foreach ( Transform child in go.transform )
             {
+                if ( children.Count == MaxChildrenListed ) break;
+
                 children.Add( new
                 {
                     name = child.name,
@@ -105,6 +122,11 @@ namespace Unity_Inspector_Mod
                 result["children"] = children;
             }
 
+            if ( go.transform.childCount > children.Count )
+            {
+                result["childrenTruncated"] = true;
+            }
+
             return result;
         }
 
@@ -112,15 +134,7 @@ namespace Unity_Inspector_Mod
         {
             if ( go == null ) return null;
 
-            Component component = null;
-            foreach ( var comp in go.GetComponents<Component>() )
-            {
-                if ( comp != null && comp.GetType().Name == componentTypeName )
-                {
-                    component = comp;
-                    break;
-                }
-            }
+            Component component = FindComponent( go, componentTypeName );
 
             if ( component == null )
             {
@@ -133,6 +147,22 @@ namespace Unity_Inspector_Mod
             }
 
             return InspectMember( component, memberPath );
+        }
+
+        public static Component FindComponent( GameObject go, string componentTypeName )
+        {
+            foreach ( var comp in go.GetComponents<Component>() )
+            {
+                if ( comp == null ) continue;
+
+                var type = comp.GetType();
+                if ( type.Name == componentTypeName || type.FullName == componentTypeName )
+                {
+                    return comp;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -294,9 +324,10 @@ namespace Unity_Inspector_Mod
         {
             value = null;
 
-            if ( SharedTwin( prop ) != null )
+            var twin = SharedTwin( prop );
+            if ( twin != null )
             {
-                value = "<skipped - may create instance>";
+                value = $"may create instance of {prop.PropertyType.Name} - read {twin.Name} instead";
                 return false;
             }
 
@@ -314,7 +345,54 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static object InspectComponent( Component component )
+        private sealed class ListingBudget
+        {
+            public int Remaining;
+            public int OmittedProperties;
+            public int OmittedMethods;
+
+            public bool Take( string name, object serialized )
+            {
+                int cost = ListingCost( name, serialized );
+                if ( cost > Remaining ) return false;
+                Remaining -= cost;
+                return true;
+            }
+        }
+
+        private static int ListingCost( string name, object serialized )
+        {
+            string text;
+            try
+            {
+                text = serialized == null ? "null" : JToken.FromObject( serialized ).ToString( Formatting.Indented );
+            }
+            catch
+            {
+                text = string.Empty;
+            }
+
+            int lines = 1;
+            foreach ( char c in text )
+            {
+                if ( c == '\n' ) lines++;
+            }
+
+            return name.Length + 6 + text.Length + lines * 10;
+        }
+
+        private static void AddProperty( Dictionary<string, object> properties, string name, object serialized, ListingBudget budget )
+        {
+            if ( budget != null && !budget.Take( name, serialized ) )
+            {
+                budget.OmittedProperties++;
+                return;
+            }
+
+            properties[name] = serialized;
+        }
+
+        private static object InspectComponent( Component component, ListingBudget budget = null )
         {
             var type = component.GetType();
             var properties = new Dictionary<string, object>();
@@ -356,11 +434,11 @@ namespace Unity_Inspector_Mod
                         object value;
                         if ( TryGetFieldValue( field, component, out value ) )
                         {
-                            properties[field.Name] = SerializeValue( value );
+                            AddProperty( properties, field.Name, SerializeValue( value ), budget );
                         }
                         else
                         {
-                            properties[field.Name] = $"<timeout or error reading {field.FieldType.Name}>";
+                            AddProperty( properties, field.Name, $"<timeout or error reading {field.FieldType.Name}>", budget );
                         }
                         fieldCount++;
                     }
@@ -388,11 +466,15 @@ namespace Unity_Inspector_Mod
                         object value;
                         if ( TryGetPropertyValue( prop, component, out value ) )
                         {
-                            properties[prop.Name] = SerializeValue( value );
+                            AddProperty( properties, prop.Name, SerializeValue( value ), budget );
+                        }
+                        else if ( value is string )
+                        {
+                            AddProperty( properties, prop.Name, $"<not read: {value}>", budget );
                         }
                         else
                         {
-                            properties[prop.Name] = $"<timeout or error reading {prop.PropertyType.Name}>";
+                            AddProperty( properties, prop.Name, $"<timeout or error reading {prop.PropertyType.Name}>", budget );
                         }
                         propCount++;
                     }
@@ -412,12 +494,34 @@ namespace Unity_Inspector_Mod
                     type = p.ParameterType.Name
                 } ).ToArray();
 
-                methods.Add( new
+                var entry = new
                 {
                     name = method.Name,
                     returnType = method.ReturnType.Name,
                     parameters = parameters
-                } );
+                };
+
+                if ( budget != null && !budget.Take( method.Name, entry ) )
+                {
+                    budget.OmittedMethods++;
+                    continue;
+                }
+
+                methods.Add( entry );
+            }
+
+            if ( budget != null && budget.OmittedProperties + budget.OmittedMethods > 0 )
+            {
+                return new
+                {
+                    type = type.Name,
+                    fullType = type.FullName,
+                    properties = properties,
+                    methods = methods,
+                    truncated = true,
+                    omittedProperties = budget.OmittedProperties,
+                    omittedMethods = budget.OmittedMethods
+                };
             }
 
             return new
@@ -555,6 +659,7 @@ namespace Unity_Inspector_Mod
             }
 
             var filterByName = !string.IsNullOrEmpty( namePattern );
+            var nameGlob = filterByName ? NameGlob( namePattern ) : null;
             var filterByComponent = !string.IsNullOrEmpty( componentType );
             var resolution = filterByComponent ? ResolveComponentType( componentType ) : null;
             var resolvedType = resolution != null ? resolution.Type : null;
@@ -577,7 +682,7 @@ namespace Unity_Inspector_Mod
 
                 scanned++;
 
-                if ( filterByName && !go.name.Contains( namePattern ) ) continue;
+                if ( filterByName && ( nameGlob != null ? !nameGlob.IsMatch( go.name ) : !go.name.Contains( namePattern ) ) ) continue;
 
                 if ( filterByComponent )
                 {
@@ -613,6 +718,17 @@ namespace Unity_Inspector_Mod
                 scanned = scanned,
                 scanTruncated = scanTruncated
             };
+        }
+
+        private static Regex NameGlob( string pattern )
+        {
+            if ( pattern.IndexOfAny( new[] { '*', '?' } ) < 0 )
+            {
+                return null;
+            }
+
+            var regex = Regex.Escape( pattern ).Replace( "\\*", ".*" ).Replace( "\\?", "." );
+            return new Regex( "^" + regex + "$", RegexOptions.Singleline );
         }
 
         private static TypeResolution ResolveComponentType( string typeName )

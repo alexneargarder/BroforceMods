@@ -277,11 +277,6 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
-        /// <summary>
-        /// The closest member names on a type, ranked by Levenshtein distance over lowercased
-        /// names. A name that contains the typed one, or is contained by it, is kept whatever its
-        /// distance. Each suggestion carries the prefix that already resolved.
-        /// </summary>
         public static string[] Suggest( Type type, string name, string prefix )
         {
             var candidates = new List<string>();
@@ -310,11 +305,26 @@ namespace Unity_Inspector_Mod
                 }
             }
 
+            var suggestions = new List<string>();
+            foreach ( string closest in ClosestNames( candidates, name ) )
+            {
+                suggestions.Add( Qualify( prefix, closest ) );
+            }
+
+            return suggestions.ToArray();
+        }
+
+        public static string[] ClosestNames( IEnumerable<string> candidates, string name )
+        {
             string target = name.ToLowerInvariant();
             var ranked = new List<KeyValuePair<int, string>>();
+            var seen = new HashSet<string>();
 
             foreach ( var candidate in candidates )
             {
+                if ( string.IsNullOrEmpty( candidate ) || !seen.Add( candidate ) )
+                    continue;
+
                 string lowered = candidate.ToLowerInvariant();
                 bool contained = lowered.Contains( target ) || target.Contains( lowered );
 
@@ -332,15 +342,15 @@ namespace Unity_Inspector_Mod
                 ? left.Key.CompareTo( right.Key )
                 : string.CompareOrdinal( left.Value, right.Value ) );
 
-            var suggestions = new List<string>();
+            var closest = new List<string>();
             foreach ( var entry in ranked )
             {
-                suggestions.Add( Qualify( prefix, entry.Value ) );
-                if ( suggestions.Count == MaxSuggestions )
+                closest.Add( entry.Value );
+                if ( closest.Count == MaxSuggestions )
                     break;
             }
 
-            return suggestions.ToArray();
+            return closest.ToArray();
         }
 
         public static bool IsNullReference( object value )

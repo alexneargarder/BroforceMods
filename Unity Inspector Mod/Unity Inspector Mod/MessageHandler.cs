@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -56,10 +57,20 @@ namespace Unity_Inspector_Mod
 
         public string HandleMessage( string message, object client )
         {
+            JObject request;
             try
             {
-                var request = JObject.Parse( message );
-                var id = request["id"]?.ToString();
+                request = ParseRequest( message );
+            }
+            catch ( JsonException ex )
+            {
+                return CreateErrorResponse( null, $"Invalid JSON: {ex.Message}" );
+            }
+
+            string id = null;
+            try
+            {
+                id = request["id"]?.ToString();
                 var method = request["method"]?.ToString();
                 var parameters = request["params"] as JObject;
 
@@ -83,14 +94,22 @@ namespace Unity_Inspector_Mod
                     return CreateErrorResponse( id, $"Unknown method: {method}" );
                 }
             }
-            catch ( JsonException ex )
-            {
-                return CreateErrorResponse( null, $"Invalid JSON: {ex.Message}" );
-            }
             catch ( Exception ex )
             {
                 Main.Log( $"Error handling message: {ex}" );
-                return CreateErrorResponse( null, $"Internal error: {ex.Message}" );
+                return CreateErrorResponse( id, $"Internal error: {ex.Message}" );
+            }
+        }
+
+        private static JObject ParseRequest( string message )
+        {
+            // JObject.Parse turns a string that looks like an ISO date into a DateTime, which ToString() prints in the game's culture.
+            using ( var reader = new JsonTextReader( new StringReader( message ) ) { DateParseHandling = DateParseHandling.None } )
+            {
+                var request = JObject.Load( reader );
+                // Read() throws on content trailing the object.
+                while ( reader.Read() ) { }
+                return request;
             }
         }
 
@@ -241,17 +260,35 @@ namespace Unity_Inspector_Mod
                     try
                     {
                         var player = players[i];
-                        if ( player != null && player.character != null )
+                        var slot = StateModifier.ReadSlot( i );
+                        if ( slot.Character != null )
                         {
-                            var go = player.character.gameObject;
-                            
+                            var go = slot.Character.gameObject;
+
                             results.Add( new
                             {
                                 playerIndex = i,
                                 playerNum = player.playerNum,
                                 name = go.name,
                                 position = new { x = go.transform.position.x, y = go.transform.position.y },
-                                isActive = go.activeSelf
+                                isActive = go.activeSelf,
+                                isAlive = slot.State == "alive",
+                                state = slot.State,
+                                piloting = slot.Piloting
+                            } );
+                        }
+                        else if ( slot.State != "empty" )
+                        {
+                            results.Add( new
+                            {
+                                playerIndex = i,
+                                playerNum = player != null ? player.playerNum : i,
+                                name = (string)null,
+                                position = (object)null,
+                                isActive = false,
+                                isAlive = false,
+                                state = slot.State,
+                                piloting = (string)null
                             } );
                         }
                     }
@@ -315,18 +352,13 @@ namespace Unity_Inspector_Mod
                 }
             }
 
-            if ( enemies.Count > 0 )
-            {
-                return new { count = enemies.Count, mapLoaded, enemies = enemies.ToArray() };
-            }
-
             string[] suppressedBy = mapLoaded ? StateModifier.GetActiveEnemySpawnSuppressors() : new string[0];
             string[] enemySpawnPrefixOwners = mapLoaded ? StateModifier.GetEnemySpawnPrefixOwners() : new string[0];
             return new
             {
-                count = 0,
+                count = enemies.Count,
                 mapLoaded,
-                enemies = new object[0],
+                enemies = enemies.ToArray(),
                 enemySpawnSuppressed = suppressedBy.Length > 0,
                 suppressedBy,
                 enemySpawnPrefixOwners
@@ -450,10 +482,11 @@ namespace Unity_Inspector_Mod
 
             if ( go == null )
             {
+                string rooted = path.StartsWith( "/" ) ? path : "/" + path;
                 var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
                 foreach ( var transform in allTransforms )
                 {
-                    if ( transform.gameObject != null && GetGameObjectPath( transform.gameObject ) == path )
+                    if ( transform.gameObject != null && GetGameObjectPath( transform.gameObject ) == rooted )
                     {
                         go = transform.gameObject;
                         break;
@@ -628,11 +661,19 @@ namespace Unity_Inspector_Mod
                 args = new Dictionary<string, string>();
                 foreach (var prop in argsToken.Properties())
                 {
-                    args[prop.Name] = prop.Value?.ToString() ?? "";
+                    args[prop.Name] = ScriptArgText(prop.Value);
                 }
             }
 
-            return ScriptManager.ExecuteScript(name, source, args);
+            var origin = parameters?["origin"]?.ToString();
+            if (string.IsNullOrEmpty(origin)) origin = null;
+
+            return ScriptManager.ExecuteScript(name, source, args, origin);
+        }
+
+        private static string ScriptArgText(JToken value)
+        {
+            return value.Type == JTokenType.String ? (string)value : value.ToString(Formatting.None);
         }
 
         private object HandleCompileScript(JObject parameters)
@@ -720,8 +761,7 @@ namespace Unity_Inspector_Mod
                 string pauseState = null;
                 try
                 {
-                    isInGame = LevelSelectionController.CurrentlyInGame
-                        && GameModeController.Instance != null;
+                    isInGame = StateModifier.NotPlayingReason() == null;
                     levelFinished = GameModeController.IsLevelFinished();
                 }
                 catch { }
@@ -729,6 +769,13 @@ namespace Unity_Inspector_Mod
                 try
                 {
                     pauseState = PauseController.pauseStatus.ToString();
+                }
+                catch { }
+
+                bool ironBro = false;
+                try
+                {
+                    ironBro = GameModeController.IsHardcoreMode;
                 }
                 catch { }
 
@@ -740,10 +787,10 @@ namespace Unity_Inspector_Mod
                         for ( int i = 0; i < HeroController.players.Length; i++ )
                         {
                             var player = HeroController.players[i];
-                            if ( player == null ) continue;
-                            if ( player.character != null )
+                            var slot = StateModifier.ReadSlot( i );
+                            if ( slot.Character != null )
                             {
-                                var character = player.character;
+                                var character = slot.Character;
                                 players.Add( new
                                 {
                                     playerIndex = i,
@@ -753,23 +800,28 @@ namespace Unity_Inspector_Mod
                                     className = character.GetType().Name,
                                     position = new { x = character.X, y = character.Y },
                                     health = character.health,
-                                    isAlive = character.health > 0,
+                                    isAlive = slot.State == "alive",
+                                    state = slot.State,
+                                    piloting = slot.Piloting,
                                     lives = player.Lives
                                 } );
                             }
-                            else if ( HeroController.IsPlaying( i ) )
+                            else if ( slot.State != "empty" )
                             {
+                                bool live = player != null;
                                 players.Add( new
                                 {
                                     playerIndex = i,
-                                    playerNum = player.playerNum,
+                                    playerNum = live ? player.playerNum : i,
                                     broName = (string)null,
-                                    heroType = player.heroType.ToString(),
+                                    heroType = live ? player.heroType.ToString() : null,
                                     className = (string)null,
                                     position = (object)null,
                                     health = 0,
                                     isAlive = false,
-                                    lives = player.Lives
+                                    state = slot.State,
+                                    piloting = (string)null,
+                                    lives = live ? player.Lives : (int?)null
                                 } );
                             }
                         }
@@ -790,6 +842,7 @@ namespace Unity_Inspector_Mod
                     isInGame,
                     levelFinished,
                     pauseState,
+                    ironBro,
                     campaignDisplay,
                     campaignName,
                     levelIndex,

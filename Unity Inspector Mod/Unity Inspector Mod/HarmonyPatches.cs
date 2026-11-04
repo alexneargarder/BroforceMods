@@ -41,26 +41,52 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
             
-            if (InputSimulator.IsInputSimulated("up"))
+            // A free controller reporting a press is a player dropping in.
+            if (InputSimulator.IsSimulatedOn("up", controllerNum))
                 up = true;
-            if (InputSimulator.IsInputSimulated("down"))
+            if (InputSimulator.IsSimulatedOn("down", controllerNum))
                 down = true;
-            if (InputSimulator.IsInputSimulated("left"))
+            if (InputSimulator.IsSimulatedOn("left", controllerNum))
                 left = true;
-            if (InputSimulator.IsInputSimulated("right"))
+            if (InputSimulator.IsSimulatedOn("right", controllerNum))
                 right = true;
-            if (InputSimulator.IsInputSimulated("fire"))
+            if (InputSimulator.IsSimulatedOn("fire", controllerNum))
                 fire = true;
-            if (InputSimulator.IsInputSimulated("jump"))
+            if (InputSimulator.IsSimulatedOn("jump", controllerNum))
                 buttonJump = true;
-            if (InputSimulator.IsInputSimulated("special"))
+            if (InputSimulator.IsSimulatedOn("special", controllerNum))
                 special = true;
-            if (InputSimulator.IsInputSimulated("highfive"))
+            if (InputSimulator.IsSimulatedOn("highfive", controllerNum))
                 highFive = true;
-            if (InputSimulator.IsInputSimulated("gesture"))
+            if (InputSimulator.IsSimulatedOn("gesture", controllerNum))
                 buttonGesture = true;
-            if (InputSimulator.IsInputSimulated("sprint"))
+            if (InputSimulator.IsSimulatedOn("sprint", controllerNum))
                 sprint = true;
+        }
+    }
+
+    [HarmonyPatch(typeof(InputReader), "GetMenuInput")]
+    static class InputReader_GetMenuInput_Patch
+    {
+        static void Postfix(int Controller, ref bool up, ref bool down, ref bool left,
+            ref bool right, ref bool accept, ref bool decline, ref bool __result)
+        {
+            if (!InputSimulator.HasAnySimulatedInput()) return;
+
+            if (InputSimulator.IsSimulatedOnMenu("up", Controller))
+                up = true;
+            if (InputSimulator.IsSimulatedOnMenu("down", Controller))
+                down = true;
+            if (InputSimulator.IsSimulatedOnMenu("left", Controller))
+                left = true;
+            if (InputSimulator.IsSimulatedOnMenu("right", Controller))
+                right = true;
+            if (InputSimulator.IsSimulatedOnMenu("fire", Controller) || InputSimulator.IsSimulatedOnMenu("jump", Controller))
+                accept = true;
+            if (InputSimulator.IsSimulatedOnMenu("special", Controller))
+                decline = true;
+
+            __result = up | down | left | right | accept | decline;
         }
     }
     
@@ -74,7 +100,7 @@ namespace Unity_Inspector_Mod
             
             if (InputSimulator.ShouldTriggerStart() && __result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.MenuControllerPressing("start");
             }
         }
     }
@@ -86,9 +112,9 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
 
-            if (InputSimulator.IsInputSimulated("escape") && __result == -1)
+            if (__result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.MenuControllerPressing("escape");
             }
         }
     }
@@ -101,9 +127,9 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
 
-            if (InputSimulator.IsInputSimulated("fire") && __result == -1)
+            if (__result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.ControllerPressing("fire");
             }
         }
     }
@@ -115,9 +141,9 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
 
-            if (InputSimulator.IsInputSimulated("highfive") && __result == -1)
+            if (__result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.ControllerPressing("highfive");
             }
         }
     }
@@ -130,9 +156,9 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
 
-            if (InputSimulator.IsInputSimulated("jump") && __result == -1)
+            if (__result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.ControllerPressing("jump");
             }
         }
     }
@@ -144,9 +170,9 @@ namespace Unity_Inspector_Mod
         {
             if (!InputSimulator.HasAnySimulatedInput()) return;
 
-            if (InputSimulator.IsInputSimulated("special") && __result == -1)
+            if (__result == -1)
             {
-                __result = 4;
+                __result = InputSimulator.ControllerPressing("special");
             }
         }
     }

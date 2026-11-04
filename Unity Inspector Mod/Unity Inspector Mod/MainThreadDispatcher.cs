@@ -45,6 +45,8 @@ namespace Unity_Inspector_Mod
             if (instance == null)
             {
                 var go = new GameObject("MainThreadDispatcher");
+                // PauseController.PauseGameObjects deactivates every active object not tagged Unpausable.
+                go.tag = "Unpausable";
                 instance = go.AddComponent<MainThreadDispatcher>();
                 DontDestroyOnLoad(go);
             }
