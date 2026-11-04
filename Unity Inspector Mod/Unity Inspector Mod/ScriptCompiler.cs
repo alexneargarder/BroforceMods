@@ -33,6 +33,10 @@ namespace Unity_Inspector_Mod
         private static bool extensionMethodCrashPatched;
         private static bool assemblyImportPatched;
         private static readonly object assemblyImportPatchLock = new object();
+        private static bool constantImportPatched;
+        private static readonly object constantImportPatchLock = new object();
+        private static bool assemblyLocationPatched;
+        private static readonly object assemblyLocationPatchLock = new object();
 
         private static readonly HashSet<string> reportedImportFailures = new HashSet<string>();
 
@@ -232,6 +236,129 @@ namespace Unity_Inspector_Mod
             return collected.ToArray();
         }
 
+        public static void PatchConstantImport()
+        {
+            lock (constantImportPatchLock)
+            {
+                if (constantImportPatched) return;
+
+                constantImportPatched = true;
+
+                try
+                {
+                    var createMethod = typeof(MetadataImporter).GetMethod("CreateConstantFromValue",
+                        BindingFlags.Instance | BindingFlags.NonPublic,
+                        null, new[] { typeof(TypeSpec), typeof(FieldInfo) }, null);
+
+                    if (createMethod == null)
+                    {
+                        Main.Log("Mono.CSharp.MetadataImporter.CreateConstantFromValue not found — " +
+                                 ConstantImportWarning);
+                        return;
+                    }
+
+                    var rawCalls = PatchProcessor.GetOriginalInstructions(createMethod)
+                        .Count(instruction => instruction.Calls(GetRawConstantValueMethod));
+                    if (rawCalls != 1)
+                    {
+                        Main.Log("Mono.CSharp.MetadataImporter.CreateConstantFromValue calls " +
+                                 "FieldInfo.GetRawConstantValue " + rawCalls + " times, expected once — " +
+                                 ConstantImportWarning);
+                        return;
+                    }
+
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    harmony.Patch(createMethod,
+                        transpiler: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("ReadConstantValueTranspiler",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch Mono.CSharp.MetadataImporter.CreateConstantFromValue (" +
+                             e.GetType().Name + ": " + e.Message + ") — " + ConstantImportWarning);
+                }
+            }
+        }
+
+        private const string ConstantImportWarning =
+            "naming a const field or enum declared by a script or by execute_code will crash the game";
+
+        private static readonly MethodInfo GetRawConstantValueMethod =
+            typeof(FieldInfo).GetMethod("GetRawConstantValue");
+
+        private static IEnumerable<CodeInstruction> ReadConstantValueTranspiler(
+            IEnumerable<CodeInstruction> instructions)
+        {
+            var readConstantValue = typeof(ScriptCompiler).GetMethod("ReadConstantValue",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(GetRawConstantValueMethod))
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = readConstantValue;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        private static object ReadConstantValue(FieldInfo fi)
+        {
+            // Mono aborts on GetRawConstantValue for a field of an AssemblyBuilder assembly; GetValue(null) reads it.
+            if (!(fi.DeclaringType.Assembly is AssemblyBuilder))
+                return fi.GetRawConstantValue();
+            var value = MemberPath.ReadField(fi, null);
+            if (value != null && value.GetType().IsEnum)
+                value = System.Convert.ChangeType(value, System.Enum.GetUnderlyingType(value.GetType()));
+            return value;
+        }
+
+        public static void PatchAssemblyLocation()
+        {
+            lock (assemblyLocationPatchLock)
+            {
+                if (assemblyLocationPatched) return;
+
+                assemblyLocationPatched = true;
+
+                try
+                {
+                    // mcs reads an imported assembly's Location to word errors, and Assembly.Location throws for an AssemblyBuilder.
+                    var locationGetter = typeof(ImportedAssemblyDefinition).GetProperty("Location",
+                        BindingFlags.Instance | BindingFlags.Public)?.GetGetMethod();
+
+                    if (locationGetter == null)
+                    {
+                        Main.Log("Mono.CSharp.ImportedAssemblyDefinition.Location not found — " + AssemblyLocationWarning);
+                        return;
+                    }
+
+                    var harmony = new Harmony("scriptcompiler.internal");
+                    harmony.Patch(locationGetter,
+                        prefix: new HarmonyMethod(typeof(ScriptCompiler).GetMethod("DynamicAssemblyLocation",
+                            BindingFlags.Static | BindingFlags.NonPublic)));
+                }
+                catch (Exception e)
+                {
+                    Main.Log("Failed to patch Mono.CSharp.ImportedAssemblyDefinition.Location (" +
+                             e.GetType().Name + ": " + e.Message + ") — " + AssemblyLocationWarning);
+                }
+            }
+        }
+
+        private const string AssemblyLocationWarning =
+            "a compiler error naming a member of a type declared by a script or by execute_code " +
+            "will read as CS0584 (internal compiler error)";
+
+        private static bool DynamicAssemblyLocation(ImportedAssemblyDefinition __instance, ref string __result)
+        {
+            if (!(__instance.Assembly is AssemblyBuilder)) return true;
+
+            __result = SafeAssemblyName(__instance.Assembly);
+            return false;
+        }
+
         internal static string SafeAssemblyName(Assembly assembly)
         {
             try
@@ -266,8 +393,36 @@ namespace Unity_Inspector_Mod
                      " (further " + e.GetType().Name + "s from this assembly will not be logged)");
         }
 
-        // A script-defined enum used as a static field's type kills the process during compilation with mono_reflection_get_token in the native stack; as a method local it compiles and kills the process when the script runs; every other in-script reference is blocked unmeasured.
         private static string DetectEnumUsageError(string source)
+        {
+            bool ownEnum;
+            var referenced = FindEnumUsage(source, DynamicEnumNames(includeScriptAssemblies: false), out ownEnum);
+            if (referenced == null) return null;
+            if (!ownEnum) return DynamicEnumUsageMessage(referenced);
+
+            return "Script defines enum '" + referenced + "' and references it within the same script.\n" +
+                   "Two shapes are measured to abort Unity 2017.4's Mono: as the type of a static field the " +
+                   "enum kills the game during compilation (native crash, mono_reflection_get_token in the " +
+                   "native stack), and as the type of a method local it compiles and kills the game when the " +
+                   "script runs. Every other in-script reference is blocked here as unmeasured.\n" +
+                   "Workarounds:\n" +
+                   "  - Define the enum in a mod DLL or non-script source\n" +
+                   "  - Use 'int' instead of '" + referenced + "' for fields/locals/parameters, casting to '" + referenced + "' when needed\n" +
+                   "  - Use string identifiers instead of an enum";
+        }
+
+        internal static string DynamicEnumUsageMessage(string enumName)
+        {
+            return "Enum '" + enumName + "' is defined by a script or by execute_code, and cannot be named from " +
+                   "execute_code or from another script.\n" +
+                   "A local of its type kills the game while Mono compiles the method, and a script's enum named " +
+                   "from execute_code has its members typed int.\n" +
+                   "Workarounds:\n" +
+                   "  - Use the enum's underlying values instead of naming '" + enumName + "'\n" +
+                   "  - Define the enum in a mod DLL or non-script source";
+        }
+
+        internal static string FindEnumUsage(string source, IEnumerable<string> dynamicEnums, out bool ownEnum)
         {
             var clean = StripCommentsAndStrings(source);
 
@@ -289,8 +444,6 @@ namespace Unity_Inspector_Mod
                 enumDecls.Add(new KeyValuePair<string, int[]>(enumName, new[] { m.Index, endIdx }));
             }
 
-            if (enumDecls.Count == 0) return null;
-
             // Mask out declaration regions so the usage check only sees other references
             var sb = new StringBuilder(clean);
             foreach (var decl in enumDecls)
@@ -304,24 +457,58 @@ namespace Unity_Inspector_Mod
             }
             var masked = sb.ToString();
 
-            foreach (var decl in enumDecls)
+            ownEnum = true;
+            var referenced = FindEnumReference(masked, enumDecls.Select(decl => decl.Key));
+            if (referenced != null) return referenced;
+
+            ownEnum = false;
+            return FindEnumReference(masked, dynamicEnums);
+        }
+
+        private static string FindEnumReference(string cleanSource, IEnumerable<string> enumNames)
+        {
+            foreach (var enumName in enumNames)
             {
-                var enumName = decl.Key;
-                if (Regex.IsMatch(masked, @"\b" + Regex.Escape(enumName) + @"\b"))
+                if (Regex.IsMatch(cleanSource, @"\b" + Regex.Escape(enumName) + @"\b"))
                 {
-                    return "Script defines enum '" + enumName + "' and references it within the same script.\n" +
-                           "Two shapes are measured to abort Unity 2017.4's Mono: as the type of a static field the " +
-                           "enum kills the game during compilation (native crash, mono_reflection_get_token in the " +
-                           "native stack), and as the type of a method local it compiles and kills the game when the " +
-                           "script runs. Every other in-script reference is blocked here as unmeasured.\n" +
-                           "Workarounds:\n" +
-                           "  - Define the enum in a mod DLL or non-script source\n" +
-                           "  - Use 'int' instead of '" + enumName + "' for fields/locals/parameters, casting to '" + enumName + "' when needed\n" +
-                           "  - Use string identifiers instead of an enum";
+                    return enumName;
                 }
             }
 
             return null;
+        }
+
+        internal static List<string> DynamicEnumNames(bool includeScriptAssemblies)
+        {
+            var names = new List<string>();
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (!(assembly is AssemblyBuilder)) continue;
+                if (!includeScriptAssemblies && CompiledAssemblies.Contains(SafeAssemblyName(assembly))) continue;
+
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException e)
+                {
+                    types = e.Types; // Partially populated: unloadable entries are null
+                }
+                catch (Exception)
+                {
+                    continue; // An AssemblyBuilder still being emitted can throw
+                }
+
+                if (types == null) continue;
+
+                foreach (var type in types)
+                {
+                    if (type != null && type.IsEnum) names.Add(type.Name);
+                }
+            }
+
+            return names;
         }
 
         private static string StripCommentsAndStrings(string source)

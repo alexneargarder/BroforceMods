@@ -76,6 +76,8 @@ namespace Unity_Inspector_Mod
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
             ScriptCompiler.PatchAssemblyImport();
+            ScriptCompiler.PatchConstantImport();
+            ScriptCompiler.PatchAssemblyLocation();
             var hash = ComputeHash(source);
 
             // Harmony's PatchInfo does not deduplicate, so re-entering Main() would stack patches and fire twice.
@@ -150,6 +152,8 @@ namespace Unity_Inspector_Mod
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
             ScriptCompiler.PatchAssemblyImport();
+            ScriptCompiler.PatchConstantImport();
+            ScriptCompiler.PatchAssemblyLocation();
             var result = ScriptCompiler.Compile(name, source);
             if (!result.Success)
             {

@@ -257,7 +257,7 @@ namespace Unity_Inspector_Mod
 
             try
             {
-                value = field.GetValue( field.IsStatic ? null : component );
+                value = MemberPath.ReadField( field, component );
                 return true;
             }
             catch

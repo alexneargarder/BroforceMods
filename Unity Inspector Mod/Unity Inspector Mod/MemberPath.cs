@@ -213,7 +213,7 @@ namespace Unity_Inspector_Mod
         {
             if ( field != null )
             {
-                return field.GetValue( field.IsStatic ? null : owner );
+                return ReadField( field, owner );
             }
 
             var accessor = property.GetGetMethod() ?? property.GetGetMethod( true );
@@ -223,6 +223,17 @@ namespace Unity_Inspector_Mod
             }
 
             return property.GetValue( accessor.IsStatic ? null : owner, null );
+        }
+
+        public static object ReadField( FieldInfo field, object owner )
+        {
+            // A script's null const has no default recorded, and GetValue on it aborts the runtime instead of throwing.
+            if ( field.IsLiteral && ( field.Attributes & FieldAttributes.HasDefault ) == 0 )
+            {
+                return null;
+            }
+
+            return field.GetValue( field.IsStatic ? null : owner );
         }
 
         // Reflection reports a member's own failure wrapped; the inner message is the useful one.

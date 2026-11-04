@@ -134,6 +134,8 @@ namespace Unity_Inspector_Mod
                     ScriptCompiler.PatchTokenCheck();
                     ScriptCompiler.PatchExtensionMethodCrash();
                     ScriptCompiler.PatchAssemblyImport();
+                    ScriptCompiler.PatchConstantImport();
+                    ScriptCompiler.PatchAssemblyLocation();
 
                     // AppDomain.GetAssemblies() misses game assemblies until a type in them is touched
                     var typesToPreload = new[]
@@ -272,6 +274,24 @@ namespace Unity_Inspector_Mod
                             lock (initLock) { initialized = false; }
                             executionException = new InvalidOperationException(
                                 EvaluatorDiscardedMarker + " before the command ran");
+                            return;
+                        }
+
+                        // A local of an enum from a runtime-generated assembly kills the game while Mono compiles the method.
+                        bool ownEnum;
+                        var dynamicEnum = ScriptCompiler.FindEnumUsage(code,
+                            ScriptCompiler.DynamicEnumNames(includeScriptAssemblies: true), out ownEnum);
+                        if (dynamicEnum != null)
+                        {
+                            executionResult = new
+                            {
+                                success = false,
+                                error = ScriptCompiler.DynamicEnumUsageMessage(dynamicEnum),
+                                stackTrace = (string)null,
+                                position = (object)null,
+                                statement = (string)null,
+                                result = (object)null
+                            };
                             return;
                         }
 
