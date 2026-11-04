@@ -74,15 +74,17 @@ namespace Unity_Inspector_Mod
             GUILayout.Space( 10 );
             settings.autoStartServer = GUILayout.Toggle( settings.autoStartServer, "Auto-start server on load" );
 
+            string tokenFile = TcpServer.TokenFileName( settings.serverPort );
+
             // Drawn before the toggle so the Layout and event passes see the same value
             if ( settings.allowRemoteConnections )
             {
-                GUILayout.Label( "WARNING: remote connections are enabled. This mod executes arbitrary code, and there is no authentication." );
+                GUILayout.Label( $"Remote connections are on. A client on the network needs the token from {tokenFile}, which changes every time the server starts. The mod's log names its full path." );
             }
 
             if ( settings.allowRemoteConnections != ( settings.allowRemoteConnections = GUILayout.Toggle( settings.allowRemoteConnections,
-                    new GUIContent( "Allow remote connections (LAN) - WARNING: anyone on the network can run code via this mod",
-                        "Off: the server only listens on 127.0.0.1. On: it listens on all interfaces, which is required when the MCP client runs in a VM such as WSL. There is no authentication - only enable this on a network you trust." ) ) ) )
+                    new GUIContent( $"Allow remote connections (LAN) - clients need the token from {tokenFile}",
+                        $"Off: the server only listens on 127.0.0.1. On: it listens on all interfaces, which is required when the MCP client runs in a VM such as WSL. A client on the network needs the token from {tokenFile}, which changes every time the server starts." ) ) ) )
             {
                 settings.Save( mod );
 
@@ -116,7 +118,7 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                server = new TcpServer( settings.serverPort, settings.allowRemoteConnections );
+                server = new TcpServer( settings.serverPort, settings.allowRemoteConnections, Application.persistentDataPath );
                 server.Start();
             }
             catch ( Exception ex )

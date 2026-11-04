@@ -101,7 +101,7 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static JObject ParseRequest( string message )
+        internal static JObject ParseRequest( string message )
         {
             // JObject.Parse turns a string that looks like an ISO date into a DateTime, which ToString() prints in the game's culture.
             using ( var reader = new JsonTextReader( new StringReader( message ) ) { DateParseHandling = DateParseHandling.None } )
