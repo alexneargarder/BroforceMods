@@ -623,6 +623,7 @@ namespace Drunken_Broster
                 attackStationaryStrikeFrame = 4;
             }
             // Forward punch
+            else
             {
                 attackStationaryStrikeFrame = 2;
             }
@@ -795,7 +796,7 @@ namespace Drunken_Broster
             if ( !drunk )
             {
                 DamageDoodads( 3, DamageType.Knifed, X + (float)( Direction * 4 ), Y + 7f, transform.localScale.x * 250f + xI, 200f, 6f, playerNum, out _, this );
-                if ( HitUnits( this, playerNum, enemyFistDamage, 1, DamageType.Blade, 7f, 13f, X + transform.localScale.x * ( 3f + attackSpriteRow == 0 ? 1f : 0f ), Y + 7f, transform.localScale.x * 520f, 225f, true, true, true, alreadyHit, false ) )
+                if ( HitUnits( this, playerNum, enemyFistDamage, 1, DamageType.Blade, 7f, 13f, X + transform.localScale.x * ( 3f + ( attackSpriteRow == 0 ? 1f : 0f ) ), Y + 7f, transform.localScale.x * 520f, 225f, true, true, true, alreadyHit, false ) )
                 {
                     if ( !hasHitWithFists )
                     {
