@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -9,29 +11,206 @@ using UnityEngine;
 
 namespace Unity_Inspector_Mod
 {
+    public sealed class ResolvedGameObject
+    {
+        public GameObject GameObject;
+        public int Matches;
+    }
+
     public static class GameObjectInspector
     {
+        public const int MaxChildrenListed = 100;
+        public const int DetailedComponentsBudget = 30000;
+        public const int ReplyBudget = 40000;
+
+        private const int MaxCollectionItems = 100;
+        private const int MaxSerializeDepth = 2;
+        private const int MaxSerializedNodes = 300;
+        private const int MaxNestedFields = 50;
+
+        // Unity numbers an object loaded from a file positive and one made at runtime negative; a runtime object flagged DontSave has no scene either.
+        public static bool IsAsset( GameObject go )
+        {
+            return !go.scene.IsValid() && go.GetInstanceID() > 0;
+        }
+
         public static List<GameObject> GetRootGameObjects( bool includeInactive )
         {
             var rootObjects = new List<GameObject>();
 
-            var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
-            foreach ( var transform in allTransforms )
+            // FindObjectsOfTypeAll also returns prefab assets, which belong to no scene.
+            foreach ( var transform in Resources.FindObjectsOfTypeAll<Transform>() )
             {
-                if ( transform.parent == null && transform.gameObject != null )
+                if ( transform == null || transform.parent != null )
                 {
-                    if ( includeInactive || transform.gameObject.activeInHierarchy )
-                    {
-                        rootObjects.Add( transform.gameObject );
-                    }
+                    continue;
+                }
+
+                var go = transform.gameObject;
+                if ( !go.scene.IsValid() )
+                {
+                    continue;
+                }
+
+                if ( includeInactive || go.activeInHierarchy )
+                {
+                    rootObjects.Add( go );
                 }
             }
 
-            return rootObjects.OrderBy( go => go.name ).ToList();
+            return rootObjects.OrderBy( go => go.name, StringComparer.Ordinal ).ToList();
         }
 
-        public const int MaxChildrenListed = 100;
-        public const int DetailedComponentsBudget = 30000;
+        public static object ListGameObjects( bool includeInactive, int maxResults )
+        {
+            var rootObjects = GetRootGameObjects( includeInactive );
+            var entries = new List<object>();
+            string truncatedBy = rootObjects.Count > maxResults ? "maxResults" : null;
+            int remaining = ReplyBudget;
+
+            foreach ( var go in rootObjects )
+            {
+                if ( entries.Count >= maxResults )
+                {
+                    break;
+                }
+
+                var entry = new
+                {
+                    name = go.name,
+                    path = GetPath( go ),
+                    instanceId = go.GetInstanceID(),
+                    scene = go.scene.name,
+                    isActive = go.activeSelf,
+                    activeInHierarchy = go.activeInHierarchy,
+                    childCount = go.transform.childCount
+                };
+
+                int cost = ListingCost( "", entry );
+                if ( cost > remaining )
+                {
+                    truncatedBy = "size";
+                    break;
+                }
+                remaining -= cost;
+                entries.Add( entry );
+            }
+
+            return new
+            {
+                totalCount = rootObjects.Count,
+                returnedCount = entries.Count,
+                truncated = truncatedBy != null,
+                truncatedBy,
+                gameObjects = entries.ToArray()
+            };
+        }
+
+        public static ResolvedGameObject Resolve( string path, int? instanceId )
+        {
+            if ( instanceId.HasValue )
+            {
+                var byId = FindByInstanceId( instanceId.Value );
+                if ( byId == null )
+                {
+                    throw new CallerErrorException( $"No GameObject or component has instanceId {instanceId.Value}" );
+                }
+                return new ResolvedGameObject { GameObject = byId, Matches = 1 };
+            }
+
+            if ( string.IsNullOrEmpty( path ) )
+            {
+                throw new CallerErrorException( "GameObject path is required" );
+            }
+
+            var matches = FindByPath( path );
+            if ( matches.Count == 0 )
+            {
+                throw new CallerErrorException( $"GameObject not found: {path}" );
+            }
+
+            return new ResolvedGameObject { GameObject = matches[0], Matches = matches.Count };
+        }
+
+        public static List<GameObject> FindByPath( string path )
+        {
+            bool rooted = path.StartsWith( "/", StringComparison.Ordinal );
+            string tail = "/" + path;
+            var ranked = new List<KeyValuePair<int, GameObject>>();
+
+            foreach ( var transform in Resources.FindObjectsOfTypeAll<Transform>() )
+            {
+                if ( transform == null )
+                {
+                    continue;
+                }
+                // A GameObject's name may hold '/'.
+                if ( !path.EndsWith( transform.name, StringComparison.Ordinal ) )
+                {
+                    continue;
+                }
+
+                var go = transform.gameObject;
+                string full = GetPath( go );
+                bool match = rooted ? full == path : full.EndsWith( tail, StringComparison.Ordinal );
+                if ( !match )
+                {
+                    continue;
+                }
+
+                int rank = IsAsset( go ) ? 2 : go.activeInHierarchy ? 0 : 1;
+                ranked.Add( new KeyValuePair<int, GameObject>( rank, go ) );
+            }
+
+            return ranked.OrderBy( entry => entry.Key ).Select( entry => entry.Value ).ToList();
+        }
+
+        private static GameObject FindByInstanceId( int instanceId )
+        {
+            foreach ( var go in Resources.FindObjectsOfTypeAll<GameObject>() )
+            {
+                if ( go != null && go.GetInstanceID() == instanceId )
+                {
+                    return go;
+                }
+            }
+
+            foreach ( var component in Resources.FindObjectsOfTypeAll<Component>() )
+            {
+                if ( component != null && component.GetInstanceID() == instanceId )
+                {
+                    return component.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        public static Dictionary<string, object> AddLocation( ResolvedGameObject target, Dictionary<string, object> reply )
+        {
+            var go = target.GameObject;
+            reply["instanceId"] = go.GetInstanceID();
+            reply["scene"] = go.scene.IsValid() ? go.scene.name : null;
+            if ( IsAsset( go ) )
+            {
+                reply["isAsset"] = true;
+            }
+            if ( target.Matches > 1 )
+            {
+                reply["matches"] = target.Matches;
+            }
+            return reply;
+        }
+
+        public static JObject WithLocation( ResolvedGameObject target, object reply )
+        {
+            var located = JObject.FromObject( reply );
+            foreach ( var field in AddLocation( target, new Dictionary<string, object>() ) )
+            {
+                located[field.Key] = field.Value == null ? JValue.CreateNull() : JToken.FromObject( field.Value );
+            }
+            return located;
+        }
 
         public static object InspectGameObject( GameObject go, bool detailed = false )
         {
@@ -92,17 +271,15 @@ namespace Unity_Inspector_Mod
             }
 
             var children = new List<object>();
-            foreach ( Transform child in go.transform )
+            for ( int i = 0; i < go.transform.childCount && children.Count < MaxChildrenListed; i++ )
             {
-                if ( children.Count == MaxChildrenListed )
-                {
-                    break;
-                }
-
+                var child = go.transform.GetChild( i );
                 children.Add( new
                 {
                     name = child.name,
                     path = GetPath( child.gameObject ),
+                    instanceId = child.gameObject.GetInstanceID(),
+                    isActive = child.gameObject.activeSelf,
                     childCount = child.childCount
                 } );
             }
@@ -112,6 +289,7 @@ namespace Unity_Inspector_Mod
                 ["name"] = go.name,
                 ["path"] = GetPath( go ),
                 ["isActive"] = go.activeSelf,
+                ["activeInHierarchy"] = go.activeInHierarchy,
                 ["layer"] = LayerMask.LayerToName( go.layer ),
                 ["tag"] = go.tag,
                 ["componentCount"] = components.Length,
@@ -153,12 +331,12 @@ namespace Unity_Inspector_Mod
 
             if ( component == null )
             {
-                throw new ArgumentException( $"Component {componentTypeName} not found on GameObject {go.name}" );
+                throw new CallerErrorException( ComponentNotFound( go, componentTypeName ) );
             }
 
             if ( string.IsNullOrEmpty( memberPath ) )
             {
-                return InspectComponent( component );
+                return InspectComponent( component, new ListingBudget { Remaining = ReplyBudget } );
             }
 
             return InspectMember( component, memberPath );
@@ -166,7 +344,8 @@ namespace Unity_Inspector_Mod
 
         public static Component FindComponent( GameObject go, string componentTypeName )
         {
-            foreach ( var comp in go.GetComponents<Component>() )
+            var components = go.GetComponents<Component>();
+            foreach ( var comp in components )
             {
                 if ( comp == null )
                 {
@@ -180,25 +359,52 @@ namespace Unity_Inspector_Mod
                 }
             }
 
+            var resolved = ResolveComponentType( componentTypeName ).Type;
+            if ( resolved == null )
+            {
+                return null;
+            }
+
+            foreach ( var comp in components )
+            {
+                if ( comp != null && resolved.IsInstanceOfType( comp ) )
+                {
+                    return comp;
+                }
+            }
+
             return null;
         }
 
-        /// <summary>
-        /// Reads one named member, which may be a dotted path into nested members. The bulk walk's
-        /// noise filters do not apply here: a member asked for by name is a member the caller wants.
-        /// </summary>
-        private static object InspectMember( Component component, string memberPath )
+        public static string ComponentNotFound( GameObject go, string componentTypeName )
         {
-            var componentType = component.GetType();
-            object owner = component;
+            var present = go.GetComponents<Component>().Where( c => c != null ).Select( c => c.GetType().Name ).ToArray();
+            return $"Component {componentTypeName} not found on GameObject {go.name}; it has {string.Join( ", ", present )}";
+        }
+
+        public sealed class MemberRead
+        {
+            public bool Success;
+            public object Value;
+            public Type MemberType;
+            public Type DeclaringType;
+            public bool IsStatic;
+            public string Reason;
+            public string Error;
+            public string[] Suggestions;
+        }
+
+        public static MemberRead ReadMember( object root, string memberPath )
+        {
+            object owner = root;
             string leaf = memberPath;
 
             if ( MemberPath.IsPath( memberPath ) )
             {
-                var resolution = MemberPath.ResolveOwner( component, memberPath );
+                var resolution = MemberPath.ResolveOwner( root, memberPath );
                 if ( !resolution.Success )
                 {
-                    return MemberFailure( componentType, memberPath, resolution.Reason, resolution.Error, resolution.Suggestions );
+                    return new MemberRead { Reason = resolution.Reason, Error = resolution.Error, Suggestions = resolution.Suggestions };
                 }
 
                 owner = resolution.Owner;
@@ -207,56 +413,92 @@ namespace Unity_Inspector_Mod
 
             var ownerType = owner.GetType();
 
+            int index;
+            string indexError;
+            if ( MemberPath.TryIndex( owner, leaf, memberPath, out index, out indexError ) )
+            {
+                if ( indexError != null )
+                {
+                    return new MemberRead { Reason = "not-found", Error = indexError };
+                }
+
+                return new MemberRead
+                {
+                    Success = true,
+                    Value = ( (IList)owner )[index],
+                    MemberType = MemberPath.ElementType( ownerType ),
+                    DeclaringType = ownerType
+                };
+            }
+
             FieldInfo field;
             PropertyInfo property;
             if ( !MemberPath.FindMember( ownerType, leaf, out field, out property ) )
             {
-                return MemberFailure( componentType, memberPath, "not-found",
-                    $"No field or property named {leaf} on {ownerType.Name} or any of its base types",
-                    MemberPath.Suggest( ownerType, leaf, MemberPath.PathPrefix( memberPath ) ) );
+                return new MemberRead
+                {
+                    Reason = "not-found",
+                    Error = $"No field or property named {leaf} on {ownerType.Name} or any of its base types",
+                    Suggestions = MemberPath.Suggest( ownerType, leaf, MemberPath.PathPrefix( memberPath ) )
+                };
             }
 
+            var read = new MemberRead();
             object value;
-            Type memberType;
-            Type declaringType;
-            bool isStatic;
+            Exception failure;
 
             if ( field != null )
             {
-                memberType = field.FieldType;
-                declaringType = field.DeclaringType;
-                isStatic = field.IsStatic;
+                read.MemberType = field.FieldType;
+                read.DeclaringType = field.DeclaringType;
+                read.IsStatic = field.IsStatic;
 
-                if ( !TryGetFieldValue( field, owner, out value ) )
+                if ( !TryGetFieldValue( field, owner, out value, out failure ) )
                 {
-                    return MemberFailure( componentType, memberPath, "error",
-                        $"Could not read {ownerType.Name}.{leaf}: {memberType.Name} threw on read", null );
+                    read.Reason = "error";
+                    read.Error = $"Could not read {ownerType.Name}.{leaf}: {Describe( failure )}";
+                    return read;
                 }
             }
             else
             {
-                memberType = property.PropertyType;
-                declaringType = property.DeclaringType;
+                read.MemberType = property.PropertyType;
+                read.DeclaringType = property.DeclaringType;
                 var accessor = property.GetGetMethod() ?? property.GetGetMethod( true );
-                isStatic = accessor != null && accessor.IsStatic;
+                read.IsStatic = accessor != null && accessor.IsStatic;
 
-                if ( !TryGetPropertyValue( property, owner, out value ) )
+                string refusal;
+                if ( !TryGetPropertyValue( property, owner, out value, out refusal, out failure ) )
                 {
-                    var reason = value as string ?? $"{memberType.Name} threw on read";
-                    return MemberFailure( componentType, memberPath, "error",
-                        $"Could not read {ownerType.Name}.{leaf}: {reason}", null );
+                    read.Reason = "error";
+                    read.Error = $"Could not read {ownerType.Name}.{leaf}: {refusal ?? Describe( failure )}";
+                    return read;
                 }
+            }
+
+            read.Success = true;
+            read.Value = value;
+            return read;
+        }
+
+        private static object InspectMember( Component component, string memberPath )
+        {
+            var componentType = component.GetType();
+            var read = ReadMember( component, memberPath );
+            if ( !read.Success )
+            {
+                return MemberFailure( componentType, memberPath, read.Reason, read.Error, read.Suggestions );
             }
 
             object serialized;
             try
             {
-                serialized = SerializeValue( value );
+                serialized = SerializeValue( read.Value );
             }
             catch ( Exception ex )
             {
                 return MemberFailure( componentType, memberPath, "error",
-                    $"Could not serialize {ownerType.Name}.{leaf}: {ex.Message}", null );
+                    $"Could not serialize {memberPath}: {ex.Message}", null );
             }
 
             return new
@@ -265,9 +507,9 @@ namespace Unity_Inspector_Mod
                 fullType = componentType.FullName,
                 success = true,
                 memberPath = memberPath,
-                declaringType = declaringType != null ? declaringType.Name : null,
-                memberType = memberType.Name,
-                isStatic = isStatic,
+                declaringType = read.DeclaringType != null ? TypeName( read.DeclaringType ) : null,
+                memberType = TypeName( read.MemberType ),
+                isStatic = read.IsStatic,
                 value = serialized
             };
         }
@@ -299,17 +541,29 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static bool TryGetFieldValue( FieldInfo field, object component, out object value )
+        private static string Describe( Exception failure )
+        {
+            if ( failure == null )
+            {
+                return "the read failed";
+            }
+            var inner = MemberPath.Unwrap( failure );
+            return $"{inner.GetType().Name}: {inner.Message}";
+        }
+
+        private static bool TryGetFieldValue( FieldInfo field, object component, out object value, out Exception failure )
         {
             value = null;
+            failure = null;
 
             try
             {
                 value = MemberPath.ReadField( field, component );
                 return true;
             }
-            catch
+            catch ( Exception ex )
             {
+                failure = ex;
                 return false;
             }
         }
@@ -340,27 +594,34 @@ namespace Unity_Inspector_Mod
             return null;
         }
 
-        private static bool TryGetPropertyValue( PropertyInfo prop, object component, out object value )
+        private static bool TryGetPropertyValue( PropertyInfo prop, object component, out object value, out string refusal, out Exception failure )
         {
             value = null;
+            refusal = null;
+            failure = null;
 
             var twin = SharedTwin( prop );
             if ( twin != null )
             {
-                value = $"may create instance of {prop.PropertyType.Name} - read {twin.Name} instead";
+                refusal = $"may create instance of {prop.PropertyType.Name} - read {twin.Name} instead";
                 return false;
             }
 
             var accessor = prop.GetGetMethod() ?? prop.GetGetMethod( true );
-            bool isStatic = accessor != null && accessor.IsStatic;
+            if ( accessor == null )
+            {
+                refusal = $"{prop.DeclaringType.Name}.{prop.Name} is write-only";
+                return false;
+            }
 
             try
             {
-                value = prop.GetValue( isStatic ? null : component, null );
+                value = prop.GetValue( accessor.IsStatic ? null : component, null );
                 return true;
             }
-            catch
+            catch ( Exception ex )
             {
+                failure = ex;
                 return false;
             }
         }
@@ -418,7 +679,7 @@ namespace Unity_Inspector_Mod
             properties[name] = serialized;
         }
 
-        private static object InspectComponent( Component component, ListingBudget budget = null )
+        private static object InspectComponent( Component component, ListingBudget budget )
         {
             var type = component.GetType();
             var properties = new Dictionary<string, object>();
@@ -434,8 +695,6 @@ namespace Unity_Inspector_Mod
                 };
             }
 
-            int fieldCount = 0;
-            int propCount = 0;
             var seen = new HashSet<string>();
 
             // Most-derived first, so a shadowed member reads the way modify_component writes it.
@@ -454,7 +713,7 @@ namespace Unity_Inspector_Mod
                     try
                     {
                         if ( field.Name.Contains( "k__BackingField" ) ||
-                             field.Name.Contains( "m_" ) ||
+                             field.Name.StartsWith( "m_", StringComparison.Ordinal ) ||
                              field.FieldType.FullName.Contains( "System.Action" ) ||
                              field.FieldType.FullName.Contains( "System.Func" ) )
                         {
@@ -462,15 +721,15 @@ namespace Unity_Inspector_Mod
                         }
 
                         object value;
-                        if ( TryGetFieldValue( field, component, out value ) )
+                        Exception failure;
+                        if ( TryGetFieldValue( field, component, out value, out failure ) )
                         {
                             AddProperty( properties, field.Name, SerializeValue( value ), budget );
                         }
                         else
                         {
-                            AddProperty( properties, field.Name, $"<timeout or error reading {field.FieldType.Name}>", budget );
+                            AddProperty( properties, field.Name, $"<error reading {TypeName( field.FieldType )}: {Describe( failure )}>", budget );
                         }
-                        fieldCount++;
                     }
                     catch { }
                 }
@@ -479,12 +738,17 @@ namespace Unity_Inspector_Mod
                                                                        | BindingFlags.Instance | BindingFlags.Static );
                 foreach ( var prop in props )
                 {
+                    if ( prop.GetIndexParameters().Length != 0 )
+                    {
+                        continue;
+                    }
+
                     if ( !seen.Add( prop.Name ) )
                     {
                         continue;
                     }
 
-                    if ( !prop.CanRead || prop.GetIndexParameters().Length != 0 )
+                    if ( !prop.CanRead )
                     {
                         continue;
                     }
@@ -499,20 +763,29 @@ namespace Unity_Inspector_Mod
                             continue;
                         }
 
+                        // A static getter is game code that can create objects or run a static constructor.
+                        var accessor = prop.GetGetMethod() ?? prop.GetGetMethod( true );
+                        if ( accessor != null && accessor.IsStatic )
+                        {
+                            AddProperty( properties, prop.Name, "<static property: read it with memberPath>", budget );
+                            continue;
+                        }
+
                         object value;
-                        if ( TryGetPropertyValue( prop, component, out value ) )
+                        string refusal;
+                        Exception failure;
+                        if ( TryGetPropertyValue( prop, component, out value, out refusal, out failure ) )
                         {
                             AddProperty( properties, prop.Name, SerializeValue( value ), budget );
                         }
-                        else if ( value is string )
+                        else if ( refusal != null )
                         {
-                            AddProperty( properties, prop.Name, $"<not read: {value}>", budget );
+                            AddProperty( properties, prop.Name, $"<not read: {refusal}>", budget );
                         }
                         else
                         {
-                            AddProperty( properties, prop.Name, $"<timeout or error reading {prop.PropertyType.Name}>", budget );
+                            AddProperty( properties, prop.Name, $"<error reading {TypeName( prop.PropertyType )}: {Describe( failure )}>", budget );
                         }
-                        propCount++;
                     }
                     catch { }
                 }
@@ -530,13 +803,13 @@ namespace Unity_Inspector_Mod
                 var parameters = method.GetParameters().Select( p => new
                 {
                     name = p.Name,
-                    type = p.ParameterType.Name
+                    type = TypeName( p.ParameterType )
                 } ).ToArray();
 
                 var entry = new
                 {
                     name = method.Name,
-                    returnType = method.ReturnType.Name,
+                    returnType = TypeName( method.ReturnType ),
                     parameters = parameters
                 };
 
@@ -572,22 +845,62 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static object SerializeValue( object value, int depth = 0 )
+        public static string TypeName( Type type )
         {
-            if ( value == null || depth > 2 )
+            if ( type == null )
             {
                 return null;
             }
+            if ( type.IsArray )
+            {
+                return TypeName( type.GetElementType() ) + "[" + new string( ',', type.GetArrayRank() - 1 ) + "]";
+            }
+            if ( !type.IsGenericType )
+            {
+                return type.Name;
+            }
+
+            string name = type.Name;
+            int tick = name.IndexOf( '`' );
+            if ( tick >= 0 )
+            {
+                name = name.Substring( 0, tick );
+            }
+            return name + "<" + string.Join( ", ", type.GetGenericArguments().Select( a => TypeName( a ) ).ToArray() ) + ">";
+        }
+
+        private sealed class SerializeState
+        {
+            public int Nodes = MaxSerializedNodes;
+        }
+
+        public static object SerializeValue( object value )
+        {
+            return SerializeValue( value, 0, new SerializeState() );
+        }
+
+        private static object SerializeValue( object value, int depth, SerializeState state )
+        {
+            if ( value == null )
+            {
+                return null;
+            }
+            state.Nodes--;
 
             var type = value.GetType();
-            if ( type.BaseType == typeof( MulticastDelegate ) )
+            if ( typeof( Delegate ).IsAssignableFrom( type ) )
             {
                 return "<delegate>";
             }
 
-            if ( type.IsPrimitive || type == typeof( string ) )
+            if ( type.IsPrimitive || type == typeof( string ) || type == typeof( decimal ) )
             {
                 return value;
+            }
+
+            if ( type.IsEnum )
+            {
+                return value.ToString();
             }
 
             if ( type == typeof( Vector2 ) )
@@ -627,31 +940,167 @@ namespace Unity_Inspector_Mod
                 return new { x = r.x, y = r.y, width = r.width, height = r.height };
             }
 
+            if ( type == typeof( Bounds ) )
+            {
+                var b = (Bounds)value;
+                return new { center = SerializeValue( b.center, depth + 1, state ), size = SerializeValue( b.size, depth + 1, state ) };
+            }
+
+            var unityObject = value as UnityEngine.Object;
+            if ( unityObject != null )
+            {
+                return new { type = type.Name, name = unityObject.name, instanceId = unityObject.GetInstanceID() };
+            }
+
             if ( value is UnityEngine.Object )
             {
-                var obj = value as UnityEngine.Object;
-                if ( obj != null )
-                {
-                    return new { type = type.Name, name = obj.name, instanceId = obj.GetInstanceID() };
-                }
+                // Unity's null check fails for a destroyed object, whose managed id is still readable.
+                return new { type = type.Name, destroyed = true, instanceId = ( (UnityEngine.Object)value ).GetInstanceID() };
             }
 
-            if ( type.IsArray )
+            if ( depth >= MaxSerializeDepth || state.Nodes <= 0 )
             {
-                var array = value as Array;
-                if ( array != null && array.Length <= 100 )
-                {
-                    var items = new List<object>();
-                    foreach ( var item in array )
-                    {
-                        items.Add( SerializeValue( item, depth + 1 ) );
-                    }
-                    return new { arrayType = type.GetElementType().Name, length = array.Length, items = items };
-                }
-                return new { arrayType = type.GetElementType().Name, length = array.Length };
+                return $"<{TypeName( type )}>";
             }
 
-            return value.ToString();
+            var dictionary = value as IDictionary;
+            if ( dictionary != null )
+            {
+                var entries = new List<object>();
+                bool cut = false;
+                foreach ( DictionaryEntry entry in dictionary )
+                {
+                    if ( entries.Count == MaxCollectionItems || state.Nodes <= 0 )
+                    {
+                        cut = true;
+                        break;
+                    }
+                    entries.Add( new { key = SerializeValue( entry.Key, depth + 1, state ), value = SerializeValue( entry.Value, depth + 1, state ) } );
+                }
+                return Collection( "dictionaryType", type, dictionary.Count, "entries", entries, cut );
+            }
+
+            var list = value as IList;
+            if ( list != null )
+            {
+                var items = new List<object>();
+                bool cut = false;
+                foreach ( var item in list )
+                {
+                    if ( items.Count == MaxCollectionItems || state.Nodes <= 0 )
+                    {
+                        cut = true;
+                        break;
+                    }
+                    items.Add( SerializeValue( item, depth + 1, state ) );
+                }
+
+                if ( type.IsArray )
+                {
+                    var array = (Array)value;
+                    if ( cut )
+                    {
+                        return new { arrayType = TypeName( type.GetElementType() ), length = array.Length, items, truncated = true };
+                    }
+                    return new { arrayType = TypeName( type.GetElementType() ), length = array.Length, items };
+                }
+
+                return Collection( "listType", type, list.Count, "items", items, cut );
+            }
+
+            var collection = value as ICollection;
+            if ( collection != null )
+            {
+                var items = new List<object>();
+                bool cut = false;
+                foreach ( var item in collection )
+                {
+                    if ( items.Count == MaxCollectionItems || state.Nodes <= 0 )
+                    {
+                        cut = true;
+                        break;
+                    }
+                    items.Add( SerializeValue( item, depth + 1, state ) );
+                }
+                return Collection( "collectionType", type, collection.Count, "items", items, cut );
+            }
+
+            if ( value is IEnumerable || IsSystemType( type ) )
+            {
+                return value is IEnumerable ? $"<{TypeName( type )}>" : value.ToString();
+            }
+
+            return SerializeFields( value, type, depth, state );
+        }
+
+        private static bool IsSystemType( Type type )
+        {
+            string ns = type.Namespace;
+            return ns != null && ( ns == "System" || ns.StartsWith( "System.", StringComparison.Ordinal ) );
+        }
+
+        private static object Collection( string typeKey, Type type, int count, string itemsKey, List<object> items, bool cut )
+        {
+            var reply = new Dictionary<string, object>
+            {
+                [typeKey] = TypeName( type ),
+                ["count"] = count,
+                [itemsKey] = items
+            };
+            if ( cut )
+            {
+                reply["truncated"] = true;
+            }
+            return reply;
+        }
+
+        private static object SerializeFields( object value, Type type, int depth, SerializeState state )
+        {
+            var fields = new Dictionary<string, object>();
+            bool cut = false;
+
+            for ( Type t = type; t != null && t != typeof( object ) && t != typeof( ValueType ); t = t.BaseType )
+            {
+                foreach ( var field in t.GetFields( BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance ) )
+                {
+                    string name = BackingFieldName( field.Name );
+                    if ( fields.ContainsKey( name ) )
+                    {
+                        continue;
+                    }
+
+                    if ( fields.Count == MaxNestedFields || state.Nodes <= 0 )
+                    {
+                        cut = true;
+                        break;
+                    }
+
+                    try
+                    {
+                        fields[name] = SerializeValue( MemberPath.ReadField( field, value ), depth + 1, state );
+                    }
+                    catch ( Exception ex )
+                    {
+                        fields[name] = $"<error reading {TypeName( field.FieldType )}: {Describe( ex )}>";
+                    }
+                }
+            }
+
+            if ( cut )
+            {
+                fields["<truncated>"] = true;
+            }
+            return fields;
+        }
+
+        private static string BackingFieldName( string name )
+        {
+            const string suffix = ">k__BackingField";
+            if ( name.StartsWith( "<", StringComparison.Ordinal ) && name.EndsWith( suffix, StringComparison.Ordinal ) )
+            {
+                return name.Substring( 1, name.Length - 1 - suffix.Length );
+            }
+            return name;
         }
 
         private static object SerializeTransform( Transform transform )
@@ -670,7 +1119,7 @@ namespace Unity_Inspector_Mod
         private const int ScanBudgetMs = 2000;
         private const string GameAssemblyName = "Assembly-CSharp";
 
-        private class TypeResolution
+        public sealed class TypeResolution
         {
             public Type Type;
             public int Candidates;
@@ -678,6 +1127,7 @@ namespace Unity_Inspector_Mod
 
         private static readonly Dictionary<string, TypeResolution> componentTypeCache = new Dictionary<string, TypeResolution>();
         private static readonly object componentTypeCacheLock = new object();
+        private static int cachedAssemblyCount = -1;
 
         public static void InvalidateTypeCache()
         {
@@ -708,10 +1158,17 @@ namespace Unity_Inspector_Mod
             var resolution = filterByComponent ? ResolveComponentType( componentType ) : null;
             var resolvedType = resolution != null ? resolution.Type : null;
 
+            if ( filterByComponent && resolvedType == null )
+            {
+                throw new CallerErrorException( $"No component type named {componentType} is loaded - componentType takes a Component class or interface's short or full name" );
+            }
+
             var results = new List<object>();
             var totalFound = 0;
             var scanned = 0;
             var scanTruncated = false;
+            string truncatedBy = null;
+            int remaining = ReplyBudget;
 
             for ( int i = 0; i < allObjects.Length; i++ )
             {
@@ -722,7 +1179,7 @@ namespace Unity_Inspector_Mod
                 }
 
                 var go = allObjects[i];
-                if ( go == null )
+                if ( go == null || !go.scene.IsValid() )
                 {
                     continue;
                 }
@@ -734,37 +1191,51 @@ namespace Unity_Inspector_Mod
                     continue;
                 }
 
-                if ( filterByComponent )
+                // GetComponent( Type ) matches subclasses and interfaces.
+                if ( filterByComponent && go.GetComponent( resolvedType ) == null )
                 {
-                    // GetComponent( Type ) matches subclasses and interfaces; the string overload matches the exact type name only.
-                    var match = resolvedType != null
-                        ? go.GetComponent( resolvedType ) != null
-                        : go.GetComponent( componentType ) != null;
-
-                    if ( !match )
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 totalFound++;
 
-                if ( results.Count < maxResults )
+                if ( truncatedBy != null )
                 {
-                    results.Add( new
-                    {
-                        name = go.name,
-                        path = GetPath( go ),
-                        isActive = go.activeSelf,
-                        hasComponent = filterByComponent
-                    } );
+                    continue;
                 }
+                if ( results.Count >= maxResults )
+                {
+                    truncatedBy = "maxResults";
+                    continue;
+                }
+
+                var entry = new
+                {
+                    name = go.name,
+                    path = GetPath( go ),
+                    instanceId = go.GetInstanceID(),
+                    scene = go.scene.name,
+                    isActive = go.activeSelf,
+                    activeInHierarchy = go.activeInHierarchy,
+                    hasComponent = filterByComponent
+                };
+
+                int cost = ListingCost( "", entry );
+                if ( cost > remaining )
+                {
+                    truncatedBy = "size";
+                    continue;
+                }
+                remaining -= cost;
+                results.Add( entry );
             }
 
             return new
             {
                 count = results.Count,
                 totalFound = totalFound,
+                truncated = truncatedBy != null,
+                truncatedBy,
                 results = results.ToArray(),
                 resolvedType = resolvedType != null ? resolvedType.FullName : null,
                 candidates = resolution != null ? resolution.Candidates : 0,
@@ -784,13 +1255,43 @@ namespace Unity_Inspector_Mod
             return new Regex( "^" + regex + "$", RegexOptions.Singleline );
         }
 
-        private static TypeResolution ResolveComponentType( string typeName )
+        // Every compile leaves a dynamic assembly behind for good; the compiler imports only the loaded scripts' and the latest declaration of each execute_code type.
+        private static IEnumerable<Type> LiveTypes()
+        {
+            var scripts = new HashSet<Assembly>( ScriptManager.LoadedScriptAssemblies( null ) );
+
+            foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
+            {
+                if ( assembly is AssemblyBuilder && !scripts.Contains( assembly ) )
+                {
+                    continue;
+                }
+                foreach ( var type in GetTypesSafely( assembly ) )
+                {
+                    yield return type;
+                }
+            }
+
+            foreach ( var type in ScriptCompiler.LatestEvalTypes() )
+            {
+                yield return type;
+            }
+        }
+
+        public static TypeResolution ResolveComponentType( string typeName )
         {
             TypeResolution resolution;
             var resolvedNow = false;
 
             lock ( componentTypeCacheLock )
             {
+                int assemblyCount = AppDomain.CurrentDomain.GetAssemblies().Length;
+                if ( assemblyCount != cachedAssemblyCount )
+                {
+                    componentTypeCache.Clear();
+                    cachedAssemblyCount = assemblyCount;
+                }
+
                 if ( componentTypeCache.TryGetValue( typeName, out resolution ) )
                 {
                     return resolution;
@@ -800,33 +1301,30 @@ namespace Unity_Inspector_Mod
                 var resolvedScore = -1;
                 var candidates = 0;
 
-                foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
+                foreach ( var type in LiveTypes() )
                 {
-                    foreach ( var type in GetTypesSafely( assembly ) )
+                    if ( type == null )
                     {
-                        if ( type == null )
-                        {
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        var fullNameMatch = type.FullName == typeName;
-                        if ( !fullNameMatch && type.Name != typeName )
-                        {
-                            continue;
-                        }
-                        if ( !type.IsInterface && !typeof( Component ).IsAssignableFrom( type ) )
-                        {
-                            continue;
-                        }
+                    var fullNameMatch = type.FullName == typeName;
+                    if ( !fullNameMatch && type.Name != typeName )
+                    {
+                        continue;
+                    }
+                    if ( !type.IsInterface && !typeof( Component ).IsAssignableFrom( type ) )
+                    {
+                        continue;
+                    }
 
-                        candidates++;
+                    candidates++;
 
-                        var score = ( fullNameMatch ? 2 : 0 ) + ( IsGameAssembly( type ) ? 1 : 0 );
-                        if ( score > resolvedScore )
-                        {
-                            resolved = type;
-                            resolvedScore = score;
-                        }
+                    var score = ( fullNameMatch ? 2 : 0 ) + ( IsGameAssembly( type ) ? 1 : 0 );
+                    if ( score > resolvedScore )
+                    {
+                        resolved = type;
+                        resolvedScore = score;
                     }
                 }
 
@@ -877,7 +1375,7 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static string GetPath( GameObject go )
+        public static string GetPath( GameObject go )
         {
             var path = go.name;
             var parent = go.transform.parent;

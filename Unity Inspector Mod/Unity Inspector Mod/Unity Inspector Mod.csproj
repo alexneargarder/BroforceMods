@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -88,6 +89,7 @@
     <Compile Include="StateModifier.cs" />
     <Compile Include="MainThreadDispatcher.cs" />
     <Compile Include="InputSimulator.cs" />
+    <Compile Include="FrozenClock.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="ScriptCompiler.cs" />
     <Compile Include="ScriptContext.cs" />

@@ -20,6 +20,7 @@ namespace Unity_Inspector_Mod
         internal static readonly string[] PreambleNamespaces =
         {
             "System",
+            "System.Collections",
             "System.Collections.Generic",
             "System.Linq",
             "System.Reflection",
@@ -57,6 +58,678 @@ namespace Unity_Inspector_Mod
             public bool Success;
             public Assembly Assembly;
             public string Errors;
+        }
+
+        internal static void InstallPatches()
+        {
+            PatchTokenCheck();
+            PatchExtensionMethodCrash();
+            PatchAssemblyImport();
+            PatchConstantImport();
+            PatchAssemblyLocation();
+            PatchNestedTypeImport();
+            PatchPropertyDefine();
+            PatchForeignBuilderTokens();
+            PatchGenericParameterImport();
+            PatchLoopStopPoints();
+            PatchMethodEntryChecks();
+            PatchExceptionFilters();
+            PatchMethodEndPad();
+            PatchScriptMethodBodyGuard();
+            PatchUnloadableMembers();
+            PatchGenericInstanceFields();
+            PatchJsonFieldProvider();
+            PatchGenericMethodBinding();
+        }
+
+        internal static int InstrumentCode;
+
+        private static bool loopStopPointsPatched;
+
+        private static void PatchLoopStopPoints()
+        {
+            if ( loopStopPointsPatched )
+            {
+                return;
+            }
+            loopStopPointsPatched = true;
+
+            try
+            {
+                var branchEmit = typeof( ILGenerator ).GetMethod( "Emit", new[] { typeof( OpCode ), typeof( Label ) } );
+                if ( branchEmit == null || ILGeneratorLabels == null || LabelIndex == null || LabelAddress == null )
+                {
+                    Main.Log( "System.Reflection.Emit.ILGenerator label members not found — " + LoopStopWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( branchEmit,
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "EmitLoopStopPoint",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.Emit.ILGenerator.Emit(OpCode, Label) (" +
+                          e.GetType().Name + ": " + e.Message + ") — " + LoopStopWarning );
+            }
+        }
+
+        private const string LoopStopWarning =
+            "an execute_code call, Main() or Unload() caught in a loop cannot be stopped at its budget";
+
+        private static readonly FieldInfo ILGeneratorLabels =
+            typeof( ILGenerator ).GetField( "labels", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly FieldInfo ILGeneratorLabelCount =
+            typeof( ILGenerator ).GetField( "num_labels", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly FieldInfo ILGeneratorCodeLength =
+            typeof( ILGenerator ).GetField( "code_len", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly FieldInfo LabelAddress =
+            typeof( ILGenerator ).GetNestedType( "LabelData", BindingFlags.NonPublic )?.GetField( "addr" );
+
+        private static readonly FieldInfo LabelIndex =
+            typeof( Label ).GetField( "label", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly MethodInfo StopPointMethod =
+            typeof( MainThreadDispatcher ).GetMethod( "StopPoint", BindingFlags.Static | BindingFlags.Public );
+
+        // A branch to a label already marked jumps backward, which every loop does once per iteration.
+        private static void EmitLoopStopPoint( ILGenerator __instance, OpCode opcode, Label label )
+        {
+            if ( InstrumentCode <= 0 )
+            {
+                return;
+            }
+            if ( opcode.FlowControl != FlowControl.Branch && opcode.FlowControl != FlowControl.Cond_Branch )
+            {
+                return;
+            }
+            if ( opcode.OperandType != OperandType.InlineBrTarget )
+            {
+                return;
+            }
+
+            var labels = ILGeneratorLabels.GetValue( __instance ) as Array;
+            int index = (int)LabelIndex.GetValue( label );
+            if ( labels == null || index < 0 || index >= labels.Length )
+            {
+                return;
+            }
+
+            if ( (int)LabelAddress.GetValue( labels.GetValue( index ) ) < 0 )
+            {
+                return;
+            }
+
+            __instance.Emit( OpCodes.Call, StopPointMethod );
+        }
+
+        private static bool methodEntryChecksPatched;
+
+        private static void PatchMethodEntryChecks()
+        {
+            if ( methodEntryChecksPatched )
+            {
+                return;
+            }
+            methodEntryChecksPatched = true;
+
+            try
+            {
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( typeof( ILGenerator ).GetConstructors( BindingFlags.Instance | BindingFlags.NonPublic ).Single(),
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "EmitMethodEntryCheck",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch the System.Reflection.Emit.ILGenerator constructor (" + e.GetType().Name + ": " +
+                          e.Message + ") — code compiled by execute_code or execute_script that recurses without end kills the game" );
+            }
+        }
+
+        private static readonly MethodInfo MethodEntryMethod =
+            typeof( MainThreadDispatcher ).GetMethod( "MethodEntry", BindingFlags.Static | BindingFlags.Public );
+
+        private static void EmitMethodEntryCheck( ILGenerator __instance )
+        {
+            if ( InstrumentCode > 0 )
+            {
+                __instance.Emit( OpCodes.Call, MethodEntryMethod );
+            }
+        }
+
+        private static bool exceptionFiltersPatched;
+
+        private static void PatchExceptionFilters()
+        {
+            if ( exceptionFiltersPatched )
+            {
+                return;
+            }
+            exceptionFiltersPatched = true;
+
+            try
+            {
+                var doEmit = typeof( Catch ).GetNestedType( "FilterStatement", BindingFlags.NonPublic )?.GetMethod( "DoEmit",
+                    BindingFlags.Instance | BindingFlags.NonPublic );
+                int writes = doEmit == null ? 0 : PatchProcessor.GetOriginalInstructions( doEmit ).Count( WritesEndfilter );
+                if ( writes != 1 )
+                {
+                    Main.Log( "Mono.CSharp.Catch.FilterStatement.DoEmit writes endfilter " + writes +
+                              " times, expected once — " + ExceptionFilterWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( doEmit,
+                    transpiler: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "DropEndfilterWrite",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Mono.CSharp.Catch.FilterStatement.DoEmit (" + e.GetType().Name + ": " +
+                          e.Message + ") — " + ExceptionFilterWarning );
+            }
+        }
+
+        private const string ExceptionFilterWarning =
+            "a catch with a when filter fails with InvalidProgramException when its method runs; catch, test and rethrow instead";
+
+        private static bool WritesEndfilter( CodeInstruction instruction )
+        {
+            return instruction.opcode == OpCodes.Ldsfld && ( instruction.operand as FieldInfo )?.Name == "Endfilter";
+        }
+
+        // ILGenerator.BeginCatchBlock(null) writes the filter's endfilter itself, so the one mcs writes first leaves the second on an empty stack, which Mono's JIT refuses.
+        private static IEnumerable<CodeInstruction> DropEndfilterWrite( IEnumerable<CodeInstruction> instructions )
+        {
+            var kept = instructions.ToList();
+            kept.RemoveRange( kept.FindIndex( WritesEndfilter ) - 1, 3 );
+            return kept;
+        }
+
+        private static bool methodEndPadPatched;
+
+        private static void PatchMethodEndPad()
+        {
+            if ( methodEndPadPatched )
+            {
+                return;
+            }
+            methodEndPadPatched = true;
+
+            try
+            {
+                var labelFixup = typeof( ILGenerator ).GetMethod( "label_fixup",
+                    BindingFlags.Instance | BindingFlags.NonPublic );
+                if ( labelFixup == null || ILGeneratorLabels == null || ILGeneratorLabelCount == null ||
+                     ILGeneratorCodeLength == null || LabelAddress == null )
+                {
+                    Main.Log( "System.Reflection.Emit.ILGenerator label members not found — " + MethodEndPadWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( labelFixup,
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "PadMethodEnd",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.Emit.ILGenerator.label_fixup (" +
+                          e.GetType().Name + ": " + e.Message + ") — " + MethodEndPadWarning );
+            }
+        }
+
+        private const string MethodEndPadWarning =
+            "a method ending in a try statement whose end is unreachable, such as a try around a loop that never exits, kills the game when it first runs";
+
+        // Reflection.Emit leaves a try to a label just past its handlers and mcs writes no ret after an unreachable end, so the leave targets one past the last byte and Mono's JIT follows garbage from its offset table.
+        private static void PadMethodEnd( ILGenerator __instance )
+        {
+            int end = (int)ILGeneratorCodeLength.GetValue( __instance );
+            int count = (int)ILGeneratorLabelCount.GetValue( __instance );
+            var labels = ILGeneratorLabels.GetValue( __instance ) as Array;
+            for ( int i = 0; i < count; i++ )
+            {
+                if ( (int)LabelAddress.GetValue( labels.GetValue( i ) ) != end )
+                {
+                    continue;
+                }
+
+                __instance.Emit( OpCodes.Ldnull );
+                __instance.Emit( OpCodes.Throw );
+                return;
+            }
+        }
+
+        private static bool scriptMethodBodyGuardPatched;
+
+        internal static string ScriptMethodBodyGuardFailure;
+
+        private static void PatchScriptMethodBodyGuard()
+        {
+            if ( scriptMethodBodyGuardPatched )
+            {
+                return;
+            }
+            scriptMethodBodyGuardPatched = true;
+
+            try
+            {
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                var prefix = new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "RefuseScriptMethodBody",
+                    BindingFlags.Static | BindingFlags.NonPublic ) );
+                foreach ( var typeName in new[] { "System.Reflection.MonoMethod", "System.Reflection.MonoCMethod" } )
+                {
+                    var getBody = typeof( MethodBase ).Assembly.GetType( typeName )?.GetMethod( "GetMethodBody",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly, null, Type.EmptyTypes, null );
+                    if ( getBody == null )
+                    {
+                        throw new MissingMethodException( typeName, "GetMethodBody" );
+                    }
+                    harmony.Patch( getBody, prefix: prefix );
+                }
+            }
+            catch ( Exception e )
+            {
+                ScriptMethodBodyGuardFailure = e.GetType().Name + ": " + e.Message;
+                Main.Log( "Failed to patch MethodBase.GetMethodBody (" + ScriptMethodBodyGuardFailure +
+                          ") — code naming Harmony or GetMethodBody is refused, since reading a script-compiled method's body kills the game" );
+            }
+        }
+
+        // Mono reads the body from the image's method table, which an AssemblyBuilder's image does not have: metadata.c asserts and the process aborts.
+        private static void RefuseScriptMethodBody( MethodBase __instance )
+        {
+            var declaring = __instance.DeclaringType;
+            if ( declaring == null || !( declaring.Assembly is AssemblyBuilder ) )
+            {
+                return;
+            }
+
+            throw new NotSupportedException( declaring.FullName + "." + __instance.Name +
+                                             " is compiled by the script system (execute_script or execute_code); " +
+                                             "reading its body would kill the game, so GetMethodBody is refused and " +
+                                             "Harmony cannot patch it" );
+        }
+
+        private static readonly Regex MethodBodyReaders =
+            new Regex( @"\b(Harmony\w*|PatchProcessor|GetMethodBody|HasMethodBody)\b" );
+
+        internal static string ScriptMethodBodyRefusal( string source )
+        {
+            if ( ScriptMethodBodyGuardFailure == null )
+            {
+                return null;
+            }
+
+            var reader = MethodBodyReaders.Match( StripCommentsAndStrings( source ) );
+            if ( !reader.Success )
+            {
+                return null;
+            }
+
+            return "This code names " + reader.Value + ", and the guard that keeps reading a method body from killing " +
+                   "the game could not be installed (" + ScriptMethodBodyGuardFailure + "). A Harmony patch on, or " +
+                   "GetMethodBody of, a method compiled by execute_script or execute_code would take the game down, " +
+                   "so nothing was compiled or run.";
+        }
+
+        private static bool unloadableMembersPatched;
+
+        private static void PatchUnloadableMembers()
+        {
+            if ( unloadableMembersPatched )
+            {
+                return;
+            }
+            unloadableMembersPatched = true;
+
+            try
+            {
+                var loadMembers = typeof( CSharpParser ).Assembly.GetType( "Mono.CSharp.ImportedTypeDefinition" )?.GetMethod( "LoadMembers",
+                    BindingFlags.Instance | BindingFlags.Public );
+                int reads = loadMembers == null ? 0 : PatchProcessor.GetOriginalInstructions( loadMembers ).Count( ReadsMembers );
+                if ( reads != 1 )
+                {
+                    Main.Log( "Mono.CSharp.ImportedTypeDefinition.LoadMembers reads Type.GetMembers " + reads +
+                              " times, expected once — " + UnloadableMembersWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( loadMembers,
+                    transpiler: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "LoadableMembersTranspiler",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Mono.CSharp.ImportedTypeDefinition.LoadMembers (" + e.GetType().Name + ": " +
+                          e.Message + ") — " + UnloadableMembersWarning );
+            }
+        }
+
+        private const string UnloadableMembersWarning =
+            "the first naming of a type with a method whose signature names an absent assembly, such as Newtonsoft.Json.JsonConvert, fails with CS0584";
+
+        private static bool ReadsMembers( CodeInstruction instruction )
+        {
+            var method = instruction.operand as MethodInfo;
+            return method != null && method.Name == "GetMembers" && method.DeclaringType == typeof( Type );
+        }
+
+        private static IEnumerable<CodeInstruction> LoadableMembersTranspiler( IEnumerable<CodeInstruction> instructions )
+        {
+            var loadableMembers = typeof( ScriptCompiler ).GetMethod( "LoadableMembers", BindingFlags.Static | BindingFlags.NonPublic );
+            foreach ( var instruction in instructions )
+            {
+                if ( ReadsMembers( instruction ) )
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = loadableMembers;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        // Newtonsoft.Json's XNode overloads name System.Xml.Linq, absent from the game; mcs gives up on the whole type at the first such method, and every member of a MethodBase but its name throws.
+        private static MemberInfo[] LoadableMembers( Type type, BindingFlags flags )
+        {
+            return type.GetMembers( flags ).Where( member =>
+            {
+                try
+                {
+                    _ = ( member as MethodBase )?.Attributes;
+                    return true;
+                }
+                catch ( Exception e )
+                {
+                    ReportImportFailure( SafeAssemblyName( type.Assembly ), "the method " + type + "." + member.Name, e );
+                    return false;
+                }
+            } ).ToArray();
+        }
+
+        private static bool genericInstanceFieldsPatched;
+
+        private static void PatchGenericInstanceFields()
+        {
+            if ( genericInstanceFieldsPatched )
+            {
+                return;
+            }
+            genericInstanceFieldsPatched = true;
+
+            try
+            {
+                var initialize = typeof( Type ).Assembly.GetType( "System.Reflection.MonoGenericClass" )?.GetMethod( "initialize",
+                    BindingFlags.Instance | BindingFlags.NonPublic, null, Type.EmptyTypes, null );
+                int reads = initialize == null ? 0 : PatchProcessor.GetOriginalInstructions( initialize ).Count( ReadsBuilderFields );
+                if ( reads != 1 )
+                {
+                    Main.Log( "System.Reflection.MonoGenericClass.initialize reads TypeBuilder.GetFields " + reads +
+                              " times, expected once — " + GenericInstanceFieldsWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( initialize,
+                    transpiler: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "NoInstanceFieldsTranspiler",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.MonoGenericClass.initialize (" + e.GetType().Name + ": " +
+                          e.Message + ") — " + GenericInstanceFieldsWarning );
+            }
+        }
+
+        private const string GenericInstanceFieldsWarning =
+            "reflecting over the fields of an anonymous type, JsonConvert.SerializeObject of one included, kills the game";
+
+        private static bool ReadsBuilderFields( CodeInstruction instruction )
+        {
+            var method = instruction.operand as MethodInfo;
+            return method != null && method.Name == "GetFields" && method.DeclaringType == typeof( TypeBuilder );
+        }
+
+        private static IEnumerable<CodeInstruction> NoInstanceFieldsTranspiler( IEnumerable<CodeInstruction> instructions )
+        {
+            var noInstanceFields = typeof( ScriptCompiler ).GetMethod( "NoInstanceFields", BindingFlags.Static | BindingFlags.NonPublic );
+            foreach ( var instruction in instructions )
+            {
+                if ( ReadsBuilderFields( instruction ) )
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = noInstanceFields;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        // The runtime copies these fields into a list of the instance's own, and mono_field_get_object aborts on any field that is not in it, which GetFields' are not; an empty list skips that check.
+        private static FieldInfo[] NoInstanceFields( TypeBuilder builder, BindingFlags flags )
+        {
+            return new FieldInfo[0];
+        }
+
+        private static bool jsonFieldProviderPatched;
+
+        private static void PatchJsonFieldProvider()
+        {
+            if ( jsonFieldProviderPatched )
+            {
+                return;
+            }
+            jsonFieldProviderPatched = true;
+
+            try
+            {
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( AccessTools.Method( typeof( Newtonsoft.Json.Serialization.DefaultContractResolver ), "CreateMemberValueProvider" ),
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "ReflectGenericField",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Newtonsoft.Json's DefaultContractResolver (" + e.GetType().Name + ": " + e.Message +
+                          ") — JsonConvert over a generic class declared by a script or execute_code with a public field kills the game" );
+            }
+        }
+
+        // A DynamicMethod naming a field of a dynamic generic instance aborts the game when it is created (mono_domain_try_type_resolve asserts); reading the field by reflection is safe.
+        private static bool ReflectGenericField( MemberInfo member, ref Newtonsoft.Json.Serialization.IValueProvider __result )
+        {
+            var declaring = ( member as FieldInfo )?.DeclaringType;
+            if ( declaring == null || !declaring.IsGenericType || !( declaring.Assembly is AssemblyBuilder ) )
+            {
+                return true;
+            }
+
+            __result = new Newtonsoft.Json.Serialization.ReflectionValueProvider( member );
+            return false;
+        }
+
+        private static bool genericMethodBindingPatched;
+
+        private static void PatchGenericMethodBinding()
+        {
+            if ( genericMethodBindingPatched )
+            {
+                return;
+            }
+            genericMethodBindingPatched = true;
+
+            try
+            {
+                var emit = typeof( Method ).GetMethod( "Emit", BindingFlags.Instance | BindingFlags.Public, null, Type.EmptyTypes, null );
+                if ( emit == null || MethodBuilderBody == null || LabelFixup == null )
+                {
+                    Main.Log( "Mono.CSharp.Method.Emit or System.Reflection.Emit.MethodBuilder members not found — " + GenericMethodBindingWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( typeof( MethodSpec ).GetMethod( "GetMetaInfo" ),
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "BindGenericMethod",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ),
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "RestoreBuilderBody",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+                harmony.Patch( emit,
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "SkipEmittedEarly",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Mono.CSharp.MethodSpec.GetMetaInfo (" + e.GetType().Name + ": " + e.Message +
+                          ") — " + GenericMethodBindingWarning );
+            }
+        }
+
+        private const string GenericMethodBindingWarning =
+            "a generic method called from the same compile that declares it fails with \"does not have a method body\" or runs with an empty body";
+
+        private static readonly FieldInfo MethodBuilderBody =
+            typeof( MethodBuilder ).GetField( "ilgen", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly MethodInfo LabelFixup =
+            typeof( ILGenerator ).GetMethod( "label_fixup", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly HashSet<Method> emittedEarly = new HashSet<Method>();
+
+        private static string genericBindRefusal;
+
+        // Binding a builder's generic instance makes Mono copy the body as it stands into the instance, branches unpatched, and in a Run assembly drop the builder's ILGenerator. Only a MethodBuilder token resolves late, and the JIT inflates it by the caller's context.
+        private static bool BindGenericMethod( MethodSpec __instance, ref MethodBase __result, out ILGenerator __state )
+        {
+            __state = null;
+
+            var typeArguments = __instance.TypeArguments;
+            if ( typeArguments == null || typeArguments.Length == 0 )
+            {
+                return true;
+            }
+
+            var builder = __instance.MemberDefinition.Metadata as MethodBuilder;
+            if ( builder == null )
+            {
+                return true;
+            }
+
+            if ( NamesCallersOwnParameters( __instance, builder, typeArguments ) )
+            {
+                __result = builder;
+                return false;
+            }
+
+            // The instance's copy of a virtual method has no vtable slot, and a callvirt on it aborts the game when it JITs (class.c asserts method->slot != -1).
+            if ( builder.IsVirtual && genericBindRefusal == null )
+            {
+                genericBindRefusal = VirtualBindRefusal( builder );
+            }
+
+            var method = __instance.MemberDefinition as Method;
+            if ( method != null && method.Block != null && MethodBuilderBody.GetValue( builder ) == null )
+            {
+                method.Emit();
+                emittedEarly.Add( method );
+            }
+
+            __state = (ILGenerator)MethodBuilderBody.GetValue( builder );
+            if ( __state == null )
+            {
+                return true;
+            }
+
+            if ( method == null || method.Block == null )
+            {
+                LabelFixup.Invoke( __state, null );
+            }
+            else if ( genericBindRefusal == null )
+            {
+                genericBindRefusal = OwnBodyBindRefusal( builder );
+            }
+
+            return true;
+        }
+
+        private static bool NamesCallersOwnParameters( MethodSpec spec, MethodBuilder builder, TypeSpec[] typeArguments )
+        {
+            var classArguments = spec.DeclaringType.TypeArguments;
+            for ( int i = 0; i < classArguments.Length; i++ )
+            {
+                var parameter = classArguments[i].GetMetaInfo() as GenericTypeParameterBuilder;
+                if ( parameter == null || parameter.DeclaringMethod != null || parameter.GenericParameterPosition != i ||
+                     parameter.DeclaringType != builder.DeclaringType )
+                {
+                    return false;
+                }
+            }
+
+            MethodBase caller = null;
+            for ( int i = 0; i < typeArguments.Length; i++ )
+            {
+                var parameter = typeArguments[i].GetMetaInfo() as GenericTypeParameterBuilder;
+                if ( parameter == null || parameter.DeclaringMethod == null || parameter.GenericParameterPosition != i ||
+                     ( caller != null && parameter.DeclaringMethod != caller ) )
+                {
+                    return false;
+                }
+                caller = parameter.DeclaringMethod;
+            }
+
+            return caller.GetGenericArguments().Length == typeArguments.Length;
+        }
+
+        private static void RestoreBuilderBody( MethodSpec __instance, ILGenerator __state )
+        {
+            if ( __state != null )
+            {
+                MethodBuilderBody.SetValue( __instance.MemberDefinition.Metadata, __state );
+            }
+        }
+
+        private static bool SkipEmittedEarly( Method __instance )
+        {
+            return !emittedEarly.Remove( __instance );
+        }
+
+        internal static string TakeGenericBindRefusal()
+        {
+            string refusal = genericBindRefusal;
+            genericBindRefusal = null;
+            emittedEarly.Clear();
+            return refusal;
+        }
+
+        private static string OwnBodyBindRefusal( MethodBuilder builder )
+        {
+            return "Generic method " + builder.DeclaringType.FullName + "." + builder.Name +
+                   " is called with other type arguments from inside its own body or a method it calls, and this runtime " +
+                   "would run that call with the body cut off where it stood (InvalidProgramException: Invalid IL code, " +
+                   "when it runs), so nothing was run.\n" +
+                   "Workarounds:\n" +
+                   "  - Call it with the caller's own type parameters, e.g. F<T>(n - 1) inside F<T>\n" +
+                   "  - Move the recursion into a non-generic helper the generic method calls\n" +
+                   "  - Move the type parameter onto a generic class, e.g. class C<T> { public static int F(int n) { return C<string>.F(n - 1); } }\n" +
+                   "  - Call through a delegate field a later call assigns, e.g. public static Func<int, int> Next;";
+        }
+
+        private static string VirtualBindRefusal( MethodBuilder builder )
+        {
+            return "Generic method " + builder.DeclaringType.FullName + "." + builder.Name +
+                   " is virtual or an interface method, and calling it with fixed type arguments from the compile that " +
+                   "declares it would kill the game when it first ran, so nothing was run.\n" +
+                   "Workarounds:\n" +
+                   "  - Call it from inside a generic method with that method's own type parameters, e.g. T Via<T>(IThing i, T x) { return i.M(x); }\n" +
+                   "  - Make the call from a later execute_code call, or from another script";
         }
 
         public static void PatchTokenCheck()
@@ -405,6 +1078,98 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
+        private static bool genericParameterImportPatched;
+
+        private static void PatchGenericParameterImport()
+        {
+            if ( genericParameterImportPatched )
+            {
+                return;
+            }
+            genericParameterImportPatched = true;
+
+            try
+            {
+                var readerType = typeof( MetadataImporter ).GetNestedType( "AttributesTypeInfoReader",
+                    BindingFlags.Public | BindingFlags.NonPublic );
+                var createType = readerType == null
+                    ? null
+                    : typeof( MetadataImporter ).GetMethod( "CreateType", BindingFlags.Instance | BindingFlags.NonPublic, null,
+                        new[] { typeof( Type ), typeof( TypeSpec ), readerType, typeof( bool ) }, null );
+                if ( createType == null )
+                {
+                    Main.Log( "Mono.CSharp.MetadataImporter.CreateType(Type, TypeSpec, AttributesTypeInfoReader, bool) not found — " +
+                              GenericParameterImportWarning );
+                    return;
+                }
+
+                var harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( createType,
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "ContainerType",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+                harmony.Patch( typeof( ModuleContainer ).GetMethod( "Define" ),
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "ModuleNotFullyDefined",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+                harmony.Patch( typeof( InflatedTypeSpec ).GetMethod( "CreateMetaInfo", BindingFlags.Instance | BindingFlags.NonPublic ),
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "InitialiseGenericStruct",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Mono.CSharp.MetadataImporter.CreateType (" + e.GetType().Name + ": " +
+                          e.Message + ") — " + GenericParameterImportWarning );
+            }
+        }
+
+        private const string GenericParameterImportWarning =
+            "the members of a generic class declared by a script or by execute_code keep their type parameter when named from elsewhere (CS0031), a class cannot derive from a generic class declared in the same execute_code input, and a local of a generic struct they declared fails with stack is too big";
+
+        // Mono copies a TypeBuilder's generic parameters into its container, so its members name a T that GetGenericArguments never returns, and mcs imports that as a type parameter nothing inflates. GetGenericTypeDefinition of its instances answers the TypeBuilder, not the baked type.
+        private static void ContainerType( ref Type type )
+        {
+            var builder = type as TypeBuilder;
+            if ( builder != null )
+            {
+                if ( builder.IsCreated() )
+                {
+                    type = builder.CreateType();
+                }
+                return;
+            }
+
+            if ( !type.IsGenericParameter || type.DeclaringMethod != null )
+            {
+                return;
+            }
+
+            var declaring = type.DeclaringType;
+            if ( declaring != null && declaring.Assembly is AssemblyBuilder )
+            {
+                type = declaring.GetGenericArguments()[type.GenericParameterPosition];
+            }
+        }
+
+        // The Evaluator defines every call in one module, which stays marked defined after the first, so a base type naming a generic class declared in the same input has its constraints read before they exist.
+        private static void ModuleNotFullyDefined( ModuleContainer __instance )
+        {
+            __instance.HasTypesFullyDefined = false;
+        }
+
+        // An instance of a baked generic struct has no size until reflection or a box initialises it, and a local of one fails the JIT with "stack is too big".
+        private static void InitialiseGenericStruct( Type __result )
+        {
+            if ( !__result.IsValueType || __result.ContainsGenericParameters )
+            {
+                return;
+            }
+
+            var builder = __result.GetGenericTypeDefinition() as TypeBuilder;
+            if ( builder != null && builder.IsCreated() )
+            {
+                __result.GetFields();
+            }
+        }
+
         public static void PatchNestedTypeImport()
         {
             lock ( nestedTypeImportPatchLock )
@@ -653,6 +1418,46 @@ namespace Unity_Inspector_Mod
         private static readonly FieldInfo ILGeneratorModule =
             typeof( ILGenerator ).GetField( "module", BindingFlags.Instance | BindingFlags.NonPublic );
 
+        private static string foreignGenericField;
+
+        // An instance of a dynamic generic class made after the class was baked is not marked complete, and a token on its field aborts the game when the method JITs (mono_domain_try_type_resolve asserts).
+        private static void RecordForeignGenericField( ILGenerator generator, FieldInfo field )
+        {
+            var declaring = field.DeclaringType;
+            if ( declaring == null || !declaring.IsGenericType || declaring.IsGenericTypeDefinition )
+            {
+                return;
+            }
+
+            var builder = declaring.GetGenericTypeDefinition() as TypeBuilder;
+            if ( builder == null || builder.Module == (Module)ILGeneratorModule.GetValue( generator ) )
+            {
+                return;
+            }
+
+            if ( foreignGenericField == null )
+            {
+                foreignGenericField = declaring.Name.Split( '`' )[0] + "." + field.Name;
+            }
+        }
+
+        internal static string TakeForeignGenericFieldRefusal()
+        {
+            string field = foreignGenericField;
+            foreignGenericField = null;
+            if ( field == null )
+            {
+                return null;
+            }
+
+            return "This code names the field " + field + " of a generic class declared by an earlier script or execute_code call. " +
+                   "The compiled code would kill the game when it first ran, so nothing was run.\n" +
+                   "Workarounds:\n" +
+                   "  - Declare the member as a property, e.g. public T Value { get; set; }\n" +
+                   "  - Read and write the field through methods of the class\n" +
+                   "  - Read it by reflection: typeof(Box<int>).GetField(\"Value\").GetValue(box)";
+        }
+
         private static Type CreatedForeignType( ILGenerator generator, Type type )
         {
             var builder = type as TypeBuilder;
@@ -671,6 +1476,7 @@ namespace Unity_Inspector_Mod
         {
             if ( !( field is FieldBuilder ) )
             {
+                RecordForeignGenericField( __instance, field );
                 return;
             }
 
@@ -738,8 +1544,7 @@ namespace Unity_Inspector_Mod
         private static string DetectEnumUsageError( string name, string source )
         {
             bool ownEnum;
-            var visible = EvalAssemblies().Concat( ScriptManager.LoadedScriptAssemblies( name ) );
-            var referenced = FindEnumUsage( source, DynamicEnumNames( visible ), out ownEnum );
+            var referenced = FindEnumUsage( source, VisibleDynamicEnums( name ), out ownEnum );
             if ( referenced == null )
             {
                 return null;
@@ -771,7 +1576,7 @@ namespace Unity_Inspector_Mod
                    "  - Define the enum in a mod DLL or non-script source";
         }
 
-        internal static string FindEnumUsage( string source, IEnumerable<string> dynamicEnums, out bool ownEnum )
+        internal static string FindEnumUsage( string source, IEnumerable<Type> dynamicEnums, out bool ownEnum )
         {
             var clean = StripCommentsAndStrings( source );
 
@@ -821,39 +1626,99 @@ namespace Unity_Inspector_Mod
             }
             var masked = sb.ToString();
 
-            ownEnum = true;
-            var referenced = FindEnumReference( masked, enumDecls.Select( decl => decl.Key ) );
-            if ( referenced != null )
+            var declaredTypes = new HashSet<string>();
+            foreach ( Match m in DeclaredTypeName.Matches( clean ) )
             {
-                return referenced;
+                var declared = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+                foreach ( var segment in declared.Split( '.' ) )
+                {
+                    declaredTypes.Add( segment );
+                }
+            }
+
+            ownEnum = true;
+            foreach ( var decl in enumDecls )
+            {
+                if ( ReferencesEnum( masked, decl.Key, declaredTypes, true ) )
+                {
+                    return decl.Key;
+                }
             }
 
             ownEnum = false;
-            return FindEnumReference( masked, dynamicEnums );
-        }
-
-        private static string FindEnumReference( string cleanSource, IEnumerable<string> enumNames )
-        {
-            foreach ( var enumName in enumNames )
+            foreach ( var type in dynamicEnums )
             {
-                if ( Regex.IsMatch( cleanSource, @"\b" + Regex.Escape( enumName ) + @"\b" ) )
+                if ( declaredTypes.Contains( type.Name ) )
                 {
-                    return enumName;
+                    continue;
+                }
+
+                var qualifiers = new HashSet<string>();
+                if ( type.DeclaringType != null )
+                {
+                    qualifiers.Add( type.DeclaringType.Name.Split( '`' )[0] );
+                }
+                else if ( !string.IsNullOrEmpty( type.Namespace ) )
+                {
+                    qualifiers.Add( type.Namespace.Split( '.' ).Last() );
+                }
+
+                if ( ReferencesEnum( masked, type.Name, qualifiers, type.DeclaringType == null ) )
+                {
+                    return type.Name;
                 }
             }
 
             return null;
         }
 
-        internal static List<string> DynamicEnumNames()
+        private static readonly Regex DeclaredTypeName =
+            new Regex( @"\b(?:class|struct|interface|enum|namespace)\s+([\w.]+)|\bdelegate\s+[\w.<>\[\],\s]+?\s+(\w+)\s*[<(]" );
+
+        private static bool ReferencesEnum( string cleanSource, string enumName, ICollection<string> qualifiers,
+            bool unqualifiedCounts )
         {
-            return DynamicEnumNames( AppDomain.CurrentDomain.GetAssemblies().Where( a => a is AssemblyBuilder ) );
+            foreach ( Match m in Regex.Matches( cleanSource, @"\b" + Regex.Escape( enumName ) + @"\b" ) )
+            {
+                int before = m.Index - 1;
+                while ( before >= 0 && char.IsWhiteSpace( cleanSource[before] ) )
+                {
+                    before--;
+                }
+
+                if ( before < 0 || cleanSource[before] != '.' )
+                {
+                    if ( unqualifiedCounts )
+                    {
+                        return true;
+                    }
+                    continue;
+                }
+
+                int end = before - 1;
+                while ( end >= 0 && char.IsWhiteSpace( cleanSource[end] ) )
+                {
+                    end--;
+                }
+                int start = end;
+                while ( start >= 0 && ( char.IsLetterOrDigit( cleanSource[start] ) || cleanSource[start] == '_' ) )
+                {
+                    start--;
+                }
+                if ( end > start && qualifiers.Contains( cleanSource.Substring( start + 1, end - start ) ) )
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        private static List<string> DynamicEnumNames( IEnumerable<Assembly> assemblies )
+        internal static List<Type> VisibleDynamicEnums( string exceptName )
         {
-            var names = new List<string>();
-            foreach ( var assembly in assemblies )
+            var enums = new List<Type>();
+            var pending = new Stack<Type>( LatestEvalTypes() );
+            foreach ( var assembly in ScriptManager.LoadedScriptAssemblies( exceptName ) )
             {
                 Type[] types;
                 try
@@ -866,135 +1731,105 @@ namespace Unity_Inspector_Mod
                 }
                 catch ( Exception )
                 {
-                    continue; // An AssemblyBuilder still being emitted can throw
+                    continue;
                 }
 
                 if ( types == null )
                 {
                     continue;
                 }
-
                 foreach ( var type in types )
                 {
-                    if ( type != null && type.IsEnum )
+                    if ( type != null && !type.IsNested )
                     {
-                        names.Add( type.Name );
+                        pending.Push( type );
                     }
                 }
             }
 
-            return names;
+            while ( pending.Count > 0 )
+            {
+                var type = pending.Pop();
+                if ( type.IsEnum )
+                {
+                    enums.Add( type );
+                }
+                Type[] nested;
+                try
+                {
+                    nested = type.GetNestedTypes( BindingFlags.Public | BindingFlags.NonPublic );
+                }
+                catch ( Exception )
+                {
+                    continue;
+                }
+                foreach ( var inner in nested )
+                {
+                    pending.Push( inner );
+                }
+            }
+
+            return enums;
         }
 
         private static string StripCommentsAndStrings( string source )
         {
-            var sb = new StringBuilder( source.Length );
-            int i = 0;
-            while ( i < source.Length )
+            var text = new StringBuilder( source );
+            BlankCommentsAndStrings( text, source, 0, source.Length );
+            return text.ToString();
+        }
+
+        private static void BlankCommentsAndStrings( StringBuilder text, string source, int from, int to )
+        {
+            int index = from;
+            while ( index < to )
             {
-                char c = source[i];
-
-                if ( c == '/' && i + 1 < source.Length && source[i + 1] == '/' )
+                int end;
+                if ( source[index] == '/' && index + 1 < to && source[index + 1] == '/' )
                 {
-                    while ( i < source.Length && source[i] != '\n' )
+                    end = source.IndexOf( '\n', index );
+                    if ( end < 0 )
                     {
-                        sb.Append( ' ' );
-                        i++;
+                        end = source.Length;
                     }
+                }
+                else if ( source[index] == '/' && index + 1 < to && source[index + 1] == '*' )
+                {
+                    end = CodeExecutor.SkipBlockComment( source, index );
+                }
+                else if ( CodeExecutor.StartsLiteral( source, index ) )
+                {
+                    end = CodeExecutor.SkipLiteral( source, index );
+                }
+                else
+                {
+                    index++;
                     continue;
                 }
 
-                if ( c == '/' && i + 1 < source.Length && source[i + 1] == '*' )
+                end = System.Math.Min( end, to );
+                for ( int i = index; i < end; i++ )
                 {
-                    sb.Append( "  " );
-                    i += 2;
-                    while ( i + 1 < source.Length && !( source[i] == '*' && source[i + 1] == '/' ) )
+                    if ( text[i] != '\n' )
                     {
-                        sb.Append( source[i] == '\n' ? '\n' : ' ' );
-                        i++;
+                        text[i] = ' ';
                     }
-                    if ( i + 1 < source.Length )
-                    {
-                        sb.Append( "  " );
-                        i += 2;
-                    }
-                    continue;
                 }
 
-                if ( c == '@' && i + 1 < source.Length && source[i + 1] == '"' )
+                if ( source[index] == '$' )
                 {
-                    sb.Append( "  " );
-                    i += 2;
-                    while ( i < source.Length )
+                    var holes = new List<KeyValuePair<int, int>>();
+                    CodeExecutor.SkipInterpolated( source, index, holes );
+                    foreach ( var hole in holes )
                     {
-                        if ( source[i] == '"' && ( i + 1 >= source.Length || source[i + 1] != '"' ) )
-                        {
-                            sb.Append( ' ' );
-                            i++;
-                            break;
-                        }
-                        if ( source[i] == '"' && source[i + 1] == '"' )
-                        {
-                            sb.Append( "  " );
-                            i += 2;
-                            continue;
-                        }
-                        sb.Append( source[i] == '\n' ? '\n' : ' ' );
-                        i++;
+                        text.Remove( hole.Key + 1, hole.Value - hole.Key - 2 );
+                        text.Insert( hole.Key + 1, source.Substring( hole.Key + 1, hole.Value - hole.Key - 2 ) );
+                        BlankCommentsAndStrings( text, source, hole.Key + 1, hole.Value - 1 );
                     }
-                    continue;
                 }
 
-                if ( c == '"' )
-                {
-                    sb.Append( ' ' );
-                    i++;
-                    while ( i < source.Length && source[i] != '"' )
-                    {
-                        if ( source[i] == '\\' && i + 1 < source.Length )
-                        {
-                            sb.Append( "  " );
-                            i += 2;
-                            continue;
-                        }
-                        sb.Append( ' ' );
-                        i++;
-                    }
-                    if ( i < source.Length )
-                    {
-                        sb.Append( ' ' );
-                        i++;
-                    }
-                    continue;
-                }
-
-                if ( c == '\'' )
-                {
-                    sb.Append( ' ' );
-                    i++;
-                    while ( i < source.Length && source[i] != '\'' )
-                    {
-                        if ( source[i] == '\\' && i + 1 < source.Length )
-                        {
-                            sb.Append( "  " );
-                            i += 2;
-                            continue;
-                        }
-                        sb.Append( ' ' );
-                        i++;
-                    }
-                    if ( i < source.Length )
-                    {
-                        sb.Append( ' ' );
-                        i++;
-                    }
-                    continue;
-                }
-
-                sb.Append( c );
-                i++;
+                index = end;
             }
-            return sb.ToString();
         }
 
         internal static string PreambleSource( string source )
@@ -1031,7 +1866,17 @@ namespace Unity_Inspector_Mod
                 };
             }
 
-            PatchPropertyDefine();
+            InstallPatches();
+
+            var bodyRefusal = ScriptMethodBodyRefusal( source );
+            if ( bodyRefusal != null )
+            {
+                return new CompileResult
+                {
+                    Success = false,
+                    Errors = bodyRefusal
+                };
+            }
 
             var errorOutput = new StringBuilder();
             var reporter = new StreamReportPrinter( new StringWriter( errorOutput ) );
@@ -1146,7 +1991,17 @@ namespace Unity_Inspector_Mod
                 }
 
                 ass.Resolve();
-                ass.Emit();
+                TakeForeignGenericFieldRefusal();
+                TakeGenericBindRefusal();
+                InstrumentCode++;
+                try
+                {
+                    ass.Emit();
+                }
+                finally
+                {
+                    InstrumentCode--;
+                }
 
                 // Method bodies are resolved during Emit; closing the container after an error there fails on the bodyless method.
                 if ( ctx.Report.Errors > 0 )
@@ -1158,18 +2013,18 @@ namespace Unity_Inspector_Mod
                     };
                 }
 
-                container.CloseContainer();
-                ass.EmbedResources();
-
-                var lambdaError = DetectEmptyGenericLambdas( ass.Builder );
-                if ( lambdaError != null )
+                var refusal = TakeForeignGenericFieldRefusal() ?? TakeGenericBindRefusal();
+                if ( refusal != null )
                 {
                     return new CompileResult
                     {
                         Success = false,
-                        Errors = lambdaError
+                        Errors = refusal
                     };
                 }
+
+                container.CloseContainer();
+                ass.EmbedResources();
 
                 return new CompileResult
                 {
@@ -1195,7 +2050,7 @@ namespace Unity_Inspector_Mod
 
         private const int ExceptionChainLimit = 32;
 
-        private static List<Exception> ExceptionChain( Exception e )
+        internal static List<Exception> ExceptionChain( Exception e )
         {
             var chain = new List<Exception>();
             for ( var current = e; current != null && chain.Count < ExceptionChainLimit; current = current.InnerException )
@@ -1267,61 +2122,6 @@ namespace Unity_Inspector_Mod
             return sb.ToString();
         }
 
-        internal static string DetectEmptyGenericLambdas( Assembly assembly )
-        {
-            var found = new List<string>();
-            Type[] types;
-            try
-            {
-                types = assembly.GetTypes();
-            }
-            catch ( ReflectionTypeLoadException e )
-            {
-                types = e.Types;
-            }
-
-            var pending = new Stack<Type>( types.Where( t => t != null ) );
-            while ( pending.Count > 0 )
-            {
-                var type = pending.Pop();
-                foreach ( var nested in type.GetNestedTypes( BindingFlags.Public | BindingFlags.NonPublic ) )
-                {
-                    pending.Push( nested );
-                }
-
-                foreach ( var method in type.GetMethods( BindingFlags.DeclaredOnly | BindingFlags.Static |
-                                                         BindingFlags.Instance | BindingFlags.Public |
-                                                         BindingFlags.NonPublic ) )
-                {
-                    // mcs hosts a non-capturing lambda of a generic method as a generic <Method>m__N, which Unity's Mono runs with an empty body.
-                    if ( !method.IsGenericMethodDefinition || !method.Name.StartsWith( "<" ) )
-                    {
-                        continue;
-                    }
-
-                    int close = method.Name.IndexOf( ">m__", StringComparison.Ordinal );
-                    if ( close < 0 )
-                    {
-                        continue;
-                    }
-
-                    found.Add( type.FullName + "." + method.Name.Substring( 1, close - 1 ) );
-                }
-            }
-
-            if ( found.Count == 0 )
-            {
-                return null;
-            }
-
-            return "Generic method " + string.Join( ", ", found.Distinct().ToArray() ) +
-                   " holds a lambda that captures nothing, which this runtime compiles with an empty body " +
-                   "(InvalidProgramException: method body is empty, when it runs).\n" +
-                   "Workarounds:\n" +
-                   "  - Make the lambda use a parameter or local of the method, so it captures\n" +
-                   "  - Move the lambda into a non-generic method";
-        }
-
         private static AssemblyName ParseName( string fullName )
         {
             try
@@ -1360,10 +2160,18 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        private static readonly HashSet<Assembly> refusedEvalAssemblies = new HashSet<Assembly>();
+
+        internal static void LeaveOutEvalAssembly( Assembly assembly )
+        {
+            refusedEvalAssemblies.Add( assembly );
+        }
+
         private static IEnumerable<Assembly> EvalAssemblies()
         {
             return AppDomain.CurrentDomain.GetAssemblies()
-                .Where( a => a is AssemblyBuilder && EvalAssemblyName.IsMatch( SafeAssemblyName( a ) ) );
+                .Where( a => a is AssemblyBuilder && EvalAssemblyName.IsMatch( SafeAssemblyName( a ) ) &&
+                             !refusedEvalAssemblies.Contains( a ) );
         }
 
         internal static Assembly NewestEvalAssembly()

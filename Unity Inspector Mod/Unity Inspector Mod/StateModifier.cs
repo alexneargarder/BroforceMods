@@ -14,91 +14,324 @@ namespace Unity_Inspector_Mod
 {
     public static class StateModifier
     {
-        public static object ModifyComponent( string gameObjectPath, string componentType, JObject properties )
+        private const int NextFrameWaitMs = 1000;
+
+        private sealed class ModifyOutcome
+        {
+            public object Failure;
+            public int MainThreadId;
+            public Component Component;
+            public JObject Reply;
+            public readonly List<string> Modified = new List<string>();
+            public readonly Dictionary<string, object> Values = new Dictionary<string, object>();
+            public readonly Dictionary<string, object> ReadBack = new Dictionary<string, object>();
+            public readonly List<object> Errors = new List<object>();
+        }
+
+        public static object ModifyComponent( string gameObjectPath, int? instanceId, string componentType, JObject properties )
         {
             try
             {
-                object result = null;
+                ModifyOutcome outcome = null;
 
                 // A struct link is read, written and stored back as one unit; off the main thread the
                 // game can set a sibling field between the read and the store and lose it.
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
-                    result = ModifyComponentOnMainThread( gameObjectPath, componentType, properties );
+                    outcome = ModifyComponentOnMainThread( gameObjectPath, instanceId, componentType, properties );
                 }, 5000 );
 
-                return result;
+                if ( outcome.Failure != null )
+                {
+                    return outcome.Failure;
+                }
+
+                if ( outcome.ReadBack.Count > 0 && outcome.MainThreadId != System.Threading.Thread.CurrentThread.ManagedThreadId )
+                {
+                    List<object> reverted = CheckNextFrame( outcome );
+                    outcome.Reply["nextFrameChecked"] = reverted != null;
+                    if ( reverted != null && reverted.Count > 0 )
+                    {
+                        outcome.Reply["reverted"] = JToken.FromObject( reverted );
+                    }
+                }
+
+                return outcome.Reply;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"ModifyComponent error: {ex.Message}" );
                 return new { success = false, error = ex.Message };
             }
         }
 
-        private static object ModifyComponentOnMainThread( string gameObjectPath, string componentType, JObject properties )
+        private static ModifyOutcome ModifyComponentOnMainThread( string gameObjectPath, int? instanceId, string componentType, JObject properties )
         {
+            var outcome = new ModifyOutcome { MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId };
+
             if ( properties == null || properties.Count == 0 )
             {
-                return new { success = false, error = "No properties were given - pass at least one member name and value to write" };
+                outcome.Failure = new { success = false, error = "No properties were given - pass at least one member name and value to write" };
+                return outcome;
             }
 
-            GameObject go = MessageHandler.FindGameObjectByPath( gameObjectPath );
-            if ( go == null )
+            ResolvedGameObject target;
+            try
             {
-                return new { success = false, error = $"GameObject not found at path: {gameObjectPath}" };
+                target = GameObjectInspector.Resolve( gameObjectPath, instanceId );
+            }
+            catch ( ArgumentException ex )
+            {
+                outcome.Failure = new { success = false, error = ex.Message };
+                return outcome;
+            }
+
+            GameObject go = target.GameObject;
+            if ( GameObjectInspector.IsAsset( go ) )
+            {
+                outcome.Failure = new
+                {
+                    success = false,
+                    reason = "asset",
+                    error = $"{GameObjectInspector.GetPath( go )} is a prefab asset, not an object in a scene; writing it would change every copy the game spawns from it for the rest of its run"
+                };
+                return outcome;
             }
 
             Component component = GameObjectInspector.FindComponent( go, componentType );
-
             if ( component == null )
             {
-                return new { success = false, error = $"Component {componentType} not found on {gameObjectPath}" };
+                outcome.Failure = new { success = false, error = GameObjectInspector.ComponentNotFound( go, componentType ) };
+                return outcome;
             }
-
-            var modifiedProperties = new List<string>();
-            var errors = new List<object>();
+            outcome.Component = component;
 
             foreach ( var prop in properties )
             {
                 string propName = prop.Key;
-                JToken propValue = prop.Value;
 
                 string reason;
                 string[] suggestions;
-                string failure = SetPropertyValue( component, propName, propValue, out reason, out suggestions );
-                if ( failure == null )
+                object written;
+                string failure = SetPropertyValue( component, propName, prop.Value, out reason, out suggestions, out written );
+                if ( failure != null )
                 {
-                    modifiedProperties.Add( propName );
+                    if ( suggestions != null )
+                    {
+                        outcome.Errors.Add( new { property = propName, reason, message = failure, suggestions } );
+                    }
+                    else
+                    {
+                        outcome.Errors.Add( new { property = propName, reason, message = failure } );
+                    }
+                    continue;
                 }
-                else if ( suggestions != null )
+
+                var read = GameObjectInspector.ReadMember( component, propName );
+                if ( !read.Success )
                 {
-                    errors.Add( new { property = propName, reason, message = failure, suggestions } );
+                    outcome.Modified.Add( propName );
+                    outcome.Values[propName] = $"<not read back: {read.Error}>";
+                    continue;
                 }
-                else
+
+                object serialized = GameObjectInspector.SerializeValue( read.Value );
+                if ( !ValuesMatch( written, read.Value, propName ) )
                 {
-                    errors.Add( new { property = propName, reason, message = failure } );
+                    outcome.Errors.Add( new
+                    {
+                        property = propName,
+                        reason = "not-kept",
+                        message = $"{propName} was written but does not hold the value: the setter or the game changed it",
+                        value = serialized
+                    } );
+                    continue;
                 }
+
+                outcome.Modified.Add( propName );
+                outcome.Values[propName] = serialized;
+                outcome.ReadBack[propName] = read.Value;
             }
 
-            return new
+            outcome.Reply = GameObjectInspector.WithLocation( target, new
             {
-                success = modifiedProperties.Count > 0 || errors.Count == 0,
-                modifiedProperties = modifiedProperties.ToArray(),
-                errors = errors.ToArray(),
-                component = componentType,
-                gameObject = gameObjectPath
-            };
+                success = outcome.Modified.Count > 0 || outcome.Errors.Count == 0,
+                modifiedProperties = outcome.Modified,
+                values = outcome.Values,
+                errors = outcome.Errors,
+                component = component.GetType().Name,
+                gameObject = GameObjectInspector.GetPath( go )
+            } );
+            return outcome;
         }
 
-        private static string SetPropertyValue( object target, string propertyName, JToken value, out string reason, out string[] suggestions )
+        private static List<object> CheckNextFrame( ModifyOutcome outcome )
+        {
+            var done = new System.Threading.ManualResetEvent( false );
+            List<object> reverted = null;
+
+            try
+            {
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    MainThreadDispatcher.Instance.StartCoroutine( ReadAfterNextFrame( outcome.Component, outcome.ReadBack, found =>
+                    {
+                        reverted = found;
+                        done.Set();
+                    } ) );
+                }, NextFrameWaitMs );
+            }
+            catch ( Exception )
+            {
+                return null;
+            }
+
+            return done.WaitOne( NextFrameWaitMs ) ? reverted : null;
+        }
+
+        private static System.Collections.IEnumerator ReadAfterNextFrame( Component component, Dictionary<string, object> written, Action<List<object>> report )
+        {
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+
+            if ( component == null )
+            {
+                report( null );
+                yield break;
+            }
+
+            var reverted = new List<object>();
+            foreach ( var pair in written )
+            {
+                try
+                {
+                    var read = GameObjectInspector.ReadMember( component, pair.Key );
+                    if ( !read.Success || ValuesMatch( pair.Value, read.Value, pair.Key ) )
+                    {
+                        continue;
+                    }
+
+                    reverted.Add( new
+                    {
+                        property = pair.Key,
+                        value = GameObjectInspector.SerializeValue( read.Value ),
+                        note = RevertNote( component, pair.Key )
+                    } );
+                }
+                catch ( Exception )
+                {
+                }
+            }
+            report( reverted );
+        }
+
+        private static string RevertNote( Component component, string name )
+        {
+            string root = name.Split( HarmonyExtensions.PATH_SEPARATOR )[0];
+            if ( component is Transform && ( root == "position" || root == "localPosition" ) && component.GetComponent<Unit>() != null )
+            {
+                return "the game set it back by the next frame: a unit's X and Y fields place it every frame - write those, or use teleport_player for a bro";
+            }
+            return "the game set it back by the next frame";
+        }
+
+        private static bool ValuesMatch( object written, object read, string member )
+        {
+            if ( written == null || read == null )
+            {
+                return MemberPath.IsNullReference( written ) && MemberPath.IsNullReference( read );
+            }
+
+            if ( written is Quaternion && read is Quaternion )
+            {
+                return SameRotation( (Quaternion)written, (Quaternion)read );
+            }
+
+            // Unity decomposes a rotation into angles of its own choosing: -90 reads back as 270.
+            string leaf = member.Substring( member.LastIndexOf( HarmonyExtensions.PATH_SEPARATOR ) + 1 );
+            if ( ( leaf == "eulerAngles" || leaf == "localEulerAngles" ) && written is Vector3 && read is Vector3 )
+            {
+                return SameRotation( Quaternion.Euler( (Vector3)written ), Quaternion.Euler( (Vector3)read ) );
+            }
+
+            return TokensMatch( Token( GameObjectInspector.SerializeValue( written ) ), Token( GameObjectInspector.SerializeValue( read ) ) );
+        }
+
+        private static bool SameRotation( Quaternion a, Quaternion b )
+        {
+            return Mathf.Abs( Quaternion.Dot( a, b ) ) > 1f - 1e-5f;
+        }
+
+        private static JToken Token( object serialized )
+        {
+            return serialized == null ? JValue.CreateNull() : JToken.FromObject( serialized );
+        }
+
+        private static bool TokensMatch( JToken a, JToken b )
+        {
+            bool aNumber = a.Type == JTokenType.Integer || a.Type == JTokenType.Float;
+            bool bNumber = b.Type == JTokenType.Integer || b.Type == JTokenType.Float;
+            if ( aNumber && bNumber )
+            {
+                double x = a.Value<double>();
+                double y = b.Value<double>();
+                return x == y || System.Math.Abs( x - y ) <= 1e-4 * System.Math.Max( 1.0, System.Math.Max( System.Math.Abs( x ), System.Math.Abs( y ) ) );
+            }
+
+            if ( a.Type != b.Type )
+            {
+                return false;
+            }
+
+            var objectA = a as JObject;
+            if ( objectA != null )
+            {
+                var objectB = (JObject)b;
+                if ( objectA.Count != objectB.Count )
+                {
+                    return false;
+                }
+                foreach ( var pair in objectA )
+                {
+                    JToken other;
+                    if ( !objectB.TryGetValue( pair.Key, out other ) || !TokensMatch( pair.Value, other ) )
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            var arrayA = a as JArray;
+            if ( arrayA != null )
+            {
+                var arrayB = (JArray)b;
+                if ( arrayA.Count != arrayB.Count )
+                {
+                    return false;
+                }
+                for ( int i = 0; i < arrayA.Count; i++ )
+                {
+                    if ( !TokensMatch( arrayA[i], arrayB[i] ) )
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            return JToken.DeepEquals( a, b );
+        }
+
+        private static string SetPropertyValue( object target, string propertyName, JToken value, out string reason, out string[] suggestions, out object written )
         {
             reason = null;
             suggestions = null;
+            written = null;
 
             if ( !MemberPath.IsPath( propertyName ) )
             {
-                return SetMemberValue( target, propertyName, propertyName, value, out reason, out suggestions );
+                return SetMemberValue( target, propertyName, propertyName, value, out reason, out suggestions, out written );
             }
 
             try
@@ -111,6 +344,13 @@ namespace Unity_Inspector_Mod
                     return resolution.Error;
                 }
 
+                string asset = AssetInChain( resolution );
+                if ( asset != null )
+                {
+                    reason = "asset";
+                    return $"{propertyName} reaches {asset}, a prefab asset, not an object in a scene; writing it would change every copy the game spawns from it for the rest of its run";
+                }
+
                 // Refused before anything is written: a write past a boxed struct that cannot be
                 // stored back would otherwise report success and change nothing.
                 string blocked = MemberPath.CheckWriteBack( resolution, out reason );
@@ -119,7 +359,7 @@ namespace Unity_Inspector_Mod
                     return blocked;
                 }
 
-                string failure = SetMemberValue( resolution.Owner, resolution.Leaf, propertyName, value, out reason, out suggestions );
+                string failure = SetMemberValue( resolution.Owner, resolution.Leaf, propertyName, value, out reason, out suggestions, out written );
                 if ( failure == null )
                 {
                     MemberPath.WriteBack( resolution );
@@ -138,17 +378,58 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static string SetMemberValue( object target, string memberName, string reportedName, JToken value, out string reason, out string[] suggestions )
+        private static string AssetInChain( MemberPathResolution resolution )
+        {
+            foreach ( var step in resolution.Chain )
+            {
+                GameObject go = step.Value as GameObject;
+                var component = step.Value as Component;
+                if ( component != null )
+                {
+                    go = component.gameObject;
+                }
+                if ( go != null && GameObjectInspector.IsAsset( go ) )
+                {
+                    return GameObjectInspector.GetPath( go );
+                }
+            }
+            return null;
+        }
+
+        private static string SetMemberValue( object target, string memberName, string reportedName, JToken value, out string reason, out string[] suggestions, out object written )
         {
             const BindingFlags memberFlags = BindingFlags.DeclaredOnly | BindingFlags.Public
                                                                        | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
             reason = null;
             suggestions = null;
+            written = null;
 
             try
             {
                 Type type = target.GetType();
+
+                int index;
+                string indexError;
+                if ( MemberPath.TryIndex( target, memberName, reportedName, out index, out indexError ) )
+                {
+                    if ( indexError != null )
+                    {
+                        reason = "not-found";
+                        return indexError;
+                    }
+
+                    var list = (System.Collections.IList)target;
+                    if ( list.IsReadOnly )
+                    {
+                        reason = "read-only";
+                        return $"The {type.Name} holding {reportedName} is read-only";
+                    }
+
+                    written = ConvertValue( value, MemberPath.ElementType( type ), () => list[index], reportedName );
+                    list[index] = written;
+                    return null;
+                }
 
                 for ( Type t = type; t != null; t = t.BaseType )
                 {
@@ -161,8 +442,8 @@ namespace Unity_Inspector_Mod
                             return $"Field {t.Name}.{field.Name} is a constant";
                         }
 
-                        object convertedValue = ConvertValue( value, field.FieldType );
-                        field.SetValue( field.IsStatic ? null : target, convertedValue );
+                        written = ConvertValue( value, field.FieldType, () => MemberPath.ReadField( field, target ), reportedName );
+                        field.SetValue( field.IsStatic ? null : target, written );
                         return null;
                     }
 
@@ -176,8 +457,11 @@ namespace Unity_Inspector_Mod
                         }
 
                         MethodInfo setter = property.GetSetMethod( true );
-                        object convertedValue = ConvertValue( value, property.PropertyType );
-                        property.SetValue( setter != null && setter.IsStatic ? null : target, convertedValue, null );
+                        MethodInfo getter = property.GetGetMethod( true );
+                        bool readable = getter != null && GameObjectInspector.SharedTwin( property ) == null;
+                        written = ConvertValue( value, property.PropertyType,
+                            readable ? (Func<object>)( () => property.GetValue( getter.IsStatic ? null : target, null ) ) : null, reportedName );
+                        property.SetValue( setter != null && setter.IsStatic ? null : target, written, null );
                         return null;
                     }
                 }
@@ -199,72 +483,223 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static object ConvertValue( JToken value, Type targetType )
+        private static string Sent( JToken value )
+        {
+            string text = value.ToString( Newtonsoft.Json.Formatting.None );
+            return text.Length > 100 ? text.Substring( 0, 100 ) + "..." : text;
+        }
+
+        private static ArgumentException Refused( string member, Type type, JToken value )
+        {
+            return new ArgumentException( $"{member} takes a {GameObjectInspector.TypeName( type )}, got {Sent( value )}" );
+        }
+
+        private static double FiniteNumber( JToken value, string member, Type type )
+        {
+            if ( value.Type != JTokenType.Integer && value.Type != JTokenType.Float )
+            {
+                throw Refused( member, type, value );
+            }
+
+            double number = value.Value<double>();
+            if ( double.IsNaN( number ) || double.IsInfinity( number ) || ( type == typeof( float ) && float.IsInfinity( (float)number ) ) )
+            {
+                throw new ArgumentException( $"{member} takes a finite {GameObjectInspector.TypeName( type )}, got {Sent( value )}" );
+            }
+            return number;
+        }
+
+        private static string[] StructKeys( Type type )
+        {
+            if ( type == typeof( Vector2 ) )
+            {
+                return new[] { "x", "y" };
+            }
+            if ( type == typeof( Vector3 ) )
+            {
+                return new[] { "x", "y", "z" };
+            }
+            if ( type == typeof( Vector4 ) )
+            {
+                return new[] { "x", "y", "z", "w" };
+            }
+            if ( type == typeof( Color ) )
+            {
+                return new[] { "r", "g", "b", "a" };
+            }
+            if ( type == typeof( Rect ) )
+            {
+                return new[] { "x", "y", "width", "height" };
+            }
+            if ( type == typeof( Quaternion ) )
+            {
+                return new[] { "x", "y", "z", "w", "euler" };
+            }
+            return null;
+        }
+
+        private static void CheckKeys( JToken value, string member, string[] keys )
+        {
+            var unknown = ( (JObject)value ).Properties().Select( p => p.Name ).Where( name => Array.IndexOf( keys, name ) < 0 ).ToArray();
+            if ( unknown.Length > 0 )
+            {
+                throw new ArgumentException( $"{member} takes the keys {string.Join( ", ", keys )}; got {string.Join( ", ", unknown )}" );
+            }
+        }
+
+        private static float Part( JToken value, string key, float current, string member )
+        {
+            var part = value[key];
+            if ( part == null || part.Type == JTokenType.Null )
+            {
+                return current;
+            }
+            return (float)FiniteNumber( part, member + "." + key, typeof( float ) );
+        }
+
+        private static object ConvertValue( JToken value, Type targetType, Func<object> current, string member )
         {
             if ( value == null || value.Type == JTokenType.Null )
             {
-                return null;
+                return targetType.IsValueType && Nullable.GetUnderlyingType( targetType ) == null ? Activator.CreateInstance( targetType ) : null;
             }
 
-            if ( targetType == typeof( Vector3 ) )
+            Type type = Nullable.GetUnderlyingType( targetType ) ?? targetType;
+
+            if ( value.Type == JTokenType.Object )
             {
-                if ( value.Type == JTokenType.Object )
+                string[] keys = StructKeys( type );
+                if ( keys != null )
                 {
-                    return new Vector3(
-                        value["x"]?.Value<float>() ?? 0,
-                        value["y"]?.Value<float>() ?? 0,
-                        value["z"]?.Value<float>() ?? 0
-                    );
-                }
-            }
-            else if ( targetType == typeof( Vector2 ) )
-            {
-                if ( value.Type == JTokenType.Object )
-                {
-                    return new Vector2(
-                        value["x"]?.Value<float>() ?? 0,
-                        value["y"]?.Value<float>() ?? 0
-                    );
-                }
-            }
-            else if ( targetType == typeof( Color ) )
-            {
-                if ( value.Type == JTokenType.Object )
-                {
-                    return new Color(
-                        value["r"]?.Value<float>() ?? 0,
-                        value["g"]?.Value<float>() ?? 0,
-                        value["b"]?.Value<float>() ?? 0,
-                        value["a"]?.Value<float>() ?? 1
-                    );
-                }
-            }
-            else if ( targetType == typeof( Quaternion ) )
-            {
-                if ( value.Type == JTokenType.Object )
-                {
-                    if ( value["euler"] != null )
+                    CheckKeys( value, member, keys );
+                    if ( type == typeof( Quaternion ) && value["euler"] != null )
                     {
-                        var euler = value["euler"];
-                        return Quaternion.Euler(
-                            euler["x"]?.Value<float>() ?? 0,
-                            euler["y"]?.Value<float>() ?? 0,
-                            euler["z"]?.Value<float>() ?? 0
-                        );
+                        if ( ( (JObject)value ).Count != 1 )
+                        {
+                            throw new ArgumentException( $"{member} takes either euler or x, y, z and w, not both" );
+                        }
+                        if ( value["euler"].Type != JTokenType.Object )
+                        {
+                            throw new ArgumentException( $"{member}.euler takes an object with x, y and z, got {Sent( value["euler"] )}" );
+                        }
+                        CheckKeys( value["euler"], member + ".euler", new[] { "x", "y", "z" } );
                     }
-                    else
+                }
+
+                object now = null;
+                if ( current != null && ( type == typeof( Vector2 ) || type == typeof( Vector3 ) || type == typeof( Vector4 )
+                                          || type == typeof( Color ) || type == typeof( Quaternion ) || type == typeof( Rect ) ) )
+                {
+                    now = current();
+                }
+
+                if ( type == typeof( Vector3 ) )
+                {
+                    var v = now is Vector3 ? (Vector3)now : Vector3.zero;
+                    return new Vector3( Part( value, "x", v.x, member ), Part( value, "y", v.y, member ), Part( value, "z", v.z, member ) );
+                }
+                if ( type == typeof( Vector2 ) )
+                {
+                    var v = now is Vector2 ? (Vector2)now : Vector2.zero;
+                    return new Vector2( Part( value, "x", v.x, member ), Part( value, "y", v.y, member ) );
+                }
+                if ( type == typeof( Vector4 ) )
+                {
+                    var v = now is Vector4 ? (Vector4)now : Vector4.zero;
+                    return new Vector4( Part( value, "x", v.x, member ), Part( value, "y", v.y, member ), Part( value, "z", v.z, member ), Part( value, "w", v.w, member ) );
+                }
+                if ( type == typeof( Color ) )
+                {
+                    var c = now is Color ? (Color)now : new Color( 0f, 0f, 0f, 1f );
+                    return new Color( Part( value, "r", c.r, member ), Part( value, "g", c.g, member ), Part( value, "b", c.b, member ), Part( value, "a", c.a, member ) );
+                }
+                if ( type == typeof( Rect ) )
+                {
+                    var r = now is Rect ? (Rect)now : new Rect();
+                    return new Rect( Part( value, "x", r.x, member ), Part( value, "y", r.y, member ), Part( value, "width", r.width, member ), Part( value, "height", r.height, member ) );
+                }
+                if ( type == typeof( Quaternion ) )
+                {
+                    var q = now is Quaternion ? (Quaternion)now : Quaternion.identity;
+                    var euler = value["euler"];
+                    if ( euler != null && euler.Type == JTokenType.Object )
                     {
-                        return new Quaternion(
-                            value["x"]?.Value<float>() ?? 0,
-                            value["y"]?.Value<float>() ?? 0,
-                            value["z"]?.Value<float>() ?? 0,
-                            value["w"]?.Value<float>() ?? 1
-                        );
+                        var e = q.eulerAngles;
+                        return Quaternion.Euler( Part( euler, "x", e.x, member + ".euler" ), Part( euler, "y", e.y, member + ".euler" ), Part( euler, "z", e.z, member + ".euler" ) );
                     }
+
+                    float x = Part( value, "x", q.x, member ), y = Part( value, "y", q.y, member ), z = Part( value, "z", q.z, member ), w = Part( value, "w", q.w, member );
+                    float length = Mathf.Sqrt( x * x + y * y + z * z + w * w );
+                    if ( length < 1e-6f )
+                    {
+                        throw new ArgumentException( $"{member}: a quaternion of all zeroes is not a rotation" );
+                    }
+                    return new Quaternion( x / length, y / length, z / length, w / length );
                 }
             }
 
-            return value.ToObject( targetType );
+            if ( type.IsEnum )
+            {
+                if ( value.Type == JTokenType.String )
+                {
+                    try
+                    {
+                        return Enum.Parse( type, (string)value );
+                    }
+                    catch ( ArgumentException )
+                    {
+                        throw new ArgumentException( $"{member} takes a {type.Name}: one of {string.Join( ", ", Enum.GetNames( type ) )}; got {Sent( value )}" );
+                    }
+                }
+                if ( value.Type == JTokenType.Integer )
+                {
+                    return Enum.ToObject( type, value.Value<long>() );
+                }
+                throw Refused( member, type, value );
+            }
+
+            if ( type.IsPrimitive && type != typeof( bool ) && type != typeof( char ) && type != typeof( IntPtr ) && type != typeof( UIntPtr ) )
+            {
+                double number = FiniteNumber( value, member, type );
+                if ( IsIntegral( type ) && number != System.Math.Floor( number ) )
+                {
+                    throw new ArgumentException( $"{member} takes a whole number ({type.Name}), got {Sent( value )}" );
+                }
+                try
+                {
+                    return value.ToObject( targetType );
+                }
+                catch ( OverflowException )
+                {
+                    throw new ArgumentException( $"{member} is out of range for a {type.Name}, got {Sent( value )}" );
+                }
+            }
+
+            if ( type == typeof( bool ) && value.Type != JTokenType.Boolean )
+            {
+                throw Refused( member, type, value );
+            }
+
+            if ( type == typeof( string ) && value.Type != JTokenType.String )
+            {
+                throw Refused( member, type, value );
+            }
+
+            try
+            {
+                return value.ToObject( targetType );
+            }
+            catch ( Exception ex )
+            {
+                throw new ArgumentException( $"{member} takes a {GameObjectInspector.TypeName( targetType )}, got {Sent( value )}: {MemberPath.Unwrap( ex ).Message}" );
+            }
+        }
+
+        private static bool IsIntegral( Type type )
+        {
+            type = Nullable.GetUnderlyingType( type ) ?? type;
+            return type == typeof( int ) || type == typeof( long ) || type == typeof( short ) || type == typeof( byte )
+                   || type == typeof( uint ) || type == typeof( ulong ) || type == typeof( ushort ) || type == typeof( sbyte );
         }
 
         #region Level and Player Slots
@@ -297,7 +732,38 @@ namespace Unity_Inspector_Mod
             {
                 return $"no level is loaded (scene {scene})";
             }
+            if ( GameModeController.IsLevelFinished() )
+            {
+                return "no level is being played - the level has finished";
+            }
+            if ( SwitchingScenes() )
+            {
+                return "no level is being played - the game is switching to the next scene";
+            }
+            if ( FadingToAnotherScene() )
+            {
+                return "no level is being played - the screen is fading to another scene";
+            }
             return null;
+        }
+
+        private static FieldInfo _gameModeControllerField;
+
+        private static bool SwitchingScenes()
+        {
+            if ( _gameModeControllerField == null )
+            {
+                _gameModeControllerField = typeof( GameModeController ).GetField( "instance", BindingFlags.Static | BindingFlags.NonPublic );
+            }
+
+            GameModeController controller = _gameModeControllerField == null ? null : _gameModeControllerField.GetValue( null ) as GameModeController;
+            return controller != null && GameModeController.InSwitchingScenesPhase();
+        }
+
+        private static bool FadingToAnotherScene()
+        {
+            Fader fader = Fader.instance;
+            return fader != null && ( fader.fading || fader.fadingBlack || fader.fadingHorizontalSwipe );
         }
 
         public sealed class SlotState
@@ -330,18 +796,52 @@ namespace Unity_Inspector_Mod
             TestVanDammeAnim character = players[index].character;
             if ( character == null )
             {
-                slot.State = "respawning";
+                slot.State = players[index].firstDeployment ? "joined" : "respawning";
                 return slot;
             }
 
             slot.Character = character;
-            slot.State = CharacterIsAlive( character ) ? "alive" : "dead";
             if ( character.pilottedUnit != null )
             {
                 slot.Piloting = VehicleName( character.pilottedUnit );
             }
 
+            if ( !CharacterIsAlive( character ) )
+            {
+                slot.State = "dead";
+            }
+            else if ( slot.Piloting == null && ( character.isOnHelicopter || character.HidingPlayer ) )
+            {
+                slot.State = InOpeningTransport( character ) ? "arriving" : "held";
+            }
+            else
+            {
+                slot.State = "alive";
+            }
+
             return slot;
+        }
+
+        private const BindingFlags ContainedBrosFlags = BindingFlags.Instance | BindingFlags.NonPublic;
+        private static readonly FieldInfo TruckBros = typeof( HeroTransport ).GetField( "containedBros", ContainedBrosFlags );
+        private static readonly FieldInfo HelicopterBros = typeof( Helicopter ).GetField( "containedBros", ContainedBrosFlags );
+        private static readonly FieldInfo PortalBros = typeof( HeroLevelEnterPortal ).GetField( "containedBros", ContainedBrosFlags );
+
+        private static bool InOpeningTransport( TestVanDammeAnim character )
+        {
+            return Holds( TruckBros, HeroTransport.instance, character )
+                   || Holds( HelicopterBros, Helicopter.DropOffHeliInstance, character )
+                   || Holds( PortalBros, HeroLevelEnterPortal.instance, character );
+        }
+
+        private static bool Holds( FieldInfo contained, UnityEngine.Object transport, TestVanDammeAnim character )
+        {
+            if ( contained == null || transport == null )
+            {
+                return false;
+            }
+            var bros = contained.GetValue( transport ) as List<TestVanDammeAnim>;
+            return bros != null && bros.Contains( character );
         }
 
         public static bool CharacterIsAlive( TestVanDammeAnim character )
@@ -365,6 +865,8 @@ namespace Unity_Inspector_Mod
                 case "joined": return $"player {slot.Index} has joined but has no bro yet";
                 case "respawning": return $"player {slot.Index} is dead and waiting to respawn";
                 case "dead": return $"player {slot.Index} is dead";
+                case "arriving": return $"player {slot.Index}'s bro has not been released into the level yet";
+                case "held": return $"player {slot.Index}'s bro is held by the game (on a helicopter or hidden)";
             }
 
             if ( refusePiloting && slot.Piloting != null )
@@ -382,6 +884,8 @@ namespace Unity_Inspector_Mod
                 case "joined": return "no-player";
                 case "respawning":
                 case "dead": return "player-dead";
+                case "arriving": return "not-released";
+                case "held": return "held";
             }
 
             return slot.Piloting != null ? "piloting" : null;
@@ -407,7 +911,7 @@ namespace Unity_Inspector_Mod
                 MainThreadDispatcher.EnqueueAndWait( () => { result = TeleportOnMainThread( x, y, z, playerNum ); }, 5000 );
                 return result;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"TeleportPlayer error: {ex.Message}" );
                 return new { success = false, error = ex.Message };
@@ -422,8 +926,8 @@ namespace Unity_Inspector_Mod
                 return new { success = false, error = $"Cannot teleport: {notPlaying}", reason = "no-level" };
             }
 
-            // Map.IsWithinBounds passes an infinite x or y, since the column cast of infinity wraps.
-            if ( float.IsNaN( x ) || float.IsInfinity( x ) || float.IsNaN( y ) || float.IsInfinity( y ) || !Map.IsWithinBounds( new Vector3( x, y, 0f ) ) )
+            // Map.IsWithinBounds passes a huge or infinite x or y, since its int column cast overflows; NaN fails these comparisons.
+            if ( !( x >= 0f && x < MapMaxX() && y >= 0f && y < MapMaxY() ) )
             {
                 return new
                 {
@@ -538,7 +1042,7 @@ namespace Unity_Inspector_Mod
                 MainThreadDispatcher.EnqueueAndWait( () => { result = SetPlayerHealthOnMainThread( health, playerNum ); }, 5000 );
                 return result;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"SetPlayerHealth error: {ex.Message}" );
                 return new { success = false, error = ex.Message };
@@ -634,10 +1138,22 @@ namespace Unity_Inspector_Mod
                 return false;
             }
 
+            if ( character.willComeBackToLife )
+            {
+                error = $"player {slot.Index} was not killed: it carries a revive halo and would come back to life";
+                return false;
+            }
+
             // The hit itself clears some damage absorbers (a parachute closes).
             string absorber = DamageAbsorber( character );
 
             character.Damage( character.health, DamageType.Crush, 0f, 0f, 0, null, character.X, character.Y );
+
+            if ( character.WillReviveAlready )
+            {
+                error = $"player {slot.Index} died but is reviving: the game brings the bro back to life";
+                return false;
+            }
 
             bool killed = character.health <= 0 || character.actionState == ActionState.Dead;
             if ( !killed )
@@ -708,7 +1224,8 @@ namespace Unity_Inspector_Mod
                     UtilityModSpawnSetting setting = FindUtilityModSpawnSetting( out missing );
                     if ( setting == null )
                     {
-                        suppressionNote = $"{missing} - its disableEnemySpawn setting could not be read, so the spawn ran unchanged";
+                        LogSettingMissOnce( missing );
+                        suppressionNote = $"{missing} - whether it suppresses enemy spawns could not be read, so the spawn ran unchanged";
                         result = SpawnEntityOnMainThread( entityType, x, y, xI, yI );
                         return;
                     }
@@ -739,7 +1256,7 @@ namespace Unity_Inspector_Mod
                 }
                 return reply;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"SpawnEntity error: {ex.Message}" );
                 return new { success = false, error = ex.Message, stackTrace = ex.StackTrace };
@@ -748,11 +1265,22 @@ namespace Unity_Inspector_Mod
 
         private static object SpawnEntityOnMainThread( string entityType, float x, float y, float xI, float yI )
         {
+            string notPlaying = NotPlayingReason();
+            if ( notPlaying != null )
+            {
+                return new { success = false, error = $"Cannot spawn: {notPlaying}", reason = "no-level" };
+            }
+
             Map map = Map.Instance;
 
             if ( map == null || map.activeTheme == null )
             {
-                return new { success = false, error = "No level is loaded - a level must be loaded before entities can be spawned" };
+                return new { success = false, error = "Cannot spawn: the level has no theme loaded", reason = "no-level" };
+            }
+
+            if ( !IsFinite( x ) || !IsFinite( y ) || !IsFinite( xI ) || !IsFinite( yI ) )
+            {
+                return new { success = false, error = $"Cannot spawn: x, y, xI and yI must be finite numbers, got ({x}, {y}) moving ({xI}, {yI})" };
             }
 
             UnitType unitType = ResolveUnitType( entityType );
@@ -876,6 +1404,11 @@ namespace Unity_Inspector_Mod
                 x = x,
                 y = y
             };
+        }
+
+        private static bool IsFinite( float value )
+        {
+            return !float.IsNaN( value ) && !float.IsInfinity( value );
         }
 
         // Units register themselves with the Map in Awake/Start, so the spawn only has to place the instance and hand it to the deterministic registry.
@@ -1030,10 +1563,7 @@ namespace Unity_Inspector_Mod
                 UtilityModSpawnSetting setting = FindUtilityModSpawnSetting( out reason );
                 if ( setting == null )
                 {
-                    if ( reason != null && reason != UtilityModNotLoaded )
-                    {
-                        Main.Log( $"{reason} - cannot tell whether enemy spawning is suppressed" );
-                    }
+                    LogSettingMissOnce( reason );
                     return false;
                 }
 
@@ -1047,6 +1577,16 @@ namespace Unity_Inspector_Mod
         }
 
         private const string UtilityModNotLoaded = "Utility Mod is not loaded";
+        private static readonly HashSet<string> loggedSettingMisses = new HashSet<string>();
+
+        private static void LogSettingMissOnce( string reason )
+        {
+            if ( reason == null || reason == UtilityModNotLoaded || !loggedSettingMisses.Add( reason ) )
+            {
+                return;
+            }
+            Main.Log( $"{reason} - cannot tell whether enemy spawning is suppressed" );
+        }
 
         private sealed class UtilityModSpawnSetting
         {
@@ -1091,6 +1631,11 @@ namespace Unity_Inspector_Mod
 
             FieldInfo enabledField = mainType.GetField( "enabled", staticFlags );
             object enabled = enabledField == null ? null : enabledField.GetValue( null );
+            if ( !( enabled is bool ) )
+            {
+                reason = "Utility Mod is loaded but its enabled field is missing";
+                return null;
+            }
 
             FieldInfo settingsField = mainType.GetField( "settings", staticFlags );
             object settings = settingsField == null ? null : settingsField.GetValue( null );
@@ -1110,7 +1655,7 @@ namespace Unity_Inspector_Mod
 
             return new UtilityModSpawnSetting
             {
-                Enabled = enabled is bool && (bool)enabled,
+                Enabled = (bool)enabled,
                 Settings = settings,
                 Field = disableField
             };
@@ -1172,34 +1717,119 @@ namespace Unity_Inspector_Mod
                     return new { success = false, error = $"Speed {speed} is out of range - give a number from 0 to {MaxGameSpeed}" };
                 }
 
-                Time.timeScale = speed;
-                var reply = JObject.FromObject( new { success = true, timeScale = Time.timeScale } );
+                JObject reply = null;
+                float expected = speed;
+                int writeFrame = 0;
 
-                // The offline pause menu holds timeScale at 1 and restores the value it saved when it closes.
-                PauseController pause = PauseController.instance;
-                if ( PauseController.pauseStatus == PauseStatus.MenuPause && Connect.IsOffline && pause != null )
+                MainThreadDispatcher.EnqueueAndWait( () =>
                 {
-                    if ( _timescaleWhenPausedField == null )
+                    reply = JObject.FromObject( new { success = true } );
+                    writeFrame = Time.frameCount;
+
+                    // The offline pause menu holds timeScale at 1 and restores the value it saved when it closes.
+                    PauseController pause = PauseController.instance;
+                    FieldInfo pausedScale = TimescaleWhenPausedField();
+                    if ( PauseController.pauseStatus == PauseStatus.MenuPause && Connect.IsOffline && pause != null && pausedScale != null )
                     {
-                        _timescaleWhenPausedField = typeof( PauseController ).GetField( "timescaleWhenPaused", BindingFlags.Instance | BindingFlags.NonPublic );
+                        pausedScale.SetValue( pause, speed );
+                        expected = Time.timeScale;
+                        reply["timeScaleAfterUnpause"] = (float)pausedScale.GetValue( pause );
+                    }
+                    else
+                    {
+                        Time.timeScale = speed;
                     }
 
-                    if ( _timescaleWhenPausedField != null )
+                    string effect = GameTimeEffect();
+                    if ( effect != null )
                     {
-                        _timescaleWhenPausedField.SetValue( pause, speed );
-                        reply["timeScaleAfterUnpause"] = (float)_timescaleWhenPausedField.GetValue( pause );
+                        reply["gameTimeEffect"] = effect;
                     }
+                }, 5000 );
+
+                float settled = expected;
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                // TimeController and HeroController rewrite timeScale in their own Update, which can run before or after the write's frame.
+                bool readBack = false;
+                while ( !readBack && watch.ElapsedMilliseconds < SpeedSettleMs )
+                {
+                    System.Threading.Thread.Sleep( 20 );
+                    int frame = 0;
+                    try
+                    {
+                        MainThreadDispatcher.EnqueueAndWait( () =>
+                        {
+                            frame = Time.frameCount;
+                            settled = Time.timeScale;
+                        }, 2000 );
+                    }
+                    catch ( TimeoutException )
+                    {
+                        continue;
+                    }
+                    readBack = frame >= writeFrame + 2;
+                }
+
+                reply["timeScale"] = settled;
+                if ( !readBack )
+                {
+                    reply["success"] = false;
+                    reply["mainThreadAnswered"] = false;
+                    reply["error"] = $"timeScale was written, but no later frame ran within {SpeedSettleMs}ms to read it back - the main thread is busy";
+                }
+                else if ( settled != expected )
+                {
+                    reply["success"] = false;
+                    reply["error"] = $"The game's own time effect set timeScale to {settled} after the write of {expected}"
+                                     + ( reply["gameTimeEffect"] != null ? $" ({reply["gameTimeEffect"]})" : "" );
                 }
 
                 return reply;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"SetGameSpeed error: {ex.Message}" );
                 return new { success = false, error = ex.Message };
             }
         }
 
+        public const int SpeedSettleMs = 1000;
+
+        private static FieldInfo TimescaleWhenPausedField()
+        {
+            if ( _timescaleWhenPausedField == null )
+            {
+                _timescaleWhenPausedField = typeof( PauseController ).GetField( "timescaleWhenPaused", BindingFlags.Instance | BindingFlags.NonPublic );
+            }
+            return _timescaleWhenPausedField;
+        }
+
+        private static FieldInfo _timeStoppedField;
+        private static FieldInfo _timeBoostTimeField;
+
+        private static string GameTimeEffect()
+        {
+            if ( _timeStoppedField == null )
+            {
+                _timeStoppedField = typeof( TimeController ).GetField( "timeStopped", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public );
+            }
+            if ( _timeBoostTimeField == null )
+            {
+                _timeBoostTimeField = typeof( HeroController ).GetField( "timeBoostTime", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public );
+            }
+
+            if ( _timeStoppedField != null && (bool)_timeStoppedField.GetValue( null ) )
+            {
+                return "the game's slow-motion is running and sets timeScale back to 1 when it ends";
+            }
+            if ( _timeBoostTimeField != null && (float)_timeBoostTimeField.GetValue( null ) > 0f )
+            {
+                return "a hero time boost is running and sets timeScale back to 1 when it ends";
+            }
+            return null;
+        }
+
+        // Each is a campaign TextAsset in StreamingAssets/levels.assetbundle; the game cannot load any other name.
         private static readonly string[] CampaignNames = new string[]
         {
             "WM_Intro(mouse)",
@@ -1219,17 +1849,15 @@ namespace Unity_Inspector_Mod
             "WM_HELL",
             "WM_Whitehouse",
             "Challenge_Alien",
-            "Challenge_Bombardment1",
             "Challenge_Ammo",
             "Challenge_Dash",
-            "Challenge_Mech",
+            "Challenge_Mech1",
             "Challenge_MacBrover",
             "Challenge_TimeBro",
-            "MuscleTemple_5Stages1",
-            "MuscleTemple_5Stages2",
-            "MuscleTemple_5Stages3",
-            "MuscleTemple_5Stages4",
-            "MuscleTemple_5Stages5"
+            "MuscleTemple_1",
+            "MuscleTemple_2",
+            "MuscleTemple_3",
+            "MuscleTemple_4"
         };
 
         // The game stores the campaign name with runtime capitalisation ("WM_Hell"); the roster spelling is what go_to_level and list_campaigns use.
@@ -1292,6 +1920,13 @@ namespace Unity_Inspector_Mod
 
         public static object GoToLevel( int campaignIndex, int levelIndex )
         {
+            int fromMap;
+            return GoToLevel( campaignIndex, levelIndex, out fromMap );
+        }
+
+        private static object GoToLevel( int campaignIndex, int levelIndex, out int fromMap )
+        {
+            fromMap = 0;
             try
             {
                 if ( campaignIndex < 0 || campaignIndex >= CampaignNames.Length )
@@ -1313,21 +1948,39 @@ namespace Unity_Inspector_Mod
                 }
 
                 string[] suppressedBy = null;
+                string refusal = null;
+                int? saveSlot = null;
+                int loadedFrom = 0;
 
                 try
                 {
                     MainThreadDispatcher.EnqueueAndWait( () =>
                     {
-                        if ( !HeroController.IsPlayerPlaying( 0 ) )
+                        bool joinPlayer = !HeroController.IsPlayerPlaying( 0 );
+                        if ( joinPlayer || GameState.Instance.currentWorldmapSave == null )
                         {
-                            PlayerProgress.currentWorldMapSaveSlot = 0;
-                            GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[0];
+                            int slot = UsableSaveSlot( out refusal );
+                            if ( refusal != null )
+                            {
+                                return;
+                            }
 
+                            PlayerProgress.currentWorldMapSaveSlot = slot;
+                            GameState.Instance.currentWorldmapSave = PlayerProgress.Instance.saveSlots[slot];
+                            saveSlot = slot;
+                        }
+
+                        if ( joinPlayer )
+                        {
                             HeroController.PIDS[0] = PID.MyID;
                             HeroController.playerControllerIDs[0] = 0;
                             HeroController.SetPlayerName( 0, PlayerOptions.Instance.playerName );
                             HeroController.SetIsPlaying( 0, true );
                         }
+
+                        Map current = Map.Instance;
+                        loadedFrom = current != null ? current.GetInstanceID() : 0;
+                        ReleasePause();
 
                         LevelSelectionController.ResetLevelAndGameModeToDefault();
                         GameState.Instance.ResetToDefault();
@@ -1352,11 +2005,22 @@ namespace Unity_Inspector_Mod
                     throw;
                 }
 
+                if ( refusal != null )
+                {
+                    return new { success = false, error = $"Cannot load {CampaignNames[campaignIndex]}: {refusal}", reason = "no-save-slot" };
+                }
+
                 var result = JObject.FromObject( new
                 {
                     success = true,
                     message = $"Loading {CampaignNames[campaignIndex]} - Level {levelIndex + 1}"
                 } );
+
+                fromMap = loadedFrom;
+                if ( saveSlot.HasValue )
+                {
+                    result["saveSlot"] = saveSlot.Value;
+                }
 
                 if ( suppressedBy != null && suppressedBy.Length > 0 )
                 {
@@ -1365,7 +2029,7 @@ namespace Unity_Inspector_Mod
 
                 return result;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"GoToLevel error: {ex.Message}" );
                 return new
@@ -1374,6 +2038,208 @@ namespace Unity_Inspector_Mod
                     error = ex.Message
                 };
             }
+        }
+
+        public static object GoToLevelAndWait( int campaignIndex, int levelIndex )
+        {
+            int fromMap;
+            object requested = GoToLevel( campaignIndex, levelIndex, out fromMap );
+            JObject reply = requested as JObject;
+            if ( reply == null || reply["success"]?.Value<bool>() != true )
+            {
+                return requested;
+            }
+
+            string campaign = CampaignNames[campaignIndex];
+            string pending = AwaitLevelInPlay( () => LevelPending( fromMap, campaign, levelIndex ), reply );
+
+            if ( pending != null )
+            {
+                reply["success"] = false;
+                reply["error"] = $"{campaign} level {levelIndex + 1} was requested but was not in play after {LevelArrivalBudgetMs / 1000}s: {pending}";
+                reply["reason"] = "not-loaded";
+                reply.Remove( "message" );
+                return reply;
+            }
+
+            reply["message"] = $"Loaded {campaign} - Level {levelIndex + 1}";
+            return reply;
+        }
+
+        public const int LevelArrivalBudgetMs = 60000;
+        public const int LevelArrivalPollMs = 250;
+        public const int LevelArrivalCheckMs = 1000;
+
+        private static string AwaitLevelInPlay( Func<string> pending, JObject reply )
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            string last = "the main thread never answered";
+            bool answered = false;
+
+            while ( true )
+            {
+                System.Threading.Thread.Sleep( LevelArrivalPollMs );
+                string observed = null;
+                PauseStatus pause = PauseStatus.UnPaused;
+                try
+                {
+                    MainThreadDispatcher.EnqueueAndWait( () =>
+                    {
+                        observed = pending();
+                        pause = PauseController.pauseStatus;
+                    }, LevelArrivalCheckMs );
+                    answered = true;
+                    if ( observed == null )
+                    {
+                        reply["loaded"] = true;
+                        reply["seconds"] = System.Math.Round( watch.Elapsed.TotalSeconds, 1 );
+                        if ( pause == PauseStatus.CutscenePause )
+                        {
+                            reply["cutscene"] = pause.ToString();
+                            string held = "A cutscene holds the game paused (CutscenePause) until a key is pressed, and no bro moves until it ends: simulate_input with action start skips it";
+                            string earlier = reply["warning"]?.Value<string>();
+                            reply["warning"] = string.IsNullOrEmpty( earlier ) ? held : $"{earlier}. {held}";
+                        }
+                        return null;
+                    }
+                    last = observed;
+                }
+                catch ( TimeoutException )
+                {
+                    answered = false;
+                    last = "the main thread was busy, as it is while a scene loads";
+                }
+                catch ( MainThreadDispatcher.MainThreadActionRunningException )
+                {
+                    answered = false;
+                    last = "the main thread is not advancing";
+                }
+
+                if ( watch.ElapsedMilliseconds >= LevelArrivalBudgetMs )
+                {
+                    reply["loaded"] = false;
+                    reply["scene"] = SceneManager.GetActiveScene().name;
+                    if ( !answered )
+                    {
+                        reply["mainThreadAnswered"] = false;
+                    }
+                    return last;
+                }
+            }
+        }
+
+        private static string LevelPending( int fromMap, string campaign, int levelIndex )
+        {
+            string notPlaying = NotPlayingReason();
+            if ( notPlaying != null )
+            {
+                return notPlaying;
+            }
+
+            Map map = Map.Instance;
+            if ( map == null || map.GetInstanceID() == fromMap )
+            {
+                return "the previous level is still the one loaded";
+            }
+
+            if ( campaign != null )
+            {
+                if ( LevelSelectionController.CurrentLevelNum != levelIndex )
+                {
+                    return $"level index {LevelSelectionController.CurrentLevelNum} is loaded instead";
+                }
+
+                Campaign loaded = LevelSelectionController.currentCampaign;
+                // Past the campaign's last level the game loads the Victory map instead.
+                if ( loaded != null && levelIndex < loaded.Length && !string.Equals( loaded.name, campaign, StringComparison.OrdinalIgnoreCase ) )
+                {
+                    return $"campaign {loaded.name} is loaded instead";
+                }
+            }
+
+            // A bro's intro holds the game until a key, his transport frozen with him still on it.
+            if ( PauseController.pauseStatus == PauseStatus.CutscenePause )
+            {
+                return null;
+            }
+
+            for ( int i = 0; i < Nums.PLAYER_MAX; i++ )
+            {
+                if ( ReadSlot( i ).State == "alive" )
+                {
+                    return null;
+                }
+            }
+
+            return "no player's bro has been released into the level yet";
+        }
+
+        // SaveSlotsMenu opens on max(currentWorldMapSaveSlot, 0).
+        private static int UsableSaveSlot( out string refusal )
+        {
+            refusal = null;
+            WorldMapProgressSaveSlot[] slots = PlayerProgress.Instance != null ? PlayerProgress.Instance.saveSlots : null;
+            if ( slots == null || slots.Length == 0 )
+            {
+                refusal = "the game has no save slots loaded";
+                return -1;
+            }
+
+            int preferred = Mathf.Clamp( PlayerProgress.currentWorldMapSaveSlot, 0, slots.Length - 1 );
+            if ( SaveSlotUsable( slots[preferred] ) )
+            {
+                return preferred;
+            }
+
+            for ( int i = 0; i < slots.Length; i++ )
+            {
+                if ( SaveSlotUsable( slots[i] ) )
+                {
+                    return i;
+                }
+            }
+
+            refusal = "no save slot holds a campaign that is not an IronBro run - start one from the game's menu first";
+            return -1;
+        }
+
+        private static bool SaveSlotUsable( WorldMapProgressSaveSlot slot )
+        {
+            return slot != null && !slot.worldMapIsHardcoreCampaign;
+        }
+
+        private static MethodInfo _unpauseGameObjects;
+
+        // A load from any pause would leave the objects the pause deactivated, persistent ones included, inactive for good.
+        private static void ReleasePause()
+        {
+            // CutsceneController.cutSceneInProgress is static and outlives the scene.
+            if ( CutsceneController.InCutscene && CutsceneController.Instance != null )
+            {
+                CutsceneController.Instance.CloseAllCutscenes();
+            }
+
+            if ( PauseController.pauseStatus == PauseStatus.MenuPause )
+            {
+                PauseController.SetPause( PauseStatus.UnPaused );
+            }
+
+            if ( PauseController.pauseStatus == PauseStatus.UnPaused )
+            {
+                return;
+            }
+
+            // TogglePause leaves a menu pause in place while a submenu is open, and handles no other pause.
+            if ( _unpauseGameObjects == null )
+            {
+                _unpauseGameObjects = typeof( PauseController ).GetMethod( "UnpauseGameObjects", BindingFlags.Static | BindingFlags.NonPublic );
+            }
+
+            if ( _unpauseGameObjects != null )
+            {
+                _unpauseGameObjects.Invoke( null, null );
+            }
+            PauseController.pauseStatus = PauseStatus.UnPaused;
         }
 
         #region Bro Swapping
@@ -1414,7 +2280,7 @@ namespace Unity_Inspector_Mod
             {
                 if ( playerNum < Nums.PLAYER_MIN || playerNum >= Nums.PLAYER_MAX )
                 {
-                    return new { success = false, error = "Player number must be 0-3" };
+                    return new { success = false, error = "Player number must be 0-3", reason = "bad-player" };
                 }
 
                 if ( !SwapBrosIntegration.IsAvailable )
@@ -1423,8 +2289,11 @@ namespace Unity_Inspector_Mod
                 }
 
                 object result = null;
-
                 object ignoredUnlocks = null;
+                string landedBro = null;
+                Player landedPlayer = null;
+                int landedCharacter = 0;
+                int landedMap = 0;
 
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
@@ -1456,25 +2325,46 @@ namespace Unity_Inspector_Mod
                     {
                         if ( !SwapBrosIntegration.IsInCurrentList( broName ) )
                         {
-                            string why = SwapBrosIntegration.UnreachableReason( known, origin, !ignoreUnlocks );
+                            string why = SwapBrosIntegration.UnreachableReason( known, origin, ignoreUnlocks, !ignoreUnlocks );
                             result = BroFailure( $"Bro '{known}' is not in Swap Bros Mod's current list: {why}", "unreachable" );
                             return false;
                         }
 
-                        bool swapped = SwapBrosIntegration.SwapToBroByName( playerNum, broName );
+                        bool swapped = SwapKeepingUnlocks( playerNum, broName );
                         if ( !swapped )
                         {
                             result = BroFailure( $"Swap Bros Mod did not swap player {playerNum} to '{known}' - its log names any exception", "swap-failed" );
                             return false;
                         }
 
-                        var player = HeroController.players[playerNum];
-                        result = new
+                        Player player = HeroController.players[playerNum];
+                        TestVanDammeAnim character = player != null ? player.character : null;
+                        string missed = SwapMiss( character, known );
+                        if ( missed != null )
+                        {
+                            JObject failure = BroFailure( $"Swap Bros Mod reported swapping player {playerNum} to '{known}', but {missed}", "swap-failed" );
+                            failure["currentBro"] = SwapBrosIntegration.GetLiveBroName( character );
+                            result = failure;
+                            return false;
+                        }
+
+                        JObject swappedReply = JObject.FromObject( new
                         {
                             success = true,
-                            broName = player?.character?.gameObject?.name ?? broName,
-                            heroType = player?.character?.heroType.ToString() ?? "Unknown"
-                        };
+                            broName = SwapBrosIntegration.GetLiveBroName( character ),
+                            objectName = character.gameObject.name
+                        } );
+                        // A BroMaker bro's heroType is its preset's base type, not the bro.
+                        if ( !SwapBrosIntegration.IsCustomBro( character ) )
+                        {
+                            swappedReply["heroType"] = character.heroType.ToString();
+                        }
+
+                        result = swappedReply;
+                        landedBro = known;
+                        landedPlayer = player;
+                        landedCharacter = character.GetInstanceID();
+                        landedMap = Map.Instance != null ? Map.Instance.GetInstanceID() : 0;
                         return true;
                     };
 
@@ -1488,19 +2378,133 @@ namespace Unity_Inspector_Mod
                     }
                 }, 5000 );
 
-                if ( ignoredUnlocks == null )
+                JObject reply = JObject.FromObject( result );
+                if ( ignoredUnlocks != null )
                 {
-                    return result;
+                    reply["ignoredUnlocks"] = JObject.FromObject( ignoredUnlocks );
                 }
 
-                JObject reply = JObject.FromObject( result );
-                reply["ignoredUnlocks"] = JObject.FromObject( ignoredUnlocks );
+                if ( landedPlayer == null )
+                {
+                    return reply;
+                }
+
+                System.Threading.Thread.Sleep( SwapConfirmDelayMs );
+
+                string undone = null;
+                string currentBro = null;
+                MainThreadDispatcher.EnqueueAndWait( () =>
+                {
+                    Player now = HeroController.players[playerNum];
+                    TestVanDammeAnim character = now != null ? now.character : null;
+                    currentBro = SwapBrosIntegration.GetLiveBroName( character );
+
+                    if ( Map.Instance == null || Map.Instance.GetInstanceID() != landedMap )
+                    {
+                        undone = "the level was replaced";
+                    }
+                    else if ( now != landedPlayer )
+                    {
+                        undone = "the slot's Player was replaced";
+                    }
+                    else if ( character == null )
+                    {
+                        undone = "the slot has no bro";
+                    }
+                    else if ( character.GetInstanceID() != landedCharacter )
+                    {
+                        undone = $"the slot now holds {currentBro}";
+                    }
+                    else if ( !CharacterIsAlive( character ) )
+                    {
+                        undone = "the swapped-in bro died";
+                    }
+                }, SwapConfirmBudgetMs );
+
+                if ( undone != null )
+                {
+                    reply["success"] = false;
+                    reply["error"] = $"Player {playerNum} was swapped to '{landedBro}', but {undone} within {SwapConfirmDelayMs}ms";
+                    reply["reason"] = "swap-undone";
+                    reply["currentBro"] = currentBro;
+                }
+
                 return reply;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"SwapBro error: {ex.Message}" );
-                return new { success = false, error = ex.Message };
+                return new { success = false, error = ex.GetBaseException().Message, reason = BroErrorReason( ex ) };
+            }
+        }
+
+        public const int SwapConfirmDelayMs = 500;
+        public const int SwapConfirmBudgetMs = 2000;
+
+        private static string BroErrorReason( Exception ex )
+        {
+            if ( ex is SwapBrosIntegration.IncompatibleException )
+            {
+                return "swap-bros-incompatible";
+            }
+            return "error";
+        }
+
+        private static string SwapMiss( TestVanDammeAnim character, string known )
+        {
+            if ( character == null )
+            {
+                return "the slot holds no bro";
+            }
+            if ( !character.gameObject.activeInHierarchy )
+            {
+                return "the slot's bro is inactive";
+            }
+            if ( !character.enabled || character.isOnHelicopter || character.HidingPlayer )
+            {
+                return "the slot's bro is held by the game";
+            }
+            if ( !CharacterIsAlive( character ) )
+            {
+                return "the slot's bro is dead";
+            }
+
+            string live = SwapBrosIntegration.GetLiveBroName( character );
+            if ( !string.Equals( live, known, StringComparison.OrdinalIgnoreCase ) )
+            {
+                return $"the slot holds {live}";
+            }
+            return null;
+        }
+
+        // Player.SpawnHero adds a campaign hero to the save's unlocks and plays the unlock cutscene of one never played.
+        private static bool SwapKeepingUnlocks( int playerNum, string broName )
+        {
+            PlayerProgress progress = PlayerProgress.Instance;
+            List<HeroType> unlocked = progress != null && progress.unlockedHeroes != null ? new List<HeroType>( progress.unlockedHeroes ) : null;
+            List<HeroType> unplayed = progress != null && progress.yetToBePlayedUnlockedHeroes != null ? new List<HeroType>( progress.yetToBePlayedUnlockedHeroes ) : null;
+
+            if ( unplayed != null )
+            {
+                progress.yetToBePlayedUnlockedHeroes.Clear();
+            }
+
+            try
+            {
+                return SwapBrosIntegration.SwapToBroByName( playerNum, broName );
+            }
+            finally
+            {
+                if ( unlocked != null )
+                {
+                    progress.unlockedHeroes.Clear();
+                    progress.unlockedHeroes.AddRange( unlocked );
+                }
+                if ( unplayed != null )
+                {
+                    progress.yetToBePlayedUnlockedHeroes.Clear();
+                    progress.yetToBePlayedUnlockedHeroes.AddRange( unplayed );
+                }
             }
         }
 
@@ -1510,7 +2514,7 @@ namespace Unity_Inspector_Mod
             {
                 if ( playerNum < Nums.PLAYER_MIN || playerNum >= Nums.PLAYER_MAX )
                 {
-                    return new { success = false, error = "Player number must be 0-3" };
+                    return new { success = false, error = "Player number must be 0-3", reason = "bad-player" };
                 }
 
                 if ( !SwapBrosIntegration.IsAvailable )
@@ -1533,7 +2537,7 @@ namespace Unity_Inspector_Mod
 
                     if ( !SwapBrosIntegration.IsInCurrentList( broName ) )
                     {
-                        string why = SwapBrosIntegration.UnreachableReason( known, origin, false );
+                        string why = SwapBrosIntegration.UnreachableReason( known, origin, false, false );
                         result = BroFailure( $"Bro '{known}' is not in Swap Bros Mod's current list: {why}", "unreachable" );
                         return;
                     }
@@ -1546,21 +2550,39 @@ namespace Unity_Inspector_Mod
                         return;
                     }
 
+                    string selected = SwapBrosIntegration.GetSelectedBroName( playerNum );
+                    if ( !string.Equals( selected, known, StringComparison.OrdinalIgnoreCase ) )
+                    {
+                        JObject failure = BroFailure( $"Swap Bros Mod accepted '{known}' for player {playerNum}, but its selection reads {selected ?? "nothing"}", "swap-failed" );
+                        failure["selectedBro"] = selected;
+                        result = failure;
+                        return;
+                    }
+
                     // Swap Bros Mod's SetSelectedBroByName turns alwaysChosen on and saves nothing back.
-                    result = new
+                    JObject reply = JObject.FromObject( new
                     {
                         success = true,
-                        nextBro = broName,
+                        nextBro = known,
                         alwaysChosen = new { before = alwaysChosenBefore, after = SwapBrosIntegration.ReadAlwaysChosen() }
-                    };
+                    } );
+
+                    string overridden = SwapBrosIntegration.NextSpawnOverride( playerNum );
+                    reply["appliesThisLevel"] = overridden == null;
+                    if ( overridden != null )
+                    {
+                        reply["note"] = $"The next spawn on this level ignores the selection: {overridden}";
+                    }
+
+                    result = reply;
                 }, 5000 );
 
                 return result;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"SetBro error: {ex.Message}" );
-                return new { success = false, error = ex.Message };
+                return new { success = false, error = ex.GetBaseException().Message, reason = BroErrorReason( ex ) };
             }
         }
 
@@ -1570,7 +2592,7 @@ namespace Unity_Inspector_Mod
             {
                 if ( playerNum < Nums.PLAYER_MIN || playerNum >= Nums.PLAYER_MAX )
                 {
-                    return new { success = false, error = "Player number must be 0-3" };
+                    return new { success = false, error = "Player number must be 0-3", reason = "bad-player" };
                 }
 
                 if ( !SwapBrosIntegration.IsAvailable )
@@ -1624,7 +2646,7 @@ namespace Unity_Inspector_Mod
 
                 return result;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"ListBros error: {ex.Message}" );
                 return new { success = false, error = ex.Message };
@@ -1638,6 +2660,7 @@ namespace Unity_Inspector_Mod
             try
             {
                 object result = null;
+                int fromMap = 0;
 
                 MainThreadDispatcher.EnqueueAndWait( () =>
                 {
@@ -1649,6 +2672,21 @@ namespace Unity_Inspector_Mod
                         result = new { success = false, error = $"Cannot restart: {notPlaying}", scene = sceneName };
                         return;
                     }
+
+                    if ( GameModeController.Instance == null )
+                    {
+                        result = new { success = false, error = "Cannot restart: the level has no GameModeController, so the game's restart does nothing", scene = sceneName };
+                        return;
+                    }
+
+                    if ( !Connect.IsHost )
+                    {
+                        result = new { success = false, error = "Cannot restart: this game is an online client, and only the host restarts a level", scene = sceneName };
+                        return;
+                    }
+
+                    Map current = Map.Instance;
+                    fromMap = current != null ? current.GetInstanceID() : 0;
 
                     Map.ClearSuperCheckpointStatus();
 
@@ -1663,19 +2701,33 @@ namespace Unity_Inspector_Mod
                         }
                     }
 
-                    PauseController.SetPause( PauseStatus.UnPaused );
+                    ReleasePause();
                     GameModeController.RestartLevel();
 
-                    result = new
+                    result = JObject.FromObject( new
                     {
                         success = true,
                         scene = sceneName
-                    };
+                    } );
                 }, 5000 );
 
-                return result;
+                JObject reply = result as JObject;
+                if ( reply == null )
+                {
+                    return result;
+                }
+
+                string pending = AwaitLevelInPlay( () => LevelPending( fromMap, null, 0 ), reply );
+                if ( pending != null )
+                {
+                    reply["success"] = false;
+                    reply["error"] = $"The restart was requested but the level was not in play again after {LevelArrivalBudgetMs / 1000}s: {pending}";
+                    reply["reason"] = "not-loaded";
+                }
+
+                return reply;
             }
-            catch ( Exception ex )
+            catch ( Exception ex ) when ( !MainThreadDispatcher.IsStall( ex ) )
             {
                 Main.Log( $"RestartLevel error: {ex.Message}" );
                 return new { success = false, error = ex.Message };

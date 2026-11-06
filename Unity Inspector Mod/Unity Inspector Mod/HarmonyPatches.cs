@@ -7,37 +7,20 @@ namespace Unity_Inspector_Mod
     internal static class InputReader_GetMenuInputCombined_Patch
     {
         private static void Postfix( ref bool up, ref bool down, ref bool left,
-            ref bool right, ref bool accept, ref bool decline )
+            ref bool right, ref bool accept, ref bool decline, ref bool __result )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( !InputSimulator.Active || InputReader.IsBlocked )
             {
                 return;
             }
 
-            if ( InputSimulator.IsInputSimulated( "up" ) )
-            {
-                up = true;
-            }
-            if ( InputSimulator.IsInputSimulated( "down" ) )
-            {
-                down = true;
-            }
-            if ( InputSimulator.IsInputSimulated( "left" ) )
-            {
-                left = true;
-            }
-            if ( InputSimulator.IsInputSimulated( "right" ) )
-            {
-                right = true;
-            }
-            if ( InputSimulator.IsInputSimulated( "fire" ) || InputSimulator.IsInputSimulated( "jump" ) )
-            {
-                accept = true;
-            }
-            if ( InputSimulator.IsInputSimulated( "special" ) )
-            {
-                decline = true;
-            }
+            up |= InputSimulator.HeldAny( InputSimulator.Up );
+            down |= InputSimulator.HeldAny( InputSimulator.Down );
+            left |= InputSimulator.HeldAny( InputSimulator.Left );
+            right |= InputSimulator.HeldAny( InputSimulator.Right );
+            accept |= InputSimulator.HeldAny( InputSimulator.Fire ) | InputSimulator.HeldAny( InputSimulator.Jump );
+            decline |= InputSimulator.HeldAny( InputSimulator.Special ) | ( InputSimulator.PressedMenuController( InputSimulator.Escape ) >= 0 );
+            __result = up | down | left | right | accept | decline;
         }
     }
 
@@ -60,52 +43,26 @@ namespace Unity_Inspector_Mod
             ref bool right, ref bool fire, ref bool buttonJump, ref bool special, ref bool highFive,
             ref bool buttonGesture, ref bool sprint, bool isInChat, bool allowInCutscene )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( !InputSimulator.Active )
+            {
+                return;
+            }
+            if ( !CutsceneController.PlayersCanMove() || InputReader.IsBlocked
+                                                      || ( CutsceneController.InCutscene && !allowInCutscene ) || PauseController.DelayInput )
             {
                 return;
             }
 
-            // A free controller reporting a press is a player dropping in.
-            if ( InputSimulator.IsSimulatedOn( "up", controllerNum ) )
-            {
-                up = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "down", controllerNum ) )
-            {
-                down = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "left", controllerNum ) )
-            {
-                left = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "right", controllerNum ) )
-            {
-                right = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "fire", controllerNum ) )
-            {
-                fire = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "jump", controllerNum ) )
-            {
-                buttonJump = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "special", controllerNum ) )
-            {
-                special = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "highfive", controllerNum ) )
-            {
-                highFive = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "gesture", controllerNum ) )
-            {
-                buttonGesture = true;
-            }
-            if ( InputSimulator.IsSimulatedOn( "sprint", controllerNum ) )
-            {
-                sprint = true;
-            }
+            up |= InputSimulator.HeldOn( InputSimulator.Up, controllerNum );
+            down |= InputSimulator.HeldOn( InputSimulator.Down, controllerNum );
+            left |= InputSimulator.HeldOn( InputSimulator.Left, controllerNum );
+            right |= InputSimulator.HeldOn( InputSimulator.Right, controllerNum );
+            fire |= InputSimulator.HeldOn( InputSimulator.Fire, controllerNum );
+            buttonJump |= InputSimulator.HeldOn( InputSimulator.Jump, controllerNum );
+            special |= InputSimulator.HeldOn( InputSimulator.Special, controllerNum );
+            highFive |= InputSimulator.HeldOn( InputSimulator.HighFive, controllerNum );
+            buttonGesture |= InputSimulator.HeldOn( InputSimulator.Gesture, controllerNum );
+            sprint |= InputSimulator.HeldOn( InputSimulator.Sprint, controllerNum );
         }
     }
 
@@ -115,36 +72,17 @@ namespace Unity_Inspector_Mod
         private static void Postfix( int Controller, ref bool up, ref bool down, ref bool left,
             ref bool right, ref bool accept, ref bool decline, ref bool __result )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( !InputSimulator.Active || InputReader.IsBlocked )
             {
                 return;
             }
 
-            if ( InputSimulator.IsSimulatedOnMenu( "up", Controller ) )
-            {
-                up = true;
-            }
-            if ( InputSimulator.IsSimulatedOnMenu( "down", Controller ) )
-            {
-                down = true;
-            }
-            if ( InputSimulator.IsSimulatedOnMenu( "left", Controller ) )
-            {
-                left = true;
-            }
-            if ( InputSimulator.IsSimulatedOnMenu( "right", Controller ) )
-            {
-                right = true;
-            }
-            if ( InputSimulator.IsSimulatedOnMenu( "fire", Controller ) || InputSimulator.IsSimulatedOnMenu( "jump", Controller ) )
-            {
-                accept = true;
-            }
-            if ( InputSimulator.IsSimulatedOnMenu( "special", Controller ) )
-            {
-                decline = true;
-            }
-
+            up |= InputSimulator.HeldOnMenu( InputSimulator.Up, Controller );
+            down |= InputSimulator.HeldOnMenu( InputSimulator.Down, Controller );
+            left |= InputSimulator.HeldOnMenu( InputSimulator.Left, Controller );
+            right |= InputSimulator.HeldOnMenu( InputSimulator.Right, Controller );
+            accept |= InputSimulator.HeldOnMenu( InputSimulator.Fire, Controller ) | InputSimulator.HeldOnMenu( InputSimulator.Jump, Controller );
+            decline |= InputSimulator.HeldOnMenu( InputSimulator.Special, Controller ) | InputSimulator.PressedOnMenu( InputSimulator.Escape, Controller );
             __result = up | down | left | right | accept | decline;
         }
     }
@@ -155,15 +93,15 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result, bool isInChat, bool ignoreBlock )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active )
             {
                 return;
             }
-
-            if ( InputSimulator.ShouldTriggerStart() && __result == -1 )
+            if ( InputReader.IsBlocked && !isInChat && !ignoreBlock )
             {
-                __result = InputSimulator.MenuControllerPressing( "start" );
+                return;
             }
+            __result = InputSimulator.PressedMenuController( InputSimulator.Start );
         }
     }
 
@@ -172,15 +110,11 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active )
             {
                 return;
             }
-
-            if ( __result == -1 )
-            {
-                __result = InputSimulator.MenuControllerPressing( "escape" );
-            }
+            __result = InputSimulator.PressedMenuController( InputSimulator.Escape );
         }
     }
 
@@ -190,15 +124,11 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result, bool ignoreBlock )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active || ( InputReader.IsBlocked && !ignoreBlock ) )
             {
                 return;
             }
-
-            if ( __result == -1 )
-            {
-                __result = InputSimulator.ControllerPressing( "fire" );
-            }
+            __result = InputSimulator.PressedController( InputSimulator.Fire );
         }
     }
 
@@ -207,15 +137,11 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
             {
                 return;
             }
-
-            if ( __result == -1 )
-            {
-                __result = InputSimulator.ControllerPressing( "highfive" );
-            }
+            __result = InputSimulator.PressedController( InputSimulator.HighFive );
         }
     }
 
@@ -225,15 +151,11 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result, bool ignoreBlock )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active || ( InputReader.IsBlocked && !ignoreBlock ) )
             {
                 return;
             }
-
-            if ( __result == -1 )
-            {
-                __result = InputSimulator.ControllerPressing( "jump" );
-            }
+            __result = InputSimulator.PressedController( InputSimulator.Jump );
         }
     }
 
@@ -242,14 +164,126 @@ namespace Unity_Inspector_Mod
     {
         private static void Postfix( ref int __result )
         {
-            if ( !InputSimulator.HasAnySimulatedInput() )
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
             {
                 return;
             }
+            __result = InputSimulator.PressedController( InputSimulator.Special );
+        }
+    }
 
-            if ( __result == -1 )
+    [HarmonyPatch( typeof( InputReader ), "GetControllerPressingGesture" )]
+    internal static class InputReader_GetControllerPressingGesture_Patch
+    {
+        private static void Postfix( ref int __result )
+        {
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
             {
-                __result = InputSimulator.ControllerPressing( "special" );
+                return;
+            }
+            __result = InputSimulator.HeldController( InputSimulator.Gesture );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "IsControllerPressingFire" )]
+    internal static class InputReader_IsControllerPressingFire_Patch
+    {
+        private static void Postfix( int controllerNum, ref bool __result )
+        {
+            if ( __result || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.PressedOn( InputSimulator.Fire, controllerNum );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "IsControllerPressingJump" )]
+    internal static class InputReader_IsControllerPressingJump_Patch
+    {
+        private static void Postfix( int controllerNum, ref bool __result )
+        {
+            if ( __result || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.PressedOn( InputSimulator.Jump, controllerNum );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "IsControllerPressingSpecial" )]
+    internal static class InputReader_IsControllerPressingSpecial_Patch
+    {
+        private static void Postfix( int controllerNum, ref bool __result )
+        {
+            if ( __result || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.PressedOn( InputSimulator.Special, controllerNum );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "GetControllerHoldingFire" )]
+    internal static class InputReader_GetControllerHoldingFire_Patch
+    {
+        private static void Postfix( ref int __result )
+        {
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.HeldController( InputSimulator.Fire );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "GetControllerHoldingJump" )]
+    internal static class InputReader_GetControllerHoldingJump_Patch
+    {
+        private static void Postfix( ref int __result )
+        {
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.HeldController( InputSimulator.Jump );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "GetControllerHoldingSpecial" )]
+    internal static class InputReader_GetControllerHoldingSpecial_Patch
+    {
+        private static void Postfix( ref int __result )
+        {
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.HeldController( InputSimulator.Special );
+        }
+    }
+
+    [HarmonyPatch( typeof( InputReader ), "GetControllerHoldingMelee" )]
+    internal static class InputReader_GetControllerHoldingMelee_Patch
+    {
+        private static void Postfix( ref int __result )
+        {
+            if ( __result != -1 || !InputSimulator.Active || InputReader.IsBlocked )
+            {
+                return;
+            }
+            __result = InputSimulator.HeldController( InputSimulator.HighFive );
+        }
+    }
+
+    [HarmonyPatch( typeof( Utility.SceneLoader ), "LoadScene", new Type[] { typeof( string ), typeof( UnityEngine.SceneManagement.LoadSceneMode ) } )]
+    internal static class SceneLoader_LoadScene_Patch
+    {
+        private static void Prefix( UnityEngine.SceneManagement.LoadSceneMode mode )
+        {
+            if ( mode == UnityEngine.SceneManagement.LoadSceneMode.Single )
+            {
+                InputSimulator.SceneLoadRequested();
             }
         }
     }

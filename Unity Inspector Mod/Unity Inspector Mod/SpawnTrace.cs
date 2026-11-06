@@ -43,6 +43,7 @@ namespace Unity_Inspector_Mod
         private static string harmonyId;
         private static readonly Dictionary<string, Ring> rings = new Dictionary<string, Ring>();
         private static readonly List<string> patched = new List<string>();
+        private static readonly List<KeyValuePair<MethodBase, MethodInfo>> installed = new List<KeyValuePair<MethodBase, MethodInfo>>();
         private static long seq;
         private static object owner;
         private static bool recordFailureLogged;
@@ -107,11 +108,14 @@ namespace Unity_Inspector_Mod
                 {
                     try
                     {
-                        var prefix = new HarmonyMethod( AccessTools.Method( typeof( SpawnTrace ), PrefixName( target ) ) )
+                        MethodInfo prefixMethod = AccessTools.Method( typeof( SpawnTrace ), PrefixName( target ) );
+                        var prefix = new HarmonyMethod( prefixMethod )
                         {
+                            // Harmony skips a prefix taking a reference-type argument once an earlier prefix returns false
                             priority = int.MaxValue
                         };
                         harmony.Patch( original, prefix: prefix );
+                        installed.Add( new KeyValuePair<MethodBase, MethodInfo>( original, prefixMethod ) );
                     }
                     catch ( Exception ex )
                     {
@@ -220,8 +224,12 @@ namespace Unity_Inspector_Mod
         {
             if ( harmony != null )
             {
-                harmony.UnpatchAll( HarmonyId );
+                foreach ( var patch in installed )
+                {
+                    harmony.Unpatch( patch.Key, patch.Value );
+                }
             }
+            installed.Clear();
             patched.Clear();
         }
 

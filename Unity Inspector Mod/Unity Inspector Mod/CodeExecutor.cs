@@ -71,6 +71,8 @@ namespace Unity_Inspector_Mod
         }
 
         private const int MainThreadBudgetMs = 9000;
+        private const int RunBudgetMs = 9000;
+        private const int CeilingMs = 18000;
 
         private const string BlockSuffix = "\n}";
 
@@ -83,8 +85,6 @@ namespace Unity_Inspector_Mod
         private const int StatementTextLimit = 200;
 
         private const int SerializeDepthLimit = 4;
-
-        private const string EvaluatorDiscardedMarker = "Evaluator was discarded";
 
         private static object runValue;
         private static bool runValueSet;
@@ -168,14 +168,7 @@ namespace Unity_Inspector_Mod
 
                 try
                 {
-                    ScriptCompiler.PatchTokenCheck();
-                    ScriptCompiler.PatchExtensionMethodCrash();
-                    ScriptCompiler.PatchAssemblyImport();
-                    ScriptCompiler.PatchConstantImport();
-                    ScriptCompiler.PatchAssemblyLocation();
-                    ScriptCompiler.PatchNestedTypeImport();
-                    ScriptCompiler.PatchPropertyDefine();
-                    ScriptCompiler.PatchForeignBuilderTokens();
+                    ScriptCompiler.InstallPatches();
                     PatchEvaluator();
 
                     // AppDomain.GetAssemblies() misses game assemblies until a type in them is touched
@@ -319,238 +312,25 @@ namespace Unity_Inspector_Mod
 
         public static object Execute( string code )
         {
-            return ExecuteWithRetry( code, retriesRemaining: 2 );
-        }
-
-        private static object ExecuteWithRetry( string code, int retriesRemaining )
-        {
+            object reply = null;
             try
             {
-                if ( !initialized )
-                {
-                    Initialize();
-                }
-
-                object executionResult = null;
-                Exception executionException = null;
-                string failedLabel = null;
-                bool invokeStarted = false;
-
-                MainThreadDispatcher.EnqueueAndWait( () =>
-                {
-                    try
-                    {
-                        var activeEvaluator = evaluator;
-                        if ( activeEvaluator == null )
-                        {
-                            lock ( initLock ) { initialized = false; }
-                            executionException = new InvalidOperationException(
-                                EvaluatorDiscardedMarker + " before the command ran" );
-                            return;
-                        }
-
-                        // A local of an enum from a runtime-generated assembly kills the game while Mono compiles the method.
-                        bool ownEnum;
-                        var dynamicEnum = ScriptCompiler.FindEnumUsage( code, ScriptCompiler.DynamicEnumNames(), out ownEnum );
-                        if ( dynamicEnum != null )
-                        {
-                            executionResult = Failure( ScriptCompiler.DynamicEnumUsageMessage( dynamicEnum ) );
-                            return;
-                        }
-
-                        string input = StripComments( code );
-                        CompiledMethod compiled;
-                        string messages;
-                        Exception thrown;
-
-                        // The Evaluator reads one input as declarations or as statements, never both.
-                        int statementsStart = LeadingDeclarationsEnd( input );
-                        if ( statementsStart > 0 )
-                        {
-                            var declarations = DeclarationsAttempt( input.Substring( 0, statementsStart ), MaxRowOf( input ) );
-                            var declarationFailure = CompileAttempt( activeEvaluator, declarations, 0,
-                                out compiled, out messages, out thrown );
-                            if ( thrown != null )
-                            {
-                                executionException = thrown;
-                                failedLabel = declarations.Label;
-                                return;
-                            }
-                            if ( declarationFailure != null )
-                            {
-                                executionResult = Failure( declarationFailure.Refusal
-                                    ? declarationFailure.Text
-                                    : DescribeFailure( new List<AttemptOutcome> { declarationFailure }, declarations.Source ) );
-                                return;
-                            }
-
-                            // Unity's Mono runs a generic method with an empty body when the Evaluator that declared it compiles the call; a rebuilt one imports the baked type.
-                            if ( genericDeclared )
-                            {
-                                DiscardEvaluator();
-                                Initialize();
-                                activeEvaluator = evaluator;
-                            }
-
-                            input = BlankThrough( input, statementsStart );
-                        }
-
-                        var failures = new List<AttemptOutcome>();
-                        var attempts = BuildAttempts( input );
-
-                        for ( int i = 0; i < attempts.Count; i++ )
-                        {
-                            var attempt = attempts[i];
-
-                            var failure = CompileAttempt( activeEvaluator, attempt, i, out compiled, out messages, out thrown );
-
-                            if ( thrown != null )
-                            {
-                                executionException = thrown;
-                                failedLabel = attempt.Label;
-                                return;
-                            }
-
-                            if ( failure != null && failure.Refusal )
-                            {
-                                executionResult = Failure( failure.Text );
-                                return;
-                            }
-
-                            if ( failure != null )
-                            {
-                                failures.Add( failure );
-                                continue;
-                            }
-
-                            runValue = null;
-                            runValueSet = false;
-
-                            if ( compiled == null )
-                            {
-                                if ( genericDeclared )
-                                {
-                                    DiscardEvaluator();
-                                }
-                                executionResult = new
-                                {
-                                    success = true,
-                                    result = (object)null,
-                                    resultSet = false,
-                                    output = messages
-                                };
-                                return;
-                            }
-
-                            object retval = null;
-
-                            try
-                            {
-                                invokeStarted = true;
-                                lastStatement = -1;
-                                compiled.Invoke( ref retval );
-                            }
-                            catch ( Exception ex )
-                            {
-                                runValue = null;
-                                runValueSet = false;
-                                executionResult = UserFault( ex, attempt );
-                                return;
-                            }
-
-                            bool hasResult = runValueSet;
-                            object serialized = null;
-
-                            try
-                            {
-                                serialized = hasResult ? SerializeResult( runValue ) : null;
-                            }
-                            catch ( Exception ex )
-                            {
-                                executionResult = UserFault( ex, attempt );
-                                return;
-                            }
-                            finally
-                            {
-                                runValue = null;
-                                runValueSet = false;
-                            }
-
-                            executionResult = new
-                            {
-                                success = true,
-                                result = serialized,
-                                resultSet = hasResult,
-                                output = messages
-                            };
-                            return;
-                        }
-
-                        executionResult = Failure( DescribeFailure( failures, input ) );
-                    }
-                    catch ( Exception ex )
-                    {
-                        executionException = ex;
-                    }
-                }, MainThreadBudgetMs );
-
-                if ( executionException != null )
-                {
-                    if ( retriesRemaining > 0 && !invokeStarted && !IsCompilerFailure( executionException ) &&
-                         ( executionException.Message.Contains( EvaluatorDiscardedMarker ) ||
-                           executionException is TypeLoadException ) )
-                    {
-                        System.Threading.Thread.Sleep( 300 );
-                        return ExecuteWithRetry( code, retriesRemaining: retriesRemaining - 1 );
-                    }
-
-                    Main.Log( $"Code execution failed: {executionException.Message}" );
-
-                    // A compiler crash leaves the Evaluator undefined, so it is rebuilt rather than reused
-                    if ( !invokeStarted )
-                    {
-                        lock ( initLock )
-                        {
-                            initialized = false;
-                            evaluator = null;
-                        }
-                    }
-
-                    var errorMessage = failedLabel != null
-                        ? "[" + failedLabel + "] " + DescribeException( executionException )
-                        : DescribeException( executionException );
-
-                    var compilerOutput = output != null ? output.ToString() : null;
-                    if ( !string.IsNullOrEmpty( compilerOutput ) )
-                    {
-                        errorMessage += $"\n  Compiler output: {compilerOutput}";
-                    }
-
-                    return new
-                    {
-                        success = false,
-                        error = errorMessage,
-                        stackTrace = executionException.StackTrace,
-                        position = (object)null,
-                        statement = (string)null,
-                        result = (object)null
-                    };
-                }
-
-                return executionResult;
+                MainThreadDispatcher.EnqueueAndWaitStoppable( () => reply = ExecuteOnMainThread( code ),
+                    MainThreadBudgetMs, RunBudgetMs, CeilingMs, "an execute_code call" );
+                return reply;
             }
             catch ( TimeoutException tex )
             {
-                Main.Log( $"Code execution timed out: {tex.Message}" );
-                return new
-                {
-                    success = false,
-                    error = "Code execution timed out after " + MainThreadBudgetMs / 1000 + " seconds",
-                    stackTrace = (string)null,
-                    position = (object)null,
-                    statement = (string)null,
-                    result = (object)null
-                };
+                Main.Log( $"Code execution did not start: {tex.Message}" );
+                throw new TimeoutException( "The game's main thread did not pick the code up within " + MainThreadBudgetMs / 1000 +
+                                            "s (" + tex.Message + "). The code did not run, and can be sent again once the main " +
+                                            "thread is free." );
+            }
+            catch ( MainThreadDispatcher.MainThreadActionRunningException rex )
+            {
+                Main.Log( $"Code execution still running: {rex.Message}" );
+                throw new MainThreadDispatcher.MainThreadActionRunningException( "The code started and is " + rex.Message +
+                                                                                 ". Every later command that needs the main thread waits behind it." );
             }
             catch ( Exception ex )
             {
@@ -565,6 +345,272 @@ namespace Unity_Inspector_Mod
                     result = (object)null
                 };
             }
+        }
+
+        private static object ExecuteOnMainThread( string code )
+        {
+            for ( int retriesRemaining = 2;; retriesRemaining-- )
+            {
+                Exception executionException;
+                string failedLabel;
+                bool invokeStarted;
+                string compilerOutput;
+                var executionResult = ExecuteOnce( code, out executionException, out failedLabel, out invokeStarted,
+                    out compilerOutput );
+
+                if ( executionException == null )
+                {
+                    return executionResult;
+                }
+
+                if ( retriesRemaining > 0 && !invokeStarted &&
+                     ( IsAnonymousTypeReuse( executionException ) ||
+                       ( !IsCompilerFailure( executionException ) && executionException is TypeLoadException ) ) )
+                {
+                    continue;
+                }
+
+                Main.Log( $"Code execution failed: {executionException.Message}" );
+
+                var errorMessage = failedLabel != null
+                    ? "[" + failedLabel + "] " + DescribeException( executionException )
+                    : DescribeException( executionException );
+
+                if ( !string.IsNullOrEmpty( compilerOutput ) )
+                {
+                    errorMessage += $"\n  Compiler output: {compilerOutput}";
+                }
+
+                return new
+                {
+                    success = false,
+                    error = errorMessage,
+                    stackTrace = TrimStackTrace( executionException.StackTrace ),
+                    position = (object)null,
+                    statement = (string)null,
+                    result = (object)null
+                };
+            }
+        }
+
+        private static object ExecuteOnce( string code, out Exception executionException, out string failedLabel,
+            out bool invokeStarted, out string compilerOutput )
+        {
+            executionException = null;
+            failedLabel = null;
+            invokeStarted = false;
+            compilerOutput = null;
+
+            try
+            {
+                if ( !initialized )
+                {
+                    Initialize();
+                }
+                var activeEvaluator = evaluator;
+
+                var bodyRefusal = ScriptCompiler.ScriptMethodBodyRefusal( code );
+                if ( bodyRefusal != null )
+                {
+                    return Failure( bodyRefusal );
+                }
+
+                // A local of an enum from a runtime-generated assembly kills the game while Mono compiles the method.
+                bool ownEnum;
+                var dynamicEnum = ScriptCompiler.FindEnumUsage( code, ScriptCompiler.VisibleDynamicEnums( null ),
+                    out ownEnum );
+                if ( dynamicEnum != null )
+                {
+                    return Failure( ScriptCompiler.DynamicEnumUsageMessage( dynamicEnum ) );
+                }
+
+                string input = BlankRepeatedAliases( StripComments( code ) );
+
+                CompiledMethod compiled;
+                string messages;
+                Exception thrown;
+
+                // The Evaluator reads one input as declarations or as statements, never both.
+                int statementsStart = LeadingDeclarationsEnd( input );
+                if ( statementsStart > 0 )
+                {
+                    var declarations = DeclarationsAttempt( input.Substring( 0, statementsStart ), MaxRowOf( input ) );
+                    var declarationFailure = CompileAttempt( activeEvaluator, declarations, 0,
+                        out compiled, out messages, out thrown );
+                    if ( thrown != null )
+                    {
+                        executionException = thrown;
+                        failedLabel = declarations.Label;
+                        return null;
+                    }
+                    if ( declarationFailure != null )
+                    {
+                        return Failure( declarationFailure.Refusal
+                            ? declarationFailure.Text
+                            : DescribeFailure( new List<AttemptOutcome> { declarationFailure }, declarations.Source ) );
+                    }
+
+                    // A later compile in the Evaluator that declared a generic binds its baked builder, whose ILGenerator is gone.
+                    if ( genericDeclared )
+                    {
+                        DiscardEvaluator();
+                        Initialize();
+                        activeEvaluator = evaluator;
+                    }
+
+                    input = BlankThrough( input, statementsStart );
+                }
+
+                var failures = new List<AttemptOutcome>();
+                var attempts = BuildAttempts( input );
+
+                for ( int i = 0; i < attempts.Count; i++ )
+                {
+                    var attempt = attempts[i];
+
+                    var failure = CompileAttempt( activeEvaluator, attempt, i, out compiled, out messages, out thrown );
+
+                    if ( thrown != null )
+                    {
+                        executionException = thrown;
+                        failedLabel = attempt.Label;
+                        return null;
+                    }
+
+                    if ( failure != null && failure.Refusal )
+                    {
+                        return Failure( failure.Text );
+                    }
+
+                    if ( failure != null )
+                    {
+                        failures.Add( failure );
+                        continue;
+                    }
+
+                    runValue = null;
+                    runValueSet = false;
+
+                    if ( compiled == null )
+                    {
+                        if ( genericDeclared )
+                        {
+                            DiscardEvaluator();
+                        }
+                        return new
+                        {
+                            success = true,
+                            result = (object)null,
+                            resultSet = false,
+                            output = messages
+                        };
+                    }
+
+                    bool finished;
+                    try
+                    {
+                        invokeStarted = true;
+                        lastStatement = -1;
+                        object retval = null;
+                        var method = compiled;
+                        finished = MainThreadDispatcher.RunStoppable( () => method.Invoke( ref retval ) );
+                    }
+                    catch ( Exception ex )
+                    {
+                        runValue = null;
+                        runValueSet = false;
+                        return UserFault( ex, attempt );
+                    }
+
+                    if ( !finished )
+                    {
+                        runValue = null;
+                        runValueSet = false;
+                        return Stopped( attempt );
+                    }
+
+                    bool hasResult = runValueSet;
+                    object serialized = null;
+
+                    try
+                    {
+                        var value = runValue;
+                        finished = !hasResult ||
+                                   MainThreadDispatcher.RunStoppable( () => serialized = SerializeResult( value ) );
+                    }
+                    catch ( Exception ex )
+                    {
+                        return UserFault( ex, attempt );
+                    }
+                    finally
+                    {
+                        runValue = null;
+                        runValueSet = false;
+                    }
+
+                    if ( !finished )
+                    {
+                        return Stopped( attempt );
+                    }
+
+                    return new
+                    {
+                        success = true,
+                        result = serialized,
+                        resultSet = hasResult,
+                        output = messages
+                    };
+                }
+
+                return Failure( DescribeFailure( failures, input ) );
+            }
+            catch ( Exception ex )
+            {
+                executionException = ex;
+                return null;
+            }
+            finally
+            {
+                if ( executionException != null )
+                {
+                    compilerOutput = output != null ? output.ToString() : null;
+
+                    // A compiler crash leaves the Evaluator undefined
+                    if ( !invokeStarted )
+                    {
+                        DiscardEvaluator();
+                    }
+                }
+            }
+        }
+
+        private static object Stopped( Attempt attempt )
+        {
+            string error = "Stopped: the code was still running after " + RunBudgetMs / 1000 +
+                           "s, so it was ended at its next loop iteration or method call. What it changed before that stays changed.";
+
+            StatementInfo info = null;
+            if ( attempt != null && attempt.Statements != null &&
+                 lastStatement >= 0 && lastStatement < attempt.Statements.Count )
+            {
+                info = attempt.Statements[lastStatement];
+            }
+
+            if ( info != null )
+            {
+                error += "\n  Statement at (" + info.Row + "," + info.Column + "): " + info.Text;
+            }
+
+            return new
+            {
+                success = false,
+                error = error,
+                stopped = true,
+                stackTrace = (string)null,
+                position = info != null ? (object)new { line = info.Row, column = info.Column } : null,
+                statement = info != null ? info.Text : null,
+                result = (object)null
+            };
         }
 
         private static object Failure( string error )
@@ -590,6 +636,14 @@ namespace Unity_Inspector_Mod
                 }
             }
             return false;
+        }
+
+        // mcs reuses a baked anonymous type for the same member names, and its instance with other member types throws this while emitting.
+        private static bool IsAnonymousTypeReuse( Exception ex )
+        {
+            var chain = ScriptCompiler.ExceptionChain( ex );
+            var cause = chain[chain.Count - 1] as NotSupportedException;
+            return cause != null && IsCompilerFailure( ex ) && cause.Message.Contains( "not supported in a dynamic module" );
         }
 
         private static void PatchEvaluator()
@@ -650,6 +704,18 @@ namespace Unity_Inspector_Mod
             {
                 Main.Log( "Failed to patch Mono.CSharp.Undo.AddTypeContainer (" + e.GetType().Name + ": " +
                           e.Message + ") — " + RedeclareWarning );
+            }
+
+            try
+            {
+                harmony.Patch( typeof( NamespaceContainer ).GetMethod( "AddTypeContainer", new[] { typeof( TypeContainer ) } ),
+                    prefix: new HarmonyLib.HarmonyMethod( typeof( CodeExecutor ).GetMethod( "DropDelegatePredecessor",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch Mono.CSharp.NamespaceContainer.AddTypeContainer (" + e.GetType().Name + ": " +
+                          e.Message + ") — execute_code cannot declare again a delegate an earlier call declared" );
             }
 
             try
@@ -763,6 +829,22 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        // The parser registers every other type declaration with Undo, which is what drops a predecessor, and a delegate never.
+        private static void DropDelegatePredecessor( NamespaceContainer __instance, TypeContainer tc )
+        {
+            var declared = tc as Mono.CSharp.Delegate;
+            if ( declared == null || tc.Module.Evaluator == null )
+            {
+                return;
+            }
+
+            new Undo().AddTypeContainer( __instance, declared );
+            if ( NamespaceTypes.GetValue( __instance.NS ) != null )
+            {
+                __instance.NS.RemoveContainer( declared );
+            }
+        }
+
         private static void RecordInternalError( InternalErrorException __instance )
         {
             lastInternalError = __instance;
@@ -801,13 +883,20 @@ namespace Unity_Inspector_Mod
             thrown = null;
             string partialInput = null;
 
+            ScriptCompiler.TakeForeignGenericFieldRefusal();
+            ScriptCompiler.TakeGenericBindRefusal();
             try
             {
+                ScriptCompiler.InstrumentCode++;
                 partialInput = activeEvaluator.Compile( attempt.Source, out compiled );
             }
             catch ( Exception ex )
             {
                 thrown = ex;
+            }
+            finally
+            {
+                ScriptCompiler.InstrumentCode--;
             }
 
             messages = output.ToString();
@@ -819,22 +908,38 @@ namespace Unity_Inspector_Mod
             if ( partialInput == null && reportPrinter.ErrorsCount == 0 )
             {
                 var declared = attempt.Usings != null ? ScriptCompiler.NewestEvalAssembly() : null;
-                var lambdaError = declared != null ? ScriptCompiler.DetectEmptyGenericLambdas( declared ) : null;
-                if ( lambdaError != null )
+
+                string refusal = ScriptCompiler.TakeForeignGenericFieldRefusal() ?? ScriptCompiler.TakeGenericBindRefusal();
+                if ( refusal != null )
                 {
+                    compiled = null;
+
+                    // mcs has already baked what the input declared; a rebuilt Evaluator would import it, and calling it would run what the refusal stopped.
+                    if ( declared != null )
+                    {
+                        ScriptCompiler.LeaveOutEvalAssembly( declared );
+                        DiscardEvaluator();
+                    }
+
                     return new AttemptOutcome
                     {
                         Attempt = attempt,
                         Order = order,
                         Parsed = true,
                         Refusal = true,
-                        Text = lambdaError
+                        Text = refusal
                     };
                 }
 
-                genericDeclared = declared != null && DeclaresGenericMethod( declared );
+                genericDeclared = declared != null && DeclaresGeneric( declared );
                 RecordUsings( attempt.Usings );
                 return null;
+            }
+
+            // A refused declarations compile leaves a using or delegate in the namespace, where a corrected one reads as its repeat and the next compile emits it again.
+            if ( attempt.Usings != null )
+            {
+                DiscardEvaluator();
             }
 
             return new AttemptOutcome
@@ -849,7 +954,7 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static bool DeclaresGenericMethod( Assembly assembly )
+        private static bool DeclaresGeneric( Assembly assembly )
         {
             Type[] types;
             try
@@ -866,6 +971,10 @@ namespace Unity_Inspector_Mod
                 if ( type == null )
                 {
                     continue;
+                }
+                if ( type.IsGenericTypeDefinition && !type.Name.StartsWith( "<" ) )
+                {
+                    return true;
                 }
                 foreach ( var method in type.GetMethods( BindingFlags.DeclaredOnly | BindingFlags.Static |
                                                          BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic ) )
@@ -945,9 +1054,15 @@ namespace Unity_Inspector_Mod
 
         private static Attempt DeclarationsAttempt( string code, int maxRow )
         {
-            var usings = new List<string>();
+            var spans = new List<KeyValuePair<int, int>>();
             int consumed;
-            ScanLeadingDeclarations( code, usings, null, out consumed );
+            ScanLeadingDeclarations( code, spans, out consumed );
+
+            var usings = new List<string>();
+            foreach ( var span in spans )
+            {
+                usings.Add( code.Substring( span.Key, span.Value - span.Key ).Trim() );
+            }
 
             return new Attempt
             {
@@ -1160,8 +1275,7 @@ namespace Unity_Inspector_Mod
             {
                 char c = code[index];
 
-                if ( c == '"' || c == '\'' ||
-                     ( c == '@' && index + 1 < code.Length && code[index + 1] == '"' ) )
+                if ( StartsLiteral( code, index ) )
                 {
                     index = SkipLiteral( code, index );
                     continue;
@@ -1232,8 +1346,7 @@ namespace Unity_Inspector_Mod
             {
                 char c = code[index];
 
-                if ( c == '"' || c == '\'' ||
-                     ( c == '@' && index + 1 < code.Length && code[index + 1] == '"' ) )
+                if ( StartsLiteral( code, index ) )
                 {
                     index = SkipLiteral( code, index );
                     continue;
@@ -1377,7 +1490,7 @@ namespace Unity_Inspector_Mod
         private static int LeadingDeclarationsEnd( string code )
         {
             int consumed;
-            int end = ScanLeadingDeclarations( code, null, null, out consumed );
+            int end = ScanLeadingDeclarations( code, null, out consumed );
             if ( consumed == 0 || end < 0 || end >= code.Length )
             {
                 return -1;
@@ -1385,7 +1498,7 @@ namespace Unity_Inspector_Mod
             return end;
         }
 
-        private static int ScanLeadingDeclarations( string code, List<string> usings, StringBuilder bodies, out int consumed )
+        private static int ScanLeadingDeclarations( string code, List<KeyValuePair<int, int>> usings, out int consumed )
         {
             consumed = 0;
             int position = SkipTrivia( code, 0 );
@@ -1402,18 +1515,7 @@ namespace Unity_Inspector_Mod
                     }
                 }
 
-                int body;
-                int end = DeclarationEnd( code, position, out body );
-                if ( bodies != null && body >= 0 )
-                {
-                    for ( int i = body + 1; i < ( end < 0 ? code.Length : end ); i++ )
-                    {
-                        if ( bodies[i] != '\n' )
-                        {
-                            bodies[i] = ' ';
-                        }
-                    }
-                }
+                int end = DeclarationEnd( code, position );
                 if ( end < 0 )
                 {
                     return -1;
@@ -1421,7 +1523,7 @@ namespace Unity_Inspector_Mod
 
                 if ( usingDirective && usings != null )
                 {
-                    usings.Add( code.Substring( position, end - position ).Trim() );
+                    usings.Add( new KeyValuePair<int, int>( position, end ) );
                 }
 
                 consumed++;
@@ -1431,19 +1533,17 @@ namespace Unity_Inspector_Mod
             return position;
         }
 
-        private static int DeclarationEnd( string code, int start, out int body )
+        private static int DeclarationEnd( string code, int start )
         {
             int parens = 0;
             int braces = 0;
-            body = -1;
             int index = start;
 
             while ( index < code.Length )
             {
                 char c = code[index];
 
-                if ( c == '"' || c == '\'' ||
-                     ( c == '@' && index + 1 < code.Length && code[index + 1] == '"' ) )
+                if ( StartsLiteral( code, index ) )
                 {
                     index = SkipLiteral( code, index );
                     continue;
@@ -1465,10 +1565,7 @@ namespace Unity_Inspector_Mod
                 }
                 else if ( c == '{' )
                 {
-                    if ( braces++ == 0 && body < 0 )
-                    {
-                        body = index;
-                    }
+                    braces++;
                 }
                 else if ( c == '}' )
                 {
@@ -1492,6 +1589,75 @@ namespace Unity_Inspector_Mod
 
             return -1;
         }
+
+        // mcs answers a repeated alias with CS1537, and an alias lasts as long as the game.
+        private static string BlankRepeatedAliases( string code )
+        {
+            var usings = new List<KeyValuePair<int, int>>();
+            int consumed;
+            ScanLeadingDeclarations( code, usings, out consumed );
+
+            var text = new StringBuilder( code );
+            foreach ( var span in usings )
+            {
+                if ( !AliasInForce( code.Substring( span.Key, span.Value - span.Key ) ) )
+                {
+                    continue;
+                }
+
+                for ( int i = span.Key; i < span.Value; i++ )
+                {
+                    if ( text[i] != '\n' )
+                    {
+                        text[i] = ' ';
+                    }
+                }
+            }
+            return text.ToString();
+        }
+
+        private static bool AliasInForce( string directive )
+        {
+            string alias = AliasKey( directive );
+            if ( alias == null )
+            {
+                return false;
+            }
+
+            lock ( initLock )
+            {
+                foreach ( var preamble in ScriptCompiler.PreambleAliases )
+                {
+                    if ( AliasKey( "using " + preamble + ";" ) == alias )
+                    {
+                        return true;
+                    }
+                }
+                foreach ( var recorded in recordedUsings )
+                {
+                    if ( AliasKey( recorded ) == alias )
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static string AliasKey( string directive )
+        {
+            var match = UsingAlias.Match( directive.Trim() );
+            if ( !match.Success )
+            {
+                return null;
+            }
+
+            return match.Groups[1].Value + "=" +
+                   System.Text.RegularExpressions.Regex.Replace( match.Groups[2].Value, @"\s+", string.Empty );
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex UsingAlias =
+            new System.Text.RegularExpressions.Regex( @"^using\s+(\w+)\s*=\s*([^;]+?)\s*;$" );
 
         private static string BlankThrough( string code, int end )
         {
@@ -1709,11 +1875,13 @@ namespace Unity_Inspector_Mod
 
             string text = chosen != null ? chosen.Text : "compilation failed with no diagnostics";
 
-            int consumed;
-            var outsideBodies = new StringBuilder( code );
-            ScanLeadingDeclarations( code, null, outsideBodies, out consumed );
+            var aliasClash = failures.Find( failure => failure.Text.Contains( " CS1537:" ) );
+            if ( aliasClash != null )
+            {
+                text = aliasClash.Text + "\n  An alias lasts as long as the game and cannot change its target; pick another name.";
+            }
 
-            if ( LocalFunction.IsMatch( outsideBodies.ToString() ) )
+            if ( DeclaresLocalFunction( code ) )
             {
                 text += "\n  Local functions are not supported by this compiler; declare a delegate local instead, " +
                         "e.g. Func<int, int> twice = v => v * 2;";
@@ -1722,9 +1890,68 @@ namespace Unity_Inspector_Mod
             return text;
         }
 
+        private static bool DeclaresLocalFunction( string code )
+        {
+            foreach ( System.Text.RegularExpressions.Match match in LocalFunction.Matches( code ) )
+            {
+                int brace = EnclosingBrace( code, match.Index );
+                if ( brace < 0 || !OpensTypeBody( code, brace ) )
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static int EnclosingBrace( string code, int position )
+        {
+            var open = new Stack<int>();
+            int index = 0;
+            while ( index < position && index < code.Length )
+            {
+                char c = code[index];
+                if ( StartsLiteral( code, index ) )
+                {
+                    index = SkipLiteral( code, index );
+                    continue;
+                }
+
+                if ( c == '/' && index + 1 < code.Length && code[index + 1] == '*' )
+                {
+                    index = SkipBlockComment( code, index );
+                    continue;
+                }
+
+                if ( c == '{' )
+                {
+                    open.Push( index );
+                }
+                else if ( c == '}' && open.Count > 0 )
+                {
+                    open.Pop();
+                }
+                index++;
+            }
+
+            return open.Count > 0 ? open.Peek() : -1;
+        }
+
+        private static bool OpensTypeBody( string code, int brace )
+        {
+            int start = brace - 1;
+            while ( start >= 0 && ";{}".IndexOf( code[start] ) < 0 )
+            {
+                start--;
+            }
+            return TypeHeader.IsMatch( code.Substring( start + 1, brace - start - 1 ) );
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex TypeHeader =
+            new System.Text.RegularExpressions.Regex( @"\b(?:class|struct|interface|namespace|enum)\b" );
+
         private static readonly System.Text.RegularExpressions.Regex LocalFunction =
             new System.Text.RegularExpressions.Regex(
-                @"(?:^|[;{}])\s*(?:(?:public|private|protected|internal|static|unsafe|extern|async)\s+)*" +
+                @"(?<=^|[;{}])\s*(?:(?:public|private|protected|internal|static|unsafe|extern|async)\s+)*" +
                 @"(?!(?:return|new|throw|await|else|case|yield|using|lock|fixed|foreach|while|if|for|switch|catch|var)\b)" +
                 @"[A-Za-z_][\w.]*(?:<[^;{}()]*>)?(?:\[\])*\??\s+[A-Za-z_]\w*\s*(?:<[^;{}()]*>)?\s*\([^;{}]*\)\s*(?:\{|=>)" );
 
@@ -1741,8 +1968,7 @@ namespace Unity_Inspector_Mod
             {
                 char c = code[index];
 
-                if ( c == '"' || c == '\'' ||
-                     ( c == '@' && index + 1 < code.Length && code[index + 1] == '"' ) )
+                if ( StartsLiteral( code, index ) )
                 {
                     index = SkipLiteral( code, index );
                     continue;
@@ -1956,11 +2182,32 @@ namespace Unity_Inspector_Mod
             {
                 success = false,
                 error = error,
-                stackTrace = userException.StackTrace,
+                stackTrace = TrimStackTrace( userException.StackTrace ),
                 position = position,
                 statement = info != null ? info.Text : null,
                 result = (object)null
             };
+        }
+
+        private const int StackTraceHeadLines = 20;
+        private const int StackTraceTailLines = 10;
+
+        internal static string TrimStackTrace( string trace )
+        {
+            if ( trace == null )
+            {
+                return null;
+            }
+
+            var lines = trace.Split( '\n' );
+            int left = lines.Length - StackTraceHeadLines - StackTraceTailLines;
+            if ( left <= 0 )
+            {
+                return trace;
+            }
+
+            return string.Join( "\n", lines, 0, StackTraceHeadLines ) + "\n   ... " + left + " more frames ...\n" +
+                   string.Join( "\n", lines, lines.Length - StackTraceTailLines, StackTraceTailLines );
         }
 
         private static Exception Unwrap( Exception ex )
@@ -1996,8 +2243,7 @@ namespace Unity_Inspector_Mod
                 {
                     end = SkipBlockComment( code, index );
                 }
-                else if ( c == '"' || c == '\'' ||
-                          ( c == '@' && index + 1 < code.Length && code[index + 1] == '"' ) )
+                else if ( StartsLiteral( code, index ) )
                 {
                     end = SkipLiteral( code, index );
                 }
@@ -2015,9 +2261,128 @@ namespace Unity_Inspector_Mod
             return stripped.ToString().TrimEnd();
         }
 
-        private static int SkipLiteral( string code, int start )
+        internal static bool StartsLiteral( string code, int index )
+        {
+            char c = code[index];
+            if ( c == '"' || c == '\'' )
+            {
+                return true;
+            }
+            if ( c != '@' && c != '$' )
+            {
+                return false;
+            }
+            if ( index + 1 < code.Length && code[index + 1] == '"' )
+            {
+                return true;
+            }
+            return c == '$' && index + 2 < code.Length && code[index + 1] == '@' && code[index + 2] == '"';
+        }
+
+        internal static int SkipInterpolated( string code, int start, List<KeyValuePair<int, int>> holes = null )
+        {
+            bool verbatim = code[start + 1] == '@';
+            int index = start + ( verbatim ? 3 : 2 );
+
+            while ( index < code.Length )
+            {
+                char c = code[index];
+                bool doubled = index + 1 < code.Length && code[index + 1] == c;
+
+                if ( c == '{' && !doubled )
+                {
+                    int open = index;
+                    index = SkipHole( code, index );
+                    if ( holes != null )
+                    {
+                        holes.Add( new KeyValuePair<int, int>( open, index ) );
+                    }
+                    continue;
+                }
+
+                if ( ( c == '{' || c == '}' ) && doubled )
+                {
+                    index += 2;
+                    continue;
+                }
+
+                if ( verbatim )
+                {
+                    if ( c == '"' )
+                    {
+                        if ( !doubled )
+                        {
+                            return index + 1;
+                        }
+                        index += 2;
+                        continue;
+                    }
+                }
+                else
+                {
+                    if ( c == '\\' )
+                    {
+                        index += 2;
+                        continue;
+                    }
+                    if ( c == '"' )
+                    {
+                        return index + 1;
+                    }
+                    if ( c == '\n' )
+                    {
+                        return index;
+                    }
+                }
+
+                index++;
+            }
+
+            return index;
+        }
+
+        private static int SkipHole( string code, int open )
+        {
+            int depth = 0;
+            int index = open;
+
+            while ( index < code.Length )
+            {
+                char c = code[index];
+
+                if ( StartsLiteral( code, index ) )
+                {
+                    index = SkipLiteral( code, index );
+                    continue;
+                }
+
+                if ( c == '{' )
+                {
+                    depth++;
+                }
+                else if ( c == '}' )
+                {
+                    depth--;
+                    if ( depth == 0 )
+                    {
+                        return index + 1;
+                    }
+                }
+
+                index++;
+            }
+
+            return index;
+        }
+
+        internal static int SkipLiteral( string code, int start )
         {
             int index = start;
+
+            if ( code[index] == '$' )
+            {
+                return SkipInterpolated( code, start );
+            }
 
             if ( code[index] == '@' )
             {
@@ -2067,7 +2432,7 @@ namespace Unity_Inspector_Mod
             return index;
         }
 
-        private static int SkipBlockComment( string code, int start )
+        internal static int SkipBlockComment( string code, int start )
         {
             int index = start + 2;
 

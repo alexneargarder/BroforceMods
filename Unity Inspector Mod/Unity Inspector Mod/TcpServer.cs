@@ -15,6 +15,7 @@ namespace Unity_Inspector_Mod
     public class TcpServer
     {
         internal const int Protocol = 1;
+        private const int MaxAwaitingHello = 16;
 
         private Socket listener;
         private Thread listenerThread;
@@ -48,6 +49,8 @@ namespace Unity_Inspector_Mod
         [DllImport( "libc" )]
         private static extern uint umask( uint mask );
 
+        internal static bool IsUnix => Environment.OSVersion.Platform == PlatformID.Unix || Environment.OSVersion.Platform == PlatformID.MacOSX;
+
         public TcpServer( int port, bool allowRemoteConnections, string tokenDirectory )
         {
             this.port = port;
@@ -76,11 +79,17 @@ namespace Unity_Inspector_Mod
                 }
 
                 token = GenerateToken();
+                string tokenDirectory = Path.GetDirectoryName( tokenPath );
+                Directory.CreateDirectory( tokenDirectory );
 
-                socket = new Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
-                socket.Bind( new IPEndPoint( bindAddress, port ) );
-                WriteTokenFile();
-                socket.Listen( (int)SocketOptionName.MaxConnections );
+                // Mono binds with SO_REUSEADDR, so two games can both bind before either listens
+                using ( StartLock.Acquire( Path.Combine( tokenDirectory, $"unity-inspector-{port}.lock" ) ) )
+                {
+                    socket = new Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
+                    socket.Bind( new IPEndPoint( bindAddress, port ) );
+                    WriteTokenFile();
+                    socket.Listen( (int)SocketOptionName.MaxConnections );
+                }
 
                 listener = socket;
                 socket = null;
@@ -103,6 +112,7 @@ namespace Unity_Inspector_Mod
 
         public void Stop()
         {
+            bool wasRunning = isRunning;
             isRunning = false;
 
             ClientHandler[] toDisconnect;
@@ -130,6 +140,11 @@ namespace Unity_Inspector_Mod
             }
 
             DeleteTokenFile();
+
+            if ( wasRunning )
+            {
+                Main.Log( $"Server stopped; clients can no longer connect with the token in {tokenPath}" );
+            }
         }
 
         private static string GenerateToken()
@@ -141,10 +156,7 @@ namespace Unity_Inspector_Mod
 
         private void WriteTokenFile()
         {
-            Directory.CreateDirectory( Path.GetDirectoryName( tokenPath ) );
-
-            var platform = Environment.OSVersion.Platform;
-            if ( platform == PlatformID.Unix || platform == PlatformID.MacOSX )
+            if ( IsUnix )
             {
                 // A truncated file keeps its mode, so it is replaced, and the umask makes the new one 0600 from creation.
                 File.Delete( tokenPath );
@@ -157,6 +169,20 @@ namespace Unity_Inspector_Mod
                 finally
                 {
                     umask( oldMask );
+                }
+            }
+            else if ( WineFiles.UnderWine() )
+            {
+                File.Delete( tokenPath );
+                tokenFileWritten = true;
+                try
+                {
+                    WineFiles.WriteOwnerOnly( tokenPath, token );
+                }
+                catch ( Exception ex )
+                {
+                    Main.Log( $"Could not make the token file readable by its owner only ({ex.Message}); other local users may be able to read it" );
+                    File.WriteAllText( tokenPath, token, Encoding.ASCII );
                 }
             }
             else
@@ -197,25 +223,35 @@ namespace Unity_Inspector_Mod
                         break;
                     }
 
-                    if ( currentListener.Poll( 0, SelectMode.SelectRead ) )
+                    if ( !currentListener.Poll( 100000, SelectMode.SelectRead ) )
                     {
-                        var socket = currentListener.Accept();
+                        continue;
+                    }
 
-                        try
+                    var socket = currentListener.Accept();
+                    ClientHandler evicted = null;
+
+                    try
+                    {
+                        lock ( clientsLock )
                         {
-                            lock ( clientsLock )
+                            if ( isRunning )
                             {
-                                if ( isRunning )
-                                {
-                                    clients.Add( new ClientHandler( socket, this, token ) );
-                                    socket = null;
-                                }
+                                evicted = OldestAwaitingHelloAtCap();
+                                clients.Add( new ClientHandler( socket, this, token ) );
+                                socket = null;
                             }
                         }
-                        finally
-                        {
-                            socket?.Close();
-                        }
+                    }
+                    finally
+                    {
+                        socket?.Close();
+                    }
+
+                    if ( evicted != null )
+                    {
+                        Main.Log( $"[ClientHandler] Closed {evicted.Remote}: {MaxAwaitingHello} connections were already waiting to send a hello" );
+                        evicted.Disconnect();
                     }
                 }
                 catch ( Exception ex )
@@ -224,13 +260,29 @@ namespace Unity_Inspector_Mod
                     {
                         Main.Log( $"Error accepting client: {ex.Message}" );
                         Main.Log( $"Exception details: {ex}" );
+                        Thread.Sleep( 100 );
                     }
                 }
-                finally
-                {
-                    Thread.Sleep( 100 );
-                }
             }
+        }
+
+        private ClientHandler OldestAwaitingHelloAtCap()
+        {
+            ClientHandler oldest = null;
+            int awaiting = 0;
+            foreach ( var client in clients )
+            {
+                if ( !client.AwaitingHello )
+                {
+                    continue;
+                }
+                if ( oldest == null )
+                {
+                    oldest = client;
+                }
+                awaiting++;
+            }
+            return awaiting >= MaxAwaitingHello ? oldest : null;
         }
 
         internal void RemoveClient( ClientHandler client )
@@ -241,6 +293,7 @@ namespace Unity_Inspector_Mod
             }
 
             SpawnTrace.ReleaseOwner( client );
+            InputSimulator.ReleaseOwner( client );
         }
 
         internal string ProcessMessage( string message, ClientHandler client )
@@ -253,6 +306,7 @@ namespace Unity_Inspector_Mod
     internal class ClientHandler
     {
         private const int HelloTimeoutMs = 5000;
+        private const int HelloMaxChars = 4096;
         private const int HelloWaiting = 0;
         private const int HelloDone = 1;
         private const int HelloTimedOut = 2;
@@ -266,8 +320,11 @@ namespace Unity_Inspector_Mod
         private readonly NetworkStream stream;
         private readonly StreamReader reader;
         private readonly StreamWriter writer;
-        private bool isConnected;
+        private volatile bool isConnected;
         private int helloState = HelloWaiting;
+
+        public string Remote => remote;
+        public bool AwaitingHello => Thread.VolatileRead( ref helloState ) == HelloWaiting;
 
         public ClientHandler( Socket socket, TcpServer server, string token )
         {
@@ -313,17 +370,30 @@ namespace Unity_Inspector_Mod
                     {
                         string response = server.ProcessMessage( message, this );
 
-                        writer.WriteLine( response );
-
+                        try
+                        {
+                            writer.WriteLine( AsciiOnly( response ) );
+                        }
+                        catch ( Exception ex ) when ( ex is IOException || ex is ObjectDisposedException )
+                        {
+                            break;
+                        }
                     }
                     else
                     {
                         break;
                     }
                 }
+                catch ( IOException ex ) when ( ( ex.InnerException as SocketException )?.SocketErrorCode == SocketError.ConnectionReset )
+                {
+                    break;
+                }
                 catch ( Exception ex )
                 {
-                    Main.Log( $"[ClientHandler] Error receiving message: {ex.Message}" );
+                    if ( isConnected )
+                    {
+                        Main.Log( $"[ClientHandler] Error receiving message: {ex.Message}" );
+                    }
                     break;
                 }
             }
@@ -335,6 +405,7 @@ namespace Unity_Inspector_Mod
         {
             // ReceiveTimeout does not bound a blocking recv on this game's Mono; shutting the socket down makes it return 0.
             string line = null;
+            bool tooLong = false;
             Exception readError = null;
             var timer = new Timer( _ =>
             {
@@ -351,7 +422,7 @@ namespace Unity_Inspector_Mod
 
             try
             {
-                line = reader.ReadLine();
+                line = ReadHelloLine( out tooLong );
             }
             catch ( Exception ex )
             {
@@ -381,9 +452,18 @@ namespace Unity_Inspector_Mod
                 return false;
             }
 
+            if ( tooLong )
+            {
+                Main.Log( $"[ClientHandler] Refused {remote}: the first line ran past {HelloMaxChars} characters" );
+                return false;
+            }
+
             if ( line == null )
             {
-                Main.Log( $"[ClientHandler] Closed {remote}: the connection ended before a hello" );
+                if ( isConnected )
+                {
+                    Main.Log( $"[ClientHandler] Closed {remote}: the connection ended before a hello" );
+                }
                 return false;
             }
 
@@ -440,6 +520,57 @@ namespace Unity_Inspector_Mod
             return replied;
         }
 
+        private string ReadHelloLine( out bool tooLong )
+        {
+            tooLong = false;
+            var line = new StringBuilder();
+            for ( ;; )
+            {
+                int next = reader.Read();
+                if ( next == -1 )
+                {
+                    return line.Length == 0 ? null : line.ToString();
+                }
+                if ( next == '\n' )
+                {
+                    break;
+                }
+                if ( line.Length >= HelloMaxChars )
+                {
+                    tooLong = true;
+                    return null;
+                }
+                line.Append( (char)next );
+            }
+            if ( line.Length > 0 && line[line.Length - 1] == '\r' )
+            {
+                line.Length--;
+            }
+            return line.ToString();
+        }
+
+        // Mono's StreamWriter encodes each 1024-character block on its own and would split a surrogate pair that straddles two
+        private static string AsciiOnly( string json )
+        {
+            StringBuilder escaped = null;
+            for ( int i = 0; i < json.Length; i++ )
+            {
+                char c = json[i];
+                if ( c < 0x80 )
+                {
+                    escaped?.Append( c );
+                    continue;
+                }
+                if ( escaped == null )
+                {
+                    escaped = new StringBuilder( json.Length + 16 );
+                    escaped.Append( json, 0, i );
+                }
+                escaped.Append( "\\u" ).Append( ( (int)c ).ToString( "x4" ) );
+            }
+            return escaped == null ? json : escaped.ToString();
+        }
+
         private static JObject Refusal( string id, string error )
         {
             return new JObject
@@ -454,12 +585,15 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                writer.WriteLine( reply.ToString( Formatting.None ) );
+                writer.WriteLine( AsciiOnly( reply.ToString( Formatting.None ) ) );
                 return true;
             }
             catch ( Exception ex )
             {
-                Main.Log( $"[ClientHandler] Failed to reply to {remote}: {ex.Message}" );
+                if ( isConnected )
+                {
+                    Main.Log( $"[ClientHandler] Failed to reply to {remote}: {ex.Message}" );
+                }
                 return false;
             }
         }
@@ -482,6 +616,175 @@ namespace Unity_Inspector_Mod
             catch { }
 
             server.RemoveClient( this );
+        }
+    }
+
+    internal sealed class StartLock : IDisposable
+    {
+        private const int WaitMs = 2000;
+        private const int O_RDWR = 2;
+        private const int LOCK_EX = 2;
+        private const int LOCK_NB = 4;
+        private const int LOCK_UN = 8;
+
+        [DllImport( "libc", SetLastError = true )]
+        private static extern int open( string path, int flags );
+
+        [DllImport( "libc", SetLastError = true )]
+        private static extern int flock( int fd, int operation );
+
+        [DllImport( "libc" )]
+        private static extern int close( int fd );
+
+        private int fd = -1;
+        private FileStream stream;
+
+        // wine enforces a FileShare.None open across the processes of one prefix
+        public static StartLock Acquire( string path )
+        {
+            var held = new StartLock();
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds( WaitMs );
+
+            if ( TcpServer.IsUnix )
+            {
+                File.Open( path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite ).Close();
+                held.fd = open( path, O_RDWR );
+                if ( held.fd < 0 )
+                {
+                    Main.Log( $"Could not open {path} to start the server alone (errno {Marshal.GetLastWin32Error()})" );
+                    return held;
+                }
+                while ( flock( held.fd, LOCK_EX | LOCK_NB ) != 0 )
+                {
+                    if ( DateTime.UtcNow >= deadline )
+                    {
+                        Main.Log( $"Another game held {path} for {WaitMs / 1000}s; starting the server without it" );
+                        break;
+                    }
+                    Thread.Sleep( 20 );
+                }
+                return held;
+            }
+
+            for ( ;; )
+            {
+                try
+                {
+                    held.stream = new FileStream( path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None );
+                    return held;
+                }
+                catch ( IOException )
+                {
+                    if ( DateTime.UtcNow >= deadline )
+                    {
+                        Main.Log( $"Another game held {path} for {WaitMs / 1000}s; starting the server without it" );
+                        return held;
+                    }
+                    Thread.Sleep( 20 );
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            if ( fd >= 0 )
+            {
+                flock( fd, LOCK_UN );
+                close( fd );
+                fd = -1;
+            }
+            stream?.Close();
+            stream = null;
+        }
+    }
+
+    internal static class WineFiles
+    {
+        private const uint GenericWrite = 0x40000000;
+        private const uint CreateNew = 1;
+
+        private const uint FileAttributeNormal = 0x80;
+
+        // wine maps a descriptor whose owner is a SID outside its token, granted read and write, to Unix mode 0600
+        private const string OwnerOnly = "O:OWD:P(A;;FRFW;;;OW)";
+
+        [StructLayout( LayoutKind.Sequential )]
+        private struct SecurityAttributes
+        {
+            public int length;
+            public IntPtr descriptor;
+            public int inherit;
+        }
+
+        [DllImport( "kernel32", CharSet = CharSet.Unicode )]
+        private static extern IntPtr GetModuleHandleW( string name );
+
+        [DllImport( "kernel32", CharSet = CharSet.Ansi )]
+        private static extern IntPtr GetProcAddress( IntPtr module, string name );
+
+        [DllImport( "advapi32", CharSet = CharSet.Unicode, SetLastError = true )]
+        private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW( string sddl, uint revision, out IntPtr descriptor, IntPtr size );
+
+        [DllImport( "kernel32" )]
+        private static extern IntPtr LocalFree( IntPtr memory );
+
+        [DllImport( "kernel32", CharSet = CharSet.Unicode, SetLastError = true )]
+        private static extern IntPtr CreateFileW( string name, uint access, uint share, ref SecurityAttributes attributes, uint disposition, uint flags, IntPtr template );
+
+        [DllImport( "kernel32", SetLastError = true )]
+        private static extern bool WriteFile( IntPtr file, byte[] buffer, uint count, out uint written, IntPtr overlapped );
+
+        [DllImport( "kernel32" )]
+        private static extern bool CloseHandle( IntPtr handle );
+
+        public static bool UnderWine()
+        {
+            try
+            {
+                IntPtr ntdll = GetModuleHandleW( "ntdll.dll" );
+                return ntdll != IntPtr.Zero && GetProcAddress( ntdll, "wine_get_version" ) != IntPtr.Zero;
+            }
+            catch ( Exception )
+            {
+                return false;
+            }
+        }
+
+        public static void WriteOwnerOnly( string path, string text )
+        {
+            IntPtr descriptor;
+            if ( !ConvertStringSecurityDescriptorToSecurityDescriptorW( OwnerOnly, 1, out descriptor, IntPtr.Zero ) )
+            {
+                throw new IOException( $"the security descriptor could not be built (error {Marshal.GetLastWin32Error()})" );
+            }
+
+            try
+            {
+                var attributes = new SecurityAttributes { length = Marshal.SizeOf( typeof( SecurityAttributes ) ), descriptor = descriptor };
+                IntPtr file = CreateFileW( path, GenericWrite, 0, ref attributes, CreateNew, FileAttributeNormal, IntPtr.Zero );
+                if ( file == new IntPtr( -1 ) )
+                {
+                    throw new IOException( $"{path} could not be created (error {Marshal.GetLastWin32Error()})" );
+                }
+
+                try
+                {
+                    byte[] bytes = Encoding.ASCII.GetBytes( text );
+                    uint written;
+                    if ( !WriteFile( file, bytes, (uint)bytes.Length, out written, IntPtr.Zero ) || written != bytes.Length )
+                    {
+                        throw new IOException( $"{path} could not be written (error {Marshal.GetLastWin32Error()})" );
+                    }
+                }
+                finally
+                {
+                    CloseHandle( file );
+                }
+            }
+            finally
+            {
+                LocalFree( descriptor );
+            }
         }
     }
 }

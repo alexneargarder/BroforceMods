@@ -10,7 +10,6 @@ namespace Unity_Inspector_Mod
 {
     public static class SwapBrosIntegration
     {
-        private static bool _searched;
         private static bool _isAvailable;
         private static Action<string> _log;
 
@@ -51,7 +50,7 @@ namespace Unity_Inspector_Mod
         {
             get
             {
-                if ( !_searched )
+                if ( _modEntry == null || _modEntry.Assembly == null )
                 {
                     Search();
                 }
@@ -59,9 +58,14 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        public sealed class IncompatibleException : InvalidOperationException
+        {
+            public IncompatibleException( string message ) : base( message ) { }
+        }
+
         private static void Search()
         {
-            _searched = true;
+            _isAvailable = false;
 
             try
             {
@@ -243,6 +247,11 @@ namespace Unity_Inspector_Mod
             return character.heroType.ToString();
         }
 
+        public static bool IsCustomBro( TestVanDammeAnim character )
+        {
+            return character != null && CustomHeroName( character ) != null;
+        }
+
         private static string CustomHeroName( TestVanDammeAnim character )
         {
             try
@@ -325,7 +334,7 @@ namespace Unity_Inspector_Mod
             return FindIn( GetAvailableBros(), broName ) != null;
         }
 
-        public static string UnreachableReason( string broName, string origin, bool suggestIgnoreUnlocks )
+        public static string UnreachableReason( string broName, string origin, bool ignoringUnlocks, bool suggestIgnoreUnlocks )
         {
             object settings = null;
             try { settings = _settingsField == null ? null : _settingsField.GetValue( null ); }
@@ -338,7 +347,7 @@ namespace Unity_Inspector_Mod
             };
 
             string hint = suggestIgnoreUnlocks ? " - pass ignoreUnlocks: true to swap it in anyway" : "";
-            bool ironBroGate = GameModeController.IsHardcoreMode && !option( _ignoreCurrentUnlockedField );
+            bool ironBroGate = !ignoringUnlocks && GameModeController.IsHardcoreMode && !option( _ignoreCurrentUnlockedField );
 
             if ( origin == "custom" )
             {
@@ -354,7 +363,7 @@ namespace Unity_Inspector_Mod
                 List<string> unlocked;
                 string failure;
                 ReadBroMakerBros( out unlocked, out failure );
-                if ( unlocked != null && FindIn( unlocked, broName ) == null )
+                if ( !ignoringUnlocks && unlocked != null && FindIn( unlocked, broName ) == null )
                 {
                     return "it is locked" + hint;
                 }
@@ -388,6 +397,107 @@ namespace Unity_Inspector_Mod
             }
 
             return "Swap Bros Mod's settings do not say why";
+        }
+
+        private static FieldInfo _gameModeBeforeBrodownField;
+
+        public static string NextSpawnOverride( int playerNum )
+        {
+            object settings = null;
+            try { settings = _settingsField == null ? null : _settingsField.GetValue( null ); }
+            catch { }
+            if ( settings == null )
+            {
+                return null;
+            }
+
+            Func<string, bool> option = name =>
+            {
+                try
+                {
+                    FieldInfo field = settings.GetType().GetField( name, BindingFlags.Public | BindingFlags.Instance );
+                    return field != null && (bool)field.GetValue( settings );
+                }
+                catch { return false; }
+            };
+
+            if ( option( "enableBromaker" ) )
+            {
+                bool[] cutscene = BroMakerStatic( "BroMakerLib.Loaders.LoadHero", "willPlayCutscene" ) as bool[];
+                if ( cutscene != null && playerNum < cutscene.Length && cutscene[playerNum] )
+                {
+                    return "BroMaker spawns a just-unlocked custom bro next";
+                }
+                if ( BroMakerStatic( "BroMakerLib.Storages.BroSpawnManager", "ForceCustomThisLevel" ) as bool? == true )
+                {
+                    return "BroMaker forces custom bros on this level";
+                }
+            }
+
+            if ( option( "ignoreForcedBros" ) )
+            {
+                return null;
+            }
+
+            if ( IsVersusPickMode() )
+            {
+                return "this game mode spawns each player's pick";
+            }
+
+            MapData map = Map.MapData;
+            if ( map != null && ( map.forcedBro != HeroType.Random || ( map.forcedBros != null && map.forcedBros.Count > 0 ) ) )
+            {
+                return "this level forces its bros";
+            }
+            return null;
+        }
+
+        private static bool IsVersusPickMode()
+        {
+            if ( GameModeController.GameMode == GameMode.BroDown )
+            {
+                if ( _gameModeBeforeBrodownField == null )
+                {
+                    _gameModeBeforeBrodownField = typeof( GameModeController ).GetField( "gameModeBeforeBrodown", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static );
+                }
+                object before = _gameModeBeforeBrodownField == null ? null : _gameModeBeforeBrodownField.GetValue( null );
+                return before is GameMode && ( (GameMode)before == GameMode.DeathMatch || (GameMode)before == GameMode.Race );
+            }
+            return GameModeController.IsDeathMatchMode || GameModeController.GameMode == GameMode.Race;
+        }
+
+        private static object BroMakerStatic( string typeName, string member )
+        {
+            try
+            {
+                foreach ( var assembly in AppDomain.CurrentDomain.GetAssemblies() )
+                {
+                    if ( assembly.GetName().Name != "BroMakerLib" )
+                    {
+                        continue;
+                    }
+
+                    Type type = assembly.GetType( typeName );
+                    if ( type == null )
+                    {
+                        return null;
+                    }
+
+                    var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+                    FieldInfo field = type.GetField( member, flags );
+                    if ( field != null )
+                    {
+                        return field.GetValue( null );
+                    }
+                    PropertyInfo property = type.GetProperty( member, flags );
+                    return property == null ? null : property.GetValue( null, null );
+                }
+            }
+            catch ( Exception ex )
+            {
+                Log( $"Reading BroMakerLib's {typeName}.{member} failed: {ex.GetBaseException().Message}" );
+            }
+            return null;
         }
 
         public static bool? ReadAlwaysChosen()
@@ -478,13 +588,13 @@ namespace Unity_Inspector_Mod
             string missing = MissingUnlockMembers();
             if ( missing != null )
             {
-                throw new InvalidOperationException( $"Swap Bros Mod has no {missing} member, so its unlock gates cannot be lifted" );
+                throw new IncompatibleException( $"Swap Bros Mod has no {missing} member, so its unlock gates cannot be lifted" );
             }
 
             object settings = _settingsField.GetValue( null );
             if ( settings == null )
             {
-                throw new InvalidOperationException( "Swap Bros Mod's settings are not loaded, so its unlock gates cannot be lifted" );
+                throw new IncompatibleException( "Swap Bros Mod's settings are not loaded, so its unlock gates cannot be lifted" );
             }
 
             bool savedIgnore = (bool)_ignoreCurrentUnlockedField.GetValue( settings );
@@ -525,8 +635,14 @@ namespace Unity_Inspector_Mod
                 _allCustomBrosField.SetValue( null, savedCustom );
                 _actuallyAllCustomBrosField.SetValue( null, savedActuallyCustom );
                 _customBroCountField.SetValue( null, savedCustomCount );
-                _createBroListMethod.Invoke( null, null );
-                _selGridIntField.SetValue( settings, savedSelection );
+                try
+                {
+                    _createBroListMethod.Invoke( null, null );
+                }
+                finally
+                {
+                    _selGridIntField.SetValue( settings, savedSelection );
+                }
             }
 
             return new

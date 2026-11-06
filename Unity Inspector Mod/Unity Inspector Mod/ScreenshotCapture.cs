@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using RocketLib.Utils;
 using UnityEngine;
@@ -13,23 +14,47 @@ namespace Unity_Inspector_Mod
         public string HighlightError;
     }
 
+    public sealed class ScreenshotBusyException : Exception
+    {
+        public ScreenshotBusyException( string message ) : base( message ) { }
+    }
+
     public static class ScreenshotCapture
     {
+        private const int KeptScreenshots = 50;
+        private const int LockWaitMs = 2000;
+        private const int CaptureWaitMs = 3000;
+        private const int PollIntervalMs = 25;
+
         private static readonly string screenshotDirectory;
         private static readonly bool isLinux;
+        private static readonly object captureLock = new object();
+        private static readonly byte[] PngTrailer = { 0, 0, 0, 0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82 };
 
         static ScreenshotCapture()
         {
             isLinux = Application.platform == RuntimePlatform.LinuxPlayer;
             screenshotDirectory = Path.Combine( Main.mod.Path, "Screenshots" );
-
-            if ( !Directory.Exists( screenshotDirectory ) )
-            {
-                Directory.CreateDirectory( screenshotDirectory );
-            }
         }
 
         public static ScreenshotResult TakeScreenshot( JToken highlight )
+        {
+            if ( !System.Threading.Monitor.TryEnter( captureLock, LockWaitMs ) )
+            {
+                throw new ScreenshotBusyException( $"Another take_screenshot was still capturing after {LockWaitMs}ms - try again" );
+            }
+
+            try
+            {
+                return TakeScreenshotLocked( highlight );
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit( captureLock );
+            }
+        }
+
+        private static ScreenshotResult TakeScreenshotLocked( JToken highlight )
         {
             var result = new ScreenshotResult();
 
@@ -135,60 +160,97 @@ namespace Unity_Inspector_Mod
                     return "highlight is an empty GameObject path";
                 }
 
-                GameObject go = MessageHandler.FindGameObjectByPath( path );
-                if ( go == null )
-                {
-                    return $"GameObject not found: {path}";
-                }
-
-                // The path lookup falls back to a scan that also turns up inactive objects and prefab
-                // assets, and neither of those is in the frame the capture is about to take.
-                if ( !go.activeInHierarchy )
-                {
-                    return $"'{go.name}' is inactive, so it is not in the captured frame";
-                }
-
-                string error = BoundsOf( go, out bounds );
-                if ( error != null )
-                {
-                    return error;
-                }
-
-                subject = $"'{go.name}'";
+                return HighlightObject( path, null, out bounds, out subject );
             }
-            else
+
+            var rectangle = highlight as JObject;
+            if ( rectangle == null )
             {
-                var rectangle = highlight as JObject;
-                if ( rectangle == null )
-                {
-                    return "highlight must be a GameObject path or a rectangle with x, y, width and height";
-                }
-
-                foreach ( var key in new[] { "x", "y", "width", "height" } )
-                {
-                    if ( rectangle[key] == null )
-                    {
-                        return $"highlight rectangle has no '{key}' - it needs x, y, width and height in world units";
-                    }
-                }
-
-                float rx = rectangle["x"].Value<float>();
-                float ry = rectangle["y"].Value<float>();
-                float rw = rectangle["width"].Value<float>();
-                float rh = rectangle["height"].Value<float>();
-
-                bounds = new Bounds(
-                    new Vector3( rx + rw / 2f, ry + rh / 2f, 0f ),
-                    new Vector3( Mathf.Abs( rw ), Mathf.Abs( rh ), 0f ) );
-                subject = "the highlight rectangle";
+                return "highlight must be a GameObject path, an object with an instanceId, or a rectangle with x, y, width and height";
             }
 
+            int? instanceId;
+            try
+            {
+                instanceId = MessageHandler.ReadInt( rectangle, "instanceId", "highlight instanceId" );
+            }
+            catch ( CallerErrorException ex )
+            {
+                return ex.Message;
+            }
+            if ( instanceId.HasValue )
+            {
+                return HighlightObject( null, instanceId, out bounds, out subject );
+            }
+
+            foreach ( var key in new[] { "x", "y", "width", "height" } )
+            {
+                var part = rectangle[key];
+                if ( part == null || part.Type == JTokenType.Null )
+                {
+                    return $"highlight rectangle has no '{key}' - it needs x, y, width and height in world units";
+                }
+                if ( ( part.Type != JTokenType.Integer && part.Type != JTokenType.Float )
+                     || float.IsNaN( part.Value<float>() ) || float.IsInfinity( part.Value<float>() ) )
+                {
+                    return $"highlight rectangle '{key}' must be a finite number in world units, got {part.ToString( Newtonsoft.Json.Formatting.None )}";
+                }
+            }
+
+            float rx = rectangle["x"].Value<float>();
+            float ry = rectangle["y"].Value<float>();
+            float rw = rectangle["width"].Value<float>();
+            float rh = rectangle["height"].Value<float>();
+
+            bounds = new Bounds(
+                new Vector3( rx + rw / 2f, ry + rh / 2f, 0f ),
+                new Vector3( Mathf.Abs( rw ), Mathf.Abs( rh ), 0f ) );
+            return OnScreenError( bounds, "the highlight rectangle" );
+        }
+
+        private static string OnScreenError( Bounds bounds, string subject )
+        {
             if ( !IsOnScreen( bounds ) )
             {
                 return $"{subject} is off-screen, so no outline would be visible in the capture";
             }
 
             return null;
+        }
+
+        private static string HighlightObject( string path, int? instanceId, out Bounds bounds, out string subject )
+        {
+            bounds = new Bounds();
+            subject = null;
+
+            GameObject go;
+            try
+            {
+                go = GameObjectInspector.Resolve( path, instanceId ).GameObject;
+            }
+            catch ( ArgumentException ex )
+            {
+                return ex.Message;
+            }
+
+            if ( GameObjectInspector.IsAsset( go ) )
+            {
+                return $"'{go.name}' is a prefab asset, not an object in a scene, so it is not in the captured frame";
+            }
+
+            if ( !go.activeInHierarchy )
+            {
+                return $"'{go.name}' is inactive, so it is not in the captured frame";
+            }
+
+            string error = BoundsOf( go, out bounds );
+            if ( error != null )
+            {
+                return error;
+            }
+
+            subject = $"'{go.name}'";
+            return OnScreenError( bounds, subject );
         }
 
         // The camera the game renders the level with; any overlap with its view counts, so an object
@@ -278,36 +340,29 @@ namespace Unity_Inspector_Mod
         {
             try
             {
+                Directory.CreateDirectory( screenshotDirectory );
+
                 var timestamp = DateTime.Now.ToString( "yyyyMMdd_HHmmss" );
                 var randomId = Guid.NewGuid().ToString( "N" ).Substring( 0, 8 );
-                var filename = $"screenshot_{timestamp}_{randomId}.png";
+                var path = Path.Combine( screenshotDirectory, $"screenshot_{timestamp}_{randomId}.png" );
 
-                ManageScreenshotHistory();
+                MainThreadDispatcher.EnqueueAndWait( () => ScreenCapture.CaptureScreenshot( path ), CaptureWaitMs );
 
-                var path = Path.Combine( screenshotDirectory, filename );
-
-                ScreenCapture.CaptureScreenshot( path );
-
-                const int timeoutMs = 3000;
-                const int pollIntervalMs = 25;
                 int elapsed = 0;
-                while ( !File.Exists( path ) && elapsed < timeoutMs )
+                while ( !IsCompletePng( path ) && elapsed < CaptureWaitMs )
                 {
-                    System.Threading.Thread.Sleep( pollIntervalMs );
-                    elapsed += pollIntervalMs;
+                    System.Threading.Thread.Sleep( PollIntervalMs );
+                    elapsed += PollIntervalMs;
                 }
 
-                if ( !File.Exists( path ) )
+                if ( !IsCompletePng( path ) )
                 {
-                    throw new IOException( $"Screenshot capture timed out after {timeoutMs}ms" );
+                    throw new IOException( $"No complete screenshot appeared at {path} within {CaptureWaitMs}ms - the game's log says why" );
                 }
 
-                if ( isLinux )
-                {
-                    return path;
-                }
+                PruneScreenshots( path );
 
-                return path.Replace( '\\', '/' );
+                return isLinux ? path : path.Replace( '\\', '/' );
             }
             catch ( Exception ex )
             {
@@ -316,42 +371,68 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static void ManageScreenshotHistory()
+        // The file appears when Unity opens it, before the image is written.
+        private static bool IsCompletePng( string path )
         {
             try
             {
-                var latestPath = Path.Combine( screenshotDirectory, "latest.png" );
-
-                if ( File.Exists( latestPath ) )
+                using ( var stream = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete ) )
                 {
-                    for ( int i = 4; i >= 1; i-- )
+                    if ( stream.Length < PngTrailer.Length + 8 )
                     {
-                        var oldPath = Path.Combine( screenshotDirectory, $"latest-{i}.png" );
-                        var newPath = Path.Combine( screenshotDirectory, $"latest-{i + 1}.png" );
-
-                        if ( File.Exists( newPath ) )
-                        {
-                            File.Delete( newPath );
-                        }
-
-                        if ( File.Exists( oldPath ) )
-                        {
-                            File.Move( oldPath, newPath );
-                        }
+                        return false;
                     }
 
-                    File.Move( latestPath, Path.Combine( screenshotDirectory, "latest-1.png" ) );
-                }
+                    var tail = new byte[PngTrailer.Length];
+                    stream.Seek( -PngTrailer.Length, SeekOrigin.End );
+                    int read = 0;
+                    while ( read < tail.Length )
+                    {
+                        int got = stream.Read( tail, read, tail.Length - read );
+                        if ( got <= 0 )
+                        {
+                            return false;
+                        }
+                        read += got;
+                    }
 
-                var oldestPath = Path.Combine( screenshotDirectory, "latest-6.png" );
-                if ( File.Exists( oldestPath ) )
+                    for ( int i = 0; i < tail.Length; i++ )
+                    {
+                        if ( tail[i] != PngTrailer[i] )
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            catch ( IOException )
+            {
+                return false;
+            }
+            catch ( UnauthorizedAccessException )
+            {
+                return false;
+            }
+        }
+
+        private static void PruneScreenshots( string keep )
+        {
+            try
+            {
+                var old = new DirectoryInfo( screenshotDirectory ).GetFiles( "screenshot_*.png" )
+                    .Where( file => !string.Equals( file.FullName, Path.GetFullPath( keep ), StringComparison.Ordinal ) )
+                    .OrderByDescending( file => file.LastWriteTimeUtc )
+                    .Skip( KeptScreenshots - 1 );
+
+                foreach ( var file in old )
                 {
-                    File.Delete( oldestPath );
+                    file.Delete();
                 }
             }
             catch ( Exception ex )
             {
-                Main.Log( $"Error managing screenshot history: {ex.Message}" );
+                Main.Log( $"Could not prune old screenshots: {ex.Message}" );
             }
         }
     }

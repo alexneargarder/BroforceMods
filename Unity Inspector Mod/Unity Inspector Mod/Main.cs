@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using HarmonyLib;
 using UnityEngine;
 using UnityModManagerNet;
@@ -9,23 +11,20 @@ namespace Unity_Inspector_Mod
     internal static class Main
     {
         public static UnityModManager.ModEntry mod;
-        public static bool enabled;
         public static Settings settings;
         public static TcpServer server;
+        private static int mainThreadId;
+        private static readonly Queue<string> pendingLog = new Queue<string>();
 
         private static bool Load( UnityModManager.ModEntry modEntry )
         {
+            mainThreadId = Thread.CurrentThread.ManagedThreadId;
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
             modEntry.OnToggle = OnToggle;
             modEntry.OnUnload = OnUnload;
             settings = Settings.Load<Settings>( modEntry );
             mod = modEntry;
-
-            if ( settings.autoStartServer )
-            {
-                StartServer();
-            }
 
             MainThreadDispatcher.Initialize();
 
@@ -39,11 +38,17 @@ namespace Unity_Inspector_Mod
                 var assembly = Assembly.GetExecutingAssembly();
                 harmony.PatchAll( assembly );
                 Log( "Harmony patches applied successfully" );
+                InputSimulator.CheckPatches( harmony, null );
             }
             catch ( Exception ex )
             {
                 Log( $"Failed to apply Harmony patches: {ex.Message}" );
+                InputSimulator.CheckPatches( new Harmony( modEntry.Info.Id ), ex );
             }
+
+            FrozenClock.Install( new Harmony( modEntry.Info.Id ) );
+
+            InputSimulator.InstallBindingPatch( new Harmony( modEntry.Info.Id ) );
 
             return true;
         }
@@ -84,7 +89,7 @@ namespace Unity_Inspector_Mod
 
             if ( settings.allowRemoteConnections != ( settings.allowRemoteConnections = GUILayout.Toggle( settings.allowRemoteConnections,
                     new GUIContent( $"Allow remote connections (LAN) - clients need the token from {tokenFile}",
-                        $"Off: the server only listens on 127.0.0.1. On: it listens on all interfaces, which is required when the MCP client runs in a VM such as WSL. A client on the network needs the token from {tokenFile}, which changes every time the server starts." ) ) ) )
+                        $"Off: the server only listens on 127.0.0.1. On: it listens on all interfaces, which a client on another machine needs, and so does one in WSL2 with its default NAT networking. A client on the network needs the token from {tokenFile}, which changes every time the server starts." ) ) ) )
             {
                 settings.Save( mod );
 
@@ -102,20 +107,35 @@ namespace Unity_Inspector_Mod
             settings.Save( modEntry );
         }
 
+        // UMM activates a mod it has just loaded through OnToggle(true)
         private static bool OnToggle( UnityModManager.ModEntry modEntry, bool value )
         {
-            enabled = value;
+            if ( !value )
+            {
+                StopServer();
+                InputSimulator.StopAll( "the Unity Inspector Mod was disabled" );
+            }
+            else if ( settings.autoStartServer )
+            {
+                StartServer();
+            }
             return true;
         }
 
         private static bool OnUnload( UnityModManager.ModEntry modEntry )
         {
             StopServer();
+            InputSimulator.StopAll( "the Unity Inspector Mod was unloaded" );
+            FlushPendingLog();
             return true;
         }
 
         private static void StartServer()
         {
+            if ( server != null && server.IsRunning )
+            {
+                return;
+            }
             try
             {
                 server = new TcpServer( settings.serverPort, settings.allowRemoteConnections, Application.persistentDataPath );
@@ -136,9 +156,36 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        // UMM's logger is unsynchronized and its main thread writes the buffer out every half second
         public static void Log( String str )
         {
+            if ( Thread.CurrentThread.ManagedThreadId != mainThreadId )
+            {
+                lock ( pendingLog )
+                {
+                    pendingLog.Enqueue( str );
+                }
+                return;
+            }
+            FlushPendingLog();
             mod.Logger.Log( str );
+        }
+
+        internal static void FlushPendingLog()
+        {
+            while ( true )
+            {
+                string line;
+                lock ( pendingLog )
+                {
+                    if ( pendingLog.Count == 0 )
+                    {
+                        return;
+                    }
+                    line = pendingLog.Dequeue();
+                }
+                mod.Logger.Log( line );
+            }
         }
     }
 

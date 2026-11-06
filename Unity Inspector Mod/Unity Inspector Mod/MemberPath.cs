@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -15,6 +16,7 @@ namespace Unity_Inspector_Mod
         public object Owner;
         public FieldInfo Field;
         public PropertyInfo Property;
+        public int Index = -1;
         public object Value;
         public bool IsValueType;
     }
@@ -92,6 +94,40 @@ namespace Unity_Inspector_Mod
                 string walked = string.Join( Separator, segments, 0, i + 1 );
 
                 var currentType = current.GetType();
+
+                int index;
+                string indexError;
+                if ( TryIndex( current, segment, path, out index, out indexError ) )
+                {
+                    if ( indexError != null )
+                    {
+                        resolution.Reason = "not-found";
+                        resolution.Error = indexError;
+                        return resolution;
+                    }
+
+                    object element = ( (IList)current )[index];
+                    resolution.Chain.Add( new MemberPathStep
+                    {
+                        Name = segment,
+                        Owner = current,
+                        Index = index,
+                        Value = element,
+                        IsValueType = element != null && element.GetType().IsValueType
+                    } );
+
+                    if ( IsNullReference( element ) )
+                    {
+                        resolution.Reason = "error";
+                        resolution.Error = element == null
+                            ? $"Cannot resolve '{path}': '{walked}' is null"
+                            : $"Cannot resolve '{path}': '{walked}' is a destroyed UnityEngine.Object";
+                        return resolution;
+                    }
+
+                    current = element;
+                    continue;
+                }
 
                 FieldInfo field;
                 PropertyInfo property;
@@ -172,7 +208,15 @@ namespace Unity_Inspector_Mod
                     break;
                 }
 
-                if ( step.Field != null )
+                if ( step.Index >= 0 )
+                {
+                    if ( ( (IList)step.Owner ).IsReadOnly )
+                    {
+                        reason = "read-only";
+                        return $"Cannot store a change back through '{step.Name}': the {step.Owner.GetType().Name} is read-only";
+                    }
+                }
+                else if ( step.Field != null )
                 {
                     if ( step.Field.IsLiteral )
                     {
@@ -200,7 +244,11 @@ namespace Unity_Inspector_Mod
                     break;
                 }
 
-                if ( step.Field != null )
+                if ( step.Index >= 0 )
+                {
+                    ( (IList)step.Owner )[step.Index] = step.Value;
+                }
+                else if ( step.Field != null )
                 {
                     step.Field.SetValue( step.Field.IsStatic ? null : step.Owner, step.Value );
                 }
@@ -226,6 +274,47 @@ namespace Unity_Inspector_Mod
             }
 
             return property.GetValue( accessor.IsStatic ? null : owner, null );
+        }
+
+        public static bool TryIndex( object owner, string segment, string path, out int index, out string error )
+        {
+            index = -1;
+            error = null;
+
+            var list = owner as IList;
+            if ( list == null || segment.Length == 0 )
+            {
+                return false;
+            }
+            foreach ( char c in segment )
+            {
+                if ( c < '0' || c > '9' )
+                {
+                    return false;
+                }
+            }
+
+            if ( !int.TryParse( segment, out index ) || index >= list.Count )
+            {
+                error = $"Index {segment} is out of range in '{path}': the {owner.GetType().Name} has {list.Count} items";
+            }
+            return true;
+        }
+
+        public static Type ElementType( Type listType )
+        {
+            if ( listType.IsArray )
+            {
+                return listType.GetElementType();
+            }
+            foreach ( var face in listType.GetInterfaces() )
+            {
+                if ( face.IsGenericType && face.GetGenericTypeDefinition() == typeof( IList<> ) )
+                {
+                    return face.GetGenericArguments()[0];
+                }
+            }
+            return typeof( object );
         }
 
         public static object ReadField( FieldInfo field, object owner )
