@@ -7,7 +7,7 @@ namespace Unity_Inspector_Mod
 {
     public static class ScriptContext
     {
-        private static readonly Action<string> DefaultLogger = msg => Main.Log("[Script] " + msg);
+        private static readonly Action<string> DefaultLogger = msg => Main.Log( "[Script] " + msg );
 
         private static Action<string> logger = DefaultLogger;
 
@@ -21,11 +21,14 @@ namespace Unity_Inspector_Mod
             internal set { logger = value ?? DefaultLogger; }
         }
 
-        public static string GetArg(string key, string defaultValue = "")
+        public static string GetArg( string key, string defaultValue = "" )
         {
-            if (Args == null) return defaultValue;
+            if ( Args == null )
+            {
+                return defaultValue;
+            }
             string value;
-            return Args.TryGetValue(key, out value) ? value : defaultValue;
+            return Args.TryGetValue( key, out value ) ? value : defaultValue;
         }
 
         internal sealed class Scope
@@ -36,8 +39,8 @@ namespace Unity_Inspector_Mod
             internal Dictionary<string, string> Args;
         }
 
-        internal static Scope Enter(Harmony harmony, Action<string> scriptLogger,
-            List<GameObject> gameObjects, Dictionary<string, string> args)
+        internal static Scope Enter( Harmony harmony, Action<string> scriptLogger,
+            List<GameObject> gameObjects, Dictionary<string, string> args )
         {
             var saved = new Scope
             {
@@ -55,7 +58,7 @@ namespace Unity_Inspector_Mod
             return saved;
         }
 
-        internal static void Exit(Scope saved)
+        internal static void Exit( Scope saved )
         {
             Harmony = saved.Harmony;
             Logger = saved.Logger;

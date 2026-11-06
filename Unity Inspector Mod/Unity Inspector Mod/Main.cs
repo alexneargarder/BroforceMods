@@ -6,14 +6,14 @@ using UnityModManagerNet;
 
 namespace Unity_Inspector_Mod
 {
-    static class Main
+    internal static class Main
     {
         public static UnityModManager.ModEntry mod;
         public static bool enabled;
         public static Settings settings;
         public static TcpServer server;
 
-        static bool Load( UnityModManager.ModEntry modEntry )
+        private static bool Load( UnityModManager.ModEntry modEntry )
         {
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
@@ -26,29 +26,29 @@ namespace Unity_Inspector_Mod
             {
                 StartServer();
             }
-            
+
             MainThreadDispatcher.Initialize();
-            
+
             InputSimulator.Initialize();
 
             SwapBrosIntegration.Initialize( Log );
 
             try
             {
-                var harmony = new Harmony(modEntry.Info.Id);
+                var harmony = new Harmony( modEntry.Info.Id );
                 var assembly = Assembly.GetExecutingAssembly();
-                harmony.PatchAll(assembly);
-                Log("Harmony patches applied successfully");
+                harmony.PatchAll( assembly );
+                Log( "Harmony patches applied successfully" );
             }
-            catch (Exception ex)
+            catch ( Exception ex )
             {
-                Log($"Failed to apply Harmony patches: {ex.Message}");
+                Log( $"Failed to apply Harmony patches: {ex.Message}" );
             }
 
             return true;
         }
 
-        static void OnGUI( UnityModManager.ModEntry modEntry )
+        private static void OnGUI( UnityModManager.ModEntry modEntry )
         {
             GUILayout.Label( $"TCP Server Status: {( server != null && server.IsRunning ? "Running" : "Stopped" )}" );
 
@@ -97,24 +97,24 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        static void OnSaveGUI( UnityModManager.ModEntry modEntry )
+        private static void OnSaveGUI( UnityModManager.ModEntry modEntry )
         {
             settings.Save( modEntry );
         }
 
-        static bool OnToggle( UnityModManager.ModEntry modEntry, bool value )
+        private static bool OnToggle( UnityModManager.ModEntry modEntry, bool value )
         {
             enabled = value;
             return true;
         }
 
-        static bool OnUnload( UnityModManager.ModEntry modEntry )
+        private static bool OnUnload( UnityModManager.ModEntry modEntry )
         {
             StopServer();
             return true;
         }
 
-        static void StartServer()
+        private static void StartServer()
         {
             try
             {
@@ -127,7 +127,7 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        static void StopServer()
+        private static void StopServer()
         {
             if ( server != null )
             {
@@ -140,7 +140,6 @@ namespace Unity_Inspector_Mod
         {
             mod.Logger.Log( str );
         }
-
     }
 
     public class Settings : UnityModManager.ModSettings
@@ -154,5 +153,4 @@ namespace Unity_Inspector_Mod
             Save( this, modEntry );
         }
     }
-
 }

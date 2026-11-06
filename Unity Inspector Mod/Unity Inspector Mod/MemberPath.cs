@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using HarmonyLib;
 
 namespace Unity_Inspector_Mod
 {
@@ -42,7 +41,7 @@ namespace Unity_Inspector_Mod
     internal static class MemberPath
     {
         public const BindingFlags MemberFlags = BindingFlags.DeclaredOnly | BindingFlags.Public
-            | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+                                                                          | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
         private const int MaxSuggestions = 5;
         private const int MaxDistance = 3;
@@ -169,7 +168,9 @@ namespace Unity_Inspector_Mod
             {
                 var step = resolution.Chain[i];
                 if ( !step.IsValueType )
+                {
                     break;
+                }
 
                 if ( step.Field != null )
                 {
@@ -195,7 +196,9 @@ namespace Unity_Inspector_Mod
             {
                 var step = resolution.Chain[i];
                 if ( !step.IsValueType )
+                {
                     break;
+                }
 
                 if ( step.Field != null )
                 {
@@ -295,7 +298,9 @@ namespace Unity_Inspector_Mod
                     {
                         // An indexer is not reachable by name and an unreadable property is not worth walking to.
                         if ( !property.CanRead || property.GetIndexParameters().Length != 0 )
+                        {
                             continue;
+                        }
 
                         AddCandidate( candidates, seen, property.Name );
                     }
@@ -323,17 +328,23 @@ namespace Unity_Inspector_Mod
             foreach ( var candidate in candidates )
             {
                 if ( string.IsNullOrEmpty( candidate ) || !seen.Add( candidate ) )
+                {
                     continue;
+                }
 
                 string lowered = candidate.ToLowerInvariant();
                 bool contained = lowered.Contains( target ) || target.Contains( lowered );
 
                 if ( !contained && System.Math.Abs( lowered.Length - target.Length ) > MaxDistance )
+                {
                     continue;
+                }
 
                 int distance = LevenshteinDistance( target, lowered );
                 if ( !contained && distance > MaxDistance )
+                {
                     continue;
+                }
 
                 ranked.Add( new KeyValuePair<int, string>( distance, candidate ) );
             }
@@ -347,7 +358,9 @@ namespace Unity_Inspector_Mod
             {
                 closest.Add( entry.Value );
                 if ( closest.Count == MaxSuggestions )
+                {
                     break;
+                }
             }
 
             return closest.ToArray();
@@ -356,10 +369,14 @@ namespace Unity_Inspector_Mod
         public static bool IsNullReference( object value )
         {
             if ( value == null )
+            {
                 return true;
+            }
 
             if ( value is UnityEngine.Object )
+            {
                 return (UnityEngine.Object)value == null;
+            }
 
             return false;
         }
@@ -368,7 +385,9 @@ namespace Unity_Inspector_Mod
         {
             // Backing fields and other compiler-generated names are never worth suggesting.
             if ( name.IndexOf( '<' ) >= 0 )
+            {
                 return;
+            }
 
             if ( seen.Add( name ) )
             {
@@ -379,10 +398,14 @@ namespace Unity_Inspector_Mod
         private static int LevenshteinDistance( string a, string b )
         {
             if ( a.Length == 0 )
+            {
                 return b.Length;
+            }
 
             if ( b.Length == 0 )
+            {
                 return a.Length;
+            }
 
             var previous = new int[b.Length + 1];
             var current = new int[b.Length + 1];

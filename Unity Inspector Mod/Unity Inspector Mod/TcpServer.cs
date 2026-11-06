@@ -53,13 +53,16 @@ namespace Unity_Inspector_Mod
             this.port = port;
             this.allowRemoteConnections = allowRemoteConnections;
             // Application.persistentDataPath, which only the main thread may read, arrives as tokenDirectory.
-            this.tokenPath = Path.Combine( tokenDirectory, TokenFileName( port ) );
-            this.messageHandler = new MessageHandler();
+            tokenPath = Path.Combine( tokenDirectory, TokenFileName( port ) );
+            messageHandler = new MessageHandler();
         }
 
         public void Start()
         {
-            if ( isRunning ) return;
+            if ( isRunning )
+            {
+                return;
+            }
 
             Socket socket = null;
             try
@@ -165,7 +168,10 @@ namespace Unity_Inspector_Mod
 
         private void DeleteTokenFile()
         {
-            if ( !tokenFileWritten ) return;
+            if ( !tokenFileWritten )
+            {
+                return;
+            }
             tokenFileWritten = false;
 
             try
@@ -186,7 +192,10 @@ namespace Unity_Inspector_Mod
                 try
                 {
                     var currentListener = listener;
-                    if ( currentListener == null ) break;
+                    if ( currentListener == null )
+                    {
+                        break;
+                    }
 
                     if ( currentListener.Poll( 0, SelectMode.SelectRead ) )
                     {
@@ -265,11 +274,11 @@ namespace Unity_Inspector_Mod
             this.socket = socket;
             this.server = server;
             this.token = token;
-            this.remote = socket.RemoteEndPoint?.ToString() ?? "unknown peer";
-            this.stream = new NetworkStream( socket, true );
-            this.reader = new StreamReader( stream, new UTF8Encoding( false ) );
-            this.writer = new StreamWriter( stream, new UTF8Encoding( false ) ) { AutoFlush = true };
-            this.isConnected = true;
+            remote = socket.RemoteEndPoint?.ToString() ?? "unknown peer";
+            stream = new NetworkStream( socket, true );
+            reader = new StreamReader( stream, new UTF8Encoding( false ) );
+            writer = new StreamWriter( stream, new UTF8Encoding( false ) ) { AutoFlush = true };
+            isConnected = true;
 
             receiveThread = new Thread( ReceiveMessages );
             receiveThread.IsBackground = true;
@@ -329,7 +338,10 @@ namespace Unity_Inspector_Mod
             Exception readError = null;
             var timer = new Timer( _ =>
             {
-                if ( Interlocked.CompareExchange( ref helloState, HelloTimedOut, HelloWaiting ) != HelloWaiting ) return;
+                if ( Interlocked.CompareExchange( ref helloState, HelloTimedOut, HelloWaiting ) != HelloWaiting )
+                {
+                    return;
+                }
                 try
                 {
                     socket.Shutdown( SocketShutdown.Both );
@@ -454,7 +466,10 @@ namespace Unity_Inspector_Mod
 
         public void Disconnect()
         {
-            if ( !isConnected ) return;
+            if ( !isConnected )
+            {
+                return;
+            }
             isConnected = false;
 
             try

@@ -51,7 +51,10 @@ namespace Unity_Inspector_Mod
         {
             get
             {
-                if ( !_searched ) Search();
+                if ( !_searched )
+                {
+                    Search();
+                }
                 return _isAvailable && _modEntry != null && _modEntry.Active;
             }
         }
@@ -64,11 +67,15 @@ namespace Unity_Inspector_Mod
             {
                 _modEntry = UnityModManager.FindMod( "Swap Bros Mod" );
                 if ( _modEntry == null || _modEntry.Assembly == null )
+                {
                     return;
+                }
 
                 var mainType = _modEntry.Assembly.GetType( "Swap_Bros_Mod.API" );
                 if ( mainType == null )
+                {
                     return;
+                }
 
                 var pub = BindingFlags.Public | BindingFlags.Static;
 
@@ -117,10 +124,12 @@ namespace Unity_Inspector_Mod
         }
 
         #region Bro Listing
-
         public static List<string> GetAvailableBros()
         {
-            if ( !IsAvailable ) return new List<string>();
+            if ( !IsAvailable )
+            {
+                return new List<string>();
+            }
 
             try
             {
@@ -135,7 +144,10 @@ namespace Unity_Inspector_Mod
 
         public static List<string> GetAllNormalBros()
         {
-            if ( !IsAvailable || _getAllNormalBrosMethod == null ) return new List<string>();
+            if ( !IsAvailable || _getAllNormalBrosMethod == null )
+            {
+                return new List<string>();
+            }
 
             try
             {
@@ -146,7 +158,10 @@ namespace Unity_Inspector_Mod
 
         public static List<string> GetAllExpendabros()
         {
-            if ( !IsAvailable || _getAllExpendabrosMethod == null ) return new List<string>();
+            if ( !IsAvailable || _getAllExpendabrosMethod == null )
+            {
+                return new List<string>();
+            }
 
             try
             {
@@ -157,7 +172,10 @@ namespace Unity_Inspector_Mod
 
         public static List<string> GetAllUnfinishedBros()
         {
-            if ( !IsAvailable || _getAllUnfinishedBrosMethod == null ) return new List<string>();
+            if ( !IsAvailable || _getAllUnfinishedBrosMethod == null )
+            {
+                return new List<string>();
+            }
 
             try
             {
@@ -165,15 +183,15 @@ namespace Unity_Inspector_Mod
             }
             catch { return new List<string>(); }
         }
-
         #endregion
 
         #region Current State
-
         public static int GetCurrentBroIndex( int playerNum )
         {
             if ( !IsAvailable || _getSelectedBroIndexMethod == null || playerNum < Nums.PLAYER_MIN || playerNum >= Nums.PLAYER_MAX )
+            {
                 return -1;
+            }
 
             try
             {
@@ -184,7 +202,10 @@ namespace Unity_Inspector_Mod
 
         public static string GetSelectedBroName( int playerNum )
         {
-            if ( !IsAvailable || _getSelectedBroNameMethod == null ) return null;
+            if ( !IsAvailable || _getSelectedBroNameMethod == null )
+            {
+                return null;
+            }
 
             try
             {
@@ -195,17 +216,26 @@ namespace Unity_Inspector_Mod
 
         public static string GetLiveBroName( TestVanDammeAnim character )
         {
-            if ( character == null ) return null;
+            if ( character == null )
+            {
+                return null;
+            }
 
             string custom = CustomHeroName( character );
-            if ( custom != null ) return custom;
+            if ( custom != null )
+            {
+                return custom;
+            }
 
             if ( IsAvailable && _heroTypeToStringMethod != null )
             {
                 try
                 {
                     string name = _heroTypeToStringMethod.Invoke( null, new object[] { character.heroType } ) as string;
-                    if ( !string.IsNullOrEmpty( name ) ) return name;
+                    if ( !string.IsNullOrEmpty( name ) )
+                    {
+                        return name;
+                    }
                 }
                 catch { }
             }
@@ -219,7 +249,10 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( Type iface in character.GetType().GetInterfaces() )
                 {
-                    if ( iface.FullName != "BroMakerLib.CustomObjects.ICustomHero" ) continue;
+                    if ( iface.FullName != "BroMakerLib.CustomObjects.ICustomHero" )
+                    {
+                        continue;
+                    }
 
                     PropertyInfo infoProperty = iface.GetProperty( "Info" );
                     object info = infoProperty == null ? null : infoProperty.GetValue( character, null );
@@ -235,25 +268,35 @@ namespace Unity_Inspector_Mod
 
             return null;
         }
-
         #endregion
 
         #region Roster Diagnosis
-
         public static string FindKnownBro( string broName, out string origin )
         {
             origin = null;
             string match;
 
-            if ( ( match = FindIn( GetAllNormalBros(), broName ) ) != null ) origin = "vanilla";
-            else if ( ( match = FindIn( GetAllExpendabros(), broName ) ) != null ) origin = "expendabros";
-            else if ( ( match = FindIn( GetAllUnfinishedBros(), broName ) ) != null ) origin = "unfinished";
+            if ( ( match = FindIn( GetAllNormalBros(), broName ) ) != null )
+            {
+                origin = "vanilla";
+            }
+            else if ( ( match = FindIn( GetAllExpendabros(), broName ) ) != null )
+            {
+                origin = "expendabros";
+            }
+            else if ( ( match = FindIn( GetAllUnfinishedBros(), broName ) ) != null )
+            {
+                origin = "unfinished";
+            }
             else
             {
                 List<string> unlocked;
                 string failure;
                 match = FindIn( ReadBroMakerBros( out unlocked, out failure ), broName );
-                if ( match != null ) origin = "custom";
+                if ( match != null )
+                {
+                    origin = "custom";
+                }
             }
 
             return match;
@@ -269,7 +312,10 @@ namespace Unity_Inspector_Mod
             List<string> unlocked;
             string failure;
             List<string> custom = ReadBroMakerBros( out unlocked, out failure );
-            if ( custom != null ) names.AddRange( custom );
+            if ( custom != null )
+            {
+                names.AddRange( custom );
+            }
 
             return names;
         }
@@ -296,19 +342,37 @@ namespace Unity_Inspector_Mod
 
             if ( origin == "custom" )
             {
-                if ( !option( _enableBromakerField ) ) return "Swap Bros Mod's Include BroMaker Bros option is off";
-                if ( ironBroGate ) return "this IronBro run's roster does not hold it" + hint;
+                if ( !option( _enableBromakerField ) )
+                {
+                    return "Swap Bros Mod's Include BroMaker Bros option is off";
+                }
+                if ( ironBroGate )
+                {
+                    return "this IronBro run's roster does not hold it" + hint;
+                }
 
                 List<string> unlocked;
                 string failure;
                 ReadBroMakerBros( out unlocked, out failure );
-                if ( unlocked != null && FindIn( unlocked, broName ) == null ) return "it is locked" + hint;
+                if ( unlocked != null && FindIn( unlocked, broName ) == null )
+                {
+                    return "it is locked" + hint;
+                }
             }
             else
             {
-                if ( ironBroGate ) return "this IronBro run's roster does not hold it" + hint;
-                if ( origin == "expendabros" && !option( _includeExpendabrosField ) ) return "Swap Bros Mod's Include Expendabro Bros option is off";
-                if ( origin == "unfinished" && !option( _includeUnfinishedField ) ) return "Swap Bros Mod's Include Unfinished Bros option is off";
+                if ( ironBroGate )
+                {
+                    return "this IronBro run's roster does not hold it" + hint;
+                }
+                if ( origin == "expendabros" && !option( _includeExpendabrosField ) )
+                {
+                    return "Swap Bros Mod's Include Expendabro Bros option is off";
+                }
+                if ( origin == "unfinished" && !option( _includeUnfinishedField ) )
+                {
+                    return "Swap Bros Mod's Include Unfinished Bros option is off";
+                }
             }
 
             if ( option( _filterBrosField ) )
@@ -317,7 +381,10 @@ namespace Unity_Inspector_Mod
                 try { enabled = _enabledBrosField == null ? null : _enabledBrosField.GetValue( settings ) as List<string>; }
                 catch { }
 
-                if ( enabled != null && enabled.Count > 0 && !enabled.Contains( broName ) ) return "Swap Bros Mod's Filter Bros option leaves it out";
+                if ( enabled != null && enabled.Count > 0 && !enabled.Contains( broName ) )
+                {
+                    return "Swap Bros Mod's Filter Bros option leaves it out";
+                }
             }
 
             return "Swap Bros Mod's settings do not say why";
@@ -328,7 +395,10 @@ namespace Unity_Inspector_Mod
             try
             {
                 object settings = _settingsField == null ? null : _settingsField.GetValue( null );
-                if ( settings == null || _alwaysChosenField == null ) return null;
+                if ( settings == null || _alwaysChosenField == null )
+                {
+                    return null;
+                }
                 return (bool)_alwaysChosenField.GetValue( settings );
             }
             catch { return null; }
@@ -336,17 +406,21 @@ namespace Unity_Inspector_Mod
 
         private static string FindIn( IEnumerable<string> names, string broName )
         {
-            if ( names == null ) return null;
+            if ( names == null )
+            {
+                return null;
+            }
             return names.FirstOrDefault( name => string.Equals( name, broName, StringComparison.OrdinalIgnoreCase ) );
         }
-
         #endregion
 
         #region Swapping
-
         public static bool SwapToBro( int playerNum, int broIndex )
         {
-            if ( !IsAvailable ) return false;
+            if ( !IsAvailable )
+            {
+                return false;
+            }
 
             try
             {
@@ -361,7 +435,10 @@ namespace Unity_Inspector_Mod
 
         public static bool SwapToBroByName( int playerNum, string broName )
         {
-            if ( !IsAvailable || _swapByNameMethod == null ) return false;
+            if ( !IsAvailable || _swapByNameMethod == null )
+            {
+                return false;
+            }
 
             try
             {
@@ -373,14 +450,15 @@ namespace Unity_Inspector_Mod
                 return false;
             }
         }
-
         #endregion
 
         #region Next Spawn Selection
-
         public static bool SetNextBroByName( int playerNum, string broName )
         {
-            if ( !IsAvailable || _setSelectedBroByNameMethod == null ) return false;
+            if ( !IsAvailable || _setSelectedBroByNameMethod == null )
+            {
+                return false;
+            }
 
             try
             {
@@ -392,11 +470,9 @@ namespace Unity_Inspector_Mod
                 return false;
             }
         }
-
         #endregion
 
         #region Unlock Override
-
         public static object RunIgnoringUnlocks( string broName, Func<bool> swap )
         {
             string missing = MissingUnlockMembers();
@@ -479,14 +555,38 @@ namespace Unity_Inspector_Mod
 
         private static string MissingUnlockMembers()
         {
-            if ( _settingsField == null ) return "Main.settings";
-            if ( _ignoreCurrentUnlockedField == null ) return "Settings.ignoreCurrentUnlocked";
-            if ( _alwaysChosenField == null ) return "Settings.alwaysChosen";
-            if ( _selGridIntField == null || _selGridIntField.FieldType != typeof( int[] ) ) return "Settings.selGridInt";
-            if ( _allCustomBrosField == null ) return "Main.allCustomBros";
-            if ( _actuallyAllCustomBrosField == null ) return "Main.actuallyAllCustomBros";
-            if ( _customBroCountField == null || _customBroCountField.FieldType != typeof( int ) ) return "Main.customBroCount";
-            if ( _createBroListMethod == null ) return "Main.CreateBroList()";
+            if ( _settingsField == null )
+            {
+                return "Main.settings";
+            }
+            if ( _ignoreCurrentUnlockedField == null )
+            {
+                return "Settings.ignoreCurrentUnlocked";
+            }
+            if ( _alwaysChosenField == null )
+            {
+                return "Settings.alwaysChosen";
+            }
+            if ( _selGridIntField == null || _selGridIntField.FieldType != typeof( int[] ) )
+            {
+                return "Settings.selGridInt";
+            }
+            if ( _allCustomBrosField == null )
+            {
+                return "Main.allCustomBros";
+            }
+            if ( _actuallyAllCustomBrosField == null )
+            {
+                return "Main.actuallyAllCustomBros";
+            }
+            if ( _customBroCountField == null || _customBroCountField.FieldType != typeof( int ) )
+            {
+                return "Main.customBroCount";
+            }
+            if ( _createBroListMethod == null )
+            {
+                return "Main.CreateBroList()";
+            }
             return null;
         }
 
@@ -544,7 +644,10 @@ namespace Unity_Inspector_Mod
                 unlockedNames = new List<string>();
                 foreach ( object name in unlocked )
                 {
-                    if ( name is string ) unlockedNames.Add( (string)name );
+                    if ( name is string )
+                    {
+                        unlockedNames.Add( (string)name );
+                    }
                 }
 
                 return names;
@@ -555,7 +658,6 @@ namespace Unity_Inspector_Mod
                 return null;
             }
         }
-
         #endregion
 
         private static void Log( string message )

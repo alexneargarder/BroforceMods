@@ -150,11 +150,11 @@ namespace Unity_Inspector_Mod
         {
             var includeInactive = parameters?["includeInactive"]?.Value<bool>() ?? true;
             var maxResults = parameters?["maxResults"]?.Value<int>() ?? 100;
-            
-            
+
+
             var rootObjects = GameObjectInspector.GetRootGameObjects( includeInactive );
 
-            var limitedObjects = rootObjects.Take(maxResults).ToList();
+            var limitedObjects = rootObjects.Take( maxResults ).ToList();
 
             return new
             {
@@ -173,7 +173,7 @@ namespace Unity_Inspector_Mod
 
         private object HandleInspectGameObject( JObject parameters )
         {
-            
+
             var path = parameters?["path"]?.ToString();
             if ( string.IsNullOrEmpty( path ) )
             {
@@ -197,12 +197,12 @@ namespace Unity_Inspector_Mod
             var path = parameters?["path"]?.ToString();
             var componentType = parameters?["componentType"]?.ToString();
             var memberPath = parameters?["memberPath"]?.ToString();
-            
+
             if ( string.IsNullOrEmpty( path ) )
             {
                 throw new ArgumentException( "GameObject path is required" );
             }
-            
+
             if ( string.IsNullOrEmpty( componentType ) )
             {
                 throw new ArgumentException( "Component type is required" );
@@ -246,7 +246,7 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                
+
                 var players = HeroController.players;
                 if ( players == null || players.Length == 0 )
                 {
@@ -398,11 +398,23 @@ namespace Unity_Inspector_Mod
         {
             try
             {
-                if ( unit == null || unit.gameObject == null ) return;
+                if ( unit == null || unit.gameObject == null )
+                {
+                    return;
+                }
                 // Map.units holds units whose GameObject is inactive - 52 pre-spawned face huggers on Challenge_Alien.
-                if ( !unit.gameObject.activeInHierarchy ) return;
-                if ( !unit.IsEnemy ) return;
-                if ( !seen.Add( unit.GetInstanceID() ) ) return;
+                if ( !unit.gameObject.activeInHierarchy )
+                {
+                    return;
+                }
+                if ( !unit.IsEnemy )
+                {
+                    return;
+                }
+                if ( !seen.Add( unit.GetInstanceID() ) )
+                {
+                    return;
+                }
 
                 // RocketLib classifies Unit and TestVanDammeAnim; a NetworkedUnit that is neither has no classification.
                 Unit classifiable = unit as Unit;
@@ -456,18 +468,18 @@ namespace Unity_Inspector_Mod
                 throw new ArgumentException( "Code is required" );
             }
 
-            
+
             try
             {
-                var result = CodeExecutor.Execute(code);
+                var result = CodeExecutor.Execute( code );
                 return result;
             }
-            catch (Exception ex)
+            catch ( Exception ex )
             {
-                Main.Log($"Code execution failed: {ex.Message}");
-                return new 
-                { 
-                    success = false, 
+                Main.Log( $"Code execution failed: {ex.Message}" );
+                return new
+                {
+                    success = false,
                     error = ex.Message,
                     stackTrace = ex.StackTrace
                 };
@@ -509,49 +521,49 @@ namespace Unity_Inspector_Mod
             return "/" + path;
         }
 
-        private object HandleModifyComponent(JObject parameters)
+        private object HandleModifyComponent( JObject parameters )
         {
             var path = parameters?["path"]?.ToString();
             var componentType = parameters?["component"]?.ToString();
             var properties = parameters?["properties"] as JObject;
 
-            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(componentType) || properties == null)
+            if ( string.IsNullOrEmpty( path ) || string.IsNullOrEmpty( componentType ) || properties == null )
             {
-                throw new ArgumentException("Path, component type, and properties are required");
+                throw new ArgumentException( "Path, component type, and properties are required" );
             }
 
-            return StateModifier.ModifyComponent(path, componentType, properties);
+            return StateModifier.ModifyComponent( path, componentType, properties );
         }
 
-        private object HandleTeleportPlayer(JObject parameters)
+        private object HandleTeleportPlayer( JObject parameters )
         {
             var x = parameters?["x"]?.Value<float>();
             var y = parameters?["y"]?.Value<float>();
             var z = parameters?["z"]?.Value<float>();
 
-            if (!x.HasValue || !y.HasValue)
+            if ( !x.HasValue || !y.HasValue )
             {
-                throw new ArgumentException("X and Y coordinates are required");
+                throw new ArgumentException( "X and Y coordinates are required" );
             }
 
             var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
-            return StateModifier.TeleportPlayer(x.Value, y.Value, z, playerNum);
+            return StateModifier.TeleportPlayer( x.Value, y.Value, z, playerNum );
         }
 
-        private object HandleSetPlayerHealth(JObject parameters)
+        private object HandleSetPlayerHealth( JObject parameters )
         {
             var health = parameters?["health"]?.Value<int>();
 
-            if (!health.HasValue)
+            if ( !health.HasValue )
             {
-                throw new ArgumentException("Health value is required");
+                throw new ArgumentException( "Health value is required" );
             }
 
             var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
-            return StateModifier.SetPlayerHealth(health.Value, playerNum);
+            return StateModifier.SetPlayerHealth( health.Value, playerNum );
         }
 
-        private object HandleSpawnEntity(JObject parameters)
+        private object HandleSpawnEntity( JObject parameters )
         {
             var entityType = parameters?["type"]?.ToString();
             var x = parameters?["x"]?.Value<float>();
@@ -559,45 +571,45 @@ namespace Unity_Inspector_Mod
             var xI = parameters?["xI"]?.Value<float>();
             var yI = parameters?["yI"]?.Value<float>();
 
-            if (string.IsNullOrEmpty(entityType) || !x.HasValue || !y.HasValue)
+            if ( string.IsNullOrEmpty( entityType ) || !x.HasValue || !y.HasValue )
             {
-                throw new ArgumentException("Entity type and coordinates are required");
+                throw new ArgumentException( "Entity type and coordinates are required" );
             }
 
             var ignoreSuppression = parameters?["ignoreSuppression"]?.ToObject<bool?>() ?? false;
-            return StateModifier.SpawnEntity(entityType, x.Value, y.Value, xI ?? 0f, yI ?? 0f, ignoreSuppression);
+            return StateModifier.SpawnEntity( entityType, x.Value, y.Value, xI ?? 0f, yI ?? 0f, ignoreSuppression );
         }
 
-        private object HandleSetGameSpeed(JObject parameters)
+        private object HandleSetGameSpeed( JObject parameters )
         {
             var speed = parameters?["speed"]?.Value<float>();
 
-            if (!speed.HasValue)
+            if ( !speed.HasValue )
             {
-                throw new ArgumentException("Speed value is required");
+                throw new ArgumentException( "Speed value is required" );
             }
 
-            return StateModifier.SetGameSpeed(speed.Value);
+            return StateModifier.SetGameSpeed( speed.Value );
         }
-        
-        private object HandleGoToLevel(JObject parameters)
+
+        private object HandleGoToLevel( JObject parameters )
         {
             var campaignIndex = parameters?["campaignIndex"]?.Value<int>();
             var levelIndex = parameters?["levelIndex"]?.Value<int>();
 
-            if (!campaignIndex.HasValue || !levelIndex.HasValue)
+            if ( !campaignIndex.HasValue || !levelIndex.HasValue )
             {
-                throw new ArgumentException("Campaign index and level index are required");
+                throw new ArgumentException( "Campaign index and level index are required" );
             }
 
-            return StateModifier.GoToLevel(campaignIndex.Value, levelIndex.Value);
+            return StateModifier.GoToLevel( campaignIndex.Value, levelIndex.Value );
         }
 
-        private object HandleListCampaigns(JObject parameters)
+        private object HandleListCampaigns( JObject parameters )
         {
             return StateModifier.ListCampaigns();
         }
-        
+
         private object HandleSimulateInput( JObject parameters )
         {
             var action = parameters?["action"]?.ToString();
@@ -644,62 +656,75 @@ namespace Unity_Inspector_Mod
             return InputSimulator.SimulateInput( action, duration, playerNum, count, interval, sequence );
         }
 
-        private object HandleExecuteScript(JObject parameters)
+        private object HandleExecuteScript( JObject parameters )
         {
             var source = parameters?["source"]?.ToString();
             var name = parameters?["name"]?.ToString();
 
-            if (string.IsNullOrEmpty(source))
-                throw new ArgumentException("Script source is required");
-            if (string.IsNullOrEmpty(name))
-                throw new ArgumentException("Script name is required");
+            if ( string.IsNullOrEmpty( source ) )
+            {
+                throw new ArgumentException( "Script source is required" );
+            }
+            if ( string.IsNullOrEmpty( name ) )
+            {
+                throw new ArgumentException( "Script name is required" );
+            }
 
             Dictionary<string, string> args = null;
             var argsToken = parameters?["args"] as JObject;
-            if (argsToken != null)
+            if ( argsToken != null )
             {
                 args = new Dictionary<string, string>();
-                foreach (var prop in argsToken.Properties())
+                foreach ( var prop in argsToken.Properties() )
                 {
-                    args[prop.Name] = ScriptArgText(prop.Value);
+                    args[prop.Name] = ScriptArgText( prop.Value );
                 }
             }
 
             var origin = parameters?["origin"]?.ToString();
-            if (string.IsNullOrEmpty(origin)) origin = null;
+            if ( string.IsNullOrEmpty( origin ) )
+            {
+                origin = null;
+            }
 
-            return ScriptManager.ExecuteScript(name, source, args, origin);
+            return ScriptManager.ExecuteScript( name, source, args, origin );
         }
 
-        private static string ScriptArgText(JToken value)
+        private static string ScriptArgText( JToken value )
         {
-            return value.Type == JTokenType.String ? (string)value : value.ToString(Formatting.None);
+            return value.Type == JTokenType.String ? (string)value : value.ToString( Formatting.None );
         }
 
-        private object HandleCompileScript(JObject parameters)
+        private object HandleCompileScript( JObject parameters )
         {
             var source = parameters?["source"]?.ToString();
             var name = parameters?["name"]?.ToString();
 
-            if (string.IsNullOrEmpty(source))
-                throw new ArgumentException("Script source is required");
-            if (string.IsNullOrEmpty(name))
-                throw new ArgumentException("Script name is required");
+            if ( string.IsNullOrEmpty( source ) )
+            {
+                throw new ArgumentException( "Script source is required" );
+            }
+            if ( string.IsNullOrEmpty( name ) )
+            {
+                throw new ArgumentException( "Script name is required" );
+            }
 
-            return ScriptManager.CompileOnly(name, source);
+            return ScriptManager.CompileOnly( name, source );
         }
 
-        private object HandleUnloadScript(JObject parameters)
+        private object HandleUnloadScript( JObject parameters )
         {
             var name = parameters?["name"]?.ToString();
 
-            if (string.IsNullOrEmpty(name))
-                throw new ArgumentException("Script name is required");
+            if ( string.IsNullOrEmpty( name ) )
+            {
+                throw new ArgumentException( "Script name is required" );
+            }
 
-            return ScriptManager.UnloadScript(name);
+            return ScriptManager.UnloadScript( name );
         }
 
-        private object HandleListActiveScripts(JObject parameters)
+        private object HandleListActiveScripts( JObject parameters )
         {
             return ScriptManager.ListActiveScripts();
         }
@@ -864,7 +889,9 @@ namespace Unity_Inspector_Mod
         {
             var broName = parameters?["broName"]?.ToString();
             if ( string.IsNullOrEmpty( broName ) )
+            {
                 throw new ArgumentException( "Bro name is required" );
+            }
 
             var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
             var ignoreUnlocks = parameters?["ignoreUnlocks"]?.ToObject<bool?>() ?? false;
@@ -875,7 +902,9 @@ namespace Unity_Inspector_Mod
         {
             var broName = parameters?["broName"]?.ToString();
             if ( string.IsNullOrEmpty( broName ) )
+            {
                 throw new ArgumentException( "Bro name is required" );
+            }
 
             var playerNum = parameters?["playerNum"]?.Value<int>() ?? 0;
             return StateModifier.SetBro( broName, playerNum );

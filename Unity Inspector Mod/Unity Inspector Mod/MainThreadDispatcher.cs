@@ -27,83 +27,83 @@ namespace Unity_Inspector_Mod
             public volatile bool Completed;
             public Exception Error;
         }
-        
+
         public static MainThreadDispatcher Instance
         {
             get
             {
-                if (instance == null)
+                if ( instance == null )
                 {
                     Initialize();
                 }
                 return instance;
             }
         }
-        
+
         public static void Initialize()
         {
-            if (instance == null)
+            if ( instance == null )
             {
-                var go = new GameObject("MainThreadDispatcher");
+                var go = new GameObject( "MainThreadDispatcher" );
                 // PauseController.PauseGameObjects deactivates every active object not tagged Unpausable.
                 go.tag = "Unpausable";
                 instance = go.AddComponent<MainThreadDispatcher>();
-                DontDestroyOnLoad(go);
+                DontDestroyOnLoad( go );
             }
         }
-        
-        void Awake()
+
+        private void Awake()
         {
             mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
 
         public void Update()
         {
-            if (mainThreadId == 0)
+            if ( mainThreadId == 0 )
             {
                 mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             }
 
-            lock (executionQueue)
+            lock ( executionQueue )
             {
-                while (executionQueue.Count > 0)
+                while ( executionQueue.Count > 0 )
                 {
                     var action = executionQueue.Dequeue();
                     try
                     {
                         action.Invoke();
                     }
-                    catch (Exception ex)
+                    catch ( Exception ex )
                     {
-                        Main.Log($"[MainThreadDispatcher] Error executing action: {ex.Message}");
+                        Main.Log( $"[MainThreadDispatcher] Error executing action: {ex.Message}" );
                     }
                 }
             }
         }
-        
-        public static void Enqueue(Action action)
+
+        public static void Enqueue( Action action )
         {
-            if (action == null)
+            if ( action == null )
             {
                 return;
             }
-            
-            lock (executionQueue)
+
+            lock ( executionQueue )
             {
-                executionQueue.Enqueue(action);
+                executionQueue.Enqueue( action );
             }
         }
-        
-        public static void EnqueueAndWait(Action action, int timeoutMs = 5000)
+
+        public static void EnqueueAndWait( Action action, int timeoutMs = 5000 )
         {
-            if (action == null)
+            if ( action == null )
             {
                 return;
             }
-            
+
             // Already on the main thread: the queue cannot drain while this call waits, so waiting
             // on it would only spend the whole budget and time out.
-            if (System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId)
+            if ( System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId )
             {
                 action();
                 return;
@@ -118,8 +118,8 @@ namespace Unity_Inspector_Mod
 
             Action wrapper = () =>
             {
-                if (System.Threading.Interlocked.CompareExchange(
-                        ref pending.State, StateRunning, StatePending) != StatePending)
+                if ( System.Threading.Interlocked.CompareExchange(
+                        ref pending.State, StateRunning, StatePending ) != StatePending )
                 {
                     return;
                 }
@@ -128,7 +128,7 @@ namespace Unity_Inspector_Mod
                 {
                     action();
                 }
-                catch (Exception ex)
+                catch ( Exception ex )
                 {
                     pending.Error = ex;
                 }
@@ -138,55 +138,55 @@ namespace Unity_Inspector_Mod
                 }
             };
 
-            if (!System.Threading.Monitor.TryEnter(executionQueue, timeoutMs))
+            if ( !System.Threading.Monitor.TryEnter( executionQueue, timeoutMs ) )
             {
-                throw new TimeoutException($"Main thread action timed out after {timeoutMs}ms");
+                throw new TimeoutException( $"Main thread action timed out after {timeoutMs}ms" );
             }
             try
             {
-                executionQueue.Enqueue(wrapper);
+                executionQueue.Enqueue( wrapper );
             }
             finally
             {
-                System.Threading.Monitor.Exit(executionQueue);
+                System.Threading.Monitor.Exit( executionQueue );
             }
 
             bool started = false;
-            while (!pending.Completed)
+            while ( !pending.Completed )
             {
-                double elapsed = (DateTime.Now - startTime).TotalMilliseconds;
-                if (!started && elapsed > timeoutMs)
+                double elapsed = ( DateTime.Now - startTime ).TotalMilliseconds;
+                if ( !started && elapsed > timeoutMs )
                 {
-                    if (System.Threading.Interlocked.CompareExchange(
-                            ref pending.State, StateAbandoned, StatePending) == StatePending)
+                    if ( System.Threading.Interlocked.CompareExchange(
+                            ref pending.State, StateAbandoned, StatePending ) == StatePending )
                     {
-                        throw new TimeoutException($"Main thread action timed out after {timeoutMs}ms");
+                        throw new TimeoutException( $"Main thread action timed out after {timeoutMs}ms" );
                     }
 
                     // The action beat the deadline to the state and is running now, so it will finish
                     // and set Completed; the caller gets its return or its exception, never a timeout.
                     started = true;
                 }
-                else if (started && elapsed > timeoutMs * 2)
+                else if ( started && elapsed > timeoutMs * 2 )
                 {
                     throw new MainThreadActionRunningException(
-                        $"Main thread action started but has not finished after {timeoutMs * 2}ms - the main thread is not advancing");
+                        $"Main thread action started but has not finished after {timeoutMs * 2}ms - the main thread is not advancing" );
                 }
-                System.Threading.Thread.Sleep(10);
+                System.Threading.Thread.Sleep( 10 );
             }
 
-            if (pending.Error != null)
+            if ( pending.Error != null )
             {
                 throw pending.Error;
             }
         }
-        
+
         public sealed class MainThreadActionRunningException : Exception
         {
-            public MainThreadActionRunningException(string message) : base(message) { }
+            public MainThreadActionRunningException( string message ) : base( message ) { }
         }
 
-        void OnDestroy()
+        private void OnDestroy()
         {
             instance = null;
         }

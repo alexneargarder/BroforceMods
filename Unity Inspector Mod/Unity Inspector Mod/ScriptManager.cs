@@ -40,15 +40,18 @@ namespace Unity_Inspector_Mod
             private readonly Action<string> inner;
             private bool capturing = true;
 
-            public MainOutputCapture(Action<string> inner)
+            public MainOutputCapture( Action<string> inner )
             {
                 this.inner = inner;
             }
 
-            public void Log(string msg)
+            public void Log( string msg )
             {
-                if (capturing) lines.Add(msg);
-                inner(msg);
+                if ( capturing )
+                {
+                    lines.Add( msg );
+                }
+                inner( msg );
             }
 
             public string[] Stop()
@@ -65,18 +68,18 @@ namespace Unity_Inspector_Mod
             public readonly List<string> Errors = new List<string>();
             public string Incomplete;
 
-            public void AddIncomplete(string message)
+            public void AddIncomplete( string message )
             {
-                Errors.Add(message);
+                Errors.Add( message );
                 Incomplete = Incomplete == null ? message : Incomplete + "; " + message;
             }
         }
 
         private static readonly Dictionary<string, ActiveScript> activeScripts =
-            new Dictionary<string, ActiveScript>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, ActiveScript>( StringComparer.OrdinalIgnoreCase );
 
-        public static object ExecuteScript(string name, string source, Dictionary<string, string> args,
-            string origin)
+        public static object ExecuteScript( string name, string source, Dictionary<string, string> args,
+            string origin )
         {
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
@@ -84,54 +87,54 @@ namespace Unity_Inspector_Mod
             ScriptCompiler.PatchConstantImport();
             ScriptCompiler.PatchAssemblyLocation();
             ScriptCompiler.PatchNestedTypeImport();
-            var hash = ComputeHash(source);
+            var hash = ComputeHash( source );
 
             ActiveScript existing;
-            activeScripts.TryGetValue(name, out existing);
+            activeScripts.TryGetValue( name, out existing );
 
-            if (existing != null && origin != null && existing.Origin != null
-                && !string.Equals(existing.Origin, origin, StringComparison.Ordinal))
+            if ( existing != null && origin != null && existing.Origin != null
+                 && !string.Equals( existing.Origin, origin, StringComparison.Ordinal ) )
             {
                 return new
                 {
                     success = false,
                     error = "Script '" + name + "' is already loaded from " + existing.Origin
-                        + ", a different file from " + origin + ". Unload it with unload_script first,"
-                        + " or rename one of the files."
+                            + ", a different file from " + origin + ". Unload it with unload_script first,"
+                            + " or rename one of the files."
                 };
             }
 
             // Harmony's PatchInfo does not deduplicate, so re-entering Main() would stack patches and fire twice.
-            if (existing != null && existing.SourceHash == hash)
+            if ( existing != null && existing.SourceHash == hash )
             {
-                var restart = CleanupScript(name, existing);
-                LogCleanupWarnings(name, "restart", restart.Errors);
+                var restart = CleanupScript( name, existing );
+                LogCleanupWarnings( name, "restart", restart.Errors );
 
-                if (restart.Incomplete != null)
+                if ( restart.Incomplete != null )
                 {
-                    return StillLoadedRefusal(name, "restarted", restart);
+                    return StillLoadedRefusal( name, "restarted", restart );
                 }
 
                 // Main() runs again, so the next teardown starts from the top.
                 existing.UnloadRan = false;
                 existing.HarmonyUnpatched = false;
                 existing.Origin = origin ?? existing.Origin;
-                return InvokeMain(name, existing, args);
+                return InvokeMain( name, existing, args );
             }
 
-            if (existing != null)
+            if ( existing != null )
             {
-                var cleanup = UnloadInternal(name, existing);
-                LogCleanupWarnings(name, "replace", cleanup.Errors);
+                var cleanup = UnloadInternal( name, existing );
+                LogCleanupWarnings( name, "replace", cleanup.Errors );
 
-                if (cleanup.Incomplete != null)
+                if ( cleanup.Incomplete != null )
                 {
-                    return StillLoadedRefusal(name, "replaced", cleanup);
+                    return StillLoadedRefusal( name, "replaced", cleanup );
                 }
             }
 
-            var result = ScriptCompiler.Compile(name, source);
-            if (!result.Success)
+            var result = ScriptCompiler.Compile( name, source );
+            if ( !result.Success )
             {
                 return new
                 {
@@ -141,21 +144,21 @@ namespace Unity_Inspector_Mod
                 };
             }
 
-            Action<string> persistentLogger = msg => Main.Log("[Script:" + name + "] " + msg);
+            Action<string> persistentLogger = msg => Main.Log( "[Script:" + name + "] " + msg );
             var script = new ActiveScript
             {
                 Assembly = result.Assembly,
-                HarmonyInstance = new Harmony("script." + name),
+                HarmonyInstance = new Harmony( "script." + name ),
                 TrackedGameObjects = new List<GameObject>(),
                 SourceHash = hash,
                 Logger = persistentLogger,
                 Origin = origin
             };
 
-            foreach (var type in result.Assembly.GetTypes())
+            foreach ( var type in result.Assembly.GetTypes() )
             {
-                var unload = type.GetMethod("Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-                if (unload != null && unload.GetParameters().Length == 0)
+                var unload = type.GetMethod( "Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static );
+                if ( unload != null && unload.GetParameters().Length == 0 )
                 {
                     script.UnloadMethod = unload;
                     break;
@@ -164,12 +167,12 @@ namespace Unity_Inspector_Mod
 
             activeScripts[name] = script;
 
-            CodeExecutor.RegisterScriptAssembly(result.Assembly);
+            CodeExecutor.RegisterScriptAssembly( result.Assembly );
 
-            return InvokeMain(name, script, args);
+            return InvokeMain( name, script, args );
         }
 
-        public static object CompileOnly(string name, string source)
+        public static object CompileOnly( string name, string source )
         {
             ScriptCompiler.PatchTokenCheck();
             ScriptCompiler.PatchExtensionMethodCrash();
@@ -177,8 +180,8 @@ namespace Unity_Inspector_Mod
             ScriptCompiler.PatchConstantImport();
             ScriptCompiler.PatchAssemblyLocation();
             ScriptCompiler.PatchNestedTypeImport();
-            var result = ScriptCompiler.Compile(name, source);
-            if (!result.Success)
+            var result = ScriptCompiler.Compile( name, source );
+            if ( !result.Success )
             {
                 return new
                 {
@@ -189,14 +192,14 @@ namespace Unity_Inspector_Mod
             }
 
             var types = result.Assembly.GetTypes()
-                .Select(t => t.FullName)
+                .Select( t => t.FullName )
                 .ToArray();
 
             bool hasMain = result.Assembly.GetTypes()
-                .Any(t => t.GetMethod("Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null);
+                .Any( t => t.GetMethod( "Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static ) != null );
 
             bool hasUnload = result.Assembly.GetTypes()
-                .Any(t => t.GetMethod("Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null);
+                .Any( t => t.GetMethod( "Unload", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static ) != null );
 
             return new
             {
@@ -207,189 +210,191 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static CleanupResult CleanupScript(string name, ActiveScript script)
+        private static CleanupResult CleanupScript( string name, ActiveScript script )
         {
             var result = new CleanupResult();
 
-            if (script.MainRunning)
+            if ( script.MainRunning )
             {
-                result.AddIncomplete("Main() is still running");
+                result.AddIncomplete( "Main() is still running" );
                 return result;
             }
 
             bool unloadRunning = script.UnloadRunning;
-            if (script.UnloadMethod != null && !script.UnloadRan)
+            if ( script.UnloadMethod != null && !script.UnloadRan )
             {
-                if (unloadRunning)
+                if ( unloadRunning )
                 {
-                    result.AddIncomplete("Unload() is still running from an earlier teardown");
+                    result.AddIncomplete( "Unload() is still running from an earlier teardown" );
                     return result;
                 }
 
                 try
                 {
-                    MainThreadDispatcher.EnqueueAndWait(() => RunUnload(script), 10000);
+                    MainThreadDispatcher.EnqueueAndWait( () => RunUnload( script ), 10000 );
                 }
-                catch (TimeoutException ex)
+                catch ( TimeoutException ex )
                 {
-                    result.AddIncomplete("Unload() timed out: " + ex.Message);
+                    result.AddIncomplete( "Unload() timed out: " + ex.Message );
                     return result;
                 }
-                catch (MainThreadDispatcher.MainThreadActionRunningException ex)
+                catch ( MainThreadDispatcher.MainThreadActionRunningException ex )
                 {
-                    result.AddIncomplete("Unload() is still running: " + ex.Message);
+                    result.AddIncomplete( "Unload() is still running: " + ex.Message );
                     return result;
                 }
             }
 
             var unloadError = script.UnloadError;
-            if (unloadError != null)
+            if ( unloadError != null )
             {
                 script.UnloadError = null;
-                result.Errors.Add("Unload() failed: " + DescribeException(unloadError));
+                result.Errors.Add( "Unload() failed: " + DescribeException( unloadError ) );
             }
 
-            if (!script.HarmonyUnpatched)
+            if ( !script.HarmonyUnpatched )
             {
                 try
                 {
-                    script.HarmonyInstance.UnpatchAll("script." + name);
+                    script.HarmonyInstance.UnpatchAll( "script." + name );
                 }
-                catch (Exception ex)
+                catch ( Exception ex )
                 {
-                    result.Errors.Add("Harmony unpatch failed: " + ex.Message);
+                    result.Errors.Add( "Harmony unpatch failed: " + ex.Message );
                 }
 
                 script.HarmonyUnpatched = true;
             }
 
-            if (script.TrackedGameObjects.Count > 0)
+            if ( script.TrackedGameObjects.Count > 0 )
             {
                 try
                 {
-                    MainThreadDispatcher.EnqueueAndWait(() =>
+                    MainThreadDispatcher.EnqueueAndWait( () =>
                     {
-                        foreach (var go in script.TrackedGameObjects)
+                        foreach ( var go in script.TrackedGameObjects )
                         {
-                            if (go != null)
+                            if ( go != null )
                             {
-                                UnityEngine.Object.Destroy(go);
+                                UnityEngine.Object.Destroy( go );
                             }
                         }
 
                         // Cleared inside the action: a wait that timed out destroyed nothing, and a clear
                         // outside it would drop the only handles on objects that are still alive.
                         script.TrackedGameObjects.Clear();
-                    }, 5000);
+                    }, 5000 );
                 }
-                catch (TimeoutException ex)
+                catch ( TimeoutException ex )
                 {
-                    result.AddIncomplete("GameObject cleanup timed out: " + ex.Message);
+                    result.AddIncomplete( "GameObject cleanup timed out: " + ex.Message );
                     return result;
                 }
-                catch (MainThreadDispatcher.MainThreadActionRunningException ex)
+                catch ( MainThreadDispatcher.MainThreadActionRunningException ex )
                 {
-                    result.AddIncomplete("GameObject cleanup is still running: " + ex.Message);
+                    result.AddIncomplete( "GameObject cleanup is still running: " + ex.Message );
                     return result;
                 }
-                catch (Exception ex)
+                catch ( Exception ex )
                 {
-                    result.Errors.Add("GameObject cleanup failed: " + ex.Message);
+                    result.Errors.Add( "GameObject cleanup failed: " + ex.Message );
                 }
             }
 
             return result;
         }
 
-        private static void RunUnload(ActiveScript script)
+        private static void RunUnload( ActiveScript script )
         {
             script.UnloadRunning = true;
-            var saved = ScriptContext.Enter(script.HarmonyInstance, script.Logger,
-                script.TrackedGameObjects, script.Args);
+            var saved = ScriptContext.Enter( script.HarmonyInstance, script.Logger,
+                script.TrackedGameObjects, script.Args );
             try
             {
-                script.UnloadMethod.Invoke(null, null);
+                script.UnloadMethod.Invoke( null, null );
             }
-            catch (TargetInvocationException tie)
+            catch ( TargetInvocationException tie )
             {
                 script.UnloadError = tie.InnerException ?? tie;
             }
-            catch (Exception ex)
+            catch ( Exception ex )
             {
                 script.UnloadError = ex;
             }
             finally
             {
-                ScriptContext.Exit(saved);
+                ScriptContext.Exit( saved );
                 script.UnloadRan = true;
                 script.UnloadRunning = false;
             }
         }
 
-        private static string DescribeException(Exception ex)
+        private static string DescribeException( Exception ex )
         {
             var text = ex.GetType().FullName + ": " + ex.Message;
-            return string.IsNullOrEmpty(ex.StackTrace) ? text : text + "\n" + ex.StackTrace;
+            return string.IsNullOrEmpty( ex.StackTrace ) ? text : text + "\n" + ex.StackTrace;
         }
 
-        private static object StillLoadedRefusal(string name, string action, CleanupResult cleanup)
+        private static object StillLoadedRefusal( string name, string action, CleanupResult cleanup )
         {
             return new
             {
                 success = false,
                 error = "Script '" + name + "' is still loaded and was not " + action + ": "
-                    + cleanup.Incomplete
-                    + ". The teardown stopped at that stage and the ones after it have not run; the ones"
-                    + " before it stay done, so unload_script can be called to finish it before the"
-                    + " script is loaded again.",
+                        + cleanup.Incomplete
+                        + ". The teardown stopped at that stage and the ones after it have not run; the ones"
+                        + " before it stay done, so unload_script can be called to finish it before the"
+                        + " script is loaded again.",
                 warnings = cleanup.Errors.ToArray()
             };
         }
 
-        private static void LogCleanupWarnings(string name, string action, List<string> warnings)
+        private static void LogCleanupWarnings( string name, string action, List<string> warnings )
         {
-            foreach (var warning in warnings)
-                Main.Log("[Script:" + name + "] " + action + ": " + warning);
+            foreach ( var warning in warnings )
+            {
+                Main.Log( "[Script:" + name + "] " + action + ": " + warning );
+            }
         }
 
-        private static CleanupResult UnloadInternal(string name, ActiveScript script)
+        private static CleanupResult UnloadInternal( string name, ActiveScript script )
         {
-            var result = CleanupScript(name, script);
+            var result = CleanupScript( name, script );
 
-            if (result.Incomplete != null)
+            if ( result.Incomplete != null )
             {
                 return result;
             }
 
-            activeScripts.Remove(name);
-            CodeExecutor.UnregisterScriptAssembly(script.Assembly);
+            activeScripts.Remove( name );
+            CodeExecutor.UnregisterScriptAssembly( script.Assembly );
 
             return result;
         }
 
-        public static object UnloadScript(string name)
+        public static object UnloadScript( string name )
         {
             ActiveScript script;
-            if (!activeScripts.TryGetValue(name, out script))
+            if ( !activeScripts.TryGetValue( name, out script ) )
             {
                 return new { success = false, error = "Script not found: " + name };
             }
 
-            var result = UnloadInternal(name, script);
+            var result = UnloadInternal( name, script );
 
-            if (result.Incomplete != null)
+            if ( result.Incomplete != null )
             {
                 return new
                 {
                     success = false,
                     error = "Script '" + name + "' is still loaded: " + result.Incomplete
-                        + ". The teardown stopped at that stage and the ones after it have not run; the"
-                        + " ones before it stay done, so unload_script can be called again to finish it.",
+                            + ". The teardown stopped at that stage and the ones after it have not run; the"
+                            + " ones before it stay done, so unload_script can be called again to finish it.",
                     warnings = result.Errors.ToArray()
                 };
             }
 
-            if (result.Errors.Count > 0)
+            if ( result.Errors.Count > 0 )
             {
                 return new
                 {
@@ -403,45 +408,45 @@ namespace Unity_Inspector_Mod
 
         public static object ListActiveScripts()
         {
-            var scripts = activeScripts.Select(kvp => new
+            var scripts = activeScripts.Select( kvp => new
             {
                 name = kvp.Key,
                 origin = kvp.Value.Origin,
                 hasUnload = kvp.Value.UnloadMethod != null,
                 trackedObjects = kvp.Value.TrackedGameObjects.Count,
-                types = kvp.Value.Assembly.GetTypes().Select(t => t.FullName).ToArray()
-            }).ToArray();
+                types = kvp.Value.Assembly.GetTypes().Select( t => t.FullName ).ToArray()
+            } ).ToArray();
 
             return new { count = scripts.Length, scripts };
         }
 
-        internal static List<Assembly> LoadedScriptAssemblies(string exceptName)
+        internal static List<Assembly> LoadedScriptAssemblies( string exceptName )
         {
             return activeScripts
-                .Where(kvp => !string.Equals(kvp.Key, exceptName, StringComparison.OrdinalIgnoreCase))
-                .Select(kvp => kvp.Value.Assembly)
+                .Where( kvp => !string.Equals( kvp.Key, exceptName, StringComparison.OrdinalIgnoreCase ) )
+                .Select( kvp => kvp.Value.Assembly )
                 .ToList();
         }
 
-        private static object InvokeMain(string name, ActiveScript script, Dictionary<string, string> args)
+        private static object InvokeMain( string name, ActiveScript script, Dictionary<string, string> args )
         {
             script.Args = args ?? new Dictionary<string, string>();
 
             MethodInfo mainMethod = null;
-            foreach (var type in script.Assembly.GetTypes())
+            foreach ( var type in script.Assembly.GetTypes() )
             {
-                var main = type.GetMethod("Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-                if (main != null && main.GetParameters().Length == 0)
+                var main = type.GetMethod( "Main", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static );
+                if ( main != null && main.GetParameters().Length == 0 )
                 {
                     mainMethod = main;
                     break;
                 }
             }
 
-            if (mainMethod == null)
+            if ( mainMethod == null )
             {
                 var types = script.Assembly.GetTypes()
-                    .Select(t => t.FullName)
+                    .Select( t => t.FullName )
                     .ToArray();
 
                 return new
@@ -454,61 +459,64 @@ namespace Unity_Inspector_Mod
             }
 
             Exception executionException = null;
-            var capture = new MainOutputCapture(script.Logger);
+            var capture = new MainOutputCapture( script.Logger );
             string[] output = null;
 
             try
             {
-                MainThreadDispatcher.EnqueueAndWait(() =>
+                MainThreadDispatcher.EnqueueAndWait( () =>
                 {
                     script.MainRunning = true;
-                    var saved = ScriptContext.Enter(script.HarmonyInstance, capture.Log,
-                        script.TrackedGameObjects, script.Args);
+                    var saved = ScriptContext.Enter( script.HarmonyInstance, capture.Log,
+                        script.TrackedGameObjects, script.Args );
                     try
                     {
-                        mainMethod.Invoke(null, null);
+                        mainMethod.Invoke( null, null );
                     }
-                    catch (TargetInvocationException tie)
+                    catch ( TargetInvocationException tie )
                     {
                         executionException = tie.InnerException ?? tie;
                     }
-                    catch (Exception ex)
+                    catch ( Exception ex )
                     {
                         executionException = ex;
                     }
                     finally
                     {
-                        ScriptContext.Exit(saved);
+                        ScriptContext.Exit( saved );
                         output = capture.Stop();
                         script.MainRunning = false;
                     }
-                }, 30000);
+                }, 30000 );
             }
-            catch (TimeoutException ex)
+            catch ( TimeoutException ex )
             {
-                activeScripts.Remove(name);
-                CodeExecutor.UnregisterScriptAssembly(script.Assembly);
+                activeScripts.Remove( name );
+                CodeExecutor.UnregisterScriptAssembly( script.Assembly );
                 return new
                 {
                     success = false,
                     error = "Main() did not start and the script was not loaded: " + ex.Message
-                        + ". The game's main thread was busy; execute_script can be called again."
+                                                                                   + ". The game's main thread was busy; execute_script can be called again."
                 };
             }
-            catch (MainThreadDispatcher.MainThreadActionRunningException ex)
+            catch ( MainThreadDispatcher.MainThreadActionRunningException ex )
             {
                 return new
                 {
                     success = false,
                     error = "Script '" + name + "' is loaded but Main() is still running: " + ex.Message
-                        + ". Its output and outcome are not reported; unload_script tears it down once"
-                        + " Main() has returned."
+                            + ". Its output and outcome are not reported; unload_script tears it down once"
+                            + " Main() has returned."
                 };
             }
 
-            if (output == null) output = new string[0];
+            if ( output == null )
+            {
+                output = new string[0];
+            }
 
-            if (executionException != null)
+            if ( executionException != null )
             {
                 return new
                 {
@@ -528,15 +536,17 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static string ComputeHash(string source)
+        private static string ComputeHash( string source )
         {
-            using (var md5 = MD5.Create())
+            using ( var md5 = MD5.Create() )
             {
-                var bytes = Encoding.UTF8.GetBytes(source);
-                var hash = md5.ComputeHash(bytes);
+                var bytes = Encoding.UTF8.GetBytes( source );
+                var hash = md5.ComputeHash( bytes );
                 var sb = new StringBuilder();
-                foreach (var b in hash)
-                    sb.Append(b.ToString("x2"));
+                foreach ( var b in hash )
+                {
+                    sb.Append( b.ToString( "x2" ) );
+                }
                 return sb.ToString();
             }
         }

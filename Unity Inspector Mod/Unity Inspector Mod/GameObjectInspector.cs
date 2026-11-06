@@ -35,7 +35,10 @@ namespace Unity_Inspector_Mod
 
         public static object InspectGameObject( GameObject go, bool detailed = false )
         {
-            if ( go == null ) return null;
+            if ( go == null )
+            {
+                return null;
+            }
 
             var components = go.GetComponents<Component>();
             var componentList = new List<object>();
@@ -47,7 +50,10 @@ namespace Unity_Inspector_Mod
 
                 foreach ( var component in components )
                 {
-                    if ( component == null ) continue;
+                    if ( component == null )
+                    {
+                        continue;
+                    }
 
                     int share = remaining / left;
                     var budget = new ListingBudget { Remaining = share };
@@ -73,7 +79,10 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( var component in components )
                 {
-                    if ( component == null ) continue;
+                    if ( component == null )
+                    {
+                        continue;
+                    }
                     componentList.Add( new
                     {
                         type = component.GetType().Name,
@@ -85,7 +94,10 @@ namespace Unity_Inspector_Mod
             var children = new List<object>();
             foreach ( Transform child in go.transform )
             {
-                if ( children.Count == MaxChildrenListed ) break;
+                if ( children.Count == MaxChildrenListed )
+                {
+                    break;
+                }
 
                 children.Add( new
                 {
@@ -132,7 +144,10 @@ namespace Unity_Inspector_Mod
 
         public static object InspectSpecificComponent( GameObject go, string componentTypeName, string memberPath = null )
         {
-            if ( go == null ) return null;
+            if ( go == null )
+            {
+                return null;
+            }
 
             Component component = FindComponent( go, componentTypeName );
 
@@ -153,7 +168,10 @@ namespace Unity_Inspector_Mod
         {
             foreach ( var comp in go.GetComponents<Component>() )
             {
-                if ( comp == null ) continue;
+                if ( comp == null )
+                {
+                    continue;
+                }
 
                 var type = comp.GetType();
                 if ( type.Name == componentTypeName || type.FullName == componentTypeName )
@@ -281,7 +299,7 @@ namespace Unity_Inspector_Mod
             };
         }
 
-        private static bool TryGetFieldValue( System.Reflection.FieldInfo field, object component, out object value )
+        private static bool TryGetFieldValue( FieldInfo field, object component, out object value )
         {
             value = null;
 
@@ -303,7 +321,9 @@ namespace Unity_Inspector_Mod
         internal static PropertyInfo SharedTwin( PropertyInfo prop )
         {
             if ( prop.GetGetMethod() == null )
+            {
                 return null;
+            }
 
             var propName = prop.Name;
             var sharedVersion = "shared" + char.ToUpper( propName[0] ) + propName.Substring( 1 );
@@ -311,7 +331,7 @@ namespace Unity_Inspector_Mod
             foreach ( var otherProp in prop.DeclaringType.GetProperties() )
             {
                 if ( otherProp.Name.Equals( sharedVersion, StringComparison.OrdinalIgnoreCase ) &&
-                    otherProp.PropertyType == prop.PropertyType )
+                     otherProp.PropertyType == prop.PropertyType )
                 {
                     return otherProp;
                 }
@@ -320,7 +340,7 @@ namespace Unity_Inspector_Mod
             return null;
         }
 
-        private static bool TryGetPropertyValue( System.Reflection.PropertyInfo prop, object component, out object value )
+        private static bool TryGetPropertyValue( PropertyInfo prop, object component, out object value )
         {
             value = null;
 
@@ -354,7 +374,10 @@ namespace Unity_Inspector_Mod
             public bool Take( string name, object serialized )
             {
                 int cost = ListingCost( name, serialized );
-                if ( cost > Remaining ) return false;
+                if ( cost > Remaining )
+                {
+                    return false;
+                }
                 Remaining -= cost;
                 return true;
             }
@@ -375,7 +398,10 @@ namespace Unity_Inspector_Mod
             int lines = 1;
             foreach ( char c in text )
             {
-                if ( c == '\n' ) lines++;
+                if ( c == '\n' )
+                {
+                    lines++;
+                }
             }
 
             return name.Length + 6 + text.Length + lines * 10;
@@ -416,20 +442,24 @@ namespace Unity_Inspector_Mod
             for ( Type t = type; t != null; t = t.BaseType )
             {
                 var fields = t.GetFields( BindingFlags.DeclaredOnly | BindingFlags.Public
-                    | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static );
+                                                                    | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static );
                 foreach ( var field in fields )
                 {
                     // Reserved before the filters, so a dropped derived member still hides its base shadow.
                     if ( !seen.Add( field.Name ) )
+                    {
                         continue;
+                    }
 
                     try
                     {
                         if ( field.Name.Contains( "k__BackingField" ) ||
-                            field.Name.Contains( "m_" ) ||
-                            field.FieldType.FullName.Contains( "System.Action" ) ||
-                            field.FieldType.FullName.Contains( "System.Func" ) )
+                             field.Name.Contains( "m_" ) ||
+                             field.FieldType.FullName.Contains( "System.Action" ) ||
+                             field.FieldType.FullName.Contains( "System.Func" ) )
+                        {
                             continue;
+                        }
 
                         object value;
                         if ( TryGetFieldValue( field, component, out value ) )
@@ -446,22 +476,28 @@ namespace Unity_Inspector_Mod
                 }
 
                 var props = t.GetProperties( BindingFlags.DeclaredOnly | BindingFlags.Public
-                    | BindingFlags.Instance | BindingFlags.Static );
+                                                                       | BindingFlags.Instance | BindingFlags.Static );
                 foreach ( var prop in props )
                 {
                     if ( !seen.Add( prop.Name ) )
+                    {
                         continue;
+                    }
 
                     if ( !prop.CanRead || prop.GetIndexParameters().Length != 0 )
+                    {
                         continue;
+                    }
 
                     try
                     {
                         if ( prop.PropertyType.FullName.Contains( "System.Action" ) ||
-                            prop.PropertyType.FullName.Contains( "System.Func" ) ||
-                            prop.Name == "gameObject" ||
-                            prop.Name == "transform" )
+                             prop.PropertyType.FullName.Contains( "System.Func" ) ||
+                             prop.Name == "gameObject" ||
+                             prop.Name == "transform" )
+                        {
                             continue;
+                        }
 
                         object value;
                         if ( TryGetPropertyValue( prop, component, out value ) )
@@ -486,7 +522,10 @@ namespace Unity_Inspector_Mod
             var methodInfos = type.GetMethods( BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly );
             foreach ( var method in methodInfos )
             {
-                if ( method.IsSpecialName ) continue;
+                if ( method.IsSpecialName )
+                {
+                    continue;
+                }
 
                 var parameters = method.GetParameters().Select( p => new
                 {
@@ -535,11 +574,16 @@ namespace Unity_Inspector_Mod
 
         private static object SerializeValue( object value, int depth = 0 )
         {
-            if ( value == null || depth > 2 ) return null;
+            if ( value == null || depth > 2 )
+            {
+                return null;
+            }
 
             var type = value.GetType();
-            if ( type.BaseType == typeof( System.MulticastDelegate ) )
+            if ( type.BaseType == typeof( MulticastDelegate ) )
+            {
                 return "<delegate>";
+            }
 
             if ( type.IsPrimitive || type == typeof( string ) )
             {
@@ -678,11 +722,17 @@ namespace Unity_Inspector_Mod
                 }
 
                 var go = allObjects[i];
-                if ( go == null ) continue;
+                if ( go == null )
+                {
+                    continue;
+                }
 
                 scanned++;
 
-                if ( filterByName && ( nameGlob != null ? !nameGlob.IsMatch( go.name ) : !go.name.Contains( namePattern ) ) ) continue;
+                if ( filterByName && ( nameGlob != null ? !nameGlob.IsMatch( go.name ) : !go.name.Contains( namePattern ) ) )
+                {
+                    continue;
+                }
 
                 if ( filterByComponent )
                 {
@@ -691,7 +741,10 @@ namespace Unity_Inspector_Mod
                         ? go.GetComponent( resolvedType ) != null
                         : go.GetComponent( componentType ) != null;
 
-                    if ( !match ) continue;
+                    if ( !match )
+                    {
+                        continue;
+                    }
                 }
 
                 totalFound++;
@@ -751,11 +804,20 @@ namespace Unity_Inspector_Mod
                 {
                     foreach ( var type in GetTypesSafely( assembly ) )
                     {
-                        if ( type == null ) continue;
+                        if ( type == null )
+                        {
+                            continue;
+                        }
 
                         var fullNameMatch = type.FullName == typeName;
-                        if ( !fullNameMatch && type.Name != typeName ) continue;
-                        if ( !type.IsInterface && !typeof( Component ).IsAssignableFrom( type ) ) continue;
+                        if ( !fullNameMatch && type.Name != typeName )
+                        {
+                            continue;
+                        }
+                        if ( !type.IsInterface && !typeof( Component ).IsAssignableFrom( type ) )
+                        {
+                            continue;
+                        }
 
                         candidates++;
 

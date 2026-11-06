@@ -211,9 +211,9 @@ namespace Unity_Inspector_Mod
             Vector3 max = camera.WorldToViewportPoint( bounds.max );
 
             return Mathf.Max( min.x, max.x ) >= 0f
-                && Mathf.Min( min.x, max.x ) <= 1f
-                && Mathf.Max( min.y, max.y ) >= 0f
-                && Mathf.Min( min.y, max.y ) <= 1f;
+                   && Mathf.Min( min.x, max.x ) <= 1f
+                   && Mathf.Max( min.y, max.y ) >= 0f
+                   && Mathf.Min( min.y, max.y ) <= 1f;
         }
 
         private static string BoundsOf( GameObject go, out Bounds bounds )
@@ -286,7 +286,7 @@ namespace Unity_Inspector_Mod
 
                 var path = Path.Combine( screenshotDirectory, filename );
 
-                UnityEngine.ScreenCapture.CaptureScreenshot( path );
+                ScreenCapture.CaptureScreenshot( path );
 
                 const int timeoutMs = 3000;
                 const int pollIntervalMs = 25;
