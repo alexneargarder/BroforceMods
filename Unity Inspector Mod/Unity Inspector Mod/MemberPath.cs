@@ -386,7 +386,19 @@ namespace Unity_Inspector_Mod
                     foreach ( var property in t.GetProperties( MemberFlags ) )
                     {
                         // An indexer is not reachable by name and an unreadable property is not worth walking to.
-                        if ( !property.CanRead || property.GetIndexParameters().Length != 0 )
+                        if ( !property.CanRead )
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            if ( ScriptCompiler.GuardedGetIndexParameters( property ).Length != 0 )
+                            {
+                                continue;
+                            }
+                        }
+                        catch ( Exception )
                         {
                             continue;
                         }

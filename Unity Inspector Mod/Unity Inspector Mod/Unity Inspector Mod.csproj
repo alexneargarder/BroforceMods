@@ -35,6 +35,9 @@
     <Reference Include="0Harmony">
       <HintPath>$(LibPath)\0Harmony.dll</HintPath>
     </Reference>
+    <Reference Include="dnlib">
+      <HintPath>$(LibPath)\dnlib.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(LibPath)\Assembly-CSharp.dll</HintPath>
     </Reference>
@@ -90,6 +93,7 @@
     <Compile Include="MainThreadDispatcher.cs" />
     <Compile Include="InputSimulator.cs" />
     <Compile Include="FrozenClock.cs" />
+    <Compile Include="FunctionPointerSignatures.cs" />
     <Compile Include="HarmonyPatches.cs" />
     <Compile Include="ScriptCompiler.cs" />
     <Compile Include="ScriptContext.cs" />

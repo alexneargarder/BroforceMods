@@ -40,7 +40,8 @@ namespace Unity_Inspector_Mod
         private static int armSequence;
         private static int stoppableDepth;
         private static long stackTop;
-        private static bool recursionStopped;
+        private static long runawayStack;
+        private static long runawayRaisedMs;
 
         private sealed class PendingAction
         {
@@ -391,24 +392,58 @@ namespace Unity_Inspector_Mod
             long used = stackTop - (long)&marker;
             if ( used <= StackLimitBytes )
             {
-                recursionStopped = false;
+                if ( runawayStack != 0 && Thread.CurrentThread.ManagedThreadId == mainThreadId )
+                {
+                    runawayStack = 0;
+                }
                 return;
             }
 
-            // Mono runs a finally block on top of the throw's stack, so a throw from each frame's would nest a dispatch per frame until the stack overflows.
-            if ( recursionStopped && used <= StackLimitBytes + UnwindAllowanceBytes )
-            {
-                return;
-            }
             if ( Thread.CurrentThread.ManagedThreadId != mainThreadId )
             {
                 return;
             }
 
-            recursionStopped = true;
+            long now = Now();
+            bool onUnwind = runawayStack != 0 && used > runawayStack;
+            if ( onUnwind && now - runawayRaisedMs < CleanupGraceMs && used <= StackLimitBytes + UnwindAllowanceBytes )
+            {
+                return;
+            }
+
+            if ( !onUnwind )
+            {
+                runawayStack = used;
+                runawayRaisedMs = now;
+            }
             throw new RunawayRecursionException( "Runaway recursion: this call chain used more than " +
                                                  StackLimitBytes / 1024 + "KB of the main thread's stack, so it was " +
                                                  "stopped before a stack overflow could kill the game" );
+        }
+
+        // Mono runs finally and filter blocks on top of the throw's stack, so one that throws or recurses there nests one more dispatch per frame until the stack overflows.
+        public static unsafe bool SkipHandler()
+        {
+            byte marker;
+            long used = stackTop - (long)&marker;
+            if ( runawayStack == 0 )
+            {
+                // A handler that throws without calling compiled code never reaches MethodEntry to record the runaway.
+                if ( used > StackLimitBytes && Thread.CurrentThread.ManagedThreadId == mainThreadId )
+                {
+                    runawayStack = used;
+                    runawayRaisedMs = Now();
+                }
+                return false;
+            }
+
+            if ( Thread.CurrentThread.ManagedThreadId != mainThreadId )
+            {
+                return false;
+            }
+
+            return used > runawayStack &&
+                   ( Now() - runawayRaisedMs >= CleanupGraceMs || used > StackLimitBytes + UnwindAllowanceBytes );
         }
 
         private static bool AbortPending()

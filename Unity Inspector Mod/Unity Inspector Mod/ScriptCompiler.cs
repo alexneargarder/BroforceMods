@@ -77,6 +77,8 @@ namespace Unity_Inspector_Mod
             PatchMethodEndPad();
             PatchScriptMethodBodyGuard();
             PatchUnloadableMembers();
+            PatchGuardedReflection();
+            PatchMemberToString();
             PatchGenericInstanceFields();
             PatchJsonFieldProvider();
             PatchGenericMethodBinding();
@@ -124,8 +126,14 @@ namespace Unity_Inspector_Mod
         private static readonly FieldInfo ILGeneratorLabelCount =
             typeof( ILGenerator ).GetField( "num_labels", BindingFlags.Instance | BindingFlags.NonPublic );
 
+        private static readonly FieldInfo ILGeneratorCurStack =
+            typeof( ILGenerator ).GetField( "cur_stack", BindingFlags.Instance | BindingFlags.NonPublic );
+
         private static readonly FieldInfo ILGeneratorCodeLength =
             typeof( ILGenerator ).GetField( "code_len", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly FieldInfo ILGeneratorCode =
+            typeof( ILGenerator ).GetField( "code", BindingFlags.Instance | BindingFlags.NonPublic );
 
         private static readonly FieldInfo LabelAddress =
             typeof( ILGenerator ).GetNestedType( "LabelData", BindingFlags.NonPublic )?.GetField( "addr" );
@@ -177,9 +185,9 @@ namespace Unity_Inspector_Mod
             }
             methodEntryChecksPatched = true;
 
+            Harmony harmony = new Harmony( "scriptcompiler.internal" );
             try
             {
-                var harmony = new Harmony( "scriptcompiler.internal" );
                 harmony.Patch( typeof( ILGenerator ).GetConstructors( BindingFlags.Instance | BindingFlags.NonPublic ).Single(),
                     postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "EmitMethodEntryCheck",
                         BindingFlags.Static | BindingFlags.NonPublic ) ) );
@@ -189,10 +197,48 @@ namespace Unity_Inspector_Mod
                 Main.Log( "Failed to patch the System.Reflection.Emit.ILGenerator constructor (" + e.GetType().Name + ": " +
                           e.Message + ") — code compiled by execute_code or execute_script that recurses without end kills the game" );
             }
+
+            try
+            {
+                harmony.Patch( typeof( ILGenerator ).GetMethod( "BeginFinallyBlock", Type.EmptyTypes ),
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "EmitFinallySkip",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.Emit.ILGenerator.BeginFinallyBlock (" + e.GetType().Name + ": " +
+                          e.Message + ") — code compiled by execute_code or execute_script that recurses or throws without end inside a finally block kills the game" );
+            }
+
+            try
+            {
+                if ( ILGeneratorCurStack == null )
+                {
+                    throw new MissingFieldException( "System.Reflection.Emit.ILGenerator", "cur_stack" );
+                }
+                // The prefix goes first: a filter skip whose end label nothing marks fails every compile with a catch filter.
+                harmony.Patch( typeof( ILGenerator ).GetMethod( "BeginCatchBlock", new[] { typeof( Type ) } ),
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "MarkFilterEnd",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+                harmony.Patch( typeof( ILGenerator ).GetMethod( "BeginExceptFilterBlock", Type.EmptyTypes ),
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "EmitFilterSkip",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.Emit.ILGenerator.BeginExceptFilterBlock or BeginCatchBlock (" +
+                          e.GetType().Name + ": " + e.Message +
+                          ") — code compiled by execute_code or execute_script that recurses or throws without end inside a catch's when filter kills the game" );
+            }
         }
 
         private static readonly MethodInfo MethodEntryMethod =
             typeof( MainThreadDispatcher ).GetMethod( "MethodEntry", BindingFlags.Static | BindingFlags.Public );
+
+        private static readonly MethodInfo SkipHandlerMethod =
+            typeof( MainThreadDispatcher ).GetMethod( "SkipHandler", BindingFlags.Static | BindingFlags.Public );
+
+        private static readonly Dictionary<ILGenerator, Label> pendingFilterEnds = new Dictionary<ILGenerator, Label>();
 
         private static void EmitMethodEntryCheck( ILGenerator __instance )
         {
@@ -200,6 +246,66 @@ namespace Unity_Inspector_Mod
             {
                 __instance.Emit( OpCodes.Call, MethodEntryMethod );
             }
+        }
+
+        private static void EmitFinallySkip( ILGenerator __instance )
+        {
+            if ( InstrumentCode <= 0 )
+            {
+                return;
+            }
+
+            Label run = __instance.DefineLabel();
+            __instance.Emit( OpCodes.Call, SkipHandlerMethod );
+            __instance.Emit( OpCodes.Brfalse_S, run );
+            __instance.Emit( OpCodes.Endfinally );
+            __instance.MarkLabel( run );
+        }
+
+        // A filter starts with the exception on the stack and ends at the endfilter BeginCatchBlock(null) writes; a skipped one answers 0, not this catch.
+        private static void EmitFilterSkip( ILGenerator __instance )
+        {
+            if ( InstrumentCode <= 0 )
+            {
+                return;
+            }
+
+            // Mono's ILGenerator does not count the exception a filter starts with, and the check's result sits on top of it.
+            ILGeneratorCurStack.SetValue( __instance, (int)ILGeneratorCurStack.GetValue( __instance ) + 1 );
+
+            Label run = __instance.DefineLabel();
+            Label end = __instance.DefineLabel();
+            lock ( pendingFilterEnds )
+            {
+                pendingFilterEnds[__instance] = end;
+            }
+
+            __instance.Emit( OpCodes.Call, SkipHandlerMethod );
+            __instance.Emit( OpCodes.Brfalse_S, run );
+            __instance.Emit( OpCodes.Pop );
+            __instance.Emit( OpCodes.Ldc_I4_0 );
+            __instance.Emit( OpCodes.Br, end );
+            __instance.MarkLabel( run );
+        }
+
+        private static void MarkFilterEnd( ILGenerator __instance, Type exceptionType )
+        {
+            if ( exceptionType != null || InstrumentCode <= 0 )
+            {
+                return;
+            }
+
+            Label end;
+            lock ( pendingFilterEnds )
+            {
+                if ( !pendingFilterEnds.TryGetValue( __instance, out end ) )
+                {
+                    return;
+                }
+                pendingFilterEnds.Remove( __instance );
+            }
+
+            __instance.MarkLabel( end );
         }
 
         private static bool exceptionFiltersPatched;
@@ -415,7 +521,8 @@ namespace Unity_Inspector_Mod
         }
 
         private const string UnloadableMembersWarning =
-            "the first naming of a type with a method whose signature names an absent assembly, such as Newtonsoft.Json.JsonConvert, fails with CS0584";
+            "the first naming of a type with a method whose signature names an absent assembly, such as Newtonsoft.Json.JsonConvert, fails with CS0584, " +
+            "and importing a type with a function-pointer signature, such as 0Harmony's MonoMod.Utils.Helpers, ends the game";
 
         private static bool ReadsMembers( CodeInstruction instruction )
         {
@@ -443,6 +550,14 @@ namespace Unity_Inspector_Mod
         {
             return type.GetMembers( flags ).Where( member =>
             {
+                string functionPointer = FunctionPointerSignatures.Describe( member );
+                if ( functionPointer != null )
+                {
+                    ReportImportFailure( SafeAssemblyName( type.Assembly ), ( member is PropertyInfo ? "the property " : "the method " ) + type + "." + member.Name,
+                        new NotSupportedException( functionPointer + ", and " + FunctionPointerSignatures.Hazard ) );
+                    return false;
+                }
+
                 try
                 {
                     _ = ( member as MethodBase )?.Attributes;
@@ -454,6 +569,532 @@ namespace Unity_Inspector_Mod
                     return false;
                 }
             } ).ToArray();
+        }
+
+        private static bool guardedReflectionPatched;
+
+        private static Dictionary<IntPtr, MethodInfo> guardedReflection;
+
+        private static void PatchGuardedReflection()
+        {
+            if ( guardedReflectionPatched )
+            {
+                return;
+            }
+            guardedReflectionPatched = true;
+
+            try
+            {
+                MethodInfo methodEmit = typeof( ILGenerator ).GetMethod( "Emit", new[] { typeof( OpCode ), typeof( MethodInfo ) } );
+                if ( methodEmit == null || ILGeneratorCode == null || ILGeneratorCodeLength == null )
+                {
+                    Main.Log( "System.Reflection.Emit.ILGenerator members not found — " + GuardedReflectionWarning );
+                    return;
+                }
+
+                guardedReflection = GuardedReflectionTargets();
+                Harmony harmony = new Harmony( "scriptcompiler.internal" );
+                harmony.Patch( methodEmit,
+                    prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "GuardReflectionCall",
+                        BindingFlags.Static | BindingFlags.NonPublic ) ) );
+            }
+            catch ( Exception e )
+            {
+                Main.Log( "Failed to patch System.Reflection.Emit.ILGenerator.Emit(OpCode, MethodInfo) (" +
+                          e.GetType().Name + ": " + e.Message + ") — " + GuardedReflectionWarning );
+            }
+        }
+
+        private const string GuardedReflectionWarning =
+            "script code asking a method or property whose signature names an absent assembly, such as Newtonsoft.Json.JsonConvert's XNode overloads, for its parameters or generic shape, or invoking it, kills the game, " +
+            "as does reflecting over a member whose signature holds a function-pointer type, such as 0Harmony's MonoMod internals";
+
+        private static readonly Type[] GuardedDeclaringTypes =
+            { typeof( object ), typeof( MemberInfo ), typeof( MethodBase ), typeof( MethodInfo ), typeof( ConstructorInfo ), typeof( PropertyInfo ), typeof( System.Attribute ) };
+
+        private static Dictionary<IntPtr, MethodInfo> GuardedReflectionTargets()
+        {
+            Type culture = typeof( System.Globalization.CultureInfo );
+            var targets = new[]
+            {
+                new { Name = "GetParameters", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsGenericMethod", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_ContainsGenericParameters", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "GetGenericArguments", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "GetIndexParameters", Parameters = Type.EmptyTypes, Guard = "GuardedGetIndexParameters" },
+                new { Name = "get_DeclaringType", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_Module", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_Attributes", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_CallingConvention", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "GetMethodImplementationFlags", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsPublic", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsPrivate", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsFamily", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsAssembly", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsFamilyAndAssembly", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsFamilyOrAssembly", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsStatic", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsFinal", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsVirtual", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsHideBySig", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsAbstract", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsSpecialName", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_IsConstructor", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_ReturnType", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_ReturnParameter", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_ReturnTypeCustomAttributes", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "get_PropertyType", Parameters = Type.EmptyTypes, Guard = "ProbeMember" },
+                new { Name = "GetMethodBody", Parameters = Type.EmptyTypes, Guard = "ProbeMethodBody" },
+                new { Name = "ToString", Parameters = Type.EmptyTypes, Guard = "ProbeToString" },
+                new { Name = "Invoke", Parameters = new[] { typeof( object ), typeof( object[] ) }, Guard = "GuardedInvoke" },
+                new
+                {
+                    Name = "Invoke",
+                    Parameters = new[] { typeof( object ), typeof( BindingFlags ), typeof( Binder ), typeof( object[] ), culture },
+                    Guard = "GuardedInvokeWithBinder"
+                },
+                new { Name = "Invoke", Parameters = new[] { typeof( object[] ) }, Guard = "GuardedConstructorInvoke" },
+                new
+                {
+                    Name = "Invoke",
+                    Parameters = new[] { typeof( BindingFlags ), typeof( Binder ), typeof( object[] ), culture },
+                    Guard = "GuardedConstructorInvokeWithBinder"
+                },
+                new { Name = "MakeGenericMethod", Parameters = new[] { typeof( Type[] ) }, Guard = "GuardedMakeGenericMethod" },
+                new { Name = "GetCustomAttributes", Parameters = new[] { typeof( bool ) }, Guard = "GuardedGetCustomAttributes" },
+                new { Name = "GetCustomAttributes", Parameters = new[] { typeof( Type ), typeof( bool ) }, Guard = "GuardedGetCustomAttributesOfType" },
+                new { Name = "IsDefined", Parameters = new[] { typeof( Type ), typeof( bool ) }, Guard = "GuardedIsDefined" },
+                new { Name = "GetCustomAttribute", Parameters = new[] { typeof( MemberInfo ), typeof( Type ) }, Guard = "GuardedAttributeGetCustomAttribute" },
+                new
+                {
+                    Name = "GetCustomAttribute", Parameters = new[] { typeof( MemberInfo ), typeof( Type ), typeof( bool ) },
+                    Guard = "GuardedAttributeGetCustomAttributeInherit"
+                },
+                new { Name = "GetCustomAttributes", Parameters = new[] { typeof( MemberInfo ) }, Guard = "GuardedAttributeGetCustomAttributes" },
+                new
+                {
+                    Name = "GetCustomAttributes", Parameters = new[] { typeof( MemberInfo ), typeof( bool ) },
+                    Guard = "GuardedAttributeGetCustomAttributesInherit"
+                },
+                new
+                {
+                    Name = "GetCustomAttributes", Parameters = new[] { typeof( MemberInfo ), typeof( Type ) },
+                    Guard = "GuardedAttributeGetCustomAttributesOfType"
+                },
+                new
+                {
+                    Name = "GetCustomAttributes", Parameters = new[] { typeof( MemberInfo ), typeof( Type ), typeof( bool ) },
+                    Guard = "GuardedAttributeGetCustomAttributesOfTypeInherit"
+                },
+                new { Name = "IsDefined", Parameters = new[] { typeof( MemberInfo ), typeof( Type ) }, Guard = "GuardedAttributeIsDefined" },
+                new { Name = "IsDefined", Parameters = new[] { typeof( MemberInfo ), typeof( Type ), typeof( bool ) }, Guard = "GuardedAttributeIsDefinedInherit" }
+            };
+
+            Dictionary<IntPtr, MethodInfo> guarded = new Dictionary<IntPtr, MethodInfo>();
+            foreach ( var target in targets )
+            {
+                MethodInfo guard = typeof( ScriptCompiler ).GetMethod( target.Guard, BindingFlags.Static | BindingFlags.Public );
+                List<MethodInfo> originals = GuardedDeclaringTypes
+                    .Select( type => type.GetMethod( target.Name, BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly,
+                        null, target.Parameters, null ) )
+                    .Where( original => original != null )
+                    .ToList();
+                if ( originals.Count == 0 )
+                {
+                    Main.Log( "System.Reflection has no " + target.Name + "(" + string.Join( ", ", target.Parameters.Select( p => p.Name ).ToArray() ) + ") on " +
+                              string.Join( ", ", GuardedDeclaringTypes.Select( type => type.Name ).ToArray() ) + " — script code calling it is not guarded" );
+                }
+
+                foreach ( MethodInfo original in originals )
+                {
+                    guarded[original.MethodHandle.Value] = guard;
+                }
+            }
+
+            return guarded;
+        }
+
+        private static void GuardReflectionCall( ILGenerator __instance, ref OpCode opcode, ref MethodInfo meth )
+        {
+            if ( InstrumentCode <= 0 || meth == null || ( opcode != OpCodes.Call && opcode != OpCodes.Callvirt ) )
+            {
+                return;
+            }
+
+            // MethodHandle throws on the script's own MethodBuilders, so the declaring type is checked first.
+            if ( Array.IndexOf( GuardedDeclaringTypes, meth.DeclaringType ) < 0 )
+            {
+                return;
+            }
+
+            MethodInfo guard;
+            if ( !guardedReflection.TryGetValue( meth.MethodHandle.Value, out guard ) )
+            {
+                return;
+            }
+
+            // A constrained. prefix must be followed by the callvirt it qualifies, so a call through a generic parameter stays unguarded.
+            int length = (int)ILGeneratorCodeLength.GetValue( __instance );
+            byte[] code = (byte[])ILGeneratorCode.GetValue( __instance );
+            if ( length >= 6 && code[length - 6] == 0xFE && code[length - 5] == 0x16 )
+            {
+                return;
+            }
+
+            if ( guard.ReturnType == typeof( void ) )
+            {
+                __instance.Emit( OpCodes.Dup );
+                __instance.Emit( OpCodes.Call, guard );
+                return;
+            }
+
+            opcode = OpCodes.Call;
+            meth = guard;
+        }
+
+        // On a method whose signature names an absent assembly, Attributes throws FileNotFoundException, while the guarded members dereference a null signature natively and end the process.
+        internal static void ProbeSignature( MethodBase method, bool locals = false )
+        {
+            RefuseFunctionPointer( FunctionPointerSignatures.Describe( method ) ?? ( locals ? FunctionPointerSignatures.DescribeLocals( method ) : null ) );
+            _ = method.Attributes;
+        }
+
+        private static void RefuseFunctionPointer( string functionPointer )
+        {
+            if ( functionPointer != null )
+            {
+                throw new NotSupportedException( functionPointer + ", and " + FunctionPointerSignatures.Hazard +
+                                                 ", so this read is refused. The member's Name and MetadataToken are safe to filter on." );
+            }
+        }
+
+        public static void ProbeMember( MemberInfo member )
+        {
+            MethodBase method = member as MethodBase;
+            if ( method != null )
+            {
+                ProbeSignature( method );
+                return;
+            }
+
+            PropertyInfo property = member as PropertyInfo;
+            if ( property == null )
+            {
+                return;
+            }
+
+            RefuseFunctionPointer( FunctionPointerSignatures.Describe( property ) );
+            foreach ( MethodInfo accessor in property.GetAccessors( true ) )
+            {
+                ProbeSignature( accessor );
+            }
+        }
+
+        public static void ProbeToString( object value )
+        {
+            ProbeMember( value as MemberInfo );
+        }
+
+        private static bool memberToStringPatched;
+
+        private static void PatchMemberToString()
+        {
+            if ( memberToStringPatched )
+            {
+                return;
+            }
+            memberToStringPatched = true;
+
+            Harmony harmony = new Harmony( "scriptcompiler.internal" );
+            var targets = new[]
+            {
+                new { TypeName = "System.Reflection.MonoMethod", Prefix = "GuardMethodToString" },
+                new { TypeName = "System.Reflection.MonoCMethod", Prefix = "GuardMethodToString" },
+                new { TypeName = "System.Reflection.MonoProperty", Prefix = "GuardPropertyToString" }
+            };
+            foreach ( var target in targets )
+            {
+                try
+                {
+                    MethodInfo toString = typeof( MethodBase ).Assembly.GetType( target.TypeName )?.GetMethod( "ToString",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly, null, Type.EmptyTypes, null );
+                    if ( toString == null )
+                    {
+                        throw new MissingMethodException( target.TypeName, "ToString" );
+                    }
+                    harmony.Patch( toString,
+                        prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( target.Prefix, BindingFlags.Static | BindingFlags.NonPublic ) ) );
+                }
+                catch ( Exception e )
+                {
+                    Main.Log( "Failed to patch " + target.TypeName + ".ToString (" + e.GetType().Name + ": " + e.Message + ") — " + MemberToStringWarning );
+                }
+            }
+        }
+
+        private const string MemberToStringWarning =
+            "script code formatting a member as a string through library code, such as string.Join, String.Format or string concatenation, kills the game " +
+            "for a constructor whose parameters name an absent assembly, a property with no getter whose type or index parameters name one, " +
+            "and a member holding a function-pointer type, such as 0Harmony's MonoMod internals, as a method's return type or parameter, a constructor's parameter, " +
+            "a property's type, or the index parameter of a property with no getter";
+
+        private sealed class ToStringVerdict
+        {
+            public readonly IntPtr Handle;
+            public readonly Type Refusal;
+            public readonly string Reason;
+
+            public ToStringVerdict( IntPtr handle, Type refusal, string reason )
+            {
+                Handle = handle;
+                Refusal = refusal;
+                Reason = reason;
+            }
+        }
+
+        private static volatile ToStringVerdict[] toStringVerdicts = new ToStringVerdict[64];
+        private static int toStringVerdictCount;
+        private static readonly object toStringVerdictLock = new object();
+
+        [ThreadStatic] private static bool judgingToString;
+
+        // String.Concat, String.Format and string.Join call ToString from mscorlib, which GuardReflectionCall never rewrites.
+        // The native method or property pointer keys the verdict, since a member's DeclaringType and Module read its signature.
+        private static void GuardMethodToString( MemberInfo __instance, IntPtr ___mhandle )
+        {
+            GuardToString( __instance, ___mhandle );
+        }
+
+        private static void GuardPropertyToString( MemberInfo __instance, IntPtr ___prop )
+        {
+            GuardToString( __instance, ___prop );
+        }
+
+        private static void GuardToString( MemberInfo member, IntPtr handle )
+        {
+            ToStringVerdict verdict = FindToStringVerdict( toStringVerdicts, handle ) ?? JudgeToString( member, handle );
+            if ( verdict.Refusal == null )
+            {
+                return;
+            }
+
+            string message = "Formatting " + ( member.ReflectedType == null ? "" : member.ReflectedType + "." ) + member.Name +
+                             " as a string was refused: " + verdict.Reason;
+            Exception refusal;
+            try
+            {
+                refusal = (Exception)Activator.CreateInstance( verdict.Refusal, message );
+            }
+            catch ( MissingMethodException )
+            {
+                refusal = new NotSupportedException( message );
+            }
+            throw refusal;
+        }
+
+        private static ToStringVerdict JudgeToString( MemberInfo member, IntPtr handle )
+        {
+            // A script patch on a method the probe calls could format a member again on this thread.
+            if ( judgingToString )
+            {
+                return new ToStringVerdict( handle, null, null );
+            }
+
+            ToStringVerdict verdict;
+            judgingToString = true;
+            try
+            {
+                ProbeMember( member );
+                verdict = new ToStringVerdict( handle, null, null );
+            }
+            catch ( Exception e )
+            {
+                FileNotFoundException missing = e as FileNotFoundException;
+                verdict = new ToStringVerdict( handle, e.GetType(), missing?.FileName != null
+                    ? "its signature names the assembly '" + missing.FileName + "', which this game lacks"
+                    : e.Message );
+            }
+            finally
+            {
+                judgingToString = false;
+            }
+
+            RecordToStringVerdict( verdict );
+            return verdict;
+        }
+
+        private static ToStringVerdict FindToStringVerdict( ToStringVerdict[] table, IntPtr handle )
+        {
+            int mask = table.Length - 1;
+            for ( int slot = ToStringSlot( handle ) & mask;; slot = ( slot + 1 ) & mask )
+            {
+                ToStringVerdict verdict = table[slot];
+                if ( verdict == null || verdict.Handle == handle )
+                {
+                    return verdict;
+                }
+            }
+        }
+
+        private static int ToStringSlot( IntPtr handle )
+        {
+            long value = handle.ToInt64();
+            return (int)( value >> 4 ) ^ (int)( value >> 20 );
+        }
+
+        private static int FreeToStringSlot( ToStringVerdict[] table, IntPtr handle )
+        {
+            int mask = table.Length - 1;
+            int slot = ToStringSlot( handle ) & mask;
+            while ( table[slot] != null )
+            {
+                slot = ( slot + 1 ) & mask;
+            }
+            return slot;
+        }
+
+        private static void RecordToStringVerdict( ToStringVerdict verdict )
+        {
+            lock ( toStringVerdictLock )
+            {
+                ToStringVerdict[] table = toStringVerdicts;
+                if ( FindToStringVerdict( table, verdict.Handle ) != null )
+                {
+                    return;
+                }
+
+                if ( ( toStringVerdictCount + 1 ) * 2 > table.Length )
+                {
+                    ToStringVerdict[] grown = new ToStringVerdict[table.Length * 2];
+                    foreach ( ToStringVerdict entry in table )
+                    {
+                        if ( entry != null )
+                        {
+                            grown[FreeToStringSlot( grown, entry.Handle )] = entry;
+                        }
+                    }
+                    table = grown;
+                }
+
+                int slot = FreeToStringSlot( table, verdict.Handle );
+                // Readers take no lock, so the verdict and a grown table's entries must be visible before the slot that publishes them.
+                System.Threading.Thread.MemoryBarrier();
+                table[slot] = verdict;
+                toStringVerdicts = table;
+                toStringVerdictCount++;
+            }
+        }
+
+        public static void ProbeMethodBody( MethodBase method )
+        {
+            if ( method != null )
+            {
+                ProbeSignature( method, true );
+            }
+        }
+
+        public static object GuardedInvoke( MethodBase method, object obj, object[] parameters )
+        {
+            ProbeMember( method );
+            return method.Invoke( obj, parameters );
+        }
+
+        public static object GuardedInvokeWithBinder( MethodBase method, object obj, BindingFlags invokeAttr, Binder binder, object[] parameters,
+            System.Globalization.CultureInfo culture )
+        {
+            ProbeMember( method );
+            return method.Invoke( obj, invokeAttr, binder, parameters, culture );
+        }
+
+        public static object GuardedConstructorInvoke( ConstructorInfo constructor, object[] parameters )
+        {
+            ProbeMember( constructor );
+            return constructor.Invoke( parameters );
+        }
+
+        public static object GuardedConstructorInvokeWithBinder( ConstructorInfo constructor, BindingFlags invokeAttr, Binder binder, object[] parameters,
+            System.Globalization.CultureInfo culture )
+        {
+            ProbeMember( constructor );
+            return constructor.Invoke( invokeAttr, binder, parameters, culture );
+        }
+
+        public static MethodInfo GuardedMakeGenericMethod( MethodInfo method, Type[] typeArguments )
+        {
+            ProbeMember( method );
+            return method.MakeGenericMethod( typeArguments );
+        }
+
+        public static ParameterInfo[] GuardedGetIndexParameters( PropertyInfo property )
+        {
+            ProbeMember( property );
+            return property.GetIndexParameters();
+        }
+
+        public static object[] GuardedGetCustomAttributes( MemberInfo member, bool inherit )
+        {
+            ProbeMember( member );
+            return member.GetCustomAttributes( inherit );
+        }
+
+        public static object[] GuardedGetCustomAttributesOfType( MemberInfo member, Type attributeType, bool inherit )
+        {
+            ProbeMember( member );
+            return member.GetCustomAttributes( attributeType, inherit );
+        }
+
+        public static bool GuardedIsDefined( MemberInfo member, Type attributeType, bool inherit )
+        {
+            ProbeMember( member );
+            return member.IsDefined( attributeType, inherit );
+        }
+
+        public static System.Attribute GuardedAttributeGetCustomAttribute( MemberInfo element, Type attributeType )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttribute( element, attributeType );
+        }
+
+        public static System.Attribute GuardedAttributeGetCustomAttributeInherit( MemberInfo element, Type attributeType, bool inherit )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttribute( element, attributeType, inherit );
+        }
+
+        public static System.Attribute[] GuardedAttributeGetCustomAttributes( MemberInfo element )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttributes( element );
+        }
+
+        public static System.Attribute[] GuardedAttributeGetCustomAttributesInherit( MemberInfo element, bool inherit )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttributes( element, inherit );
+        }
+
+        public static System.Attribute[] GuardedAttributeGetCustomAttributesOfType( MemberInfo element, Type attributeType )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttributes( element, attributeType );
+        }
+
+        public static System.Attribute[] GuardedAttributeGetCustomAttributesOfTypeInherit( MemberInfo element, Type attributeType, bool inherit )
+        {
+            ProbeMember( element );
+            return System.Attribute.GetCustomAttributes( element, attributeType, inherit );
+        }
+
+        public static bool GuardedAttributeIsDefined( MemberInfo element, Type attributeType )
+        {
+            ProbeMember( element );
+            return System.Attribute.IsDefined( element, attributeType );
+        }
+
+        public static bool GuardedAttributeIsDefinedInherit( MemberInfo element, Type attributeType, bool inherit )
+        {
+            ProbeMember( element );
+            return System.Attribute.IsDefined( element, attributeType, inherit );
         }
 
         private static bool genericInstanceFieldsPatched;
@@ -547,14 +1188,19 @@ namespace Unity_Inspector_Mod
         // A DynamicMethod naming a field of a dynamic generic instance aborts the game when it is created (mono_domain_try_type_resolve asserts); reading the field by reflection is safe.
         private static bool ReflectGenericField( MemberInfo member, ref Newtonsoft.Json.Serialization.IValueProvider __result )
         {
-            var declaring = ( member as FieldInfo )?.DeclaringType;
-            if ( declaring == null || !declaring.IsGenericType || !( declaring.Assembly is AssemblyBuilder ) )
+            if ( !IsScriptGenericField( member as FieldInfo ) )
             {
                 return true;
             }
 
             __result = new Newtonsoft.Json.Serialization.ReflectionValueProvider( member );
             return false;
+        }
+
+        private static bool IsScriptGenericField( FieldInfo field )
+        {
+            Type declaring = field?.DeclaringType;
+            return declaring != null && declaring.IsGenericType && declaring.Assembly is AssemblyBuilder;
         }
 
         private static bool genericMethodBindingPatched;
@@ -706,6 +1352,10 @@ namespace Unity_Inspector_Mod
             string refusal = genericBindRefusal;
             genericBindRefusal = null;
             emittedEarly.Clear();
+            lock ( pendingFilterEnds )
+            {
+                pendingFilterEnds.Clear();
+            }
             return refusal;
         }
 
@@ -1395,6 +2045,12 @@ namespace Unity_Inspector_Mod
                         return;
                     }
 
+                    if ( ILGeneratorTokenGen == null || DynamicMethodTokenGeneratorType == null )
+                    {
+                        Main.Log( "System.Reflection.Emit.ILGenerator.token_gen or DynamicMethodTokenGenerator not found — " +
+                                  "a DynamicMethod naming a field of a generic class a script or execute_code declared kills the game when it is created" );
+                    }
+
                     // Mono's mono_image_create_token gives another module's FieldBuilder or TypeBuilder a token of the emitting module.
                     var harmony = new Harmony( "scriptcompiler.internal" );
                     harmony.Patch( fieldEmit,
@@ -1413,10 +2069,17 @@ namespace Unity_Inspector_Mod
         }
 
         private const string ForeignBuilderWarning =
-            "execute_code naming a static of a type an earlier execute_code declared may read or write the wrong field";
+            "execute_code naming a static of a type an earlier execute_code declared may read or write the wrong field, " +
+            "and a DynamicMethod naming a field of a generic class a script or execute_code declared kills the game when it is created";
 
         private static readonly FieldInfo ILGeneratorModule =
             typeof( ILGenerator ).GetField( "module", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly FieldInfo ILGeneratorTokenGen =
+            typeof( ILGenerator ).GetField( "token_gen", BindingFlags.Instance | BindingFlags.NonPublic );
+
+        private static readonly Type DynamicMethodTokenGeneratorType =
+            typeof( ILGenerator ).Assembly.GetType( "System.Reflection.Emit.DynamicMethodTokenGenerator" );
 
         private static string foreignGenericField;
 
@@ -1472,8 +2135,33 @@ namespace Unity_Inspector_Mod
             return builder.CreateType();
         }
 
+        // Creating a DynamicMethod that names a field of a dynamic generic instance aborts the game (mono_domain_try_type_resolve asserts).
+        private static void RefuseDynamicMethodGenericField( ILGenerator generator, FieldInfo field )
+        {
+            if ( !IsScriptGenericField( field ) || ILGeneratorTokenGen == null || DynamicMethodTokenGeneratorType == null )
+            {
+                return;
+            }
+
+            object tokenGen = ILGeneratorTokenGen.GetValue( generator );
+            if ( tokenGen == null || !DynamicMethodTokenGeneratorType.IsInstanceOfType( tokenGen ) )
+            {
+                return;
+            }
+
+            throw new NotSupportedException(
+                "This code puts the field " + field.DeclaringType.Name.Split( '`' )[0] + "." + field.Name +
+                " of a generic class declared by a script or execute_code call into a DynamicMethod. " +
+                "Creating that method would kill the game, so the field was refused.\n" +
+                "Workarounds:\n" +
+                "  - Read and write the field by reflection: var f = typeof(Box<int>).GetField(\"Value\"); f.SetValue(box, 5); f.GetValue(box)\n" +
+                "  - Declare the member as a property, e.g. public T Value { get; set; }" );
+        }
+
         private static void ForeignFieldToken( ILGenerator __instance, ref FieldInfo field )
         {
+            RefuseDynamicMethodGenericField( __instance, field );
+
             if ( !( field is FieldBuilder ) )
             {
                 RecordForeignGenericField( __instance, field );

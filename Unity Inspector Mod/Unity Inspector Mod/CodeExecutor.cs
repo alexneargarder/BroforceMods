@@ -2555,6 +2555,10 @@ namespace Unity_Inspector_Mod
             string text;
             try
             {
+                if ( result is MemberInfo member )
+                {
+                    ScriptCompiler.ProbeMember( member );
+                }
                 text = result.ToString();
             }
             catch ( Exception ex )

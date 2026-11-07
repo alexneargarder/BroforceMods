@@ -738,7 +738,21 @@ namespace Unity_Inspector_Mod
                                                                        | BindingFlags.Instance | BindingFlags.Static );
                 foreach ( var prop in props )
                 {
-                    if ( prop.GetIndexParameters().Length != 0 )
+                    ParameterInfo[] indexParameters;
+                    try
+                    {
+                        indexParameters = ScriptCompiler.GuardedGetIndexParameters( prop );
+                    }
+                    catch ( Exception e )
+                    {
+                        if ( seen.Add( prop.Name ) )
+                        {
+                            AddProperty( properties, prop.Name, $"<not read: {Describe( e )}>", budget );
+                        }
+                        continue;
+                    }
+
+                    if ( indexParameters.Length != 0 )
                     {
                         continue;
                     }
