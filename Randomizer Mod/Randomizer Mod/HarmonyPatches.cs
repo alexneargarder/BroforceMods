@@ -4,6 +4,14 @@ using UnityEngine;
 
 namespace Randomizer_Mod
 {
+    public class RandomizedUnit : MonoBehaviour
+    {
+        public static bool IsRandomized( Component component )
+        {
+            return component != null && component.GetComponent<RandomizedUnit>() != null;
+        }
+    }
+
     [HarmonyPatch( typeof( MapController ), "SpawnMook_Networked" )]
     static class MapController_SpawnMook_Networked
     {
@@ -187,8 +195,9 @@ namespace Randomizer_Mod
             return mookPrefab;
         }
 
-        public static void Prefix( ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert )
+        public static void Prefix( ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert, out bool __state )
         {
+            __state = false;
             if ( !Main.enabled || !Main.settings.enableSpawnedEnemiesRandomization )
             {
                 return;
@@ -200,7 +209,16 @@ namespace Randomizer_Mod
                 if ( replacePrefab != null )
                 {
                     mookPrefab = replacePrefab;
+                    __state = true;
                 }
+            }
+        }
+
+        public static void Postfix( Mook __result, bool __state )
+        {
+            if ( __state && __result != null )
+            {
+                __result.gameObject.AddComponent<RandomizedUnit>();
             }
         }
     }
@@ -208,8 +226,9 @@ namespace Randomizer_Mod
     [HarmonyPatch( typeof( MapController ), "SpawnMook_Local" )]
     static class MapController_SpawnMook_Local
     {
-        public static void Prefix( ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert )
+        public static void Prefix( ref Mook mookPrefab, float x, float y, float xI, float yI, bool tumble, bool useParachuteDelay, bool useParachute, bool onFire, bool isAlert, out bool __state )
         {
+            __state = false;
             if ( !Main.enabled || !Main.settings.enableSpawnedEnemiesRandomization )
             {
                 return;
@@ -221,7 +240,16 @@ namespace Randomizer_Mod
                 if ( replacePrefab != null )
                 {
                     mookPrefab = replacePrefab;
+                    __state = true;
                 }
+            }
+        }
+
+        public static void Postfix( Mook __result, bool __state )
+        {
+            if ( __state && __result != null )
+            {
+                __result.gameObject.AddComponent<RandomizedUnit>();
             }
         }
     }
@@ -775,6 +803,7 @@ namespace Randomizer_Mod
 
                 if ( __result != null )
                 {
+                    __result.AddComponent<RandomizedUnit>();
                     doodad.entity = __result;
                     __result.transform.parent = __instance.transform;
                     Block component = __result.GetComponent<Block>();
@@ -929,9 +958,9 @@ namespace Randomizer_Mod
     [HarmonyPatch( typeof( DolphLundrenSoldier ), "Gib" )]
     static class DolphLundrenSoldier_Gib
     {
-        public static void Prefix()
+        public static void Prefix( DolphLundrenSoldier __instance )
         {
-            if ( !Main.enabled || Main.settings.enableInstantWin || ( LevelSelectionController.currentCampaign.name == "WM_Village1(mouse)" && LevelSelectionController.CurrentLevelNum == 3 ) )
+            if ( !Main.enabled || Main.settings.enableInstantWin || !RandomizedUnit.IsRandomized( __instance ) )
             {
                 return;
             }
@@ -946,17 +975,10 @@ namespace Randomizer_Mod
     {
         public static void Prefix( MinibossEndCheck __instance, Unit ___miniBossUnit, int ___explosionDeathCount, ref float ___explosionDeathCounter )
         {
-            if ( !Main.enabled || Main.settings.enableInstantWin )
+            if ( !Main.enabled || Main.settings.enableInstantWin || !RandomizedUnit.IsRandomized( __instance ) )
             {
                 return;
             }
-
-            if ( LevelSelectionController.currentCampaign.name == "WM_Mission1(mouse)" && LevelSelectionController.CurrentLevelNum == 3 )
-                return;
-
-            if ( LevelSelectionController.currentCampaign.name == "WM_Bombardment(mouse)" && LevelSelectionController.CurrentLevelNum == 2 )
-                return;
-
 
             if ( ___miniBossUnit.health <= 0 )
             {
@@ -976,30 +998,31 @@ namespace Randomizer_Mod
             }
 
         }
+
+        public static void Postfix( MinibossEndCheck __instance, int ___explosionDeathCount )
+        {
+            if ( !Main.enabled || Main.settings.enableInstantWin || !RandomizedUnit.IsRandomized( __instance ) || ___explosionDeathCount > 0 )
+            {
+                return;
+            }
+
+            __instance.enabled = false;
+            SortOfFollow.ControlledByTriggerAction = false;
+        }
     }
 
     // Allows disabling GoliathMech instant win
     [HarmonyPatch( typeof( GoliathMech ), "Death" )]
     static class GoliathMech_Death
     {
-        public static void Prefix()
+        public static void Prefix( GoliathMech __instance )
         {
-            if ( !Main.enabled || Main.settings.enableInstantWin || ( LevelSelectionController.currentCampaign.name == "WM_KazakhstanRainy(mouse)" && LevelSelectionController.CurrentLevelNum == 3 ) )
+            if ( !Main.enabled || Main.settings.enableInstantWin || !RandomizedUnit.IsRandomized( __instance ) )
             {
                 return;
             }
 
-            Main.ignoreNextWin = true;
-        }
-
-        public static void Postfix( GoliathMech __instance )
-        {
-            if ( !Main.enabled || Main.settings.enableInstantWin || ( LevelSelectionController.currentCampaign.name == "WM_KazakhstanRainy(mouse)" && LevelSelectionController.CurrentLevelNum == 3 ) )
-            {
-                return;
-            }
-
-            __instance.actionState = ActionState.Idle;
+            __instance.SetCausesLevelVictory( false );
         }
     }
 

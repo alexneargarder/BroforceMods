@@ -1,3 +1,6 @@
+## v2.0.6 (unreleased)
+- Fixed several bugs when boss kills are set not to finish the level.
+
 ## v2.0.5
 - Fixed randomization applying to Tank Bro's tank and the mech airdrop powerup.
 
