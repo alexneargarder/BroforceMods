@@ -64,5 +64,20 @@ namespace IronBro_Multiplayer_Mod
                 mod.Logger.Log( str );
             }
         }
+
+        public static bool AllPlayersAboard()
+        {
+            return HeroController.GetPlayersOnHelicopterAmount() > 0 && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount();
+        }
+
+        // IsOverFinish only calls LevelFinish on the boarding player's own machine
+        public static void FinishLevelIfAllAboard()
+        {
+            if ( !GameModeController.LevelFinished && AllPlayersAboard() )
+            {
+                GameModeController.LevelFinish( LevelResult.Success );
+                Map.StartLevelEndExplosionsOverNetwork();
+            }
+        }
     }
 }

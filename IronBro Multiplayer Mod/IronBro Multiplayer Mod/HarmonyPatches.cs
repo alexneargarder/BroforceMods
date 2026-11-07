@@ -28,7 +28,9 @@ namespace IronBro_Multiplayer_Mod
             if ( HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() )
             {
                 Helicopter_Leave_Patch.attachCalled = false;
-                Main.heli.Leave();
+                // Null on portal levels
+                if ( Main.heli != null )
+                    Main.heli.Leave();
                 return true;
             }
             else
@@ -38,6 +40,29 @@ namespace IronBro_Multiplayer_Mod
             }
 
 
+        }
+    }
+
+    [HarmonyPatch( typeof( HeroController ), "AttachHeroToHelicopter" )]
+    static class HeroController_AttachHeroToHelicopter_Patch
+    {
+        // The RPC runs heli.Leave() before the hero is aboard, and AttachToHelicopter only runs on the boarding player's machine
+        public static void Prefix( TestVanDammeAnim hero, Helicopter heli )
+        {
+            if ( !Main.enabled )
+                return;
+
+            if ( hero != null && heli != null )
+                Helicopter_Leave_Patch.attachCalled = true;
+        }
+
+        public static void Postfix( TestVanDammeAnim hero, Helicopter heli, bool startExplosions )
+        {
+            // startExplosions is false on HelicopterFake and trigger-won levels, where boarding doesn't finish the level
+            if ( !Main.enabled || !Main.settings.helicopterWait || hero == null || heli == null || !startExplosions )
+                return;
+
+            Main.FinishLevelIfAllAboard();
         }
     }
 
@@ -71,6 +96,30 @@ namespace IronBro_Multiplayer_Mod
         }
     }
 
+    [HarmonyPatch( typeof( Map ), "Awake" )]
+    static class Map_Awake_Patch
+    {
+        public static void Postfix()
+        {
+            Helicopter_Leave_Patch.attachCalled = false;
+            Main.heli = null;
+        }
+    }
+
+    [HarmonyPatch( typeof( TestVanDammeAnim ), "SuckIntoPortal" )]
+    static class TestVanDammeAnim_SuckIntoPortal_Patch
+    {
+        public static void Postfix( TestVanDammeAnim __instance )
+        {
+            if ( !Main.enabled || !Main.settings.helicopterWait )
+                return;
+
+            // IsOverFinish only sets this after calling LevelFinish and starting the level end explosions
+            __instance.isOnHelicopter = true;
+            Main.FinishLevelIfAllAboard();
+        }
+    }
+
     [HarmonyPatch( typeof( Map ), "StartLevelEndExplosions" )]
     static class Map_StartLevelEndExplosions_Patch
     {
@@ -100,11 +149,11 @@ namespace IronBro_Multiplayer_Mod
             if ( !Main.enabled )
                 return;
 
-            if ( GameModeController.IsHardcoreMode && ( ( ( HeroController.GetPlayersOnHelicopterAmount() == ( HeroController.GetPlayersAliveCount() ) && HeroController.GetPlayersOnHelicopterAmount() > 0 ) ) || ( HeroController.GetTotalLives() == 0 ) ) )
+            if ( GameModeController.IsHardcoreMode && ( Main.AllPlayersAboard() || ( HeroController.GetTotalLives() == 0 ) ) )
             {
                 GameModeController.LevelFinish( LevelResult.ForcedFail );
             }
-            if ( !GameModeController.IsHardcoreMode && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() && HeroController.GetPlayersOnHelicopterAmount() > 0 )
+            if ( !GameModeController.IsHardcoreMode && Main.AllPlayersAboard() )
             {
                 GameModeController.LevelFinish( LevelResult.Success );
             }
