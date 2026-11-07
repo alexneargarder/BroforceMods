@@ -7,6 +7,7 @@
 - Added fix for reversed and slow scroll wheel in mod manager UI on Linux.
 - Updated Swap Bros integration to use new API.
 - Fix level edits not replaying when dying and restarting on a level.
+- Fixed Ending Skip skipping a level and Helicopter Wait not waiting for every player.
 
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.

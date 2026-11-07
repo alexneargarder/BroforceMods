@@ -174,54 +174,58 @@ namespace Utility_Mod
         }
 
         [HarmonyPatch( typeof( GameModeController ), "LevelFinish" )]
+        [HarmonyPriority( Priority.Low )]
         static class GameModeController_LevelFinish_Patch
         {
-            static bool Prefix( GameModeController __instance, LevelResult result )
+            static bool Prefix( LevelResult result, out bool __state )
             {
+                __state = GameModeController.LevelFinished;
+
                 if ( !Main.enabled )
                 {
                     return true;
                 }
 
-                // Check if helicopter should wait for other players
-                if ( Main.settings.helicopterWait )
+                // Registered IDs share Connect's mutated SID, so RPCs to this level no longer resolve and LevelFinished stays false
+                if ( Main.settings.loopCurrent && LevelTornDown() )
                 {
-                    if ( result != LevelResult.Success || ( HeroController.GetPlayersOnHelicopterAmount() == 0 ) )
-                    {
-                        return true;
-                    }
+                    return false;
+                }
 
-                    if ( HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() )
-                    {
-                        Helicopter_Leave_Patch.attachCalled = false;
-                        Main.helicopter.Leave();
-                        return true;
-                    }
-                    else
+                // Check if helicopter should wait for other players
+                if ( Main.settings.helicopterWait && result == LevelResult.Success && HeroController.GetPlayersOnHelicopterAmount() > 0 )
+                {
+                    if ( HeroController.GetPlayersOnHelicopterAmount() != HeroController.GetPlayersAliveCount() )
                     {
                         return false;
                     }
+
+                    Helicopter_Leave_Patch.attachCalled = false;
+                    // Null on portal levels
+                    if ( Main.helicopter != null )
+                    {
+                        Main.helicopter.Leave();
+                    }
                 }
 
-                if ( Main.settings.loopCurrent && result == LevelResult.Success )
+                if ( Main.settings.loopCurrent && result == LevelResult.Success && !__state )
                 {
                     bool temp = Main.settings.disableConfirm;
                     Main.settings.disableConfirm = true;
                     PauseMenu_RestartLevel_Patch.Prefix( null );
                     Main.settings.disableConfirm = temp;
+
+                    // A host's RPCs now carry the next level's session ID and would reach that level. A client only sent a request.
+                    return !LevelTornDown();
                 }
 
                 return true;
             }
 
-            static void Postfix( GameModeController __instance, LevelResult result )
+            static void Postfix( LevelResult result, bool __runOriginal, bool __state )
             {
-                if ( !Main.enabled )
-                {
-                    return;
-                }
-
-                if ( Main.settings.endingSkip && ( result == LevelResult.Success ) && !( ( GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 4 ) || ( GameState.Instance.campaignName == "WM_City2(mouse)" && GameState.Instance.levelNumber == 5 ) ) )
+                // MakeFinishInstant after the level outcome has run makes it run again
+                if ( Main.enabled && Main.settings.endingSkip && !Main.settings.loopCurrent && result == LevelResult.Success && __runOriginal && !__state && GameModeController.LevelFinished )
                 {
                     GameModeController.MakeFinishInstant();
                 }
@@ -713,6 +717,56 @@ namespace Utility_Mod
             }
         }
 
+        // LoadSceneCore nulls MapData for a reload, while Map stays alive until the scene unloads at the end of the frame.
+        static bool LevelTornDown()
+        {
+            return Map.MapData == null && Map.Instance != null;
+        }
+
+        static bool AllPlayersAboard()
+        {
+            return HeroController.GetPlayersOnHelicopterAmount() > 0 && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount();
+        }
+
+        // IsOverFinish only calls LevelFinish on the boarding player's own machine
+        static void FinishLevelIfAllAboard()
+        {
+            if ( !GameModeController.LevelFinished && AllPlayersAboard() )
+            {
+                GameModeController.LevelFinish( LevelResult.Success );
+                Map.StartLevelEndExplosionsOverNetwork();
+            }
+        }
+
+        [HarmonyPatch( typeof( HeroController ), "AttachHeroToHelicopter" )]
+        static class HeroController_AttachHeroToHelicopter_Patch
+        {
+            // The RPC runs heli.Leave() before the hero is aboard, and AttachToHelicopter only runs on the boarding player's machine
+            static void Prefix( TestVanDammeAnim hero, Helicopter heli )
+            {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                if ( hero != null && heli != null )
+                {
+                    Helicopter_Leave_Patch.attachCalled = true;
+                }
+            }
+
+            static void Postfix( TestVanDammeAnim hero, Helicopter heli, bool startExplosions )
+            {
+                // startExplosions is false on HelicopterFake and trigger-won levels, where boarding doesn't finish the level
+                if ( !Main.enabled || !Main.settings.helicopterWait || hero == null || heli == null || !startExplosions )
+                {
+                    return;
+                }
+
+                FinishLevelIfAllAboard();
+            }
+        }
+
         // Make helicopter wait for players
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AttachToHelicopter" )]
         static class TestVanDammeAnim_AttachToHelicopter_Patch
@@ -747,6 +801,42 @@ namespace Utility_Mod
             }
         }
 
+        [HarmonyPatch( typeof( Map ), "Awake" )]
+        static class Map_Awake_Patch
+        {
+            static void Postfix()
+            {
+                Helicopter_Leave_Patch.attachCalled = false;
+                Main.helicopter = null;
+            }
+        }
+
+        // StartLevelEndExplosionsOverNetwork reads MapData, which is null after a restart
+        [HarmonyPatch( typeof( Map ), "StartLevelEndExplosionsOverNetwork" )]
+        static class Map_StartLevelEndExplosionsOverNetwork_Patch
+        {
+            static bool Prefix()
+            {
+                return !Main.enabled || !Main.settings.loopCurrent || !LevelTornDown();
+            }
+        }
+
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "SuckIntoPortal" )]
+        static class TestVanDammeAnim_SuckIntoPortal_Patch
+        {
+            static void Postfix( TestVanDammeAnim __instance )
+            {
+                if ( !Main.enabled || !Main.settings.helicopterWait )
+                {
+                    return;
+                }
+
+                // IsOverFinish only sets this after calling LevelFinish and starting the level end explosions
+                __instance.isOnHelicopter = true;
+                FinishLevelIfAllAboard();
+            }
+        }
+
         // Make helicopter wait for players
         [HarmonyPatch( typeof( Map ), "StartLevelEndExplosions" )]
         static class Map_StartLevelEndExplosions_Patch
@@ -778,11 +868,11 @@ namespace Utility_Mod
                 if ( !Main.enabled || !Main.settings.helicopterWait )
                     return;
 
-                if ( GameModeController.IsHardcoreMode && ( ( ( HeroController.GetPlayersOnHelicopterAmount() == ( HeroController.GetPlayersAliveCount() ) && HeroController.GetPlayersOnHelicopterAmount() > 0 ) ) || ( HeroController.GetTotalLives() == 0 ) ) )
+                if ( GameModeController.IsHardcoreMode && ( AllPlayersAboard() || ( HeroController.GetTotalLives() == 0 ) ) )
                 {
                     GameModeController.LevelFinish( LevelResult.ForcedFail );
                 }
-                if ( !GameModeController.IsHardcoreMode && HeroController.GetPlayersOnHelicopterAmount() == HeroController.GetPlayersAliveCount() && HeroController.GetPlayersOnHelicopterAmount() > 0 )
+                if ( !GameModeController.IsHardcoreMode && AllPlayersAboard() )
                 {
                     GameModeController.LevelFinish( LevelResult.Success );
                 }

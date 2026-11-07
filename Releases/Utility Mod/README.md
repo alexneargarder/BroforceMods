@@ -28,7 +28,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 **Speed up Main Menu Loading** - If enabled, have the options on the main menu show up immediately without having to wait for the eagle scream.
 
-**Helicopter Wait** - If enabled, makes the helicopter at the end of levels wait for all players to be on board before leaving. It'll still leave if they are already dead or die before reaching it.
+**Helicopter Wait** - If enabled, makes the helicopter or exit portal at the end of levels wait for all players to be on board before leaving. It'll still leave if they are already dead or die before reaching it.
 
 **Disable Confirmation Menu** - If enabled, disables the yes / no popup that shows when returning to the map, main menu, or restarting a level.
 
