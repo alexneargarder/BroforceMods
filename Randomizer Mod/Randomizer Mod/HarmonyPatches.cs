@@ -208,6 +208,11 @@ namespace Randomizer_Mod
                 Mook replacePrefab = getRandomMookPrefab();
                 if ( replacePrefab != null )
                 {
+                    // NetworkedInstantiate returns null for prefabs missing from this list
+                    if ( InstantiationController.GetPrefabIndex( replacePrefab.gameObject ) < 0 )
+                    {
+                        InstantiationController.PrefabList.Add( replacePrefab.gameObject );
+                    }
                     mookPrefab = replacePrefab;
                     __state = true;
                 }
@@ -251,6 +256,27 @@ namespace Randomizer_Mod
             {
                 __result.gameObject.AddComponent<RandomizedUnit>();
             }
+        }
+    }
+
+    [HarmonyPatch( typeof( HellDogEgg ), "MakeEffects" )]
+    static class HellDogEgg_MakeEffects
+    {
+        public static bool Prefix( HellDogEgg __instance, float x, float y, Vector3 hitNormal )
+        {
+            if ( !Main.enabled )
+            {
+                return true;
+            }
+
+            Mook hatched = MapController.SpawnMook_Networked( __instance.hellDogPrefab, x, y, 20f * hitNormal.x, 20f * hitNormal.y, true, false, false, false, false );
+            // Only a Hellhound can grow from the egg, the original throws on anything else
+            HellDog hellDog = hatched as HellDog;
+            if ( hellDog != null )
+            {
+                Networking.Networking.RPC( PID.TargetAll, new RpcSignature( hellDog.GrowFromEgg ), true );
+            }
+            return false;
         }
     }
 
