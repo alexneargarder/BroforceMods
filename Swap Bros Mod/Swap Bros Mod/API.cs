@@ -88,20 +88,26 @@ namespace Swap_Bros_Mod
         /// Gets the display name of the currently selected bro for a player.
         /// </summary>
         /// <param name="playerNum">Player number (0-3)</param>
-        /// <returns>Bro display name</returns>
+        /// <returns>Bro display name, or null if the selection is not in the current bro list</returns>
         public static string GetSelectedBroName( int playerNum )
         {
-            return Main.currentBroList[Main.settings.selGridInt[playerNum]];
+            int selected = Main.settings.selGridInt[playerNum];
+            if ( selected < 0 || selected >= Main.currentBroList.Count )
+            {
+                return null;
+            }
+
+            return Main.currentBroList[selected];
         }
 
         /// <summary>
         /// Gets the HeroType of the currently selected bro for a player.
         /// </summary>
         /// <param name="playerNum">Player number (0-3)</param>
-        /// <returns>HeroType enum value</returns>
+        /// <returns>HeroType enum value, or HeroType.None if the selection is not in the current bro list</returns>
         public static HeroType GetSelectedBroHeroType( int playerNum )
         {
-            return StringToHeroType( Main.currentBroList[Main.settings.selGridInt[playerNum]] );
+            return StringToHeroType( GetSelectedBroName( playerNum ) );
         }
 
         /// <summary>

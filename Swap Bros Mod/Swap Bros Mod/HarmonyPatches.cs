@@ -44,6 +44,11 @@ namespace Swap_Bros_Mod
                             Main.CreateBroList();
                         }
 
+                        if ( Main.currentBroList.Count() == 0 )
+                        {
+                            return;
+                        }
+
                         // Set next hero to one of the enabled ones to ensure we don't spawn as a disabled character
                         if ( Main.settings.filterBros && Main.brosRemoved && !GameModeController.IsHardcoreMode )
                         {
@@ -156,22 +161,16 @@ namespace Swap_Bros_Mod
                     {
                         // Make sure list of available hardcore bros is up-to-date
                         Main.CreateBroList();
-                        // If Bromaker is enabled and selected character is custom
-                        if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
-                        {
-                            Main.MakeCustomBroSpawn( curPlayer, API.GetSelectedBroName( curPlayer ) );
-                            // Ensure we don't spawn boondock bros because one gets left over
-                            nextHeroType = HeroType.Rambro;
-                        }
-                        else
-                        {
-                            if ( Main.settings.enableBromaker )
-                                Main.DisableCustomBroSpawning( curPlayer );
-                            nextHeroType = API.GetSelectedBroHeroType( curPlayer );
-                        }
                     }
+
+                    int selected = Main.settings.selGridInt[curPlayer];
+                    if ( selected < 0 || selected >= Main.currentBroList.Count() )
+                    {
+                        return;
+                    }
+
                     // If bro spawning is a custom bro
-                    else if ( Main.settings.enableBromaker && Main.IsBroCustom( Main.settings.selGridInt[curPlayer] ) )
+                    if ( Main.settings.enableBromaker && Main.IsBroCustom( selected ) )
                     {
                         Main.MakeCustomBroSpawn( curPlayer, API.GetSelectedBroName( curPlayer ) );
                         // Ensure we don't spawn boondock bros because one gets left over

@@ -756,7 +756,7 @@ namespace Swap_Bros_Mod
 
         public static bool IsBroCustom( int index )
         {
-            return actuallyAllCustomBros.Count() > 0 && actuallyAllCustomBros.Contains( currentBroList[index] );
+            return index >= 0 && index < currentBroList.Count && actuallyAllCustomBros.Contains( currentBroList[index] );
         }
 
 
