@@ -2245,6 +2245,16 @@ namespace Unity_Inspector_Mod
         #region Bro Swapping
         private const string SwapBrosRequired = "Swap Bros Mod is required but not active";
 
+        private static object SwapBrosUnavailable()
+        {
+            string version = SwapBrosIntegration.OutdatedVersion;
+            if ( version != null )
+            {
+                return new { success = false, error = $"Swap Bros Mod {version} is installed, but list_bros and swap_bro need Swap Bros Mod 2.2.0 or later", reason = "swap-bros-incompatible" };
+            }
+            return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
+        }
+
         private static JObject BroFailure( string error, string reason )
         {
             return JObject.FromObject( new
@@ -2285,7 +2295,7 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
+                    return SwapBrosUnavailable();
                 }
 
                 object result = null;
@@ -2519,7 +2529,7 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
+                    return SwapBrosUnavailable();
                 }
 
                 object result = null;
@@ -2597,7 +2607,7 @@ namespace Unity_Inspector_Mod
 
                 if ( !SwapBrosIntegration.IsAvailable )
                 {
-                    return new { success = false, error = SwapBrosRequired, reason = "swap-bros-missing" };
+                    return SwapBrosUnavailable();
                 }
 
                 object result = null;

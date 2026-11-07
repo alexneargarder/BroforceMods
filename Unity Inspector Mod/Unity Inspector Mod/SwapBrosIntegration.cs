@@ -11,6 +11,7 @@ namespace Unity_Inspector_Mod
     public static class SwapBrosIntegration
     {
         private static bool _isAvailable;
+        private static bool _lacksApi;
         private static Action<string> _log;
 
         private static UnityModManager.ModEntry _modEntry;
@@ -58,6 +59,18 @@ namespace Unity_Inspector_Mod
             }
         }
 
+        public static string OutdatedVersion
+        {
+            get
+            {
+                if ( !_lacksApi || _modEntry == null || !_modEntry.Active )
+                {
+                    return null;
+                }
+                return _modEntry.Info.Version;
+            }
+        }
+
         public sealed class IncompatibleException : InvalidOperationException
         {
             public IncompatibleException( string message ) : base( message ) { }
@@ -66,6 +79,7 @@ namespace Unity_Inspector_Mod
         private static void Search()
         {
             _isAvailable = false;
+            _lacksApi = false;
 
             try
             {
@@ -78,6 +92,7 @@ namespace Unity_Inspector_Mod
                 var mainType = _modEntry.Assembly.GetType( "Swap_Bros_Mod.API" );
                 if ( mainType == null )
                 {
+                    _lacksApi = true;
                     return;
                 }
 
@@ -96,6 +111,7 @@ namespace Unity_Inspector_Mod
 
                 _isAvailable = _getAvailableBrosMethod != null &&
                                _swapToSpecificBroMethod != null;
+                _lacksApi = !_isAvailable;
 
                 var modMainType = _modEntry.Assembly.GetType( "Swap_Bros_Mod.Main" );
                 if ( modMainType != null )
