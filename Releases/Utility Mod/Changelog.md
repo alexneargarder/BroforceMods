@@ -3,6 +3,7 @@
 - Added a button to capture the Unity log from the mod manager's log window.
 - Fixed bugs with the right-click menu.
 - Fixed blocks spawned from the right-click menu not breaking or falling properly.
+- Fixed Disable Enemy Spawns blocking bosses, the enemies a level's events need, and the mech airstrike.
 - Allow TankBro's tank to spawn when enemy spawns are disabled.
 - Added fix for reversed and slow scroll wheel in mod manager UI on Linux.
 - Updated Swap Bros integration to use new API.

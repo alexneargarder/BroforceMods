@@ -68,7 +68,7 @@ If you run into any bugs or have any issues with the mod, please join the [Free 
 
 **Flight** - If enabled, gives you the ability to fly around.
 
-**Disable Enemy Spawns** - If enabled, prevents any enemies from spawning. This must be enabled before the level loads for it to work.
+**Disable Enemy Spawns** - If enabled, prevents enemies from spawning, except bosses and enemies a level's scripted events rely on. This must be enabled before the level loads for it to work.
 
 **Instant kill all enemies** - If enabled, set every enemy's health to 1, allowing you to one-shot them. This must be enabled before the level loads for it to work.
 

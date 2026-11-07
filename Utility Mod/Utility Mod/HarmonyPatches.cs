@@ -317,9 +317,14 @@ namespace Utility_Mod
                     return true;
                 }
 
-                if ( mookPrefab is MookArmouredGuy && mookPrefab.GetComponent<TankBroTank>() != null )
+                Map map = Map.Instance;
+                if ( map != null && map.sharedObjectsReference != null )
                 {
-                    return true;
+                    SharedLevelObjectsHolder shared = map.sharedObjectsReference.Asset;
+                    if ( shared != null && ( mookPrefab == shared.tankBroTank || mookPrefab == shared.mechDrop ) )
+                    {
+                        return true;
+                    }
                 }
 
                 return false;
@@ -340,6 +345,76 @@ namespace Utility_Mod
             }
         }
 
+        [HarmonyPatch( typeof( HellBoneWormMiniboss ), "FireProjectile" )]
+        static class HellBoneWormMiniboss_FireProjectile_Patch
+        {
+            static IEnumerable<CodeInstruction> Transpiler( IEnumerable<CodeInstruction> instructions, ILGenerator generator )
+            {
+                MethodInfo spawnMethod = AccessTools.Method( typeof( MapController ), "SpawnMook_Networked" );
+                MethodInfo enableHeadCollidersMethod = AccessTools.Method( typeof( HellBoneWormMiniboss ), "EnableHeadColliders" );
+                var codeMatcher = new CodeMatcher( instructions, generator );
+
+                IEnumerable<CodeInstruction> Unchanged( string anchor )
+                {
+                    Main.mod.Logger.Warning( $"HellBoneWormMiniboss_FireProjectile_Patch: Could not find {anchor}" );
+                    return instructions;
+                }
+
+                codeMatcher.MatchEndForward(
+                        new CodeMatch( i => i.Calls( spawnMethod ) ),
+                        new CodeMatch( i => i.IsStloc() )
+                    );
+                if ( !codeMatcher.IsValid )
+                {
+                    return Unchanged( "the stored spawn result" );
+                }
+
+                CodeInstruction store = codeMatcher.Instruction;
+                int guardPos = codeMatcher.Pos + 1;
+
+                codeMatcher.MatchStartForward(
+                        new CodeMatch( OpCodes.Ldarg_0 ),
+                        new CodeMatch( i => i.Calls( enableHeadCollidersMethod ) )
+                    );
+                if ( !codeMatcher.IsValid )
+                {
+                    return Unchanged( "the EnableHeadColliders call" );
+                }
+
+                Label skipLabel = generator.DefineLabel();
+                codeMatcher.Labels.Add( skipLabel );
+
+                codeMatcher.Start().Advance( guardPos );
+                CodeInstruction load = LoadLocal( store );
+                codeMatcher.Instruction.MoveLabelsTo( load );
+                codeMatcher.Insert( load, new CodeInstruction( OpCodes.Brfalse, skipLabel ) );
+
+                return codeMatcher.InstructionEnumeration();
+            }
+
+            static CodeInstruction LoadLocal( CodeInstruction store )
+            {
+                OpCode opcode = store.opcode;
+                if ( opcode == OpCodes.Stloc_0 )
+                {
+                    return new CodeInstruction( OpCodes.Ldloc_0 );
+                }
+                if ( opcode == OpCodes.Stloc_1 )
+                {
+                    return new CodeInstruction( OpCodes.Ldloc_1 );
+                }
+                if ( opcode == OpCodes.Stloc_2 )
+                {
+                    return new CodeInstruction( OpCodes.Ldloc_2 );
+                }
+                if ( opcode == OpCodes.Stloc_3 )
+                {
+                    return new CodeInstruction( OpCodes.Ldloc_3 );
+                }
+                return new CodeInstruction( opcode == OpCodes.Stloc_S ? OpCodes.Ldloc_S : OpCodes.Ldloc, store.operand );
+            }
+        }
+
         [HarmonyPatch( typeof( Map ), "PlaceDoodad" )]
         static class Map_PlaceDoodad
         {
@@ -350,12 +425,105 @@ namespace Utility_Mod
                     return true;
                 }
 
-                if ( doodad.type == DoodadType.Mook || doodad.type == DoodadType.Alien || doodad.type == DoodadType.HellEnemy || doodad.type == DoodadType.AlienBoss || doodad.type == DoodadType.HellBoss || doodad.type == DoodadType.Vehicle )
+                if ( !IsSuppressedEnemy( __instance, doodad ) )
+                {
+                    return true;
+                }
+
+                if ( !string.IsNullOrEmpty( doodad.tag ) && IsTagReferencedByTriggers( doodad.tag ) )
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            static bool IsSuppressedEnemy( Map map, DoodadInfo doodad )
+            {
+                switch ( doodad.type )
+                {
+                    case DoodadType.Mook:
+                    case DoodadType.Alien:
+                    case DoodadType.Vehicle:
+                        return true;
+                    case DoodadType.HellEnemy:
+                        return !IsBoneWormMiniboss( map, doodad.variation );
+                    default:
+                        return false;
+                }
+            }
+
+            static bool IsTagReferencedByTriggers( string tag )
+            {
+                MapData mapData = Map.MapData;
+                if ( mapData == null || mapData.TriggerList == null )
                 {
                     return false;
                 }
 
-                return true;
+                foreach ( TriggerInfo trigger in mapData.TriggerList )
+                {
+                    if ( trigger == null )
+                    {
+                        continue;
+                    }
+
+                    if ( trigger.type == TriggerType.Entity && TagsMatch( trigger.tag, tag ) )
+                    {
+                        return true;
+                    }
+
+                    if ( trigger.actions == null )
+                    {
+                        continue;
+                    }
+
+                    foreach ( TriggerActionInfo action in trigger.actions )
+                    {
+                        string referencedTag = null;
+                        if ( action is ExecuteFunctionActionInfo )
+                        {
+                            referencedTag = ( (ExecuteFunctionActionInfo)action ).entity;
+                        }
+                        else if ( action is LevelEventActionInfo )
+                        {
+                            referencedTag = ( (LevelEventActionInfo)action ).triggerName;
+                        }
+                        else if ( action is CharacterActionInfo )
+                        {
+                            referencedTag = ( (CharacterActionInfo)action ).characterTag;
+                        }
+
+                        if ( TagsMatch( referencedTag, tag ) )
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            static bool TagsMatch( string referencedTag, string tag )
+            {
+                return !string.IsNullOrEmpty( referencedTag ) && string.Equals( referencedTag, tag, StringComparison.OrdinalIgnoreCase );
+            }
+
+            static bool IsBoneWormMiniboss( Map map, int variation )
+            {
+                if ( map.sharedObjectsReference == null )
+                {
+                    return false;
+                }
+
+                SharedLevelObjectsHolder shared = map.sharedObjectsReference.Asset;
+                if ( shared == null || shared.hellEnemies == null || variation < 0 || variation >= shared.hellEnemies.Length )
+                {
+                    return false;
+                }
+
+                GameObject prefab = shared.hellEnemies[variation];
+                return prefab != null && prefab.GetComponent<AlienMinibossSandWorm>() != null;
             }
         }
 
