@@ -9,6 +9,7 @@
 - Updated Swap Bros integration to use new API.
 - Fix level edits not replaying when dying and restarting on a level.
 - Fixed Ending Skip skipping a level and Helicopter Wait not waiting for every player.
+- Fixed pausing and Slow Time leaving the game frozen or at the wrong speed.
 
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.

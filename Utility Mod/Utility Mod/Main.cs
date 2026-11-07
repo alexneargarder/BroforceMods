@@ -123,6 +123,8 @@ namespace Utility_Mod
 
         public static bool loadedLevel = false;
 
+        public static bool TimeIsStopped => Time.timeScale == 0f;
+
         public static float levelStartedCounter = 0f;
 
         public static TestVanDammeAnim currentCharacter;
@@ -1016,7 +1018,7 @@ namespace Utility_Mod
 
                 GUILayout.Label( "Time Slow Factor: " + settings.slowTimeFactor );
 
-                if ( settings.slowTimeFactor != ( settings.slowTimeFactor = GUILayout.HorizontalSlider( settings.slowTimeFactor, 0, 5, WindowScaling.ScaledWidth( 200 ) ) ) )
+                if ( settings.slowTimeFactor != ( settings.slowTimeFactor = GUILayout.HorizontalSlider( settings.slowTimeFactor, 0, 5, WindowScaling.ScaledWidth( 200 ) ) ) && settings.slowTime )
                 {
                     Main.StartTimeSlow();
                 }
@@ -1445,7 +1447,7 @@ namespace Utility_Mod
             GUILayout.Space( 10 );
 
             GUILayout.BeginHorizontal();
-            string speedText = settings.isGamePaused ? "Game Speed: PAUSED" : $"Game Speed: {settings.gameSpeedMultiplier:F2}x";
+            string speedText = TimeIsStopped ? "Game Speed: PAUSED" : $"Game Speed: {settings.gameSpeedMultiplier:F2}x";
             GUILayout.Label( speedText, WindowScaling.ScaledWidth( 200 ) );
             GUILayout.EndHorizontal();
 
@@ -2364,10 +2366,13 @@ namespace Utility_Mod
                     break;
 
                 case "Pause/Unpause Game":
-                    settings.isGamePaused = !settings.isGamePaused;
-                    if ( settings.isGamePaused )
+                    if ( !TimeIsStopped )
                     {
                         Time.timeScale = 0f;
+                    }
+                    else if ( settings.slowTime )
+                    {
+                        StartTimeSlow();
                     }
                     else
                     {
@@ -2377,9 +2382,8 @@ namespace Utility_Mod
 
                 case "Increase Game Speed":
                     float increaseAmount = shiftHeld ? settings.gameSpeedStep * 5f : settings.gameSpeedStep;
-                    if ( settings.isGamePaused )
+                    if ( TimeIsStopped )
                     {
-                        settings.isGamePaused = false;
                         settings.gameSpeedMultiplier = increaseAmount;
                     }
                     else
@@ -2391,7 +2395,7 @@ namespace Utility_Mod
                     break;
 
                 case "Decrease Game Speed":
-                    if ( !settings.isGamePaused )
+                    if ( !TimeIsStopped )
                     {
                         float decreaseAmount = shiftHeld ? settings.gameSpeedStep * 5f : settings.gameSpeedStep;
                         settings.gameSpeedMultiplier -= decreaseAmount;
@@ -2402,7 +2406,6 @@ namespace Utility_Mod
 
                 case "Reset Game Speed":
                     settings.gameSpeedMultiplier = 1.0f;
-                    settings.isGamePaused = false;
                     Time.timeScale = 1.0f;
                     break;
 
@@ -3369,6 +3372,10 @@ namespace Utility_Mod
         {
             HeroController.CancelTimeBroBoost();
             HeroController.TimeBroBoostHeroes( 0 );
+            if ( settings.slowTimeFactor == 0f )
+            {
+                Time.timeScale = settings.gameSpeedMultiplier;
+            }
         }
 
         public static bool TryGetFinalCheckpointPos( out Vector3 position )

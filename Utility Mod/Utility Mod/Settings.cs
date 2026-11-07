@@ -107,7 +107,6 @@ namespace Utility_Mod
         public bool filterFrequentUnityLogs = true;
         public float gameSpeedMultiplier = 1.0f;
         public float gameSpeedStep = 0.01f;
-        public bool isGamePaused = false;
         public bool disablePlayerBubbles = false;
 
         // Context Menu Settings

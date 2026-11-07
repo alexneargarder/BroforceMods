@@ -1455,9 +1455,9 @@ namespace Utility_Mod
             // 1.0x (Default) - selecting this disables slow time
             parentMenu.AddSubItem( new MenuItem( ( Mathf.Approximately( currentSlowTimeFactor, 1.0f ) ? "✓ " : "" ) + "1.0x (Default)", () =>
             {
-                Main.settings.slowTimeFactor = 1.0f;
                 Main.settings.slowTime = false;
                 Main.StopTimeSlow();
+                Main.settings.slowTimeFactor = 1.0f;
                 manager.CloseMenu();
             } ) );
         }
