@@ -1,3 +1,6 @@
+## v1.0.4 (unreleased)
+- Fixed a controlled Mook General's summon breaking when Utility Mod's Disable Enemy Spawns is on.
+
 ## v1.0.3
 - Updated to work with new RocketLib version.
 - Fix players being able to be trapped in hell portal in competitive mode if they don't currently have enough points to attempt a win.

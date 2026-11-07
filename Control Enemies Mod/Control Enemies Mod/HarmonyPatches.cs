@@ -2013,8 +2013,12 @@ namespace Control_Enemies_Mod
                 if ( Main.IsControlledUnit( __instance ) )
                 {
                     Mook mook = MapController.SpawnMook_Networked( prefab, x, y, 0f, 0f, false, false, true, false, true );
-                    mook.playerNum = __instance.playerNum;
-                    mook.firingPlayerNum = __instance.firingPlayerNum;
+                    if ( mook != null )
+                    {
+                        mook.playerNum = __instance.playerNum;
+                        mook.firingPlayerNum = __instance.firingPlayerNum;
+                    }
+
                     return false;
                 }
 
