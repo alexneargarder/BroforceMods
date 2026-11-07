@@ -2740,18 +2740,146 @@ namespace Utility_Mod
             return SpawnBlockInternal( row, column, blockType );
         }
 
+        static Block GetFootprintPrefab( BlockType blockType )
+        {
+            switch ( blockType )
+            {
+                case BlockType.Dirt:
+                    return Map.Instance.activeTheme.blockPrefabEarth;
+                case BlockType.Boulder:
+                    return Map.Instance.activeTheme.boulders[0].GetComponent<Block>();
+                case BlockType.BoulderBig:
+                    return Map.Instance.activeTheme.boulders[1].GetComponent<Block>();
+                case BlockType.StandardCage:
+                    return Map.Instance.sharedObjectsReference.Asset.standardCage;
+                case BlockType.Crate:
+                    return Map.Instance.activeTheme.blockPrefabWood[0];
+                default:
+                    return null;
+            }
+        }
+
+        static bool TryGetFootprint( Block prefab, int column, int row, List<GridPoint> cells )
+        {
+            cells.Add( new GridPoint( column, row ) );
+
+            bool isBigEarth = prefab.groundType == GroundType.Earth && prefab.size == 2;
+            if ( isBigEarth || prefab is Cage )
+            {
+                GridPoint[] extraCells = { new GridPoint( column + 1, row ), new GridPoint( column, row - 1 ), new GridPoint( column + 1, row - 1 ) };
+                foreach ( GridPoint cell in extraCells )
+                {
+                    if ( IsInsideMap( cell.c, cell.r ) )
+                    {
+                        cells.Add( cell );
+                    }
+                    // The game writes a 2x2 earth block's extra cells without a bounds check, unlike a cage's
+                    else if ( isBigEarth )
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            int width;
+            int height;
+            GetGridSize( prefab, out width, out height );
+            for ( int c = column; c < column + width; ++c )
+            {
+                for ( int r = row; r < row + height; ++r )
+                {
+                    if ( ( c != column || r != row ) && IsInsideMap( c, r ) )
+                    {
+                        cells.Add( new GridPoint( c, r ) );
+                    }
+                }
+            }
+            return true;
+        }
+
+        static void GetGridSize( Block block, out int width, out int height )
+        {
+            width = 1;
+            height = 1;
+            if ( block is BoulderBlock )
+            {
+                width = ( block as BoulderBlock ).collumnWidth;
+                height = ( block as BoulderBlock ).rowHeight;
+            }
+            else if ( block is BrazierBlock )
+            {
+                width = ( block as BrazierBlock ).collumnWidth;
+                height = ( block as BrazierBlock ).rowHeight;
+            }
+            else if ( block is FireBinDoodad )
+            {
+                width = ( block as FireBinDoodad ).collumnWidth;
+                height = ( block as FireBinDoodad ).rowHeight;
+            }
+        }
+
+        static bool IsInsideMap( int column, int row )
+        {
+            return column >= 0 && column < Map.MapData.Width && row >= 0 && row < Map.MapData.Height;
+        }
+
+        static bool IsFootprintFree( Block prefab, int column, int row )
+        {
+            List<GridPoint> cells = new List<GridPoint>();
+            if ( !TryGetFootprint( prefab, column, row, cells ) )
+            {
+                return false;
+            }
+            foreach ( GridPoint cell in cells )
+            {
+                if ( Map.blocks[cell.c, cell.r] != null && !Map.blocks[cell.c, cell.r].destroyed )
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        static void ClaimPendingFootprint( Block block )
+        {
+            if ( Map.isEditing )
+            {
+                return;
+            }
+            Cage cage = block as Cage;
+            if ( cage != null )
+            {
+                // StartFalling frees the cells only when PlaceCageBlocks has set hasPlacedBlocks
+                Traverse.Create( cage ).Method( "PlaceCageBlocks" ).GetValue();
+                Map.RegisterCage( cage );
+            }
+            int width;
+            int height;
+            GetGridSize( block, out width, out height );
+            for ( int c = block.collumn; c < block.collumn + width; ++c )
+            {
+                for ( int r = block.row; r < block.row + height; ++r )
+                {
+                    if ( ( c != block.collumn || r != block.row ) && IsInsideMap( c, r ) )
+                    {
+                        Map.blocks[c, r] = block;
+                    }
+                }
+            }
+        }
+
         public static bool SpawnBlockInternal( int row, int column, BlockType blockType, Block prefabOverride = null )
         {
             Block block = null;
 
+            Block footprintPrefab = prefabOverride ?? GetFootprintPrefab( blockType );
+            if ( footprintPrefab != null && !IsFootprintFree( footprintPrefab, column, row ) )
+            {
+                return false;
+            }
+
             if ( prefabOverride != null )
             {
-                if ( prefabOverride.groundType == GroundType.Earth && prefabOverride.size == 2 &&
-                    ( column + 1 >= Map.MapData.Width || row - 1 < 0 ) )
-                {
-                    return false;
-                }
-
                 // When we have a prefab override, replicate the core PlaceGround logic
                 // This handles the vast majority of blocks correctly
 
@@ -2809,36 +2937,40 @@ namespace Utility_Mod
             }
 
             if ( block == null ) return false;
-            if ( !IsBridgeGroundType( block.groundType ) )
+            // Map.LoadArea runs this setup only on blocks of size 1
+            if ( block.size == 1 )
             {
-                if ( column > 0 && Map.blocks[column - 1, row] != null )
+                if ( !IsBridgeGroundType( block.groundType ) )
                 {
-                    block.HideLeft();
+                    if ( column > 0 && Map.blocks[column - 1, row] != null )
+                    {
+                        block.HideLeft();
+                    }
+                    if ( column < Map.MapData.Width - 1 && Map.blocks[column + 1, row] != null )
+                    {
+                        block.HideRight();
+                    }
+                    if ( row > 0 && Map.blocks[column, row - 1] != null )
+                    {
+                        block.HideBelow();
+                    }
+                    if ( row < Map.MapData.Height - 1 && Map.blocks[column, row + 1] != null )
+                    {
+                        block.HideAbove();
+                    }
                 }
-                if ( column < Map.MapData.Width - 1 && Map.blocks[column + 1, row] != null )
+                Block aboveBlock = null;
+                Block belowBlock = null;
+                if ( row < Map.MapData.Height - 1 && Map.blocks[column, row + 1] != null )
                 {
-                    block.HideRight();
+                    aboveBlock = Map.blocks[column, row + 1];
                 }
                 if ( row > 0 && Map.blocks[column, row - 1] != null )
                 {
-                    block.HideBelow();
+                    belowBlock = Map.blocks[column, row - 1];
                 }
-                if ( row < Map.MapData.Height - 1 && Map.blocks[column, row + 1] != null )
-                {
-                    block.HideAbove();
-                }
+                block.SetupBlock( row, column, aboveBlock, belowBlock );
             }
-            Block aboveBlock = null;
-            Block belowBlock = null;
-            if ( row < Map.MapData.Height - 1 && Map.blocks[column, row + 1] != null )
-            {
-                aboveBlock = Map.blocks[column, row + 1];
-            }
-            if ( row > 0 && Map.blocks[column, row - 1] != null )
-            {
-                belowBlock = Map.blocks[column, row - 1];
-            }
-            block.SetupBlock( column, row, aboveBlock, belowBlock );
             block.RegisterBlockOnNetwork();
             if ( block is DirtBlock )
             {
@@ -2848,6 +2980,9 @@ namespace Utility_Mod
                 dirtBlock.backgroundEdgesPrefabs = null;
             }
             block.FirstFrame();
+            block.SecondFrame();
+            // Cages, boulders, braziers and fire bins claim their other cells only in their first Update
+            ClaimPendingFootprint( block );
 
             return true;
         }

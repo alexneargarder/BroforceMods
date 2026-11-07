@@ -704,6 +704,15 @@ namespace Utility_Mod
             }
         }
 
+        [HarmonyPatch( typeof( DirtBlock ), "ShowBrokenBackground", new Type[] { } )]
+        static class DirtBlock_ShowBrokenBackground_Patch
+        {
+            static bool Prefix( DirtBlock __instance )
+            {
+                return __instance.backgroundPrefabs != null;
+            }
+        }
+
         // Make helicopter wait for players
         [HarmonyPatch( typeof( TestVanDammeAnim ), "AttachToHelicopter" )]
         static class TestVanDammeAnim_AttachToHelicopter_Patch
