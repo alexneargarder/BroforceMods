@@ -12,7 +12,7 @@ namespace Swap_Bros_Mod
         {
             public static void Prefix( Player __instance, ref HeroType nextHeroType )
             {
-                if ( !Main.enabled )
+                if ( !Main.enabled || !__instance.IsMine )
                     return;
 
                 try
@@ -190,7 +190,7 @@ namespace Swap_Bros_Mod
             }
             static void Postfix( Player __instance, ref HeroType nextHeroType )
             {
-                if ( !Main.enabled )
+                if ( !Main.enabled || !__instance.IsMine )
                     return;
 
                 if ( Main.settings.enableBromaker )
@@ -245,14 +245,14 @@ namespace Swap_Bros_Mod
         {
             public static void Postfix( Player __instance )
             {
-                if ( !Main.enabled )
+                if ( !Main.enabled || !__instance.IsMine || __instance.character == null )
                 {
                     return;
                 }
 
                 int curPlayer = __instance.playerNum;
-                bool leftPressed = Main.swapLeftKey.IsDown( __instance.playerNum );
-                bool rightPressed = Main.swapRightKey.IsDown( __instance.playerNum );
+                bool leftPressed = Main.swapLeftKey.IsDown( __instance.controllerNum );
+                bool rightPressed = Main.swapRightKey.IsDown( __instance.controllerNum );
 
                 if ( ( ( ( leftPressed || rightPressed ) && Main.cooldown == 0f && __instance.IsAlive() ) || ( Main.settings.clickingEnabled && Main.switched[curPlayer] ) ) && __instance.character.pilottedUnit == null )
                 {
@@ -300,7 +300,7 @@ namespace Swap_Bros_Mod
         {
             static void Prefix( Player __instance )
             {
-                if ( !Main.enabled )
+                if ( !Main.enabled || !__instance.IsMine || __instance.character == null )
                 {
                     return;
                 }

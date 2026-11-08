@@ -302,7 +302,10 @@ namespace Swap_Bros_Mod
             GUILayout.BeginVertical();
             for ( int i = 0; i < 4; ++i )
             {
-                if ( GUILayout.Button( "Player " + ( i + 1 ) + " Options - " + ( settings.showSettings[i] ? "Hide" : "Show" ) ) )
+                int curPlayer = GetLocalPlayerNum( i );
+                var player = curPlayer >= 0 ? HeroController.players[curPlayer] : null;
+                int controllerNum = player != null ? player.controllerNum : i;
+                if ( GUILayout.Button( "Local Player " + ( i + 1 ) + " Options - " + ( settings.showSettings[i] ? "Hide" : "Show" ) ) )
                 {
                     settings.showSettings[i] = !settings.showSettings[i];
                 }
@@ -310,9 +313,9 @@ namespace Swap_Bros_Mod
                 {
                     GUILayout.BeginHorizontal();
                     GUILayout.Label( "Swap Bro Left: ", GUILayout.ExpandWidth( false ) );
-                    swapLeftKey.OnGUI( out _, false, true, ref previousToolTip, i, true, false, false );
+                    swapLeftKey.OnGUI( out _, false, true, ref previousToolTip, controllerNum, true, false, false );
                     GUILayout.Label( "Swap Bro Right: ", GUILayout.ExpandWidth( false ) );
-                    swapRightKey.OnGUI( out _, false, true, ref previousToolTip, i, true, false, false );
+                    swapRightKey.OnGUI( out _, false, true, ref previousToolTip, controllerNum, true, false, false );
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
@@ -447,33 +450,37 @@ namespace Swap_Bros_Mod
                             GUILayout.EndHorizontal();
                             GUILayout.EndVertical();
                         }
-                        // Display bro selection menu
-                        else
+                        // Menu sections enumerate locally owned players, not controller slots.
+                        else if ( curPlayer >= 0 )
                         {
-                            if ( settings.selGridInt[i] < 0 || settings.selGridInt[i] >= broList.Length )
+                            if ( settings.selGridInt[curPlayer] < 0 || settings.selGridInt[curPlayer] >= broList.Length )
                             {
-                                settings.selGridInt[i] = 0;
+                                settings.selGridInt[curPlayer] = 0;
                             }
 
-                            if ( settings.selGridInt[i] <= maxBroNum )
+                            if ( settings.selGridInt[curPlayer] <= maxBroNum )
                             {
                                 if ( settings.clickingEnabled )
                                 {
-                                    if ( settings.selGridInt[i] != ( settings.selGridInt[i] = GUILayout.SelectionGrid( settings.selGridInt[i], broList, 5, GUILayout.Height( 30 * Mathf.Ceil( broList.Length / 5.0f ) ) ) )
+                                    if ( settings.selGridInt[curPlayer] != ( settings.selGridInt[curPlayer] = GUILayout.SelectionGrid( settings.selGridInt[curPlayer], broList, 5, GUILayout.Height( 30 * Mathf.Ceil( broList.Length / 5.0f ) ) ) )
                                         && ( Map.Instance != null ) )
                                     {
-                                        switched[i] = true;
+                                        switched[curPlayer] = true;
                                     }
                                 }
                                 else
                                 {
-                                    settings.selGridInt[i] = GUILayout.SelectionGrid( settings.selGridInt[i], broList, 5, GUILayout.Height( 30 * Mathf.Ceil( broList.Length / 5.0f ) ) );
+                                    settings.selGridInt[curPlayer] = GUILayout.SelectionGrid( settings.selGridInt[curPlayer], broList, 5, GUILayout.Height( 30 * Mathf.Ceil( broList.Length / 5.0f ) ) );
                                 }
                             }
                             else
                             {
                                 CreateBroList();
                             }
+                        }
+                        else
+                        {
+                            GUILayout.Label( "Join this local player to choose a bro." );
                         }
                     }
 
@@ -495,6 +502,24 @@ namespace Swap_Bros_Mod
         {
             enabled = value;
             return true;
+        }
+
+        public static int GetLocalPlayerNum( int localPlayerIndex )
+        {
+            int ownedPlayerIndex = 0;
+            for ( int i = 0; i < HeroController.players.Length; ++i )
+            {
+                var player = HeroController.players[i];
+                if ( player != null && player.IsMine )
+                {
+                    if ( ownedPlayerIndex == localPlayerIndex )
+                    {
+                        return player.playerNum;
+                    }
+                    ++ownedPlayerIndex;
+                }
+            }
+            return Connect.IsOffline ? localPlayerIndex : -1;
         }
 
         public static void LoadKeyBinding()
