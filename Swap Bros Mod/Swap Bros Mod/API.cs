@@ -205,7 +205,7 @@ namespace Swap_Bros_Mod
                 }
 
                 var player = HeroController.players[playerNum];
-                if ( player == null || !player.IsAlive() || player.character == null )
+                if ( player == null || !player.IsMine || !player.IsAlive() || player.character == null )
                 {
                     return false;
                 }
