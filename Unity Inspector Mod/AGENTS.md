@@ -63,6 +63,9 @@ Each compiler patch below guards against a Mono or mcs failure; removing one bri
 - `PatchGuardedReflection`: a reflection read on a member whose signature names an absent assembly would crash the game; script calls get a probe that throws `FileNotFoundException` first.
 - `LoadMembers` drops members whose signature names an absent assembly or holds a function pointer.
 - `PatchForeignBuilderTokens`: Mono tokens another module's `FieldBuilder`/`TypeBuilder` as the emitting module's, so naming an earlier `execute_code` call's static gives Invalid IL on a read and a GC crash after a write.
+- `TypeResolution`: mcs skips another assembly's top-level internal types, so naming one fails with CS0122. A name resolves to one only when it finds nothing public: a qualified name in its namespace, a simple name on a second lookup after the enclosing namespaces and the usings found nothing, so a public type keeps winning. On that second lookup two internal types the usings supply are a CS0104 ambiguity, an alias or `using static` defined during a lookup sees internal types, and the accessibility check treats another assembly's internal type as the compile's own. Its lookup patches go in all together or not at all.
+- `TypeResolution`'s `Is` patches: an `is` operand that resolves neither as a type nor as a pattern loses both errors and goes on with a null or error operand (CS0584 or CS0150); they report the type's own error, or the member's when the operand's left side is a type.
+- `TypeResolution`'s pattern-helper patches: the Evaluator prepares the helper a number or enum constant pattern creates a second time, and its module keeps the helper past the compile that built it, so `x is 3` on an object fails as an internal error without them.
 
 `DetectEnumUsageError` rejects, before compiling, a reference to an enum defined in the same script, another loaded script or an earlier `execute_code` call.
 

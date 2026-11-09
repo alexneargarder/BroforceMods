@@ -22,8 +22,10 @@ namespace Unity_Inspector_Mod
             "System",
             "System.Collections",
             "System.Collections.Generic",
+            "System.IO",
             "System.Linq",
             "System.Reflection",
+            "System.Text",
             "UnityEngine",
             "HarmonyLib",
             "Unity_Inspector_Mod"
@@ -82,6 +84,7 @@ namespace Unity_Inspector_Mod
             PatchGenericInstanceFields();
             PatchJsonFieldProvider();
             PatchGenericMethodBinding();
+            TypeResolution.Install();
         }
 
         internal static int InstrumentCode;
