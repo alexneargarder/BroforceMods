@@ -66,6 +66,8 @@ Each compiler patch below guards against a Mono or mcs failure; removing one bri
 
 `DetectEnumUsageError` rejects, before compiling, a reference to an enum defined in the same script, another loaded script or an earlier `execute_code` call.
 
+Script teardown unpatches per method by owner, never `UnpatchAll`, which reads the body of every method any mod patched. It uses `DestroyImmediate` in `Unload()`'s frame so nothing of the script runs after it.
+
 ## execute_code
 
 - Each call compiles as a bare `{ ... }` block returning through `CodeExecutor.__Set`, not mcs's `$retval`: mcs 6.13 fails to emit a top-level lambda whose local a nested lambda captures.
