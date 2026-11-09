@@ -14,6 +14,10 @@ namespace Utility_Mod
         #region Fields and Properties
 
         private readonly ContextMenuManager manager;
+        private ContextMenuManager.MenuContext menuContext = ContextMenuManager.MenuContext.Live;
+
+        private bool IsLive => menuContext == ContextMenuManager.MenuContext.Live;
+        private bool HasLevel => menuContext != ContextMenuManager.MenuContext.NoLevel;
 
         private static bool showProfileNameDialog = false;
         private static string profileNameInput = "";
@@ -115,17 +119,22 @@ namespace Utility_Mod
 
         #region Menu Building
 
-        public void BuildMenuItems()
+        public void BuildMenuItems( ContextMenuManager.MenuContext context )
         {
             if ( manager.CurrentMenu == null )
                 return;
 
+            menuContext = context;
+
             // Check what's under the cursor for context-sensitive actions
-            GameObject targetObject = manager.GetObjectUnderCursor();
             bool hasContextActions = false;
-            if ( targetObject != null )
+            if ( IsLive )
             {
-                hasContextActions = BuildContextActions( targetObject );
+                GameObject targetObject = manager.GetObjectUnderCursor();
+                if ( targetObject != null )
+                {
+                    hasContextActions = BuildContextActions( targetObject );
+                }
             }
 
             // Add General Actions header if we have context actions
@@ -141,28 +150,31 @@ namespace Utility_Mod
                 BuildRecentlyUsedSection();
             }
 
-            var teleportAction = MenuAction.CreateTeleport();
-            var teleportItem = new MenuItem( teleportAction.DisplayName, () =>
+            if ( IsLive )
             {
-                manager.ExecuteAction( teleportAction );
-            } )
-            {
-                ActionId = teleportAction.Id,
-                MenuAction = teleportAction
-            };
-            manager.CurrentMenu.AddItem( teleportItem );
+                var teleportAction = MenuAction.CreateTeleport();
+                var teleportItem = new MenuItem( teleportAction.DisplayName, () =>
+                {
+                    manager.ExecuteAction( teleportAction );
+                } )
+                {
+                    ActionId = teleportAction.Id,
+                    MenuAction = teleportAction
+                };
+                manager.CurrentMenu.AddItem( teleportItem );
 
-            manager.CurrentMenu.AddSeparator();
+                manager.CurrentMenu.AddSeparator();
 
-            // Add Spawn Enemy submenu
-            MenuItem spawnEnemyMenu = new MenuItem( "Spawn Enemy" );
-            BuildEnemySubmenu( spawnEnemyMenu );
-            manager.CurrentMenu.AddItem( spawnEnemyMenu );
+                // Add Spawn Enemy submenu
+                MenuItem spawnEnemyMenu = new MenuItem( "Spawn Enemy" );
+                BuildEnemySubmenu( spawnEnemyMenu );
+                manager.CurrentMenu.AddItem( spawnEnemyMenu );
 
-            // Add Spawn Object submenu
-            MenuItem spawnObjectMenu = new MenuItem( "Spawn Object" );
-            BuildObjectSubmenu( spawnObjectMenu );
-            manager.CurrentMenu.AddItem( spawnObjectMenu );
+                // Add Spawn Object submenu
+                MenuItem spawnObjectMenu = new MenuItem( "Spawn Object" );
+                BuildObjectSubmenu( spawnObjectMenu );
+                manager.CurrentMenu.AddItem( spawnObjectMenu );
+            }
 
             // Add Player Cheats submenu
             MenuItem playerCheatsMenu = new MenuItem( "Player Cheats" );
@@ -202,6 +214,55 @@ namespace Utility_Mod
             {
                 manager.CloseMenu();
             } ) );
+
+            if ( !IsLive )
+            {
+                PruneSeparators( manager.CurrentMenu.GetItems() );
+            }
+        }
+
+        private static void PruneSeparators( List<MenuItem> items )
+        {
+            for ( int i = items.Count - 1; i >= 0; i-- )
+            {
+                if ( items[i].IsSeparator && ( i == 0 || i == items.Count - 1 || items[i - 1].IsSeparator ) )
+                {
+                    items.RemoveAt( i );
+                }
+                else if ( items[i].SubItems != null )
+                {
+                    PruneSeparators( items[i].SubItems );
+                }
+            }
+        }
+
+        private static bool IsActionAvailable( MenuAction action, ContextMenuManager.MenuContext context )
+        {
+            if ( context == ContextMenuManager.MenuContext.Live )
+                return true;
+
+            switch ( action.Type )
+            {
+                case MenuActionType.GoToLevel:
+                case MenuActionType.GoToCustomCampaignLevel:
+                case MenuActionType.GoToStartingLevel:
+                case MenuActionType.SetSpecificLevel:
+                case MenuActionType.SetSpecificCustomCampaignLevel:
+                case MenuActionType.ClearStartingLevel:
+                    return true;
+                case MenuActionType.SetCurrentLevel:
+                case MenuActionType.GoToCustomSpawn:
+                case MenuActionType.GoToWaypoint1:
+                case MenuActionType.GoToWaypoint2:
+                case MenuActionType.GoToWaypoint3:
+                case MenuActionType.GoToFinalCheckpoint:
+                case MenuActionType.PreviousLevel:
+                case MenuActionType.NextLevel:
+                case MenuActionType.RestartLevel:
+                    return context == ContextMenuManager.MenuContext.LevelPaused;
+                default:
+                    return false;
+            }
         }
 
         public void BuildRecentlyUsedSection()
@@ -210,7 +271,7 @@ namespace Utility_Mod
 
             if ( !Main.settings.enableRecentItems )
             {
-                if ( Main.settings.selectedQuickAction != null )
+                if ( Main.settings.selectedQuickAction != null && IsActionAvailable( Main.settings.selectedQuickAction, menuContext ) )
                 {
                     AddRecentlyUsedItem( Main.settings.selectedQuickAction );
                     hasItems = true;
@@ -239,6 +300,9 @@ namespace Utility_Mod
                 // Add recently used items with checkboxes
                 foreach ( var action in Main.settings.recentlyUsedItems.Take( Main.settings.maxRecentItems ) )
                 {
+                    if ( !IsActionAvailable( action, menuContext ) )
+                        continue;
+
                     AddRecentlyUsedItem( action );
                     hasItems = true;
                 }
@@ -879,13 +943,16 @@ namespace Utility_Mod
 
         public void BuildLevelControlSubmenu( MenuItem parentMenu )
         {
-            // Add current level display at the top
-            string currentCampaignDisplay = Main.GetCurrentCampaignDisplayName();
-            int currentLevelNum = LevelSelectionController.CurrentLevelNum + 1; // Convert to 1-based
+            if ( HasLevel )
+            {
+                // Add current level display at the top
+                string currentCampaignDisplay = Main.GetCurrentCampaignDisplayName();
+                int currentLevelNum = LevelSelectionController.CurrentLevelNum + 1; // Convert to 1-based
 
-            // Add header showing current level
-            parentMenu.AddSubItem( MenuItem.CreateHeader( $"Current: {currentCampaignDisplay} - Level {currentLevelNum}" ) );
-            parentMenu.AddSeparator();
+                // Add header showing current level
+                parentMenu.AddSubItem( MenuItem.CreateHeader( $"Current: {currentCampaignDisplay} - Level {currentLevelNum}" ) );
+                parentMenu.AddSeparator();
+            }
 
             // Go to Level submenu
             MenuItem goToLevelMenu = new MenuItem( "Go to Level" );
@@ -897,6 +964,26 @@ namespace Utility_Mod
             BuildStartingLevelSubmenu( startingLevelMenu );
             parentMenu.AddSubItem( startingLevelMenu );
 
+            if ( HasLevel )
+            {
+                BuildLevelNavigationItems( parentMenu );
+            }
+
+            // Loop Current Level
+            parentMenu.AddSubItem( new MenuItem( "Loop Current Level", (Action)null )
+            {
+                ShowCheckbox = true,
+                IsToggleAction = true,
+                IsChecked = Main.settings.loopCurrent,
+                OnToggle = ( isChecked ) =>
+                {
+                    Main.settings.loopCurrent = isChecked;
+                }
+            } );
+        }
+
+        private void BuildLevelNavigationItems( MenuItem parentMenu )
+        {
             // Level navigation controls on one line
             MenuItem levelNav = new MenuItem( "", (Action)null );
             levelNav.MultiButtons = new List<MenuItem.ButtonInfo>
@@ -932,20 +1019,9 @@ namespace Utility_Mod
             parentMenu.AddSubItem( new MenuItem( "Return to World Map", () =>
             {
                 manager.CloseMenu();
+                ContextMenuManager.ReleasePause();
                 GameModeController.Instance.ReturnToWorldMap();
             } ) );
-
-            // Loop Current Level
-            parentMenu.AddSubItem( new MenuItem( "Loop Current Level", (Action)null )
-            {
-                ShowCheckbox = true,
-                IsToggleAction = true,
-                IsChecked = Main.settings.loopCurrent,
-                OnToggle = ( isChecked ) =>
-                {
-                    Main.settings.loopCurrent = isChecked;
-                }
-            } );
         }
 
         private void BuildCampaignLevelList( MenuItem parentMenu, bool isStartingLevelMenu )
@@ -1122,16 +1198,19 @@ namespace Utility_Mod
                 MenuAction = goToStartingAction
             } );
 
-            // Set current level as starting level
-            var setCurrentAction = MenuAction.CreateSetCurrentLevelAsStarting();
-            parentMenu.AddSubItem( new MenuItem( setCurrentAction.DisplayName, () =>
+            if ( HasLevel )
             {
-                manager.ExecuteAction( setCurrentAction );
-                manager.CloseMenu();
-            } )
-            {
-                MenuAction = setCurrentAction
-            } );
+                // Set current level as starting level
+                var setCurrentAction = MenuAction.CreateSetCurrentLevelAsStarting();
+                parentMenu.AddSubItem( new MenuItem( setCurrentAction.DisplayName, () =>
+                {
+                    manager.ExecuteAction( setCurrentAction );
+                    manager.CloseMenu();
+                } )
+                {
+                    MenuAction = setCurrentAction
+                } );
+            }
 
             // Clear starting level (reset to defaults)
             var clearAction = MenuAction.CreateClearStartingLevel();
@@ -1169,10 +1248,13 @@ namespace Utility_Mod
             BuildGameModifiersSubmenu( gameModifiersMenu );
             parentMenu.AddSubItem( gameModifiersMenu );
 
-            // Slow Time submenu
-            MenuItem slowTimeMenu = new MenuItem( "Slow Time" );
-            BuildSlowTimeSubmenu( slowTimeMenu );
-            parentMenu.AddSubItem( slowTimeMenu );
+            // Slow Time changes Time.timeScale at once, which stalls the game's menus.
+            if ( IsLive )
+            {
+                MenuItem slowTimeMenu = new MenuItem( "Slow Time" );
+                BuildSlowTimeSubmenu( slowTimeMenu );
+                parentMenu.AddSubItem( slowTimeMenu );
+            }
 
             // Set Zoom submenu
             MenuItem setZoomMenu = new MenuItem( "Set Zoom" );
@@ -1195,22 +1277,26 @@ namespace Utility_Mod
 
         public void BuildTestDummySubmenu( MenuItem parentMenu )
         {
-            var spawnTestDummy = MenuAction.CreateSpawnTestDummy();
-            parentMenu.AddSubItem( new MenuItem( "Spawn Test Dummy", () =>
+            if ( IsLive )
             {
-                manager.ExecuteAction( spawnTestDummy );
-            } )
-            {
-                ActionId = spawnTestDummy.Id,
-                MenuAction = spawnTestDummy
-            } );
+                var spawnTestDummy = MenuAction.CreateSpawnTestDummy();
+                parentMenu.AddSubItem( new MenuItem( "Spawn Test Dummy", () =>
+                {
+                    manager.ExecuteAction( spawnTestDummy );
+                } )
+                {
+                    ActionId = spawnTestDummy.Id,
+                    MenuAction = spawnTestDummy
+                } );
+            }
 
+            bool hasLevel = HasLevel;
             parentMenu.AddSubItem( new MenuItem( "Clear All Test Dummies", () =>
             {
                 TestDummyManager.RemoveAllDummies();
 
                 // Track the clear action if recording
-                if ( Main.settings.isRecordingLevelEdits )
+                if ( Main.settings.isRecordingLevelEdits && hasLevel )
                 {
                     LevelEditRecord.RecordAction( LevelEditAction.CreateClearTestDummies() );
                 }
@@ -1335,16 +1421,19 @@ namespace Utility_Mod
                 }
             } );
 
-            // Copy Mouse Position to Clipboard
-            var copyPositionAction = MenuAction.CreateCopyMousePosition();
-            parentMenu.AddSubItem( new MenuItem( "Copy Mouse Position", () =>
+            if ( IsLive )
             {
-                manager.ExecuteAction( copyPositionAction );
-            } )
-            {
-                ActionId = copyPositionAction.Id,
-                MenuAction = copyPositionAction
-            } );
+                // Copy Mouse Position to Clipboard
+                var copyPositionAction = MenuAction.CreateCopyMousePosition();
+                parentMenu.AddSubItem( new MenuItem( "Copy Mouse Position", () =>
+                {
+                    manager.ExecuteAction( copyPositionAction );
+                } )
+                {
+                    ActionId = copyPositionAction.Id,
+                    MenuAction = copyPositionAction
+                } );
+            }
         }
 
         public void BuildGameModifiersSubmenu( MenuItem parentMenu )
@@ -1691,11 +1780,14 @@ namespace Utility_Mod
             AddWaypointMenuItem( parentMenu, MenuAction.CreateSetCustomSpawn() );
             AddWaypointMenuItem( parentMenu, MenuAction.CreateGoToCustomSpawn() );
 
-            parentMenu.AddSubItem( new MenuItem( "Clear Custom Spawn", () =>
+            if ( HasLevel )
             {
-                Main.ClearCustomSpawnForCurrentLevel();
-                manager.CloseMenu();
-            } ) );
+                parentMenu.AddSubItem( new MenuItem( "Clear Custom Spawn", () =>
+                {
+                    Main.ClearCustomSpawnForCurrentLevel();
+                    manager.CloseMenu();
+                } ) );
+            }
 
             AddWaypointMenuItem( parentMenu, MenuAction.CreateGoToFinalCheckpoint() );
 
@@ -1766,34 +1858,40 @@ namespace Utility_Mod
                 manager.CloseMenu();
             } ) );
 
-            // Mass Delete Tool
-            var massDeleteAction = MenuAction.CreateMassDelete();
-            parentMenu.AddSubItem( new MenuItem( massDeleteAction.DisplayName, () =>
+            if ( IsLive )
             {
-                manager.ExecuteAction( massDeleteAction );
-            } )
-            {
-                ActionId = massDeleteAction.Id,
-                MenuAction = massDeleteAction
-            } );
+                // Mass Delete Tool
+                var massDeleteAction = MenuAction.CreateMassDelete();
+                parentMenu.AddSubItem( new MenuItem( massDeleteAction.DisplayName, () =>
+                {
+                    manager.ExecuteAction( massDeleteAction );
+                } )
+                {
+                    ActionId = massDeleteAction.Id,
+                    MenuAction = massDeleteAction
+                } );
+            }
 
             parentMenu.AddSeparator();
 
-            // Clear edits for current level
-            string currentLevelKey = Main.GetCurrentLevelKey();
-            bool hasEditsForCurrentLevel = Main.settings.levelEditRecords.ContainsKey( currentLevelKey );
-
-            var clearCurrentItem = new MenuItem( $"Clear Edits for Current Level{( hasEditsForCurrentLevel ? $" ({Main.settings.levelEditRecords[currentLevelKey].Actions.Count} actions)" : " (none)" )}", () =>
+            if ( HasLevel )
             {
-                if ( Main.settings.levelEditRecords.ContainsKey( currentLevelKey ) )
+                // Clear edits for current level
+                string currentLevelKey = Main.GetCurrentLevelKey();
+                bool hasEditsForCurrentLevel = Main.settings.levelEditRecords.ContainsKey( currentLevelKey );
+
+                var clearCurrentItem = new MenuItem( $"Clear Edits for Current Level{( hasEditsForCurrentLevel ? $" ({Main.settings.levelEditRecords[currentLevelKey].Actions.Count} actions)" : " (none)" )}", () =>
                 {
-                    Main.settings.levelEditRecords.Remove( currentLevelKey );
-                    Main.settings.Save( Main.mod );
-                }
-                manager.CloseMenu();
-            } );
-            clearCurrentItem.Enabled = hasEditsForCurrentLevel;
-            parentMenu.AddSubItem( clearCurrentItem );
+                    if ( Main.settings.levelEditRecords.ContainsKey( currentLevelKey ) )
+                    {
+                        Main.settings.levelEditRecords.Remove( currentLevelKey );
+                        Main.settings.Save( Main.mod );
+                    }
+                    manager.CloseMenu();
+                } );
+                clearCurrentItem.Enabled = hasEditsForCurrentLevel;
+                parentMenu.AddSubItem( clearCurrentItem );
+            }
 
             // Clear all edits
             int totalEditCount = 0;
@@ -2274,6 +2372,9 @@ namespace Utility_Mod
 
         public void AddWaypointMenuItem( MenuItem parentMenu, MenuAction action )
         {
+            if ( !IsActionAvailable( action, menuContext ) )
+                return;
+
             parentMenu.AddSubItem( new MenuItem( action.DisplayName, () =>
             {
                 manager.ExecuteAction( action );

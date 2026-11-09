@@ -823,7 +823,7 @@ namespace Utility_Mod
         {
             public static void Prefix()
             {
-                if ( !Main.enabled || !Main.settings.suppressAnnouncer )
+                if ( !Main.enabled || !Main.settings.suppressAnnouncer || Map.MapData == null )
                 {
                     return;
                 }

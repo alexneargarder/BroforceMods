@@ -11,6 +11,7 @@
 - Fixed Ending Skip skipping a level and Helicopter Wait not waiting for every player.
 - Fixed pausing and Slow Time leaving the game frozen or at the wrong speed.
 - Fixed the go to level list showing levels that don't exist and forgetting the chosen starting level.
+- Fixed the right-click menu offering actions that don't work on the main menu and pause menus.
 
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.

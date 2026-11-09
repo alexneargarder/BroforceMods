@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using RocketLib.Utils;
 using UnityEngine;
@@ -28,6 +29,17 @@ namespace Utility_Mod
         }
 
         public ContextMenuMode CurrentMode { get; set; } = ContextMenuMode.Normal;
+
+        public enum MenuContext
+        {
+            NoLevel,
+            LevelPaused,
+            Live
+        }
+
+        private MenuContext openMenuContext = MenuContext.NoLevel;
+        private Map contextMap;
+        private static MethodInfo unpauseGameObjects;
 
         private static ContextMenuManager instance;
         public ContextMenu CurrentMenu { get; private set; }
@@ -105,7 +117,7 @@ namespace Utility_Mod
             if ( ui.showHelpDialog )
                 return;
 
-            if ( !ShouldProcessInput() )
+            if ( !ShouldProcessInput() || HasLeftMenuContext() )
             {
                 CancelActiveInteractions();
                 return;
@@ -272,6 +284,12 @@ namespace Utility_Mod
             if ( !Main.enabled || !Main.settings.contextMenuEnabled )
                 return;
 
+            if ( HasLeftMenuContext() )
+            {
+                CancelActiveInteractions();
+                return;
+            }
+
             if ( CurrentMode == ContextMenuMode.Grab && modes.grabbedUnit != null && !modes.grabbedUnit.destroyed && modes.grabbedUnit.health > 0 )
             {
                 Vector3 worldPos = GetMouseWorldPosition();
@@ -362,29 +380,114 @@ namespace Utility_Mod
                 return false;
             }
 
+            // The level editor owns right-click while editing, but not on its pause menu.
             if ( Map.isEditing )
             {
-                return false;
-            }
-
-            if ( PauseController.pauseStatus == PauseStatus.MenuPause || PauseController.pauseStatus == PauseStatus.ConfirmationPause )
-            {
-                return false;
-            }
-
-            // Map.Instance and GameModeController.Instance fall back to FindObjectOfType
-            if ( NeedsGameplayContext() && ( GameModeController.Instance == null || Map.Instance == null ) )
-            {
-                return false;
+                Map map = FindMap();
+                if ( map != null && map.gameObject.activeInHierarchy )
+                {
+                    return false;
+                }
             }
 
             return true;
         }
 
-        private bool NeedsGameplayContext()
+        private bool HasLeftMenuContext()
         {
-            return isMenuOpen || isHoldingRightClick || CurrentMode != ContextMenuMode.Normal ||
-                Input.GetMouseButtonDown( 1 ) || Input.GetMouseButtonUp( 1 );
+            bool liveInteraction = CurrentMode != ContextMenuMode.Normal || ( modes != null && modes.isPaintMode );
+            bool menuNeedsLevel = isMenuOpen && openMenuContext != MenuContext.NoLevel;
+            if ( !liveInteraction && !menuNeedsLevel )
+            {
+                return false;
+            }
+
+            MenuContext context = GetMenuContext();
+            return ( liveInteraction && context != MenuContext.Live ) || ( menuNeedsLevel && context < openMenuContext );
+        }
+
+        public MenuContext GetMenuContext()
+        {
+            if ( Map.MapData == null )
+            {
+                return MenuContext.NoLevel;
+            }
+
+            Map map = FindMap();
+            if ( map == null || GameModeController.Instance == null )
+            {
+                return MenuContext.NoLevel;
+            }
+
+            return map.gameObject.activeInHierarchy ? MenuContext.Live : MenuContext.LevelPaused;
+        }
+
+        private Map FindMap()
+        {
+            if ( contextMap == null )
+            {
+                contextMap = Map.Instance;
+            }
+            // Map.Instance falls back to FindObjectOfType, which skips the map an offline pause deactivates.
+            if ( contextMap == null )
+            {
+                foreach ( Map map in Resources.FindObjectsOfTypeAll<Map>() )
+                {
+                    if ( map.gameObject.scene.IsValid() )
+                    {
+                        contextMap = map;
+                        break;
+                    }
+                }
+            }
+            return contextMap;
+        }
+
+        // A scene load from a pause leaves every object the pause deactivated, persistent ones included, inactive.
+        public static void ReleasePause()
+        {
+            if ( CutsceneController.InCutscene && CutsceneController.Instance != null )
+            {
+                CutsceneController.Instance.CloseAllCutscenes();
+            }
+
+            if ( PauseController.pauseStatus == PauseStatus.MenuPause )
+            {
+                PauseController.SetPause( PauseStatus.UnPaused );
+            }
+
+            // pauseStatus outlives the scene, so it can be stale on the main menu, where no PauseController exists.
+            if ( PauseController.pauseStatus == PauseStatus.UnPaused )
+            {
+                return;
+            }
+
+            if ( unpauseGameObjects == null )
+            {
+                unpauseGameObjects = typeof( PauseController ).GetMethod( "UnpauseGameObjects", BindingFlags.Static | BindingFlags.NonPublic );
+            }
+            if ( unpauseGameObjects != null )
+            {
+                unpauseGameObjects.Invoke( null, null );
+            }
+            PauseController.pauseStatus = PauseStatus.UnPaused;
+        }
+
+        private static bool LoadsScene( MenuAction action )
+        {
+            switch ( action.Type )
+            {
+                case MenuActionType.PreviousLevel:
+                    return LevelSelectionController.CurrentLevelNum > 0;
+                case MenuActionType.NextLevel:
+                case MenuActionType.RestartLevel:
+                case MenuActionType.GoToLevel:
+                case MenuActionType.GoToStartingLevel:
+                case MenuActionType.GoToCustomCampaignLevel:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         public void CancelActiveInteractions()
@@ -458,7 +561,8 @@ namespace Utility_Mod
         private void HandleEnabledMode( bool pressed, bool held, bool released )
         {
             // Handle Shift + right-click for paint mode
-            if ( Input.GetKey( KeyCode.LeftShift ) || Input.GetKey( KeyCode.RightShift ) )
+            bool shiftHeld = Input.GetKey( KeyCode.LeftShift ) || Input.GetKey( KeyCode.RightShift );
+            if ( shiftHeld && ( pressed || held || released ) && ( modes.isPaintMode || GetMenuContext() == MenuContext.Live ) )
             {
                 modes.HandlePaintMode( pressed, held, released );
 
@@ -473,7 +577,7 @@ namespace Utility_Mod
             // Handle right-click while menu is open to repeat last action (but not in special modes)
             if ( pressed && isMenuOpen && CurrentMode == ContextMenuMode.Normal )
             {
-                if ( lastExecutedAction != null )
+                if ( lastExecutedAction != null && openMenuContext == MenuContext.Live )
                 {
                     ExecuteAction( lastExecutedAction, true );  // Use current mouse position
                 }
@@ -503,7 +607,7 @@ namespace Utility_Mod
                 if ( isHoldingRightClick && !isMenuOpen && rightClickHoldTime < Main.settings.contextMenuHoldDuration )
                 {
                     // Execute quick action if set, otherwise open menu
-                    if ( Main.settings.selectedQuickAction != null )
+                    if ( Main.settings.selectedQuickAction != null && GetMenuContext() == MenuContext.Live )
                     {
                         ExecuteAction( Main.settings.selectedQuickAction, true );  // Use current mouse position
                     }
@@ -530,10 +634,12 @@ namespace Utility_Mod
 
             try
             {
+                MenuContext context = GetMenuContext();
                 CurrentMenu = new ContextMenu();
                 CurrentMenu.OnCheckboxToggled = HandleCheckboxToggled;
 
-                builder.BuildMenuItems();
+                builder.BuildMenuItems( context );
+                openMenuContext = context;
 
                 menuOpenPosition = Input.mousePosition;
                 menuOpenWorldPosition = GetMouseWorldPosition();
@@ -808,6 +914,11 @@ namespace Utility_Mod
                     CloseMenu();
                 }
                 return;
+            }
+
+            if ( LoadsScene( action ) )
+            {
+                ReleasePause();
             }
 
             // Execute the action
