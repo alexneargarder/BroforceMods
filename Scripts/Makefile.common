@@ -1,7 +1,7 @@
 # Makefile.common - Shared build infrastructure for Broforce mods
 # Source: Broforce-Templates/Scripts/Makefile.common
 # Synced to repos via sync.py
-# Revision: 2
+# Revision: 3
 
 # Required variables (must be set before including this file):
 #   PROJECT_NAME  - Display name for help text
@@ -48,12 +48,20 @@
 _empty :=
 _space := $(_empty) $(_empty)
 _comma := ,
+_hash := \#
 
 _one_of = $(if $(and $(strip $($(1))),$(or $(word 2,$($(1))),$(filter-out $(2),$($(1))))),$(error Error: $(1) must be one of: $(2)))
 $(call _one_of,LAUNCH,yes no)
 $(call _one_of,ALL,1)
 $(call _one_of,AUTO_DISCOVER,1)
 $(call _one_of,CUSTOM_BUILD,1)
+
+# Windows make without sh.exe on PATH runs commands through cmd.exe, where every $(shell) below comes back empty.
+ifeq ($(OS),Windows_NT)
+ifneq ($(shell printf x),x)
+$(error Error: make needs a POSIX shell to run this makefile; run it from Git Bash)
+endif
+endif
 
 # MSBuild configuration - override with: make MSBUILD="/path/to/msbuild" build
 # Detect if running in WSL (Windows Subsystem for Linux)
@@ -70,6 +78,9 @@ else ifeq ($(OS),Windows_NT)
 else
     # Native Linux/macOS: Use msbuild from PATH
     MSBUILD ?= msbuild
+    # Under mono each build starts its own Roslyn compiler server, and some never exit
+    UseSharedCompilation ?= false
+    export UseSharedCompilation
 endif
 
 _MSBUILD_CMD := $(if $(wildcard $(subst $(_space),\ ,$(MSBUILD))),"$(MSBUILD)",$(MSBUILD))
@@ -196,7 +207,7 @@ _PROJ_PAIRS := $(PROJECTS)
 else
 _PROJ_PAIRS := $(shell find . -maxdepth 3 -name '*.csproj' -type f 2>/dev/null | sort | { hit=; \
   while IFS= read -r f; do \
-    f="$${f#./}"; \
+    f="$${f$(_hash)./}"; \
     stem=$$(basename "$$f" .csproj); \
     dir=$${f%%/*}; \
     parent=$$(basename "$$(dirname "$$f")"); \
@@ -304,7 +315,7 @@ else
 _CLEANUP_LIST_CMD = printf '%s\n' $(SOLUTION)
 endif
 
-_CLEANUP_PREFLIGHT = @L=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
+_CLEANUP_PREFLIGHT = L=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
 	if [ -z "$$L" ]; then \
 	  if [ -n "$(PROJECT)" ]; then \
 	    echo "Error: PROJECT='$(PROJECT)' not found. Run 'make help' to list available projects."; \
@@ -333,8 +344,8 @@ _RESOLVE_CLEANUP_TARGETS = while IFS= read -r f; do \
 	  esac; \
 	done
 
-# git diff --raw -U0 to "<path><TAB><line>" for the lines changed against HEAD, or against the BASE merge base. The raw "none" entry
-# tells a file with no line changes (a pure rename) from one new to git, which has no entry at all.
+# git diff --raw -U0 to "<path><TAB><line>" for the lines changed against HEAD or the BASE merge base, and "<path><TAB>g<line>" for a deletion
+# after <line>. The raw "none" entry tells a file with no line changes (a pure rename) from one new to git, which has no entry at all.
 define _CHANGED_LINES_AWK
 skip > 0 { c = substr($$0, 1, 1); if (c == "+" || c == "-") skip--; next }
 /^:/ { n = split($$0, f, "\t"); print f[n] "\tnone"; next }
@@ -343,16 +354,16 @@ skip > 0 { c = substr($$0, 1, 1); if (c == "+" || c == "-") skip--; next }
   n = split(substr($$2, 2), r, ","); b = (n > 1 ? r[2] : 1) + 0
   n = split(substr($$3, 2), r, ","); c = r[1] + 0; d = (n > 1 ? r[2] : 1) + 0
   skip = b + d
-  if (d == 0) { print path "\t" c; print path "\t" (c + 1) }
+  if (d == 0) print path "\tg" c
   for (i = 0; i < d; i++) print path "\t" (c + i)
 }
 endef
 export _CHANGED_LINES_AWK
 
-# Keeps jb's hunks on or beside a changed line, then those they need: using-only hunks (jb's using block serves all of C) and, for a
-# hunk whose brackets differ, the hunks holding its brackets' partners in W and in C. Lines are joined, not terminated.
+# Splits jb's hunks into runs of corresponding lines by a token diff and keeps the runs on a changed line (an inserted or blank run also beside one or a deletion),
+# then those they need: using-only runs, less usings jb added for no kept line, and the runs holding the partners of a kept run's changed brackets. Lines are joined, not terminated.
 define _KEEP_HUNKS_AWK
-function take(h) { if (!(h in kept)) { kept[h] = 1; q[++nq] = h } }
+function take(l) { if (!(l in kept) && !(l in noop)) { kept[l] = 1; q[++nq] = l } }
 function skipchr(s, i, n, c) { while (i <= n) { c = substr(s, i++, 1); if (c == "\134") i++; else if (c == "'") break } return i }
 function skipstr(s, i, n, verb, interp, c, d) {
   while (i <= n) {
@@ -397,10 +408,126 @@ function pairs(L, n, BT, PT, j, k, c, t) {
   }
 }
 function seq(BT, a, b, j, o) { for (j = a; j <= b; j++) o = o BT[j]; return o }
-function mates(PT, at, a, b, j, m, i, x) { for (j = a; j <= b; j++) { m = split(PT[j], x, " "); for (i = 1; i <= m; i++) if (x[i] in at) take(at[x[i]]) } }
-function usings(L, a, b, j) { for (j = a; j <= b; j++) if (L[j] !~ /^(\357\273\277)?[ \t]*using [^(]*;/) return 0; return 1 }
-function emit(L, a, b, j) { for (j = a; j <= b; j++) { printf "%s%s", sep, L[j] > out; sep = "\n" } }
-FILENAME == ARGV[1] { if ($$1 != "none") changed[$$1] = 1; next }
+function mates(PT, inc, a, b, j, m, i, x) {
+  for (j = a; j <= b; j++) {
+    m = split(PT[j], x, " ")
+    for (i = 1; i <= m; i++)
+      if (inc) { if (x[i] in ch) { refine(ch[x[i]]); take(cl[x[i]]) } }
+      else if (x[i] in wh) { refine(wh[x[i]]); take(wl[x[i]]) }
+  }
+}
+function isusing(s) { return s ~ /^(\357\273\277)?[ \t]*using [^(]*;/ }
+function usings(L, a, b, j) { for (j = a; j <= b; j++) if (!isusing(L[j])) return 0; return 1 }
+function anyusing(L, a, b, j) { for (j = a; j <= b; j++) if (isusing(L[j])) return 1; return 0 }
+function nocr(s) { return substr(s, length(s)) == CR ? substr(s, 1, length(s) - 1) : s }
+function same(a, b, c, d, j) { if (b - a != d - c) return 0; for (j = a; j <= b; j++) if (nocr(w[j]) != nocr(cc[c + j - a])) return 0; return 1 }
+function blank(a, b, c, d, j) { for (j = a; j <= b; j++) if (w[j] !~ BL) return 0; for (j = c; j <= d; j++) if (cc[j] !~ BL) return 0; return 1 }
+function leaf(a, b, c, d, j) {
+  if (a > b && c > d) return
+  ls[++nl] = a; le[nl] = b; lcs[nl] = c; lce[nl] = d
+  if (same(a, b, c, d)) noop[nl] = 1
+  for (j = a; j <= b; j++) wl[j] = nl
+  for (j = c; j <= d; j++) cl[j] = nl
+}
+function toks(L, a, b, T, TL, f, n, j, s) {
+  for (j = a; j <= b; j++) for (s = L[j]; match(s, TOK); s = substr(s, RSTART + RLENGTH)) { T[++n] = substr(s, RSTART, RLENGTH); TL[n] = j; print T[n] > f }
+  close(f)
+  return n + 0
+}
+function link(a, b, c, d) {
+  if (b < a - 1 || b - a != d - c) return 0
+  for (; a <= b; a++) { if (tw[a] != tc[c]) return 0; lkw[++nk] = tlw[a]; lkc[nk] = tlc[c++] }
+  return 1
+}
+function refine(h, a, b, c, d, nt, nu, cmd, s, ok, i, j, n, r, op, A, B, C, D, k, x, y, p, pc, bw, bc, open) {
+  if (h in refd) return
+  refd[h] = 1
+  a = ws[h]; b = we[h]; c = cs[h]; d = ce[h]
+  if (a > b || c > d || (a == b && c == d)) return
+  nt = toks(w, a, b, tw, tlw, TW); nu = toks(cc, c, d, tc, tlc, TC)
+  if (!nt || !nu) return
+  cmd = "diff -ad \"$$_JB_TOKENS/tokw\" \"$$_JB_TOKENS/tokc\"; [ $$? -lt 2 ] && echo ."
+  i = j = 1; nk = 0
+  while ((cmd | getline s) > 0) {
+    if (s == ".") { ok = 1; continue }
+    if (s !~ /^[0-9]/) continue
+    match(s, /[acd]/); op = substr(s, RSTART, 1)
+    n = split(substr(s, 1, RSTART - 1), r, ","); A = r[1] + 0; B = r[n] + 0
+    n = split(substr(s, RSTART + 1), r, ","); C = r[1] + 0; D = r[n] + 0
+    if (op == "a") B = A++
+    if (op == "d") D = C++
+    if (!link(i, A - 1, j, C - 1)) exit 2
+    i = B + 1; j = D + 1
+  }
+  close(cmd)
+  if (!ok || !link(i, nt, j, nu)) exit 2
+  hf[h] = nl + 1; p = bw = a; pc = bc = c; bw--; bc--
+  for (k = 1; k <= nk; k++) {
+    x = lkw[k]; y = lkc[k]
+    if (open && (x <= bw || y <= bc)) { if (x > bw) bw = x; if (y > bc) bc = y; continue }
+    if (open) { leaf(p, bw, pc, bc); p = bw + 1; pc = bc + 1 }
+    leaf(p, x - 1, pc, y - 1)
+    p = bw = x; pc = bc = y; open = 1
+  }
+  if (open) leaf(p, bw, pc, bc)
+  leaf(bw + 1, b, bc + 1, d)
+  ht[h] = nl
+}
+function near(h, j) {
+  for (j = ws[h] - 1; j <= we[h] + 1; j++) if (j in chg) return 1
+  for (j = ws[h] - 1; j <= we[h]; j++) if (j in gap) return 1
+  return 0
+}
+function seeds(l, a, b, j, x, y) {
+  a = ls[l]; b = le[l]; x = a - 1; y = b + 1
+  for (j = a; j <= b; j++) if (j in chg) return 1
+  for (j = a; j < b; j++) if (j in gap) return 1
+  if (a <= b && !blank(a, b, lcs[l], lce[l])) return 0
+  return (x in chg) || (y in chg) || (x in gap) || (b in gap)
+}
+function nsname(s) {
+  sub(/^\357\273\277/, "", s)
+  if (s !~ /^[ \t]*using[ \t]+[A-Za-z_][A-Za-z0-9_. \t]*;[ \t\015]*$$/ || s ~ /^[ \t]*using[ \t]+static[ \t]/) return ""
+  sub(/^[ \t]*using[ \t]+/, "", s); sub(/;[ \t\015]*$$/, "", s); gsub(/[ \t]/, "", s)
+  return s ~ /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$$/ ? s : ""
+}
+function longer(s, k, n, i, m) {
+  for (i = 1; i <= nns; i++) {
+    m = nsl[i]
+    if (index(m, n ".") == 1 && substr(s, k, length(m)) == m && substr(s, k + length(m), 1) !~ /[A-Za-z0-9_]/) return 1
+  }
+  return 0
+}
+function qual(s, n, t, k, p, c, x) {
+  x = n "." t
+  for (k = 0; (p = index(substr(s, k + 1), x)) > 0; ) {
+    k += p; c = substr(s, k + length(x), 1)
+    if ((k == 1 || substr(s, k - 1, 1) !~ /[A-Za-z0-9_.]/) && (t == "" ? (c ~ /[A-Za-z_]/) : (c !~ /[A-Za-z0-9_]/)) && !longer(s, k, n)) return 1
+  }
+  return 0
+}
+function anyqual(n, t, j) {
+  if (!((n, t) in aq)) { aq[n, t] = 0; for (j = 1; j <= nw; j++) if (!isusing(w[j]) && qual(w[j], n, t)) { aq[n, t] = 1; break } }
+  return aq[n, t]
+}
+function named(l, n, P, j, s, t) {
+  for (j = ls[l]; j <= le[l]; j++) for (s = w[j]; match(s, ID); s = substr(s, RSTART + RLENGTH)) P[substr(s, RSTART, RLENGTH)] = 1
+  for (j = lcs[l]; j <= lce[l]; j++) if (!isusing(cc[j]))
+    for (s = cc[j]; match(s, ID); s = substr(s, RSTART + RLENGTH)) if (!((t = substr(s, RSTART, RLENGTH)) in P) && anyqual(n, t)) return 1
+  return 0
+}
+function served(n, j, k, l) {
+  if (!anyqual(n, "")) return 1
+  for (k = 1; k <= nq; k++) { l = q[k]; for (j = ls[l]; j <= le[l]; j++) if (!isusing(w[j]) && qual(w[j], n, "")) return 1; if (named(l, n)) return 1 }
+  return 0
+}
+function emit(L, a, b, c, j) {
+  for (j = a; j <= b; j++)
+    if (c && (j in omit)) { if (L[j] ~ /^\357\273\277/) bom = "\357\273\277" }
+    else { printf "%s%s%s", sep, bom, L[j] > out; sep = "\n"; bom = "" }
+}
+BEGIN { CR = "\015"; TOK = "[A-Za-z0-9_]+|[^ \t\015]"; ID = "[A-Za-z_][A-Za-z0-9_]*"; BL = "^[ \t\015]*$$"; TW = ENVIRON["_JB_TOKENS"] "/tokw"; TC = ENVIRON["_JB_TOKENS"] "/tokc" }
+FILENAME == ARGV[1] { if ($$1 ~ /^g/) gap[substr($$1, 2) + 0] = 1; else if ($$1 != "none") changed[$$1 + 0] = 1; next }
 FILENAME == ARGV[2] {
   if ($$0 !~ /^[0-9]/) next
   match($$0, /[acd]/); op = substr($$0, RSTART, 1)
@@ -408,30 +535,46 @@ FILENAME == ARGV[2] {
   n = split(substr($$0, RSTART + 1), r, ","); c = r[1] + 0; d = r[n] + 0
   if (op == "a") b = a++
   if (op == "d") d = c++
-  H++; ws[H] = a; we[H] = b; cs[H] = c; ce[H] = d
-  for (j = a; j <= b; j++) wh[j] = H
-  for (j = c; j <= d; j++) ch[j] = H
+  H++; ws[H] = ls[H] = a; we[H] = le[H] = b; cs[H] = lcs[H] = c; ce[H] = lce[H] = d; hf[H] = ht[H] = nl = H
+  for (j = a; j <= b; j++) { wh[j] = H; wl[j] = H }
+  for (j = c; j <= d; j++) { ch[j] = H; cl[j] = H }
   next
 }
 FILENAME == ARGV[3] { w[++nw] = $$0; next }
 { cc[++nc] = $$0 }
 END {
-  for (h = 1; h <= H; h++) for (j = ws[h] - 1; j <= we[h] + 1; j++) if (j in changed) { take(h); break }
-  if (nq) for (h = 1; h <= H; h++) if (usings(w, ws[h], we[h]) && usings(cc, cs[h], ce[h])) take(h)
-  if (nq) { pairs(w, nw, wb, wp); pairs(cc, nc, cb, cp) }
+  pairs(w, nw, wb, wp)
+  for (j in changed) chg[j] = 1
+  for (j in changed) { m = split(wp[j], x, " "); for (i = 1; i <= m; i++) if (x[i] - j > 1 && (x[i] in changed)) for (k = j + 1; k < x[i] + 0; k++) chg[k] = 1 }
+  for (h = 1; h <= H; h++) if (near(h)) { refine(h); for (l = hf[h]; l <= ht[h]; l++) if (seeds(l)) take(l) }
+  if (nq) for (h = 1; h <= H; h++) {
+    if (!(h in refd)) {
+      if (usings(w, ws[h], we[h]) && usings(cc, cs[h], ce[h])) { refd[h] = 1; take(h); continue }
+      if (!anyusing(w, ws[h], we[h]) && !anyusing(cc, cs[h], ce[h])) continue
+      refine(h)
+    }
+    for (l = hf[h]; l <= ht[h]; l++) if (usings(w, ls[l], le[l]) && usings(cc, lcs[l], lce[l])) take(l)
+  }
+  if (nq) pairs(cc, nc, cb, cp)
   for (k = 1; k <= nq; k++) {
-    h = q[k]
-    if (seq(cb, cs[h], ce[h]) != seq(wb, ws[h], we[h])) { mates(cp, ch, cs[h], ce[h]); mates(wp, wh, ws[h], we[h]) }
+    l = q[k]
+    if (seq(cb, lcs[l], lce[l]) != seq(wb, ls[l], le[l])) { mates(cp, 1, lcs[l], lce[l]); mates(wp, 0, ls[l], le[l]) }
+  }
+  if (!ALLUSINGS) {
+    for (j = 1; j <= nw; j++) if ((n = nsname(w[j])) != "" && !(n in inw)) { inw[n] = 1; nsl[++nns] = n }
+    for (j = 1; j <= nc; j++) if ((n = nsname(cc[j])) != "" && !(n in inw) && !(n in inj)) { inj[n] = 1; nsl[++nns] = n }
+    for (k = 1; k <= nq; k++) for (j = lcs[q[k]]; j <= lce[q[k]]; j++)
+      if ((n = nsname(cc[j])) != "" && !(n in inw)) { if (!(n in srv)) srv[n] = served(n); if (!srv[n]) { omit[j] = 1; real++; nu++ } }
   }
   p = 1
   for (h = 1; h <= H; h++) {
     emit(w, p, ws[h] - 1)
-    if (h in kept) emit(cc, cs[h], ce[h]); else emit(w, ws[h], we[h])
+    for (l = hf[h]; l <= ht[h]; l++) { if (l in kept) emit(cc, lcs[l], lce[l], 1); else emit(w, ls[l], le[l]); if (!(l in noop)) real++ }
     p = we[h] + 1
   }
   emit(w, p, nw)
   close(out)
-  print (nq + 0) " " (H - nq)
+  print (nu + 0) " " (nq + 0) " " (real - nq)
 }
 endef
 export _KEEP_HUNKS_AWK
@@ -439,9 +582,10 @@ export _KEEP_HUNKS_AWK
 # Optimize-usings deletes live usings when a reference doesn't resolve or match the code, hence the compile first.
 # jb runs --no-build after msbuild's restore: jb's own restore can hang "Building solution" forever.
 # One jb pass isn't always a fixed point (nested redundant parentheses), so the files it changed get a second.
-# jb takes whole files, so for cleanup-changed settle keeps only the hunks the changed lines need, or the originals if that doesn't compile.
+# jb takes whole files, so for cleanup-changed settle keeps only jb's changes the changed lines need; if that doesn't compile, it retries with all of jb's added usings, then restores the originals.
 _JB_CLEAN = \
 	compile() { $(_MSBUILD_CMD) "$$t" -restore -t:Compile $(MSBUILD_FLAGS) -p:SkipInstall=true < /dev/null > "$$JBLOG/check" 2>&1 && return 0; \
+	  [ -z "$$1" ] || return 1; \
 	  errs=$$(grep -E '(error [A-Z]+[0-9]+|warning (MSB3245|BRO000[123])):' "$$JBLOG/check" | sed 's/^ *//' | sort -u); \
 	  if [ -n "$$errs" ]; then printf '%s\n' "$$errs"; else tail -n 20 "$$JBLOG/check"; fi; \
 	  return 1; }; \
@@ -449,22 +593,29 @@ _JB_CLEAN = \
 	if [ -n "$$INCL" ]; then printf '%s\n' "$$INCL" | tr ';' '\n'; \
 	else (cd "$$dir" && find . -name '*.cs' -type f ! -path '*/obj/*' ! -path '*/bin/*' | sed 's|^\./||'); fi > "$$JBLOG/files"; \
 	snap() { (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cksum); }; \
-	keep() { : > "$$JBLOG/cut"; [ -n "$$INCL" ] || return 0; while IFS= read -r f; do \
+	keep() { [ -n "$$1" ] || { rm -rf "$$JBLOG/jb"; : > "$$JBLOG/omitted"; }; : > "$$JBLOG/cut"; [ -n "$$INCL" ] || return 0; while IFS= read -r f; do \
+	  if [ -n "$$1" ]; then grep -qxF -- "$$f" "$$JBLOG/omitted" || { grep -qxF -- "$$f" "$$JBLOG/cut1" && printf '%s\n' "$$f" >> "$$JBLOG/cut"; continue; }; \
+	    cp "$$JBLOG/jb/$$f" "$$dir/$$f"; fi; \
 	  cmp -s "$$JBLOG/pre/$$f" "$$dir/$$f" && continue; \
 	  LC_ALL=C awk -F'\t' -v f="$$f" '$$1 == f { print $$2 }' "$$JBLOG/lines" > "$$JBLOG/nums"; \
 	  [ -s "$$JBLOG/nums" ] || continue; \
 	  { cat "$$JBLOG/pre/$$f"; echo; } > "$$JBLOG/w"; { cat "$$dir/$$f"; echo; } > "$$JBLOG/c"; \
-	  diff -a --strip-trailing-cr "$$JBLOG/w" "$$JBLOG/c" > "$$JBLOG/hunks"; \
-	  r=$$(LC_ALL=C awk -v BINMODE=3 -v out="$$JBLOG/kept" "$$_KEEP_HUNKS_AWK" "$$JBLOG/nums" "$$JBLOG/hunks" "$$JBLOG/w" "$$JBLOG/c") \
+	  diff -a --strip-trailing-cr "$$JBLOG/w" "$$JBLOG/c" > "$$JBLOG/hunks"; [ $$? -lt 2 ] && \
+	  r=$$(_JB_TOKENS="$$JBLOG" LC_ALL=C awk -v BINMODE=3 -v ALLUSINGS="$$1" -v out="$$JBLOG/kept" "$$_KEEP_HUNKS_AWK" "$$JBLOG/nums" "$$JBLOG/hunks" "$$JBLOG/w" "$$JBLOG/c") \
 	    && [ -n "$$r" ] || { echo "Error: could not filter jb's changes to $$f, which keeps all of them."; exit 1; }; \
-	  case "$$r" in *" 0") continue;; "0 "*) cp "$$JBLOG/pre/$$f" "$$dir/$$f";; *) cp "$$JBLOG/kept" "$$dir/$$f";; esac; \
+	  [ "$${r%% *}" = 0 ] || { mkdir -p "$$JBLOG/jb/$$(dirname "$$f")"; cp "$$dir/$$f" "$$JBLOG/jb/$$f"; printf '%s\n' "$$f" >> "$$JBLOG/omitted"; }; \
+	  case "$${r\#* }" in *" 0") continue;; "0 "*) cp "$$JBLOG/pre/$$f" "$$dir/$$f";; *) cp "$$JBLOG/kept" "$$dir/$$f";; esac; \
 	  printf '%s\n' "$$f" >> "$$JBLOG/cut"; \
 	done < "$$JBLOG/files"; }; \
-	named() { while IFS= read -r f; do if [ "$$dir" = . ]; then printf '%s\n' "$$f"; else printf '%s/%s\n' "$$dir" "$$f"; fi; done < "$$JBLOG/cut" >> "$$JBLOG/$$1"; }; \
-	settle() { keep; [ -s "$$JBLOG/cut" ] || return 0; \
-	  if compile; then named partial; return 0; fi; \
-	  while IFS= read -r f; do cp "$$JBLOG/pre/$$f" "$$dir/$$f"; done < "$$JBLOG/cut"; \
-	  named reverted; : > "$$JBLOG/failed"; }; \
+	named() { while IFS= read -r f; do if [ "$$dir" = . ]; then printf '%s\n' "$$f"; else printf '%s/%s\n' "$$dir" "$$f"; fi; done < "$$JBLOG/$${2:-cut}" >> "$$JBLOG/$$1"; }; \
+	settle() { keep; [ -s "$$JBLOG/cut" ] || return 0; rv=cut; \
+	  if [ -s "$$JBLOG/omitted" ]; then \
+	    if compile q; then named partial; return 0; fi; \
+	    mv "$$JBLOG/cut" "$$JBLOG/cut1"; rv=cut1; keep 1; \
+	    if [ ! -s "$$JBLOG/cut" ] || compile; then named partial; named usings omitted; return 0; fi; \
+	  elif compile; then named partial; return 0; fi; \
+	  while IFS= read -r f; do cp "$$JBLOG/pre/$$f" "$$dir/$$f"; done < "$$JBLOG/$$rv"; \
+	  named reverted $$rv; : > "$$JBLOG/failed"; }; \
 	jbrun() { { $(JB) cleanupcode "$$t" --no-build --properties="$(_JB_PROPERTIES)" --settings="$(CLEANUP_SETTINGS)" \
 	  --profile="$(CLEANUP_PROFILE)" $(_CLEANUP_EXCLUDE_FLAG) "$$@" < /dev/null 2>&1; echo $$? > "$$JBLOG/rc"; } | tee "$$JBLOG/out"; \
 	  return "$$(cat "$$JBLOG/rc")"; }; \
@@ -472,9 +623,10 @@ _JB_CLEAN = \
 	  (cd "$$dir" && git -c core.quotePath=false diff -U0 -M --raw --no-color --no-ext-diff --relative \
 	    --src-prefix=a/ --dst-prefix=b/ "$$B" -- '*.cs') | LC_ALL=C awk -v BINMODE=3 "$$_CHANGED_LINES_AWK" > "$$JBLOG/lines"; \
 	  rm -rf "$$JBLOG/pre"; mkdir "$$JBLOG/pre"; \
-	  (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cp --parents -t "$$JBLOG/pre"); \
+	  (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cp --parents -t "$$JBLOG/pre") \
+	    || { echo "Error: could not record the files in $$t before the cleanup, so they are left as they were."; exit 1; }; \
 	fi; \
-	snap > "$$JBLOG/before"; \
+	snap > "$$JBLOG/before" || { echo "Error: could not record the files in $$t before the cleanup, so they are left as they were."; exit 1; }; \
 	if [ -n "$$INCL" ]; then jbrun --include="$$INCL"; else jbrun; fi || { \
 	  [ -n "$$INCL" ] && grep -q 'No items were found to cleanup' "$$JBLOG/out" || { settle; exit 1; }; \
 	  echo "jb found nothing to clean in $$t: no project there compiles these files."; continue; }; \
@@ -485,34 +637,40 @@ _JB_CLEAN = \
 	fi; \
 	settle
 
-.PHONY: cleanup
-cleanup:
-	$(_CHECK_JB)
-	$(_CHECK_SETTINGS)
-	$(_CLEANUP_PREFLIGHT)
-	@if [ -n "$(_PROJECT_TABLE)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
-	  echo "Error: unscoped 'make cleanup' touches every project in this repo."; \
-	  echo "  Scope to one project:  make cleanup PROJECT=<name>"; \
-	  echo "  Or opt into all:       make cleanup ALL=1"; \
-	  exit 1; \
-	fi
-	@JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
+_CLEANUP_BODY = JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
 	$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
 	  case "$$t" in "!"*) \
-	    $(if $(PROJECT),echo "Error: no .sln lists $${t#!}$(_comma) so it can't be cleaned."; exit 1,echo "Skipping $${t#!}: no .sln found" >&2; continue);; \
+	    $(if $(PROJECT),echo "Error: no .sln lists $${t$(_hash)!}$(_comma) so it can't be cleaned."; exit 1,echo "Skipping $${t$(_hash)!}: no .sln found" >&2; continue);; \
 	  esac; \
 	  dir="$$(dirname "$$t")"; INCL=; \
 	  echo "Cleaning up $$t..."; \
 	  $(_JB_CLEAN); \
 	done
 
-.PHONY: cleanup-changed
-cleanup-changed:
+_CLEANUP_UNEXPORT = unset _CLEANUP_PREFLIGHT_SH _CLEANUP_SH _CLEANUP_CHANGED_SH; \
+	_v=$$_KEEP_HUNKS_AWK; unset _KEEP_HUNKS_AWK; _KEEP_HUNKS_AWK=$$_v; \
+	_v=$$_CHANGED_LINES_AWK; unset _CHANGED_LINES_AWK; _CHANGED_LINES_AWK=$$_v; unset _v;
+
+# Native Windows make cuts a recipe command at about 8,000 characters, so the cleanup recipes' long shell text reaches sh through these variables.
+# Each text first takes them out of the environment, keeping the awk programs as shell variables: MSYS xargs fails once the environment passes about 27,000 bytes.
+cleanup cleanup-changed: export _CLEANUP_PREFLIGHT_SH = $(_CLEANUP_UNEXPORT) $(_CLEANUP_PREFLIGHT)
+cleanup: export _CLEANUP_SH = $(_CLEANUP_UNEXPORT) $(_CLEANUP_BODY)
+cleanup-changed: export _CLEANUP_CHANGED_SH = $(_CLEANUP_UNEXPORT) $(_CLEANUP_CHANGED_BODY)
+
+.PHONY: cleanup
+cleanup:
 	$(_CHECK_JB)
 	$(_CHECK_SETTINGS)
-	$(_CLEANUP_PREFLIGHT)
-	@git rev-parse --verify -q HEAD >/dev/null || { echo "Error: cleanup-changed compares against HEAD, so it needs a git repository with a commit."; exit 1; }
-	@B=HEAD; \
+	@eval "$$_CLEANUP_PREFLIGHT_SH"
+	@if [ -n "$(_PROJECT_TABLE)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
+	  echo "Error: unscoped 'make cleanup' touches every project in this repo."; \
+	  echo "  Scope to one project:  make cleanup PROJECT=<name>"; \
+	  echo "  Or opt into all:       make cleanup ALL=1"; \
+	  exit 1; \
+	fi
+	@eval "$$_CLEANUP_SH"
+
+_CLEANUP_CHANGED_BODY = B=HEAD; \
 	if [ -n "$(BASE)" ]; then \
 	  git rev-parse --verify -q "$(BASE)^{commit}" >/dev/null || { echo "Error: BASE=$(BASE) is not a commit."; exit 1; }; \
 	  B=$$(git merge-base "$(BASE)" HEAD) || { echo "Error: $(BASE) and HEAD have no merge base."; exit 1; }; \
@@ -540,7 +698,7 @@ cleanup-changed:
 	JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
 	echo "$$LIST" | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
 	  case "$$t" in "!"*) \
-	    p="$${t#!}"; \
+	    p="$${t$(_hash)!}"; \
 	    if [ -n "$$STRICT" ] || echo "$$FILES" | awk -v d="$$(dirname "$$p")/" 'index($$0, d) == 1 { f = 1 } END { exit !f }'; then \
 	      echo "Error: no .sln lists $$p, so its changed files can't be cleaned."; exit 1; \
 	    fi; \
@@ -566,11 +724,22 @@ cleanup-changed:
 	  while IFS= read -r p; do printf "%s: cleaned the changed lines and left jb's other changes out\n" "$$p"; done < "$$JBLOG/partial"; \
 	  echo "To take the rest, run '$$cmd' on its own as a formatting-only change."; \
 	fi; \
+	if [ -s "$$JBLOG/usings" ]; then \
+	  while IFS= read -r p; do printf "%s: kept jb's added usings, because the result didn't compile without them\n" "$$p"; done < "$$JBLOG/usings"; \
+	fi; \
 	if [ -s "$$JBLOG/reverted" ]; then \
 	  while IFS= read -r p; do printf "%s: left as it was, because keeping only the changed lines' cleanup didn't compile\n" "$$p"; done < "$$JBLOG/reverted"; \
 	  echo "Format their changed lines by hand, or take the whole files through '$$cmd' on its own as a formatting-only change."; \
 	fi; \
 	exit $$rc
+
+.PHONY: cleanup-changed
+cleanup-changed:
+	$(_CHECK_JB)
+	$(_CHECK_SETTINGS)
+	@eval "$$_CLEANUP_PREFLIGHT_SH"
+	@$(_CLEANUP_UNEXPORT) git rev-parse --verify -q HEAD >/dev/null || { echo "Error: cleanup-changed compares against HEAD, so it needs a git repository with a commit."; exit 1; }
+	@eval "$$_CLEANUP_CHANGED_SH"
 
 ifdef COMPAT_PROJECT
 BT ?= bt

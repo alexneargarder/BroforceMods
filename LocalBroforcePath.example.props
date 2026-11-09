@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Revision: 1 -->
+<!-- Revision: 2 -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!--
@@ -35,6 +35,10 @@
     <!-- Build Options (uncomment to override - values shown are defaults) -->
     <!-- <CloseBroforceOnBuild>true</CloseBroforceOnBuild> -->
     <!-- <LaunchBroforceOnBuild>false</LaunchBroforceOnBuild> -->
+    <!-- <LaunchArgs></LaunchArgs> (arguments passed to the game when the build launches it) -->
+    <!-- <SteamPath></SteamPath> (the Steam folder the build launches an r2modman profile through; empty finds it as r2modman does) -->
+    <!-- <BroforceGamePath></BroforceGamePath> (the game folder the build copies an r2modman profile's loader files into; empty finds it through the Steam libraries) -->
+    <!-- <SkipInstall>false</SkipInstall> (true builds without installing, as make's INSTALL=no does) -->
     <!-- <UseHardLinksForInstall>false</UseHardLinksForInstall> (Windows only) -->
     <!-- <VerboseBuildOutput>false</VerboseBuildOutput> -->
 
