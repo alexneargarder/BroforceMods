@@ -2221,7 +2221,12 @@ namespace Unity_Inspector_Mod
 
         internal static void ReportImportFailure( string assemblyName, string what, Exception e )
         {
-            var key = assemblyName + "|" + e.GetType().Name;
+            if ( NamesAbsentAssembly( e ) )
+            {
+                return;
+            }
+
+            string key = assemblyName + "|" + e.GetType().Name;
             if ( !reportedImportFailures.Add( key ) )
             {
                 return;
@@ -2230,6 +2235,23 @@ namespace Unity_Inspector_Mod
             Main.Log( "Script compiler could not import " + what + " from assembly '" + assemblyName +
                       "': " + e.GetType().Name + ": " + e.Message +
                       " (further " + e.GetType().Name + "s from this assembly will not be logged)" );
+        }
+
+        private static bool NamesAbsentAssembly( Exception e )
+        {
+            for ( ; e != null; e = e.InnerException )
+            {
+                FileNotFoundException missing = e as FileNotFoundException;
+                if ( missing == null )
+                {
+                    continue;
+                }
+
+                AssemblyName name = string.IsNullOrEmpty( missing.FileName ) ? null : ParseName( missing.FileName );
+                return name != null && AppDomain.CurrentDomain.GetAssemblies().All( a => !string.Equals( SafeAssemblyName( a ), name.Name, StringComparison.OrdinalIgnoreCase ) );
+            }
+
+            return false;
         }
 
         private static string DetectEnumUsageError( string name, string source )
