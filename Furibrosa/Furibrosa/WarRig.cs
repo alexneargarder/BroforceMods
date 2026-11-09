@@ -3229,11 +3229,11 @@ namespace Furibrosa
 
                 if ( currentPrimaryState == PrimaryState.FlareGun )
                 {
-                    gunSprite.meshRender.material = flareGunMat;
+                    SetGunMaterial( flareGunMat );
                 }
                 else
                 {
-                    gunSprite.meshRender.material = crossbowMat;
+                    SetGunMaterial( crossbowMat );
                 }
 
                 // Update summoner in case old furibrosa is null and new pilot tries to use sound effects
@@ -3243,7 +3243,7 @@ namespace Furibrosa
             {
                 pilotIsFuribrosa = false;
                 currentPrimaryState = PrimaryState.Crossbow;
-                gunSprite.meshRender.material = crossbowMat;
+                SetGunMaterial( crossbowMat );
                 previousLayer = PilotUnit.gameObject.layer;
                 // Ensure pilotting unit appears behind window
                 PilotUnit.gameObject.layer = 20;
@@ -3763,6 +3763,23 @@ namespace Furibrosa
             }
         }
 
+        protected void SetGunMaterial( Material material )
+        {
+            // The base game's oil and freeze code keep their own gun materials and redraw gunMaterial afterwards
+            gunMaterial = material;
+            if ( _oilyGunMaterial != null )
+            {
+                _oilyGunMaterial.mainTexture = material.mainTexture;
+            }
+
+            if ( _frozenGunMaterial != null )
+            {
+                _frozenGunMaterial.mainTexture = material.mainTexture;
+            }
+
+            gunSprite.meshRender.material = isInOil && _oilyGunMaterial != null ? _oilyGunMaterial : material;
+        }
+
         protected void SwitchWeapon()
         {
             gunFrame = 0;
@@ -3770,11 +3787,11 @@ namespace Furibrosa
             currentPrimaryState = nextPrimaryState;
             if ( currentPrimaryState == PrimaryState.FlareGun )
             {
-                gunSprite.meshRender.material = flareGunMat;
+                SetGunMaterial( flareGunMat );
             }
             else
             {
-                gunSprite.meshRender.material = crossbowMat;
+                SetGunMaterial( crossbowMat );
             }
 
             SetGunSprite( 0, 0 );

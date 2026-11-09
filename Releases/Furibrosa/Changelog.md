@@ -1,5 +1,6 @@
 ## v1.1.2 (unreleased)
 - Updates for new BroMaker version.
+- Fixed several weapon sprite bugs.
 
 ## v1.1.1
 - Fix special icons sometimes not returning after leaving war rig.

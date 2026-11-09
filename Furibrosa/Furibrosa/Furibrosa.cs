@@ -114,7 +114,7 @@ namespace Furibrosa
             flareGunHoldingMat = ResourcesController.GetMaterial( Path.Combine( DirectoryPath, "gunSpriteFlareGunHolding.png" ) );
 
             gunSprite.gameObject.layer = 19;
-            gunSprite.meshRender.material = crossbowMat;
+            SetGunMaterial( crossbowMat );
 
             originalSpecialMat = ResourcesController.GetMaterial( DirectoryPath, "special.png" );
 
@@ -676,7 +676,18 @@ namespace Furibrosa
                 }
                 else
                 {
-                    SetGunSprite( 25 + gunFrame, 0 );
+                    bool hanging = actionState == ActionState.Hanging;
+                    if ( nextState == PrimaryState.FlareGun )
+                    {
+                        SetGunMaterial( hanging ? crossbowHoldingMat : crossbowMat );
+                    }
+                    else
+                    {
+                        SetGunMaterial( hanging ? flareGunHoldingMat : flareGunMat );
+                    }
+
+                    // SetGunSprite's hanging offset goes past the sheet edge
+                    gunSprite.SetLowerLeftPixel( ( 25 + gunFrame ) * gunSpritePixelWidth, gunSpritePixelHeight );
                 }
             }
         }
@@ -720,6 +731,28 @@ namespace Furibrosa
             }
         }
 
+        protected void SetGunMaterial( Material material )
+        {
+            // The base game's oil and freeze code keep their own gun materials and redraw gunMaterial afterwards
+            gunMaterial = material;
+            if ( _oilyGunMaterial != null )
+            {
+                _oilyGunMaterial.mainTexture = material.mainTexture;
+            }
+
+            if ( _frozenGunMaterial != null )
+            {
+                _frozenGunMaterial.mainTexture = material.mainTexture;
+            }
+
+            gunSprite.meshRender.material = isInOil && _oilyGunMaterial != null ? _oilyGunMaterial : material;
+        }
+
+        protected override void SetGunSprite( int spriteFrame, int spriteRow )
+        {
+            base.SetGunSprite( spriteFrame, actionState == ActionState.Hanging ? 0 : spriteRow );
+        }
+
         public void SwitchWeapon()
         {
             gunFrame = 0;
@@ -727,11 +760,11 @@ namespace Furibrosa
             currentState = nextState;
             if ( currentState == PrimaryState.FlareGun )
             {
-                gunSprite.meshRender.material = flareGunMat;
+                SetGunMaterial( flareGunMat );
             }
             else
             {
-                gunSprite.meshRender.material = crossbowMat;
+                SetGunMaterial( crossbowMat );
             }
 
             if ( grabbedUnit != null )
@@ -977,6 +1010,11 @@ namespace Furibrosa
             return null;
         }
 
+        protected override bool CanCheckClimbAlongCeiling()
+        {
+            return grabbedUnit == null && base.CanCheckClimbAlongCeiling();
+        }
+
         protected void GrabUnit()
         {
             bool flag;
@@ -1064,11 +1102,11 @@ namespace Furibrosa
             flareGunMat = flareGunHoldingMat;
             if ( currentState == PrimaryState.Crossbow )
             {
-                gunSprite.meshRender.material = crossbowMat;
+                SetGunMaterial( crossbowMat );
             }
             else if ( currentState == PrimaryState.FlareGun )
             {
-                gunSprite.meshRender.material = flareGunMat;
+                SetGunMaterial( flareGunMat );
             }
 
             holdingArm.gameObject.SetActive( true );
@@ -1081,11 +1119,11 @@ namespace Furibrosa
             flareGunMat = flareGunNormalMat;
             if ( currentState == PrimaryState.Crossbow )
             {
-                gunSprite.meshRender.material = crossbowMat;
+                SetGunMaterial( crossbowMat );
             }
             else if ( currentState == PrimaryState.FlareGun )
             {
-                gunSprite.meshRender.material = flareGunMat;
+                SetGunMaterial( flareGunMat );
             }
         }
 
