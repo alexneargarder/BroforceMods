@@ -961,7 +961,7 @@ namespace Utility_Mod
             // Add Custom Campaigns submenu after White House
             BuildCustomCampaignsSubmenu( parentMenu, isStartingLevelMenu );
 
-            // Add campaigns 16+ (Alien Challenge through Muscle Temple 5)
+            // Add campaigns 16+ (Alien Challenge through Muscle Temple 4)
             for ( int i = whiteHouseIndex + 1; i < Main.campaignDisplayNames.Length; i++ )
             {
                 BuildCampaignSubmenu( parentMenu, i, isStartingLevelMenu );

@@ -141,6 +141,10 @@ namespace Utility_Mod
                     }
                 }
                 ++nextCampaign;
+                if ( nextCampaign >= Main.campaignList.Length )
+                {
+                    return false;
+                }
 
                 foreach ( WorldTerritory3D ter in ___territories3D )
                 {

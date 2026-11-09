@@ -51,7 +51,6 @@ namespace Utility_Mod
             "UNITED STATES OF AMERICA",
             "WHITE HOUSE",
             "Alien Challenge",
-            "Bombardment Challenge",
             "Ammo Challenge",
             "Dash Challenge",
             "Mech Challenge",
@@ -60,8 +59,7 @@ namespace Utility_Mod
             "MUSCLETEMPLE1",
             "MUSCLETEMPLE2",
             "MUSCLETEMPLE3",
-            "MUSCLETEMPLE4",
-            "MUSCLETEMPLE5"
+            "MUSCLETEMPLE4"
         };
 
         public static string[] campaignDisplayNames = new string[]
@@ -69,9 +67,9 @@ namespace Utility_Mod
             "Campaign 1", "Campaign 2", "Campaign 3", "Campaign 4", "Campaign 5",
             "Campaign 6", "Campaign 7", "Campaign 8", "Campaign 9", "Campaign 10",
             "Campaign 11", "Campaign 12", "Campaign 13", "Campaign 14", "Campaign 15",
-            "White House", "Alien Challenge", "Bombardment Challenge", "Ammo Challenge",
+            "White House", "Alien Challenge", "Ammo Challenge",
             "Dash Challenge", "Mech Challenge", "MacBrover Challenge", "Time Bro Challenge",
-            "Muscle Temple 1", "Muscle Temple 2", "Muscle Temple 3", "Muscle Temple 4", "Muscle Temple 5"
+            "Muscle Temple 1", "Muscle Temple 2", "Muscle Temple 3", "Muscle Temple 4"
         };
 
         public static string[] actualCampaignNames = new string[]
@@ -93,7 +91,6 @@ namespace Utility_Mod
             "WM_HELL",
             "WM_Whitehouse",
             "Challenge_Alien",
-            "Challenge_Bombardment1",
             "Challenge_Ammo",
             "Challenge_Dash",
             "Challenge_Mech1",
@@ -102,8 +99,7 @@ namespace Utility_Mod
             "MuscleTemple_1",
             "MuscleTemple_2",
             "MuscleTemple_3",
-            "MuscleTemple_4",
-            "WM_Intro(mouse)"
+            "MuscleTemple_4"
         };
 
         public static Dropdown controllerDropdown;
@@ -255,7 +251,7 @@ namespace Utility_Mod
             SwapBrosIntegration.Initialize( msg => mod.Logger.Log( msg ) );
 
             lastCampaignNum = -1;
-            campaignNum = new Dropdown( 125, 150, 200, 300, campaignDisplayNames, settings.campaignNum );
+            campaignNum = new Dropdown( 125, 150, 200, 300, campaignDisplayNames, Mathf.Min( settings.campaignNum, campaignDisplayNames.Length - 1 ) );
 
 
             levelNum = new Dropdown( 400, 150, 150, 300, levelList, settings.levelNum );
@@ -814,13 +810,18 @@ namespace Utility_Mod
                     {
                         GUILayout.BeginHorizontal();
                         {
-                            campaignNum.OnGUI( modEntry );
+                            SyncLevelDropdowns();
+
+                            bool campaignPicked = campaignNum.OnGUI( modEntry );
 
                             DetermineLevelsInCampaign();
 
-                            levelNum.OnGUI( modEntry );
+                            bool levelPicked = levelNum.OnGUI( modEntry );
 
-                            Main.settings.levelNum = levelNum.indexNumber;
+                            if ( campaignPicked || levelPicked )
+                            {
+                                SetStartingLevel( campaignNum.indexNumber, levelNum.indexNumber );
+                            }
 
                             if ( GUILayout.Button( new GUIContent( "Go to level" ), WindowScaling.ScaledWidth( 100 ) ) )
                             {
@@ -854,8 +855,11 @@ namespace Utility_Mod
                                 lastRect.y += 25;
                                 lastRect.width += 500;
 
-                                controllerDropdown.OnGUI( modEntry );
-                                Main.settings.goToLevelControllerNum = controllerDropdown.indexNumber;
+                                controllerDropdown.indexNumber = Main.settings.goToLevelControllerNum;
+                                if ( controllerDropdown.OnGUI( modEntry ) )
+                                {
+                                    Main.settings.goToLevelControllerNum = controllerDropdown.indexNumber;
+                                }
 
                                 if ( GUI.tooltip != previousToolTip )
                                 {
@@ -2123,6 +2127,7 @@ namespace Utility_Mod
                     break;
 
                 case "Go to level":
+                    SyncLevelDropdowns();
                     GoToLevel( campaignNum.indexNumber, levelNum.indexNumber );
                     break;
 
@@ -3163,14 +3168,15 @@ namespace Utility_Mod
                 case 13: return 5;
                 case 14: return 5;
                 case 15: return 14;
+                case 24: return 2;
+                case 25: return 2;
+                case 26: return 2;
                 default: return 1;
             }
         }
 
         static void DetermineLevelsInCampaign()
         {
-            Main.settings.campaignNum = campaignNum.indexNumber;
-
             if ( lastCampaignNum != campaignNum.indexNumber )
             {
                 int numberOfLevels = GetLevelCountForCampaign( campaignNum.indexNumber );
@@ -3182,6 +3188,29 @@ namespace Utility_Mod
                 levelNum = new Dropdown( 400, 150, 125, 300, levelList.Take( numberOfLevels ).ToArray(), levelNum.indexNumber, levelNum.show );
             }
             lastCampaignNum = campaignNum.indexNumber;
+        }
+
+        static void SyncLevelDropdowns()
+        {
+            if ( !settings.isCustomCampaignStarting )
+            {
+                campaignNum.indexNumber = Mathf.Clamp( settings.campaignNum, 0, campaignDisplayNames.Length - 1 );
+            }
+
+            DetermineLevelsInCampaign();
+
+            if ( !settings.isCustomCampaignStarting )
+            {
+                levelNum.indexNumber = Mathf.Clamp( settings.levelNum, 0, levelNum.list.Length - 1 );
+            }
+        }
+
+        public static void SetStartingLevel( int campaignIndex, int levelIndex )
+        {
+            settings.isCustomCampaignStarting = false;
+            settings.customCampaignWorkshopId = "";
+            settings.campaignNum = campaignIndex;
+            settings.levelNum = levelIndex;
         }
 
         public static void GoToLevel( int campaignIndex, int levelIndex, string customCampaignName = null, bool customCampaignIsPublished = false )
@@ -3330,7 +3359,6 @@ namespace Utility_Mod
             switch ( territory.properties.territoryName )
             {
                 case "VIETMAN": territory.SetState( TerritoryState.TerroristBase ); break;
-                case "Bombardment Challenge": territory.SetState( TerritoryState.TerroristBase ); break;
                 case "HAWAII": territory.SetState( TerritoryState.Infested ); break;
                 case "INDONESIA": territory.SetState( TerritoryState.TerroristBase ); break;
                 case "DEM. REP. OF CONGO": territory.SetState( TerritoryState.Infested ); break;
@@ -3355,7 +3383,6 @@ namespace Utility_Mod
                 case "Time Bro Challenge": territory.SetState( TerritoryState.TerroristBase ); break;
                 case "NEW GUINEA": territory.SetState( TerritoryState.TerroristBurning ); break;
                 case "MUSCLETEMPLE1": territory.SetState( TerritoryState.TerroristBase ); break;
-                case "MUSCLETEMPLE5": territory.SetState( TerritoryState.TerroristBase ); break;
                 case "Alien Challenge": territory.SetState( TerritoryState.TerroristBase ); break;
             }
 

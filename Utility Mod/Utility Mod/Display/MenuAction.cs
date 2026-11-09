@@ -751,10 +751,7 @@ namespace Utility_Mod
                     break;
 
                 case MenuActionType.ClearStartingLevel:
-                    Main.settings.isCustomCampaignStarting = false;
-                    Main.settings.customCampaignWorkshopId = "";
-                    Main.settings.campaignNum = 0;
-                    Main.settings.levelNum = 0;
+                    Main.SetStartingLevel( 0, 0 );
                     break;
 
                 case MenuActionType.GoToStartingLevel:
@@ -1030,10 +1027,7 @@ namespace Utility_Mod
 
                     if ( campaignIndex >= 0 )
                     {
-                        Main.settings.isCustomCampaignStarting = false;
-                        Main.settings.customCampaignWorkshopId = "";
-                        Main.settings.campaignNum = campaignIndex;
-                        Main.settings.levelNum = levelNum;
+                        Main.SetStartingLevel( campaignIndex, levelNum );
                     }
                 }
             }
@@ -1043,10 +1037,7 @@ namespace Utility_Mod
         {
             if ( CampaignIndex.HasValue && LevelIndex.HasValue )
             {
-                Main.settings.isCustomCampaignStarting = false;
-                Main.settings.customCampaignWorkshopId = "";
-                Main.settings.campaignNum = CampaignIndex.Value;
-                Main.settings.levelNum = LevelIndex.Value;
+                Main.SetStartingLevel( CampaignIndex.Value, LevelIndex.Value );
             }
         }
 

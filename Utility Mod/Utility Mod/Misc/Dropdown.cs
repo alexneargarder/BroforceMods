@@ -33,8 +33,9 @@ namespace Utility_Mod
 
         #region GUI Rendering
 
-        public void OnGUI( UnityModManager.ModEntry modEntry )
+        public bool OnGUI( UnityModManager.ModEntry modEntry )
         {
+            bool picked = false;
             if ( GUILayout.Button( "", GUILayout.Width( dropDownRect.width ) ) )
             {
                 if ( !show )
@@ -64,6 +65,7 @@ namespace Utility_Mod
                     {
                         show = false;
                         indexNumber = index;
+                        picked = true;
                     }
 
                     GUI.Label( new Rect( 5, ( index * 25 ), dropDownRect.width, 25 ), list[index] );
@@ -76,6 +78,8 @@ namespace Utility_Mod
             {
                 GUI.Label( new Rect( ( dropDownRect.x + 5 ), dropDownRect.y, 300, 25 ), new GUIContent( list[indexNumber], this.ToolTip ) );
             }
+
+            return picked;
         }
 
         #endregion

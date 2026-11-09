@@ -10,6 +10,7 @@
 - Fix level edits not replaying when dying and restarting on a level.
 - Fixed Ending Skip skipping a level and Helicopter Wait not waiting for every player.
 - Fixed pausing and Slow Time leaving the game frozen or at the wrong speed.
+- Fixed the go to level list showing levels that don't exist and forgetting the chosen starting level.
 
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.
