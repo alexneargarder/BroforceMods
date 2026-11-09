@@ -1947,7 +1947,6 @@ namespace Unity_Inspector_Mod
                     };
                 }
 
-                string[] suppressedBy = null;
                 string refusal = null;
                 int? saveSlot = null;
                 int loadedFrom = 0;
@@ -1995,8 +1994,6 @@ namespace Unity_Inspector_Mod
                         GameState.Instance.sessionID = Connect.GetIncrementedSessionID().AsByte;
 
                         GameModeController.LoadNextScene( GameState.Instance );
-
-                        suppressedBy = GetActiveEnemySpawnSuppressors();
                     }, 3000 );
                 }
                 catch ( Exception ex )
@@ -2020,11 +2017,6 @@ namespace Unity_Inspector_Mod
                 if ( saveSlot.HasValue )
                 {
                     result["saveSlot"] = saveSlot.Value;
-                }
-
-                if ( suppressedBy != null && suppressedBy.Length > 0 )
-                {
-                    result["warning"] = $"Enemy spawning is suppressed by {string.Join( ", ", suppressedBy )}: enemies and bosses the level places are skipped, so a level that finishes on a boss cannot finish";
                 }
 
                 return result;
@@ -2096,9 +2088,7 @@ namespace Unity_Inspector_Mod
                         if ( pause == PauseStatus.CutscenePause )
                         {
                             reply["cutscene"] = pause.ToString();
-                            string held = "A cutscene holds the game paused (CutscenePause) until a key is pressed, and no bro moves until it ends: simulate_input with action start skips it";
-                            string earlier = reply["warning"]?.Value<string>();
-                            reply["warning"] = string.IsNullOrEmpty( earlier ) ? held : $"{earlier}. {held}";
+                            reply["warning"] = "A cutscene holds the game paused (CutscenePause) until a key is pressed, and no bro moves until it ends: simulate_input with action start skips it";
                         }
                         return null;
                     }
