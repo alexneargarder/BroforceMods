@@ -2,7 +2,6 @@
 
 PROJECT_NAME := BroforceMods
 AUTO_DISCOVER := 1
-override EXCLUDE += ExampleMod
 CLEANUP_EXCLUDE := BroforceDevTools/Demystify/**;BroforceDevTools/ConstructorProfiler/**;\
     BroforceDevTools/FPSCounter/CounterColors.cs;BroforceDevTools/FPSCounter/FixedString.cs;\
     BroforceDevTools/FPSCounter/FrameCounter.cs;BroforceDevTools/FPSCounter/HarmonyPatchProfiler.cs;\

@@ -14,13 +14,9 @@ For anyone interested in creating their own mods for this game, feel free to use
 
 For detailed instructions on how to create mods for Broforce, see [the wiki for this repo.](https://github.com/alexneargarder/BroforceMods/wiki)
 
-Otherwise, if you would just like an example to work off of, the ExampleMod provides a basic template with a lot of comments to explain how everything works. It has most of the setup needed to work with Unity Mod Manager. It is set up as a Visual Studio Project, so you should just be able to download everything and open the .sln file. I use Visual Studio 2022, but it should work with 2019 as well.
+Otherwise, if you'd just like a project to start from, you can create one from the Mod Template with `bt create -t mod`. The [Using the broforce-tools Script](https://github.com/alexneargarder/BroforceMods/wiki/Using-the-broforce-tools-Script) page covers installing `bt` and setting up the build, and [Creating a Unity Mod Manager Mod for Broforce](https://github.com/alexneargarder/BroforceMods/wiki/Creating-a-Unity-Mod-Manager-Mod-for-Broforce) has more detail on how a mod is put together.
 
-There is also a file called MainNoComments.cs that has the same code as the ExampleMod but with no comments, which may be more useful for you if you want to use that project as a template for making your own mod. You can simply download the whole project and copy and paste the code from the MainNoComments.cs to set everything up.
-
-The Compiled Mod folder can be placed into your Mods folder here to see what this example mod does:
-C:\Program Files (x86)\Steam\steamapps\common\Broforce\Mods\Compiled Mod
-There is also an Info.json file in the Compliled Mod Folder that shows you how you need to have that set up.
+Mods are installed into the `UMM\Mods` folder of your r2modman profile, and a project made from the template installs your mod there every time you build it. See [Finding the Mods Folder](https://github.com/alexneargarder/BroforceMods/wiki/Finding-the-Mods-Folder) for where that folder is.
 
 ## How to Create Your Own Bros
 
@@ -28,12 +24,13 @@ For detailed instructions on how to create custom bros for Broforce, see [the Br
 
 ## Useful Links
 
-* [How to install Unity Mod Manager and my mods](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
-* [Unity Mod Manager Wiki](https://wiki.nexusmods.com/index.php/Category:Unity_Mod_Manager)
+* [How to install my mods with r2modman](https://steamcommunity.com/sharedfiles/filedetails/?id=2434812447)
+* [Unity Mod Manager - The version of UMM that Thunderstore installs for Broforce](https://github.com/alexneargarder/unity-mod-manager)
+* [Unity Mod Manager Reference](https://github.com/alexneargarder/BroforceMods/wiki/Unity-Mod-Manager-Reference)
 * [Harmony Documentation](https://harmony.pardeike.net/articles/intro.html)
-* [Dnspy - A tool for viewing the game's code](https://github.com/dnSpy/dnSpy)
+* [dnSpyEx - A tool for viewing the game's code](https://github.com/dnSpyEx/dnSpy)
 * [RuntimeUnityEditor - A tool for debugging game objects in game](https://github.com/ManlyMarco/RuntimeUnityEditor)
-* [AssetStudio - A tool for extracting assets from Unity Games](https://github.com/Perfare/AssetStudio)
+* [AssetStudioMod - A tool for extracting assets from Unity Games](https://github.com/aelurum/AssetStudioMod)
 * [BroMaker Wiki](https://github.com/Gorzontrok/Bro-Maker/wiki)
 * [Broforce Modding Wiki](https://github.com/alexneargarder/BroforceMods/wiki)
 
