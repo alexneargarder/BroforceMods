@@ -1284,8 +1284,9 @@ namespace Unity_Inspector_Mod
             }
 
             UnitType unitType = ResolveUnitType( entityType );
+            Unit civilianPrefab = unitType == UnitType.None ? FindCivilianPrefab( entityType ) : null;
 
-            if ( unitType == UnitType.None )
+            if ( unitType == UnitType.None && civilianPrefab == null )
             {
                 if ( NamesBro( entityType ) )
                 {
@@ -1296,15 +1297,29 @@ namespace Unity_Inspector_Mod
                     };
                 }
 
+                List<Unit> civilians = CivilianPrefabs();
+                string[] civilianNames = civilians.Select( unit => unit.name ).Where( name => ResolveUnitType( name ) == UnitType.None ).Distinct().ToArray();
+                string civilianHint = string.Empty;
+
+                if ( civilianNames.Length > 0 )
+                {
+                    civilianHint = $", or the villager and animal prefab names that follow them in availableTypes ({civilianNames[0]})";
+
+                    if ( civilians.Any( unit => unit is Citizen ) )
+                    {
+                        civilianHint += "; Citizen spawns a citizen";
+                    }
+                }
+
                 return new
                 {
                     success = false,
-                    error = $"Unknown unit type '{entityType}' - names are RocketLib UnitType values, written either as the enum name (SuicideMook) or as the display name (Suicide Mook)",
-                    availableTypes = UnitTypes.AllUnitNames
+                    error = $"Unknown unit type '{entityType}' - names are RocketLib UnitType values, written either as the enum name (SuicideMook) or as the display name (Suicide Mook){civilianHint}",
+                    availableTypes = UnitTypes.AllUnitNames.Concat( civilianNames ).ToArray()
                 };
             }
 
-            string displayName = unitType.ToDisplayString();
+            string displayName = civilianPrefab != null ? civilianPrefab.name : unitType.ToDisplayString();
 
             Unit prefab = null;
             string prefabFailure = null;
@@ -1312,7 +1327,7 @@ namespace Unity_Inspector_Mod
             // RocketLib reads the prefab out of the loaded theme and the level's shared assets, either of which can be absent.
             try
             {
-                prefab = unitType.GetUnitPrefab();
+                prefab = civilianPrefab != null ? civilianPrefab : unitType.GetUnitPrefab();
             }
             catch ( Exception ex )
             {
@@ -1370,7 +1385,7 @@ namespace Unity_Inspector_Mod
                 {
                     success = false,
                     error = $"Spawning '{displayName}' threw {ex.GetType().Name}: {ex.Message}",
-                    unitType = unitType.ToString()
+                    unitType = ( civilianPrefab != null ? civilianPrefab.GetUnitType() : unitType ).ToString()
                 };
             }
 
@@ -1396,7 +1411,7 @@ namespace Unity_Inspector_Mod
             {
                 success = true,
                 type = displayName,
-                unitType = unitType.ToString(),
+                unitType = ( civilianPrefab != null ? spawned.GetUnitType() : unitType ).ToString(),
                 prefab = prefab.name,
                 name = spawned.name,
                 instanceId = spawned.gameObject.GetInstanceID(),
@@ -1499,6 +1514,66 @@ namespace Unity_Inspector_Mod
             return normalized.Length > 0 &&
                    ( normalized == NormalizeUnitName( UnitType.Bro.ToString() ) ||
                      normalized == NormalizeUnitName( UnitType.Bro.ToDisplayString() ) );
+        }
+
+        private static Unit FindCivilianPrefab( string requested )
+        {
+            string normalized = NormalizeUnitName( requested ?? string.Empty );
+
+            if ( normalized.Length == 0 )
+            {
+                return null;
+            }
+
+            List<Unit> civilians = CivilianPrefabs();
+
+            if ( normalized == "citizen" )
+            {
+                Unit citizen = civilians.FirstOrDefault( unit => unit is Citizen && unit.name == "Citizen1" );
+
+                if ( citizen == null )
+                {
+                    citizen = civilians.FirstOrDefault( unit => unit is Citizen );
+                }
+
+                if ( citizen != null )
+                {
+                    return citizen;
+                }
+            }
+
+            return civilians.FirstOrDefault( unit => NormalizeUnitName( unit.name ) == normalized );
+        }
+
+        private static List<Unit> CivilianPrefabs()
+        {
+            List<Unit> civilians = new List<Unit>();
+            List<UnityEngine.Object> prefabs = InstantiationController.PrefabList;
+
+            if ( prefabs == null )
+            {
+                return civilians;
+            }
+
+            foreach ( UnityEngine.Object entry in prefabs )
+            {
+                GameObject prefab = entry as GameObject;
+
+                if ( prefab == null || prefab.GetComponent<BroBase>() != null )
+                {
+                    continue;
+                }
+
+                Villager villager = prefab.GetComponent<Villager>();
+                Unit civilian = villager != null ? villager : (Unit)prefab.GetComponent<Animal>();
+
+                if ( civilian != null )
+                {
+                    civilians.Add( civilian );
+                }
+            }
+
+            return civilians;
         }
 
         private static string NormalizeUnitName( string name )
