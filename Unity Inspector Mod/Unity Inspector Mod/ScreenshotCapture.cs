@@ -1,6 +1,10 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Newtonsoft.Json.Linq;
 using RocketLib.Utils;
 using UnityEngine;
@@ -24,12 +28,21 @@ namespace Unity_Inspector_Mod
         private const int KeptScreenshots = 50;
         private const int LockWaitMs = 2000;
         private const int CaptureWaitMs = 3000;
-        private const int PollIntervalMs = 25;
+
+        private const int CapturePending = 0;
+        private const int CaptureRunning = 1;
+        private const int CaptureAbandoned = 2;
 
         private static readonly string screenshotDirectory;
         private static readonly bool isLinux;
         private static readonly object captureLock = new object();
-        private static readonly byte[] PngTrailer = { 0, 0, 0, 0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82 };
+
+        private sealed class FrameCapture
+        {
+            public int State;
+            public Exception Error;
+            public readonly ManualResetEvent Finished = new ManualResetEvent( false );
+        }
 
         static ScreenshotCapture()
         {
@@ -346,18 +359,29 @@ namespace Unity_Inspector_Mod
                 var randomId = Guid.NewGuid().ToString( "N" ).Substring( 0, 8 );
                 var path = Path.Combine( screenshotDirectory, $"screenshot_{timestamp}_{randomId}.png" );
 
-                MainThreadDispatcher.EnqueueAndWait( () => ScreenCapture.CaptureScreenshot( path ), CaptureWaitMs );
+                Stopwatch clock = Stopwatch.StartNew();
+                FrameCapture frame = new FrameCapture();
+                MainThreadDispatcher.EnqueueAndWait( () => MainThreadDispatcher.Instance.StartCoroutine( CaptureAtFrameEnd( path, frame ) ), CaptureWaitMs );
 
-                int elapsed = 0;
-                while ( !IsCompletePng( path ) && elapsed < CaptureWaitMs )
+                using ( frame.Finished )
                 {
-                    System.Threading.Thread.Sleep( PollIntervalMs );
-                    elapsed += PollIntervalMs;
+                    int remaining = (int)System.Math.Max( 0, CaptureWaitMs - clock.ElapsedMilliseconds );
+                    if ( !frame.Finished.WaitOne( remaining ) )
+                    {
+                        if ( Interlocked.CompareExchange( ref frame.State, CaptureAbandoned, CapturePending ) == CapturePending )
+                        {
+                            string stall = MainThreadDispatcher.Stall();
+                            throw new TimeoutException( $"The frame this screenshot was waiting for had not ended after {CaptureWaitMs}ms" +
+                                                        ( stall != null ? ": " + stall : "" ) + " - try again" );
+                        }
+
+                        frame.Finished.WaitOne();
+                    }
                 }
 
-                if ( !IsCompletePng( path ) )
+                if ( frame.Error != null )
                 {
-                    throw new IOException( $"No complete screenshot appeared at {path} within {CaptureWaitMs}ms - the game's log says why" );
+                    throw frame.Error;
                 }
 
                 PruneScreenshots( path );
@@ -371,48 +395,34 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        // The file appears when Unity opens it, before the image is written.
-        private static bool IsCompletePng( string path )
+        private static IEnumerator CaptureAtFrameEnd( string path, FrameCapture frame )
         {
+            yield return new WaitForEndOfFrame();
+
+            if ( Interlocked.CompareExchange( ref frame.State, CaptureRunning, CapturePending ) != CapturePending )
+            {
+                yield break;
+            }
+
+            Texture2D texture = null;
             try
             {
-                using ( var stream = new FileStream( path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete ) )
+                texture = new Texture2D( Screen.width, Screen.height, TextureFormat.RGB24, false );
+                texture.ReadPixels( new Rect( 0, 0, Screen.width, Screen.height ), 0, 0 );
+                File.WriteAllBytes( path, texture.EncodeToPNG() );
+            }
+            catch ( Exception ex )
+            {
+                frame.Error = ex;
+            }
+            finally
+            {
+                if ( texture != null )
                 {
-                    if ( stream.Length < PngTrailer.Length + 8 )
-                    {
-                        return false;
-                    }
-
-                    var tail = new byte[PngTrailer.Length];
-                    stream.Seek( -PngTrailer.Length, SeekOrigin.End );
-                    int read = 0;
-                    while ( read < tail.Length )
-                    {
-                        int got = stream.Read( tail, read, tail.Length - read );
-                        if ( got <= 0 )
-                        {
-                            return false;
-                        }
-                        read += got;
-                    }
-
-                    for ( int i = 0; i < tail.Length; i++ )
-                    {
-                        if ( tail[i] != PngTrailer[i] )
-                        {
-                            return false;
-                        }
-                    }
-                    return true;
+                    UnityEngine.Object.Destroy( texture );
                 }
-            }
-            catch ( IOException )
-            {
-                return false;
-            }
-            catch ( UnauthorizedAccessException )
-            {
-                return false;
+
+                frame.Finished.Set();
             }
         }
 

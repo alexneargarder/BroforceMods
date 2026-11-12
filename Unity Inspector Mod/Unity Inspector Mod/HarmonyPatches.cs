@@ -7,19 +7,19 @@ namespace Unity_Inspector_Mod
     internal static class InputReader_GetMenuInputCombined_Patch
     {
         private static void Postfix( ref bool up, ref bool down, ref bool left,
-            ref bool right, ref bool accept, ref bool decline, ref bool __result )
+            ref bool right, ref bool accept, ref bool decline, int ignoreFlags, ref bool __result )
         {
             if ( !InputSimulator.Active || InputReader.IsBlocked )
             {
                 return;
             }
 
-            up |= InputSimulator.HeldAny( InputSimulator.Up );
-            down |= InputSimulator.HeldAny( InputSimulator.Down );
-            left |= InputSimulator.HeldAny( InputSimulator.Left );
-            right |= InputSimulator.HeldAny( InputSimulator.Right );
-            accept |= InputSimulator.HeldAny( InputSimulator.Fire ) | InputSimulator.HeldAny( InputSimulator.Jump );
-            decline |= InputSimulator.HeldAny( InputSimulator.Special ) | ( InputSimulator.PressedMenuController( InputSimulator.Escape ) >= 0 );
+            up |= InputSimulator.HeldOnMenus( InputSimulator.Up, ignoreFlags );
+            down |= InputSimulator.HeldOnMenus( InputSimulator.Down, ignoreFlags );
+            left |= InputSimulator.HeldOnMenus( InputSimulator.Left, ignoreFlags );
+            right |= InputSimulator.HeldOnMenus( InputSimulator.Right, ignoreFlags );
+            accept |= InputSimulator.HeldOnMenus( InputSimulator.Fire, ignoreFlags ) | InputSimulator.HeldOnMenus( InputSimulator.Jump, ignoreFlags );
+            decline |= InputSimulator.HeldOnMenus( InputSimulator.Special, ignoreFlags ) | InputSimulator.PressedOnMenus( InputSimulator.Cancel, ignoreFlags );
             __result = up | down | left | right | accept | decline;
         }
     }
@@ -82,7 +82,7 @@ namespace Unity_Inspector_Mod
             left |= InputSimulator.HeldOnMenu( InputSimulator.Left, Controller );
             right |= InputSimulator.HeldOnMenu( InputSimulator.Right, Controller );
             accept |= InputSimulator.HeldOnMenu( InputSimulator.Fire, Controller ) | InputSimulator.HeldOnMenu( InputSimulator.Jump, Controller );
-            decline |= InputSimulator.HeldOnMenu( InputSimulator.Special, Controller ) | InputSimulator.PressedOnMenu( InputSimulator.Escape, Controller );
+            decline |= InputSimulator.HeldOnMenu( InputSimulator.Special, Controller ) | InputSimulator.PressedOnMenu( InputSimulator.Cancel, Controller );
             __result = up | down | left | right | accept | decline;
         }
     }
@@ -114,7 +114,7 @@ namespace Unity_Inspector_Mod
             {
                 return;
             }
-            __result = InputSimulator.PressedMenuController( InputSimulator.Escape );
+            __result = InputSimulator.PressedMenuController( InputSimulator.Cancel );
         }
     }
 
@@ -273,6 +273,45 @@ namespace Unity_Inspector_Mod
                 return;
             }
             __result = InputSimulator.HeldController( InputSimulator.HighFive );
+        }
+    }
+
+    [HarmonyPatch( typeof( UnityEngine.Input ), "GetKeyDown", new Type[] { typeof( UnityEngine.KeyCode ) } )]
+    internal static class Input_GetKeyDown_Patch
+    {
+        private static void Postfix( UnityEngine.KeyCode key, ref bool __result )
+        {
+            if ( key != UnityEngine.KeyCode.Escape || __result || !InputSimulator.EscapeActive )
+            {
+                return;
+            }
+            __result = InputSimulator.PressedAny( InputSimulator.Escape );
+        }
+    }
+
+    [HarmonyPatch( typeof( UnityEngine.Input ), "GetKey", new Type[] { typeof( UnityEngine.KeyCode ) } )]
+    internal static class Input_GetKey_Patch
+    {
+        private static void Postfix( UnityEngine.KeyCode key, ref bool __result )
+        {
+            if ( key != UnityEngine.KeyCode.Escape || __result || !InputSimulator.EscapeActive )
+            {
+                return;
+            }
+            __result = InputSimulator.HeldAny( InputSimulator.Escape );
+        }
+    }
+
+    [HarmonyPatch( typeof( UnityEngine.Input ), "GetKeyUp", new Type[] { typeof( UnityEngine.KeyCode ) } )]
+    internal static class Input_GetKeyUp_Patch
+    {
+        private static void Postfix( UnityEngine.KeyCode key, ref bool __result )
+        {
+            if ( key != UnityEngine.KeyCode.Escape || __result || !InputSimulator.EscapeActive )
+            {
+                return;
+            }
+            __result = InputSimulator.EscapeReleased();
         }
     }
 

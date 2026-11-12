@@ -20,15 +20,17 @@ namespace Unity_Inspector_Mod
         private const int ControllerCount = 8;
         private const int MinTracks = 2, MaxTracks = 8;
 
-        public const int Up = 0, Down = 1, Left = 2, Right = 3, Fire = 4, Jump = 5, Special = 6, HighFive = 7, Gesture = 8, Sprint = 9, Start = 10, Escape = 11;
-        private static readonly string[] KeyNames = { "up", "down", "left", "right", "fire", "jump", "special", "highfive", "gesture", "sprint", "start", "escape" };
+        public const int Up = 0, Down = 1, Left = 2, Right = 3, Fire = 4, Jump = 5, Special = 6, HighFive = 7, Gesture = 8, Sprint = 9, Start = 10, Cancel = 11, Escape = 12;
+        private static readonly string[] KeyNames = { "up", "down", "left", "right", "fire", "jump", "special", "highfive", "gesture", "sprint", "start", "cancel", "escape" };
 
         private static readonly string[] PatchedReads =
         {
-            "GetMenuInputCombined", "GetInput", "GetMenuInput", "GetControllerPressingStart", "GetControllerPressingCancel",
-            "GetControllerPressingFire", "GetControllerPressingHighFive", "GetControllerPressingJump", "GetControllerPressingSpecial",
-            "GetControllerPressingGesture", "IsControllerPressingFire", "IsControllerPressingJump", "IsControllerPressingSpecial",
-            "GetControllerHoldingFire", "GetControllerHoldingJump", "GetControllerHoldingSpecial", "GetControllerHoldingMelee"
+            "InputReader.GetMenuInputCombined", "InputReader.GetInput", "InputReader.GetMenuInput", "InputReader.GetControllerPressingStart",
+            "InputReader.GetControllerPressingCancel", "InputReader.GetControllerPressingFire", "InputReader.GetControllerPressingHighFive",
+            "InputReader.GetControllerPressingJump", "InputReader.GetControllerPressingSpecial", "InputReader.GetControllerPressingGesture",
+            "InputReader.IsControllerPressingFire", "InputReader.IsControllerPressingJump", "InputReader.IsControllerPressingSpecial",
+            "InputReader.GetControllerHoldingFire", "InputReader.GetControllerHoldingJump", "InputReader.GetControllerHoldingSpecial",
+            "InputReader.GetControllerHoldingMelee", "Input.GetKeyDown", "Input.GetKey", "Input.GetKeyUp"
         };
 
         private sealed class Step
@@ -113,6 +115,8 @@ namespace Unity_Inspector_Mod
         private static int joinScreenFrame = -1;
         private static bool joinScreenUp;
         private static int heldUntilFrame = -1;
+        private static int escapeUntilFrame = -1;
+        private static KeyState escapeReleased;
         private static int loadRequestFrame = -1;
         private static volatile float frameMs = 1000f / 30f;
         private static bool initialized;
@@ -171,9 +175,9 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( var method in harmony.GetPatchedMethods() )
                 {
-                    if ( method.DeclaringType == typeof( InputReader ) )
+                    if ( method.DeclaringType == typeof( InputReader ) || ( method.DeclaringType == typeof( Input ) && IsKeyCodeRead( method ) ) )
                     {
-                        found.Add( method.Name );
+                        found.Add( method.DeclaringType.Name + "." + method.Name );
                     }
                 }
             }
@@ -185,8 +189,14 @@ namespace Unity_Inspector_Mod
             var missing = PatchedReads.Where( name => !found.Contains( name ) ).ToArray();
             PatchProblem = missing.Length == 0
                 ? null
-                : $"The input patches on InputReader.{string.Join( ", ", missing )} are not installed, so the game would never read simulated input" +
+                : $"The input patches on {string.Join( ", ", missing )} are not installed, so simulate_input cannot run" +
                   ( patchError != null ? $" (Harmony failed: {patchError.Message})" : "" );
+        }
+
+        private static bool IsKeyCodeRead( MethodBase method )
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+            return parameters.Length == 1 && parameters[0].ParameterType == typeof( KeyCode );
         }
 
         public static void InstallBindingPatch( Harmony harmony )
@@ -424,12 +434,12 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( var plan in plans.Values.Where( p => p.Owner == owner ).ToList() )
                 {
-                    Cancel( plan );
+                    CancelOne( plan );
                 }
             }
         }
 
-        private static void Cancel( Plan plan )
+        private static void CancelOne( Plan plan )
         {
             plan.Cancelled = true;
             foreach ( Plan member in plan.Members ?? new Plan[0] )
@@ -455,7 +465,7 @@ namespace Unity_Inspector_Mod
                     return new JObject { ["cancelled"] = false };
                 }
 
-                Cancel( plan );
+                CancelOne( plan );
                 return new JObject { ["cancelled"] = !plan.Done };
             }
         }
@@ -763,7 +773,8 @@ namespace Unity_Inspector_Mod
             {
                 if ( plan.Index >= plan.Steps.Length )
                 {
-                    if ( plan.Last != null && frame < plan.Last.UpFrom )
+                    // Input.GetKeyUp answers an escape on its up frame, so its result waits for that frame to pass.
+                    if ( plan.Last != null && ( frame < plan.Last.UpFrom || ( plan.Last.Key == Escape && frame == plan.Last.UpFrom ) ) )
                     {
                         return;
                     }
@@ -799,7 +810,7 @@ namespace Unity_Inspector_Mod
                             }
                         }
 
-                        if ( ( step.Key == Start || step.Key == Escape ) && MenuControllerFor( plan.Player ) < 0 )
+                        if ( ( step.Key == Start || step.Key == Cancel ) && MenuControllerFor( plan.Player ) < 0 )
                         {
                             Stop( plan, frame + 1, $"every gamepad controller ({FirstGamepadController}-{ControllerCount - 1}) belongs to a local player, so there is none to send player {plan.Player}'s {KeyNames[step.Key]} from" );
                             return;
@@ -812,6 +823,10 @@ namespace Unity_Inspector_Mod
                         state.DownFrom = frame + 1;
                         state.UpFrom = int.MaxValue;
                         heldUntilFrame = int.MaxValue;
+                        if ( step.Key == Escape )
+                        {
+                            escapeUntilFrame = int.MaxValue;
+                        }
                         plan.Current = state;
                         plan.Phase = PhaseDown;
                         plan.PhaseStart = now;
@@ -849,6 +864,19 @@ namespace Unity_Inspector_Mod
             RecomputeHeldUntil();
 
             Press press = state.Press;
+            if ( state.Key == Escape )
+            {
+                if ( state.DownFrom < upFrom && ( escapeReleased == null || upFrom >= escapeReleased.UpFrom ) )
+                {
+                    escapeReleased = new KeyState { Player = state.Player, Key = Escape, Press = press, UpFrom = upFrom };
+                }
+                escapeUntilFrame = -1;
+                for ( int p = 0; p < Nums.PLAYER_MAX; p++ )
+                {
+                    escapeUntilFrame = System.Math.Max( escapeUntilFrame, keys[p, Escape].UpFrom );
+                }
+            }
+
             if ( press != null && press.FramesRead == 0 )
             {
                 press.Unread = UnreadReasons( plan.Player, state.Key );
@@ -1137,7 +1165,7 @@ namespace Unity_Inspector_Mod
                 {
                     reasons.Add( "the game ignores input just after an unpause" );
                 }
-                if ( key != Start && key != Escape && ControllerOf( player ) < 0 )
+                if ( IsBroKey( key ) && ControllerOf( player ) < 0 )
                 {
                     if ( SlotPlaying( player ) )
                     {
@@ -1161,7 +1189,7 @@ namespace Unity_Inspector_Mod
                 reasons.Add( $"the input gates could not be read ({ex.Message})" );
             }
 
-            if ( key != Start && key != Escape )
+            if ( IsBroKey( key ) )
             {
                 string bro = BroReasons( player );
                 if ( bro != null )
@@ -1186,7 +1214,7 @@ namespace Unity_Inspector_Mod
             if ( press != null && press.LastReadFrame != frame )
             {
                 // A menu's accept can close the pause later in this frame.
-                if ( press.FramesRead == 0 && !IsBindingKey( state.Key ) && state.Key != Start && state.Key != Escape )
+                if ( press.FramesRead == 0 && IsBroKey( state.Key ) )
                 {
                     press.Warning = BroReasons( state.Player );
                     press.ClockStopped = press.Warning == null && Time.timeScale == 0f;
@@ -1227,13 +1255,68 @@ namespace Unity_Inspector_Mod
             return false;
         }
 
-        public static bool HeldOnMenu( int key, int controller )
+        public static bool PressedAny( int key )
         {
             int frame = Time.frameCount;
             for ( int p = 0; p < Nums.PLAYER_MAX; p++ )
             {
                 KeyState state = keys[p, key];
-                if ( IsDown( state, frame ) && MenuControllerFor( p ) == controller )
+                if ( IsDown( state, frame ) && frame == state.DownFrom )
+                {
+                    MarkRead( state, frame );
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static bool EscapeActive => Time.frameCount <= escapeUntilFrame;
+
+        public static bool EscapeReleased()
+        {
+            int frame = Time.frameCount;
+            KeyState released = escapeReleased;
+            if ( released == null || frame != released.UpFrom )
+            {
+                return false;
+            }
+            MarkRead( released, frame );
+            return true;
+        }
+
+        public static bool HeldOnMenu( int key, int controller )
+        {
+            return MenuRead( key, false, IgnoringAllBut( controller ) );
+        }
+
+        public static bool HeldOnMenus( int key, int ignoreFlags )
+        {
+            return MenuRead( key, false, ignoreFlags );
+        }
+
+        public static bool PressedOnMenus( int key, int ignoreFlags )
+        {
+            return MenuRead( key, true, ignoreFlags );
+        }
+
+        private static int IgnoringAllBut( int controller )
+        {
+            return controller >= 0 && controller < ControllerCount ? ~( 1 << controller ) : ~0;
+        }
+
+        private static bool MenuRead( int key, bool edge, int ignoreFlags )
+        {
+            int frame = Time.frameCount;
+            for ( int p = 0; p < Nums.PLAYER_MAX; p++ )
+            {
+                KeyState state = keys[p, key];
+                if ( !IsDown( state, frame ) || ( edge && frame != state.DownFrom ) )
+                {
+                    continue;
+                }
+
+                int controller = MenuControllerFor( p );
+                if ( controller >= 0 && ( ( 1 << controller ) & ignoreFlags ) == 0 )
                 {
                     MarkRead( state, frame );
                     return true;
@@ -1284,17 +1367,7 @@ namespace Unity_Inspector_Mod
 
         public static bool PressedOnMenu( int key, int controller )
         {
-            int frame = Time.frameCount;
-            for ( int p = 0; p < Nums.PLAYER_MAX; p++ )
-            {
-                KeyState state = keys[p, key];
-                if ( IsDown( state, frame ) && frame == state.DownFrom && MenuControllerFor( p ) == controller )
-                {
-                    MarkRead( state, frame );
-                    return true;
-                }
-            }
-            return false;
+            return MenuRead( key, true, IgnoringAllBut( controller ) );
         }
 
         private static int Reported( int key, bool edge, bool menu )
@@ -1345,6 +1418,11 @@ namespace Unity_Inspector_Mod
         private static bool IsBindingKey( int key )
         {
             return key >= KeyNames.Length;
+        }
+
+        private static bool IsBroKey( int key )
+        {
+            return key < Start;
         }
 
         private static string KeyLabel( int key )
@@ -1578,7 +1656,7 @@ namespace Unity_Inspector_Mod
             return screen != null && screen.isActiveAndEnabled;
         }
 
-        // A pause by keyboard controller 0 ignores every controller's cancel and start until the real Escape key.
+        // A pause by keyboard controller 0 ignores every controller's cancel and start until the Escape key, real or the simulated escape.
         private static int MenuControllerFor( int player )
         {
             int own = ControllerOf( player );

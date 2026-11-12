@@ -41,9 +41,10 @@ Besides `PatchAll` the mod patches by hand (`FrozenClock`, the binding patch, `S
 ## Simulated input
 
 - Plans are validated on the receive thread and run by the `Unpausable` `InputDriver` from `Update`, so key state changes only on the main thread. `cancel_input_plan` answers on the receive thread, so it works with the main thread hung.
-- Each `HarmonyPatches` input postfix returns early on its original's gate and resolves the player's controller from `HeroController.playerControllerIDs` on every read.
-- The `GetMenuInputCombined` postfix ORs in every player's keys: `Menu.CheckInput` reads it for unowned menus and keyboard-owned ones, so a per-player read breaks driving a pause the real keyboard opened.
+- Each `InputReader` postfix in `HarmonyPatches` returns early on its original's gate and resolves the player's controller from `HeroController.playerControllerIDs` on every read.
+- The `GetMenuInputCombined` postfix counts a player's menu keys on the controller the `GetMenuInput` postfix answers them on, a keyboard player's on the stand-in gamepad, and skips any whose `ignoreFlags` bit is set. A keyboard-owned menu (`Menu.CheckInput` passes 240, every gamepad) therefore takes a keyboard player's keys only through the original's own `GetInput` reads of the keyboard controllers: directions, `fire` and `special`, never `jump` or `cancel`.
 - The `binding` press postfixes `KeyBinding.IsDown` to match the pressed instance by reference, since `KeyBinding.Equals` compares keys and unbound bindings are equal. `GetAxis` never sees the press.
+- `escape` is the keyboard's Escape key, answered in `Input.GetKeyDown`, `GetKey` and `GetKeyUp` for every player alike, so the game itself reports it as keyboard controller 0 and opens the pause; `cancel` is a controller's cancel press. `GetKeyUp` answers on the frame after the press ends, so a plan ending in `escape` finishes a frame later.
 - A `tracks` call is one parent `Plan` holding a member plan per track, queued together so one `Tick` starts them all; only the parent is in `plans`.
 - A gameplay or join press for a slot nobody plays comes from a stand-in gamepad controller, and while a local player plays only on a join screen, since in a level `HeroController.MonitorPlayerDropin` reads the same press and would drop a player in. A slot another machine plays gets no gameplay or join press.
 

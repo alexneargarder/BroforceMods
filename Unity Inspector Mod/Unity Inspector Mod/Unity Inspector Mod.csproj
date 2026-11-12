@@ -62,8 +62,8 @@
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>$(LibPath)\UnityEngine.TextRenderingModule.dll</HintPath>
     </Reference>
-    <Reference Include="UnityEngine.ScreenCaptureModule">
-      <HintPath>$(LibPath)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(LibPath)\UnityEngine.ImageConversionModule.dll</HintPath>
     </Reference>
     <Reference Include="mcs">
       <HintPath>$(LibPath)\mcs.dll</HintPath>
