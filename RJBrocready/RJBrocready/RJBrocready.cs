@@ -332,6 +332,8 @@ namespace RJBrocready
                     {
                         unitHit.useImpaledFrames = false;
                     }
+                    this.unitHit = null;
+                    this.tentacleHitUnit = false;
                 }
             }
 
@@ -1901,6 +1903,10 @@ namespace RJBrocready
             this.ThingMeleeAttack( true, true );
             this.tentacleLine.enabled = false;
             this.currentTentacleState = TentacleState.Inactive;
+            if ( this.unitHit == null )
+            {
+                return;
+            }
             // Release unit if still alive
             if ( this.unitHit.health > 0 )
             {
@@ -1921,6 +1927,7 @@ namespace RJBrocready
                 Map.DisturbWildLife( base.X, base.Y, 80f, base.playerNum );
                 Map.DamageDoodads( 20, DamageType.Explosion, base.X, base.Y, 0f, 0f, range, base.playerNum, out _, null );
             }
+            this.unitHit = null;
         }
 
         protected void StartTentacleWhip()
@@ -1934,6 +1941,7 @@ namespace RJBrocready
             impaled = false;
             tentacleHitGround = false;
             tentacleHitUnit = false;
+            this.unitHit = null;
         }
 
         protected void UpdateTentacle()
@@ -2160,6 +2168,7 @@ namespace RJBrocready
                         if ( unitHit.IsHeavy() )
                         {
                             unitHit.Damage( 25, DamageType.Blade, base.transform.localScale.x * 500f, 200f, (int)base.transform.localScale.x, this, this.tentacleHitPoint.x, this.tentacleHitPoint.y );
+                            this.unitHit = null;
                         }
                         else
                         {
