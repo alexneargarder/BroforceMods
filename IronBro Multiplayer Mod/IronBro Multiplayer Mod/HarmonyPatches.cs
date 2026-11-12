@@ -62,6 +62,7 @@ namespace IronBro_Multiplayer_Mod
             if ( !Main.enabled || !Main.settings.helicopterWait || hero == null || heli == null || !startExplosions )
                 return;
 
+            HeroController_Update_Patch.playerArrived = true;
             Main.FinishLevelIfAllAboard();
         }
     }
@@ -102,6 +103,7 @@ namespace IronBro_Multiplayer_Mod
         public static void Postfix()
         {
             Helicopter_Leave_Patch.attachCalled = false;
+            HeroController_Update_Patch.playerArrived = false;
             Main.heli = null;
         }
     }
@@ -116,6 +118,7 @@ namespace IronBro_Multiplayer_Mod
 
             // IsOverFinish only sets this after calling LevelFinish and starting the level end explosions
             __instance.isOnHelicopter = true;
+            HeroController_Update_Patch.playerArrived = true;
             Main.FinishLevelIfAllAboard();
         }
     }
@@ -158,6 +161,26 @@ namespace IronBro_Multiplayer_Mod
                 GameModeController.LevelFinish( LevelResult.Success );
             }
 
+        }
+    }
+
+    [HarmonyPatch( typeof( HeroController ), "Update" )]
+    static class HeroController_Update_Patch
+    {
+        public static bool playerArrived = false;
+        public static void Postfix()
+        {
+            if ( !Main.enabled || !Main.settings.helicopterWait || !playerArrived || Map.MapData == null || GameModeController.LevelFinished || !Main.AllPlayersAboard() )
+                return;
+
+            if ( GameModeController.IsHardcoreMode && HeroController.GetPlayersPlayingCount() > HeroController.GetPlayersAliveCount() )
+            {
+                GameModeController.LevelFinish( LevelResult.ForcedFail );
+            }
+            else
+            {
+                Main.FinishLevelIfAllAboard();
+            }
         }
     }
 

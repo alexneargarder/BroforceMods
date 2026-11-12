@@ -1,5 +1,6 @@
 ## v1.0.2 (unreleased)
 - Fixed the helicopter not waiting for every player at exit portals and in online play.
+- Fixed the helicopter sometimes waiting forever for a player who is dead or gone.
 
 ## v1.0.1
 - Fix lives counter not updating for all players.
