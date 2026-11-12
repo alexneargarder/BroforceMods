@@ -769,10 +769,13 @@ namespace Unity_Inspector_Mod
 
                     try
                     {
+                        // Engine getters of error-form obsolete properties log an error on every read (AudioSource.minVolume).
+                        ObsoleteAttribute obsolete = (ObsoleteAttribute)Attribute.GetCustomAttribute( prop, typeof( ObsoleteAttribute ), false );
                         if ( prop.PropertyType.FullName.Contains( "System.Action" ) ||
                              prop.PropertyType.FullName.Contains( "System.Func" ) ||
                              prop.Name == "gameObject" ||
-                             prop.Name == "transform" )
+                             prop.Name == "transform" ||
+                             ( obsolete != null && obsolete.IsError ) )
                         {
                             continue;
                         }

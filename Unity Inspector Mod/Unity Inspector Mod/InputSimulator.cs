@@ -18,6 +18,7 @@ namespace Unity_Inspector_Mod
         private const int MaxPlanMs = 60000;
         private const int FirstGamepadController = 4;
         private const int ControllerCount = 8;
+        private const int MinTracks = 2, MaxTracks = 8;
 
         public const int Up = 0, Down = 1, Left = 2, Right = 3, Fire = 4, Jump = 5, Special = 6, HighFive = 7, Gesture = 8, Sprint = 9, Start = 10, Escape = 11;
         private static readonly string[] KeyNames = { "up", "down", "left", "right", "fire", "jump", "special", "highfive", "gesture", "sprint", "start", "escape" };
@@ -42,6 +43,8 @@ namespace Unity_Inspector_Mod
             public int FramesRead;
             public int LastReadFrame = -1;
             public bool FromFallback;
+            public int Fallback = -1;
+            public bool Joining;
             public string Warning;
             public bool ClockStopped;
             public string Unread;
@@ -89,6 +92,9 @@ namespace Unity_Inspector_Mod
             public KeyState Current;
             public KeyState Last;
             public Press[] Presses;
+
+            public Plan Group;
+            public Plan[] Members;
         }
 
         private const int PhaseBegin = 0, PhaseDown = 1, PhaseGap = 2;
@@ -104,6 +110,8 @@ namespace Unity_Inspector_Mod
         private static readonly KeyState[,] keys = new KeyState[Nums.PLAYER_MAX, KeyNames.Length];
         private static readonly Dictionary<int, KeyState>[] bindingKeys = new Dictionary<int, KeyState>[Nums.PLAYER_MAX];
         private static readonly List<BindingTarget> bindingTargets = new List<BindingTarget>();
+        private static int joinScreenFrame = -1;
+        private static bool joinScreenUp;
         private static int heldUntilFrame = -1;
         private static int loadRequestFrame = -1;
         private static volatile float frameMs = 1000f / 30f;
@@ -251,17 +259,25 @@ namespace Unity_Inspector_Mod
                 return Fail( "sequence must be an array of steps" );
             }
 
+            JToken rawTracks = parameters?["tracks"];
+            JArray tracks = rawTracks as JArray;
+            if ( rawTracks != null && rawTracks.Type != JTokenType.Null && tracks == null )
+            {
+                return Fail( "tracks must be an array of tracks, each an array of steps" );
+            }
+
             bool hasAction = !string.IsNullOrEmpty( action );
             bool hasBinding = !string.IsNullOrEmpty( binding );
             bool hasSequence = sequence != null && sequence.Count > 0;
-            int forms = ( hasAction ? 1 : 0 ) + ( hasBinding ? 1 : 0 ) + ( hasSequence ? 1 : 0 );
+            bool hasTracks = tracks != null;
+            int forms = ( hasAction ? 1 : 0 ) + ( hasBinding ? 1 : 0 ) + ( hasSequence ? 1 : 0 ) + ( hasTracks ? 1 : 0 );
             if ( forms > 1 )
             {
-                return Fail( "Provide only one of action, binding and sequence" );
+                return Fail( "Provide only one of action, binding, sequence and tracks" );
             }
             if ( forms == 0 )
             {
-                throw new CallerErrorException( "Exactly one of action, binding or sequence is required" );
+                throw new CallerErrorException( "Exactly one of action, binding, sequence or tracks is required" );
             }
 
             string error;
@@ -276,34 +292,103 @@ namespace Unity_Inspector_Mod
                 return Fail( $"player must be {Nums.PLAYER_MIN} to {Nums.PLAYER_MAX - 1}, got {player}" );
             }
 
-            Plan plan = hasSequence
-                ? SequencePlan( sequence, duration, count, interval, player, out error )
-                : ActionPlan( hasAction ? action : binding, hasBinding, duration, count, interval, player, out error );
-            if ( plan == null )
+            if ( ( hasSequence || hasTracks ) && ( duration.HasValue || count.HasValue || interval.HasValue ) )
+            {
+                return Fail( $"duration, count and interval apply to an action, not to {( hasTracks ? "tracks" : "a sequence" )}; give each step its own duration and wait" );
+            }
+
+            Plan[] members;
+            if ( hasTracks )
+            {
+                members = TrackPlans( tracks, player, out error );
+            }
+            else
+            {
+                Plan plan = hasSequence
+                    ? SequencePlan( sequence, "sequence", player, out error )
+                    : ActionPlan( hasAction ? action : binding, hasBinding, duration, count, interval, player, out error );
+                error = error ?? Prepare( plan, player );
+                members = error == null ? new[] { plan } : null;
+            }
+            if ( members == null )
             {
                 return Fail( error );
             }
 
-            plan.EstimatedMs = Estimate( plan.Steps );
-            if ( plan.EstimatedMs > MaxPlanMs )
-            {
-                return Fail( $"At the game's current {System.Math.Round( 1000f / frameMs )} fps this plan would take about {System.Math.Round( plan.EstimatedMs )}ms, over the {MaxPlanMs}ms limit: every press is held for at least one frame, and a key pressed again is released for at least one frame first" );
-            }
-
-            plan.Owner = owner;
-            plan.Player = player;
-            plan.Keys = new HashSet<int>( plan.Steps.Where( s => s.Key >= 0 ).Select( s => s.Key ) );
-            plan.Presses = new Press[plan.Steps.Length];
-            plan.Clock = System.Diagnostics.Stopwatch.StartNew();
+            Plan call = members.Length == 1 ? members[0] : new Plan { Members = members, EstimatedMs = members.Max( m => m.EstimatedMs ) };
+            call.Owner = owner;
+            call.Clock = System.Diagnostics.Stopwatch.StartNew();
 
             lock ( inputLock )
             {
-                plan.Id = ++nextPlanId;
-                plans[plan.Id] = plan;
-                incoming.Add( plan );
+                call.Id = ++nextPlanId;
+                plans[call.Id] = call;
+                foreach ( Plan member in members )
+                {
+                    member.Id = call.Id;
+                    member.Group = member == call ? null : call;
+                }
+                incoming.AddRange( members );
             }
 
-            return new JObject { ["pending"] = true, ["planId"] = plan.Id, ["remainingMs"] = System.Math.Round( plan.EstimatedMs ) };
+            return new JObject { ["pending"] = true, ["planId"] = call.Id, ["remainingMs"] = System.Math.Round( call.EstimatedMs ) };
+        }
+
+        private static string Prepare( Plan plan, int player )
+        {
+            plan.EstimatedMs = Estimate( plan.Steps );
+            if ( plan.EstimatedMs > MaxPlanMs )
+            {
+                return $"At the game's current {System.Math.Round( 1000f / frameMs )} fps this plan would take about {System.Math.Round( plan.EstimatedMs )}ms, over the {MaxPlanMs}ms limit: every press is held for at least one frame, and a key pressed again is released for at least one frame first";
+            }
+
+            plan.Player = player;
+            plan.Keys = new HashSet<int>( plan.Steps.Where( s => s.Key >= 0 ).Select( s => s.Key ) );
+            plan.Presses = new Press[plan.Steps.Length];
+            return null;
+        }
+
+        private static Plan[] TrackPlans( JArray tracks, int player, out string error )
+        {
+            error = null;
+            if ( tracks.Count < MinTracks || tracks.Count > MaxTracks )
+            {
+                error = $"tracks takes {MinTracks} to {MaxTracks} tracks, got {tracks.Count}";
+                return null;
+            }
+
+            Plan[] members = new Plan[tracks.Count];
+            Dictionary<int, int> trackOfKey = new Dictionary<int, int>();
+            for ( int t = 0; t < tracks.Count; t++ )
+            {
+                JArray steps = tracks[t] as JArray;
+                if ( steps == null || steps.Count == 0 )
+                {
+                    error = steps == null ? $"track {t + 1} is not an array of steps" : $"track {t + 1} has no steps";
+                    return null;
+                }
+
+                Plan member = SequencePlan( steps, $"tracks[{t}]", player, out error );
+                error = error ?? Prepare( member, player );
+                if ( error != null )
+                {
+                    error = $"track {t + 1}: {error}";
+                    return null;
+                }
+
+                foreach ( int key in member.Keys )
+                {
+                    int earlier;
+                    if ( trackOfKey.TryGetValue( key, out earlier ) )
+                    {
+                        error = $"tracks {earlier + 1} and {t + 1} both press {KeyLabel( key )}; two tracks may not press the same key";
+                        return null;
+                    }
+                    trackOfKey[key] = t;
+                }
+                members[t] = member;
+            }
+            return members;
         }
 
         public static object PlanStatus( JObject parameters )
@@ -339,10 +424,19 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( var plan in plans.Values.Where( p => p.Owner == owner ).ToList() )
                 {
-                    plan.Cancelled = true;
-                    plans.Remove( plan.Id );
+                    Cancel( plan );
                 }
             }
+        }
+
+        private static void Cancel( Plan plan )
+        {
+            plan.Cancelled = true;
+            foreach ( Plan member in plan.Members ?? new Plan[0] )
+            {
+                member.Cancelled = true;
+            }
+            plans.Remove( plan.Id );
         }
 
         public static object CancelPlan( JObject parameters, object owner )
@@ -361,8 +455,7 @@ namespace Unity_Inspector_Mod
                     return new JObject { ["cancelled"] = false };
                 }
 
-                plan.Cancelled = true;
-                plans.Remove( plan.Id );
+                Cancel( plan );
                 return new JObject { ["cancelled"] = !plan.Done };
             }
         }
@@ -468,16 +561,10 @@ namespace Unity_Inspector_Mod
 
         private static readonly string[] StepKeys = { "action", "binding", "duration", "wait" };
 
-        private static Plan SequencePlan( JArray sequence, int? duration, int? count, int? interval, int player, out string error )
+        private static Plan SequencePlan( JArray sequence, string path, int player, out string error )
         {
             error = null;
-            if ( duration.HasValue || count.HasValue || interval.HasValue )
-            {
-                error = "duration, count and interval apply to an action, not to a sequence; give each step its own duration and wait";
-                return null;
-            }
-
-            var steps = new Step[sequence.Count];
+            Step[] steps = new Step[sequence.Count];
             long totalMs = 0;
 
             for ( int i = 0; i < sequence.Count; i++ )
@@ -520,8 +607,8 @@ namespace Unity_Inspector_Mod
                     return null;
                 }
 
-                int? stepDuration = MessageHandler.ReadInt( raw, "duration", $"sequence[{i}].duration" );
-                int? stepWait = MessageHandler.ReadInt( raw, "wait", $"sequence[{i}].wait" );
+                int? stepDuration = MessageHandler.ReadInt( raw, "duration", $"{path}[{i}].duration" );
+                int? stepWait = MessageHandler.ReadInt( raw, "wait", $"{path}[{i}].wait" );
 
                 if ( ( stepDuration ?? 0 ) < 0 || ( stepWait ?? 0 ) < 0 )
                 {
@@ -663,7 +750,8 @@ namespace Unity_Inspector_Mod
                 }
                 catch ( Exception ex )
                 {
-                    Main.Log( $"simulate_input plan {plan.Id} failed: {ex}" );
+                    string track = plan.Group == null ? "" : $" track {Array.IndexOf( plan.Group.Members, plan ) + 1}";
+                    Main.Log( $"simulate_input plan {plan.Id}{track} failed: {ex}" );
                     Stop( plan, frame + 1, $"the plan failed in the game: {ex.Message}" );
                 }
             }
@@ -875,7 +963,9 @@ namespace Unity_Inspector_Mod
 
                 if ( press.FromFallback )
                 {
-                    string note = $"nobody is playing, so the press came from controller {FirstGamepadController}, which joins the next free player slot rather than player {plan.Player} as such";
+                    string note = press.Joining
+                        ? $"player {plan.Player} is not playing, so the press came from controller {press.Fallback}, the lowest gamepad controller no joined player owns; the game gives a joining controller the next free player slot, whichever player the press named"
+                        : $"player {plan.Player} is not playing and no player on this machine is, so the press came from controller {press.Fallback}, which joins the next free player slot rather than player {plan.Player} as such";
                     if ( !notes.Contains( note ) )
                     {
                         notes.Add( note );
@@ -928,10 +1018,20 @@ namespace Unity_Inspector_Mod
             {
                 plan.Result = result;
                 plan.Done = true;
-                plan.FinishedSeq = ++finishedSeq;
-                if ( plan.Cancelled )
+                Plan call = plan.Group ?? plan;
+                if ( call != plan )
                 {
-                    plans.Remove( plan.Id );
+                    if ( call.Cancelled || call.Members.Any( m => !m.Done ) )
+                    {
+                        return;
+                    }
+                    call.Result = TracksResult( call.Members );
+                    call.Done = true;
+                }
+                call.FinishedSeq = ++finishedSeq;
+                if ( call.Cancelled )
+                {
+                    plans.Remove( call.Id );
                 }
 
                 var retained = plans.Values.Where( p => p.Done ).OrderBy( p => p.FinishedSeq ).ToList();
@@ -940,6 +1040,29 @@ namespace Unity_Inspector_Mod
                     plans.Remove( retained[i].Id );
                 }
             }
+        }
+
+        private static JObject TracksResult( Plan[] members )
+        {
+            JArray tracks = new JArray();
+            string error = null;
+            for ( int i = 0; i < members.Length; i++ )
+            {
+                JObject track = members[i].Result;
+                tracks.Add( track );
+                if ( error == null && !(bool)track["success"] )
+                {
+                    error = $"track {i + 1}: {(string)track["error"]}";
+                }
+            }
+
+            JObject result = new JObject { ["success"] = error == null };
+            if ( error != null )
+            {
+                result["error"] = error;
+            }
+            result["tracks"] = tracks;
+            return result;
         }
 
         private static string StepLabel( Plan plan, int index )
@@ -1014,9 +1137,23 @@ namespace Unity_Inspector_Mod
                 {
                     reasons.Add( "the game ignores input just after an unpause" );
                 }
-                if ( key != Start && key != Escape && ControllerOf( player ) < 0 && AnyLocalPlayerPlaying() )
+                if ( key != Start && key != Escape && ControllerOf( player ) < 0 )
                 {
-                    reasons.Add( $"player {player} is not playing on this machine, so no controller carries its input" );
+                    if ( SlotPlaying( player ) )
+                    {
+                        reasons.Add( $"player {player} is played from another machine, so no controller on this one carries its input" );
+                    }
+                    else if ( AnyLocalPlayerPlaying() )
+                    {
+                        if ( !JoinScreenUp() )
+                        {
+                            reasons.Add( $"player {player} is not playing on this machine, so no controller carries its input; a further player joins only on a join screen" );
+                        }
+                        else if ( FreeGamepad() < 0 )
+                        {
+                            reasons.Add( $"every gamepad controller ({FirstGamepadController}-{ControllerCount - 1}) belongs to a joined player, so none is left to join player {player} from" );
+                        }
+                    }
                 }
             }
             catch ( Exception ex )
@@ -1132,7 +1269,7 @@ namespace Unity_Inspector_Mod
                 }
 
                 bool fallback;
-                if ( controller >= 0 && ControllerFor( p, out fallback ) == controller )
+                if ( controller >= 0 && ControllerFor( state, out fallback ) == controller )
                 {
                     if ( fallback && state.Press != null )
                     {
@@ -1172,7 +1309,7 @@ namespace Unity_Inspector_Mod
                 }
 
                 bool fallback = false;
-                int controller = menu ? MenuControllerFor( p ) : ControllerFor( p, out fallback );
+                int controller = menu ? MenuControllerFor( p ) : ControllerFor( state, out fallback );
                 if ( controller < 0 )
                 {
                     continue;
@@ -1379,28 +1516,77 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        // With no local player playing, the join screen joins controller 4 as the first free slot.
-        private static int ControllerFor( int player, out bool fallback )
+        // A join screen joins a pressing controller into the first free slot, whatever slot the press named; in a level the same read drops a player in.
+        private static int ControllerFor( KeyState state, out bool fallback )
         {
-            fallback = false;
-            int controller = ControllerOf( player );
-            if ( controller >= 0 || AnyLocalPlayerPlaying() )
+            Press press = state.Press;
+            fallback = press != null && press.Fallback >= 0;
+            if ( fallback )
+            {
+                return press.Fallback;
+            }
+
+            int controller = ControllerOf( state.Player );
+            if ( controller >= 0 || press == null || SlotPlaying( state.Player ) )
             {
                 return controller;
             }
+            if ( AnyLocalPlayerPlaying() )
+            {
+                controller = JoinScreenUp() ? FreeGamepad() : -1;
+                if ( controller < 0 )
+                {
+                    return -1;
+                }
+                press.Joining = true;
+            }
+            else
+            {
+                controller = FirstGamepadController;
+            }
+
+            press.Fallback = controller;
             fallback = true;
-            return FirstGamepadController;
+            return controller;
+        }
+
+        private static bool SlotPlaying( int player )
+        {
+            try
+            {
+                return HeroController.IsPlayerPlaying( player );
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool JoinScreenUp()
+        {
+            int frame = Time.frameCount;
+            if ( joinScreenFrame != frame )
+            {
+                joinScreenFrame = frame;
+                joinScreenUp = Shown( UnityEngine.Object.FindObjectOfType<JoinScreen>() ) || Shown( UnityEngine.Object.FindObjectOfType<HeroSelectController>() );
+            }
+            return joinScreenUp;
+        }
+
+        private static bool Shown( Behaviour screen )
+        {
+            return screen != null && screen.isActiveAndEnabled;
         }
 
         // A pause by keyboard controller 0 ignores every controller's cancel and start until the real Escape key.
         private static int MenuControllerFor( int player )
         {
             int own = ControllerOf( player );
-            if ( own >= FirstGamepadController )
-            {
-                return own;
-            }
+            return own >= FirstGamepadController ? own : FreeGamepad();
+        }
 
+        private static int FreeGamepad()
+        {
             for ( int controller = FirstGamepadController; controller < ControllerCount; controller++ )
             {
                 bool owned = false;

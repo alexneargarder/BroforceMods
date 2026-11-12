@@ -32,7 +32,7 @@ Besides `PatchAll` the mod patches by hand (`FrozenClock`, the binding patch, `S
 ## Inspection and state
 
 - Inspection handlers run their whole body on the main thread (`MessageHandler.OnMainThread`), since the game creates and destroys objects there.
-- The walk never runs a static property's getter (it can create objects or run a static constructor) or reads a property with a `shared*` twin (`material`, `mesh`), whose getter instantiates a copy.
+- The walk never runs a static property's getter (it can create objects or run a static constructor) or reads a property with a `shared*` twin (`material`, `mesh`), whose getter instantiates a copy, and it skips a property marked `[Obsolete(…, true)]`, whose getter can log an engine error on every read.
 - `GameObjectInspector.Resolve` scans every `Transform` because a GameObject name may hold `/`.
 - Don't read `HeroController.BrosReleased`: it stays false all level when a mod spawns bros without the transport.
 - `FrozenClock` patches game methods that divide unguarded by `Time.timeScale`, `Time.deltaTime` or a unit's `t` to divide by infinity instead of 0; a method whose divisions no longer number as expected is left alone and logged.
@@ -44,6 +44,8 @@ Besides `PatchAll` the mod patches by hand (`FrozenClock`, the binding patch, `S
 - Each `HarmonyPatches` input postfix returns early on its original's gate and resolves the player's controller from `HeroController.playerControllerIDs` on every read.
 - The `GetMenuInputCombined` postfix ORs in every player's keys: `Menu.CheckInput` reads it for unowned menus and keyboard-owned ones, so a per-player read breaks driving a pause the real keyboard opened.
 - The `binding` press postfixes `KeyBinding.IsDown` to match the pressed instance by reference, since `KeyBinding.Equals` compares keys and unbound bindings are equal. `GetAxis` never sees the press.
+- A `tracks` call is one parent `Plan` holding a member plan per track, queued together so one `Tick` starts them all; only the parent is in `plans`.
+- A gameplay or join press for a slot nobody plays comes from a stand-in gamepad controller, and while a local player plays only on a join screen, since in a level `HeroController.MonitorPlayerDropin` reads the same press and would drop a player in. A slot another machine plays gets no gameplay or join press.
 
 ## Script compiler
 
