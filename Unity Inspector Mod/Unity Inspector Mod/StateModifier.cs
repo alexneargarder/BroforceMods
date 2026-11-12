@@ -1357,10 +1357,20 @@ namespace Unity_Inspector_Mod
                 if ( unitType == UnitType.Facehugger )
                 {
                     spawned = Map.SpawnFaceHugger( x, y, xI, yI );
+
+                    if ( spawned != null )
+                    {
+                        PlaceLocalUnit( spawned );
+                    }
                 }
                 else if ( unitType == UnitType.Screecher )
                 {
                     spawned = Map.SpawnFaceBaneling( x, y, xI, yI );
+
+                    if ( spawned != null )
+                    {
+                        PlaceLocalUnit( spawned );
+                    }
                 }
                 else if ( prefab is Mook && InstantiationController.GetPrefabIndex( prefab.gameObject ) >= 0 )
                 {
