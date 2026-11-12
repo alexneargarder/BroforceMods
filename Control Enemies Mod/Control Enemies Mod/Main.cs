@@ -353,7 +353,6 @@ namespace Control_Enemies_Mod
             lastRect = GUILayoutUtility.GetLastRect();
             lastRect.y += 20;
             lastRect.width += 700;
-            settings.swapCooldown = GUILayout.HorizontalSlider( settings.swapCooldown, 0, 2 );
             settings.fireRate = GUILayout.HorizontalSlider( settings.fireRate, 0, 2 );
             GUILayout.EndHorizontal();
 
