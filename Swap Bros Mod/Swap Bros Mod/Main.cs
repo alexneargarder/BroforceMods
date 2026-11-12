@@ -52,7 +52,6 @@ namespace Swap_Bros_Mod
         public static bool brosRemoved = false;
         public static GUIStyle buttonStyle;
         public static GUIStyle warningStyle;
-        public static float cachedFilterWidth = 0f;
 
         public static bool Load( UnityModManager.ModEntry modEntry )
         {
@@ -169,18 +168,6 @@ namespace Swap_Bros_Mod
             {
                 LoadCustomBros();
                 CreateBroList();
-            }
-
-            if ( cachedFilterWidth <= 0 )
-            {
-                GUILayout.BeginHorizontal();
-                Rect measureRect = GUILayoutUtility.GetRect( 0, 0, GUILayout.ExpandWidth( true ) );
-                if ( Event.current.type == EventType.Repaint && measureRect.width > 1 )
-                {
-                    cachedFilterWidth = measureRect.width - 25f;
-                }
-                GUILayout.EndHorizontal();
-                return;
             }
 
             GUILayout.BeginHorizontal();
@@ -412,22 +399,30 @@ namespace Swap_Bros_Mod
                         {
                             int columnsPerRow = 5;
                             int totalBros = allBros.Count();
+                            int rows = ( totalBros + columnsPerRow - 1 ) / columnsPerRow;
+                            float cellHeight = 26f;
+                            float columnSpacing = Mathf.Max( buttonStyle.margin.left, buttonStyle.margin.right );
+                            float rowSpacing = Mathf.Max( buttonStyle.margin.top, buttonStyle.margin.bottom );
 
-                            float buttonWidth = cachedFilterWidth / columnsPerRow;
-
-                            GUILayout.BeginVertical();
-                            GUILayout.BeginHorizontal();
+                            float widestBro = 0f;
                             for ( int j = 0; j < totalBros; ++j )
                             {
-                                if ( j % columnsPerRow == 0 )
-                                {
-                                    GUILayout.EndHorizontal();
-                                    GUILayout.BeginHorizontal();
-                                }
-
-                                filteredBroList[j] = GUILayout.Toggle( filteredBroList[j], allBros[j], buttonStyle, GUILayout.Height( 26 ), GUILayout.Width( buttonWidth ) );
+                                widestBro = Mathf.Max( widestBro, buttonStyle.CalcSize( new GUIContent( allBros[j] ) ).x );
                             }
-                            GUILayout.EndHorizontal();
+                            float minGridWidth = widestBro * columnsPerRow + columnSpacing * ( columnsPerRow - 1 );
+                            float gridHeight = cellHeight * rows + rowSpacing * ( rows - 1 );
+
+                            GUILayout.BeginVertical();
+                            GUILayout.Space( buttonStyle.margin.top );
+                            Rect gridRect = GUILayoutUtility.GetRect( minGridWidth, minGridWidth, gridHeight, gridHeight, buttonStyle, GUILayout.ExpandWidth( true ) );
+                            float cellWidth = ( gridRect.width - columnSpacing * ( columnsPerRow - 1 ) ) / columnsPerRow;
+                            for ( int j = 0; j < totalBros; ++j )
+                            {
+                                float cellX = gridRect.x + j % columnsPerRow * ( cellWidth + columnSpacing );
+                                float cellY = gridRect.y + j / columnsPerRow * ( cellHeight + rowSpacing );
+                                Rect cellRect = new Rect( Mathf.Round( cellX ), cellY, Mathf.Round( cellX + cellWidth ) - Mathf.Round( cellX ), cellHeight );
+                                filteredBroList[j] = GUI.Toggle( cellRect, filteredBroList[j], allBros[j], buttonStyle );
+                            }
                             GUILayout.Space( 20 );
                             GUILayout.BeginHorizontal();
                             if ( GUILayout.Button( "Select All", GUILayout.Width( 200 ) ) )
