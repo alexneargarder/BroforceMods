@@ -935,6 +935,7 @@ namespace Utility_Mod
                     return;
                 }
 
+                HeroController_Update_Patch.playerArrived = true;
                 FinishLevelIfAllAboard();
             }
         }
@@ -979,6 +980,7 @@ namespace Utility_Mod
             static void Postfix()
             {
                 Helicopter_Leave_Patch.attachCalled = false;
+                HeroController_Update_Patch.playerArrived = false;
                 Main.helicopter = null;
             }
         }
@@ -1005,6 +1007,7 @@ namespace Utility_Mod
 
                 // IsOverFinish only sets this after calling LevelFinish and starting the level end explosions
                 __instance.isOnHelicopter = true;
+                HeroController_Update_Patch.playerArrived = true;
                 FinishLevelIfAllAboard();
             }
         }
@@ -1049,6 +1052,28 @@ namespace Utility_Mod
                     GameModeController.LevelFinish( LevelResult.Success );
                 }
 
+            }
+        }
+
+        [HarmonyPatch( typeof( HeroController ), "Update" )]
+        static class HeroController_Update_Patch
+        {
+            public static bool playerArrived = false;
+            static void Postfix()
+            {
+                if ( !Main.enabled || !Main.settings.helicopterWait || !playerArrived || LevelTornDown() || GameModeController.LevelFinished || !AllPlayersAboard() )
+                {
+                    return;
+                }
+
+                if ( GameModeController.IsHardcoreMode && HeroController.GetPlayersPlayingCount() > HeroController.GetPlayersAliveCount() )
+                {
+                    GameModeController.LevelFinish( LevelResult.ForcedFail );
+                }
+                else
+                {
+                    FinishLevelIfAllAboard();
+                }
             }
         }
 
