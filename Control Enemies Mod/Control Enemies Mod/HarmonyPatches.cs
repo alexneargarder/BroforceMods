@@ -1726,10 +1726,10 @@ namespace Control_Enemies_Mod
                 }
 
                 // If egg was fired by controlled enemy or friendly enemy, make it friendly
-                if ( ( __instance.firedBy is Unit u && Main.IsControlledUnit( u ) || ( __instance.firedBy as Mook ).playerNum >= 0 ) )
+                if ( __instance.firedBy is Mook firer && ( Main.IsControlledUnit( firer ) || firer.playerNum >= 0 ) )
                 {
                     nextDogFriendly = true;
-                    playerNum = ( __instance.firedBy as Mook ).playerNum;
+                    playerNum = firer.playerNum;
                 }
             }
         }
