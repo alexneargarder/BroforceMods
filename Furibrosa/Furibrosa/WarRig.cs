@@ -125,7 +125,6 @@ namespace Furibrosa
         protected bool charged = false;
         public Material crossbowMat, flareGunMat;
         protected float chargeFramerate = 0.09f;
-        public static bool doubleTapSwitch = true;
         protected float lastDownPressTime = -1f;
 
         // Special Variables
