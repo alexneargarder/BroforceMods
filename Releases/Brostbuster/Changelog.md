@@ -1,4 +1,5 @@
 ## v1.1.1 (unreleased)
+- Fixed the ghost trap eating enemies after closing or leaving them unkillable.
 - Updates for new BroMaker version.
 
 ## v1.1.0

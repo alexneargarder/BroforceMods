@@ -632,24 +632,55 @@ namespace Brostbuster
 
         protected void ReleaseUnits()
         {
+            if ( Map.units == null || Map.projectiles == null || Map.grenades == null )
+            {
+                return;
+            }
+
             for ( int i = 0; i < floatingObjects.Count; ++i )
             {
+                BroforceObject trappedObject = floatingObjects[i].trappedObject;
+                if ( trappedObject == null )
+                {
+                    continue;
+                }
+
                 floatingObjects[i].ReleaseObject();
-                if ( floatingObjects[i].trappedObject is Unit trappedUnit )
+                if ( trappedObject is Unit trappedUnit )
                 {
                     grabbedUnits.Remove( trappedUnit );
+                    ReleaseUnit( trappedUnit );
                     Map.units.Add( trappedUnit );
                 }
-                else if ( floatingObjects[i].trappedObject is Projectile trappedProjectile )
+                else if ( trappedObject is Projectile trappedProjectile )
                 {
                     grabbedObjects.Remove( trappedProjectile );
                     Map.projectiles.Add( trappedProjectile );
                 }
-                else if ( floatingObjects[i].trappedObject is Grenade trappedGrenade )
+                else if ( trappedObject is Grenade trappedGrenade )
                 {
                     grabbedObjects.Remove( trappedGrenade );
                     Map.grenades.Add( trappedGrenade );
                 }
+            }
+            floatingObjects.Clear();
+        }
+
+        protected void ReleaseUnit( Unit unit )
+        {
+            unit.xI = 0f;
+            unit.yI = 0f;
+
+            if ( ( unit is Mook || unit is Animal || unit is Villager ) && unit.health > 0 && unit.GetFieldValue<float>( "blindTime" ) > 0f )
+            {
+                unit.SetFieldValue( "blindTime", 0f );
+                unit.CallMethod( "StopBeingBlind" );
+            }
+
+            if ( unit is Mook mook )
+            {
+                mook.SetFieldValue( "_invulnerableTime", 0f );
+                mook.invulnerable = false;
             }
         }
     }

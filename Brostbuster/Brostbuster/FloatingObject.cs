@@ -15,6 +15,7 @@ namespace Brostbuster
         public BroforceObject trappedObject;
         public Vector3 grabbedPosition;
         public Vector3 currentPosition;
+        public Vector3 originalScale;
         public float currentRotation = 0f;
         public float rotationSpeed;
         bool movingRight;
@@ -31,6 +32,7 @@ namespace Brostbuster
             trappedObject = grabbedObject;
             grabbedPosition = trappedObject.transform.position;
             currentPosition = trappedObject.transform.position;
+            originalScale = trappedObject.transform.localScale;
             currentRotation = 0f;
             if (UnityEngine.Random.value > 0.5f)
             {
@@ -290,6 +292,7 @@ namespace Brostbuster
             trappedObject.Y = currentPosition.y;
             trappedObject.transform.position = currentPosition;
             trappedObject.transform.rotation = Quaternion.identity;
+            trappedObject.transform.localScale = originalScale;
             trappedObject.enabled = true;
         }
     }
