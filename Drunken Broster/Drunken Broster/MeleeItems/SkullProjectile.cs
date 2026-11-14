@@ -18,11 +18,13 @@ namespace Drunken_Broster.MeleeItems
         {
             if ( cachedPrefab == null )
             {
-                HellLostSoul attachedUnitPrefab = Instantiate( InstantiationController.GetPrefabFromResourceName( "networkobjects:ZHellLostSoul" ) ).GetComponent<HellLostSoul>();
+                GameObject holder = new GameObject( "SkullProjectilePrefabHolder" );
+                holder.SetActive( false );
+                DontDestroyOnLoad( holder );
+                HellLostSoul attachedUnitPrefab = Instantiate( InstantiationController.GetPrefabFromResourceName( "networkobjects:ZHellLostSoul" ), holder.transform ).GetComponent<HellLostSoul>();
                 attachedUnitPrefab.gameObject.SetActive( false );
                 cachedPrefab = attachedUnitPrefab.gameObject.AddComponent<SkullProjectile>();
                 cachedPrefab.attachedUnit = attachedUnitPrefab;
-                DontDestroyOnLoad( cachedPrefab );
             }
 
             return cachedPrefab;
@@ -58,7 +60,7 @@ namespace Drunken_Broster.MeleeItems
                 if ( attachedUnit.transform.GetChild( i ).name == "ExclamationMark" )
                 {
                     ReactionBubble reaction = attachedUnit.transform.GetChild( i ).GetComponent<ReactionBubble>();
-                    reaction.SetPosition( reaction.transform.localPosition );
+                    reaction.SetPosition( reaction.transform.localPosition - new Vector3( 0f, 5f, 0f ) );
                     Traverse reactionTrav = Traverse.Create( reaction );
                     reactionTrav.Field( "yStart" ).SetValue( reaction.transform.localPosition.y );
                     break;
