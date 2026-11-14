@@ -291,7 +291,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                if ( Main.IsControlledUnit( __instance ) && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
+                if ( Main.IsControlledUnit( __instance ) && __instance.playerNum >= 0 && __instance.playerNum < 4 && Main.previousDeathType[__instance.playerNum] != DeathType.Suicide )
                 {
                     Main.previousDeathType[__instance.playerNum] = ___deathType;
                 }
