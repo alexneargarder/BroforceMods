@@ -1311,6 +1311,26 @@ namespace Control_Enemies_Mod
                     holdingSpecial3[playerNum] = false;
                     holdingGesture[playerNum] = false;
 
+                    switch ( currentUnitType[playerNum] )
+                    {
+                        case UnitType.AttackDog:
+                        case UnitType.Hellhound:
+                        case UnitType.MookGeneral:
+                            unit.SetFieldValue( "usingSpecial", false );
+                            break;
+                        case UnitType.SatanMiniboss:
+                            unit.SetFieldValue( "usingSpecial", false );
+                            unit.SetFieldValue( "usingSpecial2", false );
+                            break;
+                        case UnitType.CR666:
+                            unit.SetFieldValue( "usingSpecial3", false );
+                            Traverse.Create( unit.enemyAI ).SetFieldValue( "bombardmentPositions", new List<Vector3>() );
+                            break;
+                        case UnitType.Screecher:
+                            unit.SetFieldValue( "usingSpecial4", false );
+                            break;
+                    }
+
                     waitingToBecomeEnemy.Remove( playerNum );
 
                     if ( currentCharacter != null )

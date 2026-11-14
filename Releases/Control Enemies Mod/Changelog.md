@@ -1,5 +1,6 @@
 ## v1.0.4 (unreleased)
 - Fixed a controlled Mook General's summon breaking when Utility Mod's Disable Enemy Spawns is on.
+- Fixed possessed enemies carrying on special moves their AI had started.
 
 ## v1.0.3
 - Updated to work with new RocketLib version.
