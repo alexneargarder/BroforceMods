@@ -173,7 +173,7 @@ namespace Randomizer_Mod
                         break;
                 }
             }
-            else if ( Main.settings.enableBossSummoned && enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
+            else if ( Main.settings.enableBossSummoned && enemyType - ( Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0 ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
             {
                 int num = rnd.Next( 0, Main.settings.enabledBosses.Count );
                 num = Main.settings.enabledBosses[num];
@@ -510,7 +510,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Bosses
-                    else if ( Main.settings.enableBosses && ( enemyType - Main.settings.normalEnemyPercent - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
+                    else if ( Main.settings.enableBosses && enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledBosses.Count );
                         num = Main.settings.enabledBosses[num];
