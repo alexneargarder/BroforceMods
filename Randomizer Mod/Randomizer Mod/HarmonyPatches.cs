@@ -22,7 +22,7 @@ namespace Randomizer_Mod
 
             double enemyConvertChance = rnd.NextDouble() * ( 100 );
 
-            if ( enemyConvertChance > Main.settings.enemyPercent || Map_PlaceDoodad.mapInstance == null )
+            if ( enemyConvertChance > Main.settings.summonedEnemyPercent || Map_PlaceDoodad.mapInstance == null )
             {
                 return mookPrefab;
             }
@@ -205,7 +205,7 @@ namespace Randomizer_Mod
                 return;
             }
 
-            if ( !( mookPrefab is TankBroTank || mookPrefab is MookArmouredGuy ) && ( Main.settings.enemyPercent > rnd.NextDouble() * ( 100 ) ) )
+            if ( !( mookPrefab is TankBroTank || mookPrefab is MookArmouredGuy ) )
             {
                 Mook replacePrefab = getRandomMookPrefab();
                 if ( replacePrefab != null )
@@ -241,14 +241,11 @@ namespace Randomizer_Mod
                 return;
             }
 
-            if ( ( Main.settings.enemyPercent > MapController_SpawnMook_Networked.rnd.NextDouble() * ( 100 ) ) )
+            Mook replacePrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
+            if ( replacePrefab != null )
             {
-                Mook replacePrefab = MapController_SpawnMook_Networked.getRandomMookPrefab();
-                if ( replacePrefab != null )
-                {
-                    mookPrefab = replacePrefab;
-                    __state = true;
-                }
+                mookPrefab = replacePrefab;
+                __state = true;
             }
         }
 

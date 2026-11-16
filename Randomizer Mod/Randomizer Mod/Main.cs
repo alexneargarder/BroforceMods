@@ -714,7 +714,7 @@ namespace Randomizer_Mod
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label( new GUIContent( "Randomized Enemy Percent: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent determines the chance for each enemy that starts in the level to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.enemyPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
@@ -727,8 +727,22 @@ namespace Randomizer_Mod
 
             GUILayout.BeginHorizontal();
             {
+                GUILayout.Label( new GUIContent( "Summoned Enemy Percent: ",
+                    "Chance for each enemy summoned by parachute, doors, bosses, or other enemies to be randomized, used for them in place of Randomized enemy percent." ), WindowScaling.ScaledWidth( 200 ) );
+
+                GUILayout.Label( settings.summonedEnemyPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
+
+
+                settings.summonedEnemyPercent = GUILayout.HorizontalSlider( settings.summonedEnemyPercent, 0, 100 );
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space( 15 );
+
+            GUILayout.BeginHorizontal();
+            {
                 GUILayout.Label( new GUIContent( "Normal Enemy Chance: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent and Summoned enemy percent determine the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.normalEnemyPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
@@ -740,7 +754,7 @@ namespace Randomizer_Mod
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label( new GUIContent( "Worm Chance: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent determines the chance for each enemy that starts in the level to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.wormPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
@@ -752,7 +766,7 @@ namespace Randomizer_Mod
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label( new GUIContent( "Boss Chance: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent and Summoned enemy percent determine the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.bossPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
@@ -764,7 +778,7 @@ namespace Randomizer_Mod
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label( new GUIContent( "Large Boss Chance: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent determines the chance for each enemy that starts in the level to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.largeBossPercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 
@@ -776,7 +790,7 @@ namespace Randomizer_Mod
             GUILayout.BeginHorizontal();
             {
                 GUILayout.Label( new GUIContent( "Vehicle Chance: ",
-                    "Randomized enemy percent determines the chance for each enemy to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
+                    "Randomized enemy percent determines the chance for each enemy that starts in the level to be randomized, each of the other sliders determines how likely that enemy is to become an enemy of that type." ), WindowScaling.ScaledWidth( 200 ) );
 
                 GUILayout.Label( settings.vehiclePercent.ToString( "0.00" ), WindowScaling.ScaledWidth( 100 ) );
 

@@ -39,6 +39,7 @@ namespace Randomizer_Mod
         public bool enableSpawnedEnemiesRandomization = true;
 
         public float enemyPercent = 100.0f;
+        public float summonedEnemyPercent = 100.0f;
 
         public float normalEnemyPercent = 100.0f;
         public float wormPercent = 2.0f;

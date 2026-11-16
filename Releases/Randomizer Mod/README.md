@@ -34,7 +34,9 @@ The main feature of this mod is the ability to randomize every enemy in the game
 
 **Scale UI with Window Width** - If enabled, makes the buttons in this UI wider or smaller depending on how wide you have the UMM window set to.
 
-**Randomized Enemy Percent** - This is the percent chance for any enemy to be randomized. This applies to summoned enemies as well. This doesn't determine what they are going to turn into, just that they will be randomized. The other sliders determine the chance they have of turning into a specific enemy type.
+**Randomized Enemy Percent** - This is the percent chance for any enemy to be randomized. Summoned enemies use Summoned Enemy Percent instead. This doesn't determine what they are going to turn into, just that they will be randomized. The other sliders determine the chance they have of turning into a specific enemy type.
+
+**Summoned Enemy Percent** - This is the percent chance for each summoned enemy to be randomized, when Enable Summoned Enemy Randomization is on. Like Randomized Enemy Percent, it doesn't determine what they turn into.
 
 **Normal Enemy Chance** - This is the chance for an enemy to turn into any form of mook, alien, or hell enemy. This isn't exactly a percent, it basically determines the ratio of Normal Enemies to Worms to Bosses to Large bosses.
 
