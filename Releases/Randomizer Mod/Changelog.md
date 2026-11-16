@@ -2,6 +2,7 @@
 - Fixed several bugs when boss kills are set not to finish the level.
 - Fixed several bugs with randomized summoned enemies.
 - Fixed some enemy types never showing up with normal enemies off.
+- Fixed deselecting every type in a list breaking randomization.
 
 ## v2.0.5
 - Fixed randomization applying to Tank Bro's tank and the mech airdrop powerup.

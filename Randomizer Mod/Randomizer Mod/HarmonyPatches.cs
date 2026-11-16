@@ -27,12 +27,14 @@ namespace Randomizer_Mod
                 return mookPrefab;
             }
 
-            double enemyType = rnd.NextDouble() * ( (int)( ( Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0 ) + ( Main.settings.enableBossSummoned ? Main.settings.bossPercent : 0 ) ) );
+            float normalWeight = Main.settings.enableNormalSummoned && Main.settings.enabledNormal.Count > 0 ? Main.settings.normalEnemyPercent : 0f;
+            float bossWeight = Main.settings.enableBossSummoned && Main.settings.enabledBosses.Count > 0 ? Main.settings.bossPercent : 0f;
+            double enemyType = rnd.NextDouble() * (int)( normalWeight + bossWeight );
 
             if ( Main.settings.DEBUG )
                 enemyType = ( Main.settings.debugMookTypeSummoned < Main.normalList.Length ) ? 0 : (int)( Main.settings.normalEnemyPercent + 1 );
 
-            if ( Main.settings.enableNormalSummoned && enemyType < Main.settings.normalEnemyPercent && Main.settings.enabledNormal.Count > 0 )
+            if ( normalWeight > 0 && enemyType < normalWeight )
             {
                 int num = rnd.Next( 0, Main.settings.enabledNormal.Count );
                 num = Main.settings.enabledNormal[num];
@@ -173,7 +175,7 @@ namespace Randomizer_Mod
                         break;
                 }
             }
-            else if ( Main.settings.enableBossSummoned && enemyType - ( Main.settings.enableNormalSummoned ? Main.settings.normalEnemyPercent : 0 ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
+            else if ( bossWeight > 0 && enemyType < normalWeight + bossWeight )
             {
                 int num = rnd.Next( 0, Main.settings.enabledBosses.Count );
                 num = Main.settings.enabledBosses[num];
@@ -317,12 +319,16 @@ namespace Randomizer_Mod
 
                 TestVanDammeAnim original = null;
 
-                double enemyType = rnd.NextDouble() * ( (int)( ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) + ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) +
-                    ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) + ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) + ( Main.settings.enableVehicles ? Main.settings.vehiclePercent : 0 ) ) );
+                float normalWeight = Main.settings.enableNormal && Main.settings.enabledNormal.Count > 0 ? Main.settings.normalEnemyPercent : 0f;
+                float wormWeight = Main.settings.enableWorms && Main.settings.enabledWorms.Count > 0 ? Main.settings.wormPercent : 0f;
+                float bossWeight = Main.settings.enableBosses && Main.settings.enabledBosses.Count > 0 ? Main.settings.bossPercent : 0f;
+                float largeBossWeight = Main.settings.enableLargeBosses && Main.settings.enabledLargeBosses.Count > 0 ? Main.settings.largeBossPercent : 0f;
+                float vehicleWeight = Main.settings.enableVehicles && Main.settings.enabledVehicles.Count > 0 ? Main.settings.vehiclePercent : 0f;
+                double enemyType = rnd.NextDouble() * (int)( normalWeight + wormWeight + bossWeight + largeBossWeight + vehicleWeight );
 
                 if ( !Main.settings.DEBUG )
                 {
-                    if ( Main.settings.enableNormal && enemyType < Main.settings.normalEnemyPercent && Main.settings.enabledNormal.Count > 0 )
+                    if ( normalWeight > 0 && enemyType < normalWeight )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledNormal.Count );
                         num = Main.settings.enabledNormal[num];
@@ -467,7 +473,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Worms
-                    else if ( Main.settings.enableWorms && ( enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) ) < Main.settings.wormPercent && Main.settings.enabledWorms.Count > 0 )
+                    else if ( wormWeight > 0 && enemyType < normalWeight + wormWeight )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledWorms.Count );
                         num = Main.settings.enabledWorms[num];
@@ -510,7 +516,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Bosses
-                    else if ( Main.settings.enableBosses && enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) < Main.settings.bossPercent && Main.settings.enabledBosses.Count > 0 )
+                    else if ( bossWeight > 0 && enemyType < normalWeight + wormWeight + bossWeight )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledBosses.Count );
                         num = Main.settings.enabledBosses[num];
@@ -532,8 +538,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Large Bosses
-                    else if ( Main.settings.enableLargeBosses && ( enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) -
-                        ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) ) < Main.settings.largeBossPercent && Main.settings.enabledLargeBosses.Count > 0 )
+                    else if ( largeBossWeight > 0 && enemyType < normalWeight + wormWeight + bossWeight + largeBossWeight )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledLargeBosses.Count );
                         num = Main.settings.enabledLargeBosses[num];
@@ -556,8 +561,7 @@ namespace Randomizer_Mod
                         }
                     }
                     // Vehicles
-                    else if ( Main.settings.enableVehicles && ( enemyType - ( Main.settings.enableNormal ? Main.settings.normalEnemyPercent : 0 ) - ( Main.settings.enableWorms ? Main.settings.wormPercent : 0 ) -
-                        ( Main.settings.enableBosses ? Main.settings.bossPercent : 0 ) - ( Main.settings.enableLargeBosses ? Main.settings.largeBossPercent : 0 ) ) < Main.settings.vehiclePercent && Main.settings.enabledVehicles.Count > 0 )
+                    else if ( vehicleWeight > 0 && enemyType < normalWeight + wormWeight + bossWeight + largeBossWeight + vehicleWeight )
                     {
                         int num = rnd.Next( 0, Main.settings.enabledVehicles.Count );
                         num = Main.settings.enabledVehicles[num];
@@ -913,7 +917,7 @@ namespace Randomizer_Mod
                 return true;
             }
 
-            if ( Main.settings.enableCratesTurningIntoAmmo && placeGroundType == GroundType.WoodenBlock && Main.settings.cratesToAmmoPercent > rnd.NextDouble() * 100 )
+            if ( Main.settings.enableCratesTurningIntoAmmo && Main.settings.enabledAmmoTypes.Count > 0 && placeGroundType == GroundType.WoodenBlock && Main.settings.cratesToAmmoPercent > rnd.NextDouble() * 100 )
             {
                 Map_PlaceDoodad.mapInstance = __instance;
 
