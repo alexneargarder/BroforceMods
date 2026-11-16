@@ -2728,8 +2728,42 @@ namespace Utility_Mod
             return currentBlock;
         }
 
+        public static bool HasThemePrefab( BlockType blockType )
+        {
+            ThemeHolder theme = Map.Instance.activeTheme;
+            switch ( blockType )
+            {
+                case BlockType.Statue:
+                    return theme.blockPrefabStatueBlock != null;
+                case BlockType.BeeHive:
+                    return theme.blockBeeHive != null;
+                case BlockType.AlienExplodingFlesh:
+                    return theme.blockPrefabAlienExplodingFlesh != null;
+                case BlockType.AlienBarbShooter:
+                    return theme.blockPrefabAlienBarbShooter != null;
+                default:
+                    return true;
+            }
+        }
+
+        public static bool HasThemePrefab( SpawnableDoodadType doodadType )
+        {
+            switch ( doodadType )
+            {
+                case SpawnableDoodadType.Tree:
+                    return Map.Instance.activeTheme.trees.Length > 0;
+                default:
+                    return true;
+            }
+        }
+
         public static bool SpawnBlock( Vector3 position, BlockType blockType )
         {
+            if ( !HasThemePrefab( blockType ) )
+            {
+                return false;
+            }
+
             int column = (int)Mathf.Round( position.x / 16f );
             int row = (int)Mathf.Round( position.y / 16f );
 
@@ -3015,6 +3049,11 @@ namespace Utility_Mod
 
         public static GameObject SpawnDoodad( Vector3 position, SpawnableDoodadType doodadType )
         {
+            if ( !HasThemePrefab( doodadType ) )
+            {
+                return null;
+            }
+
             int column = (int)Mathf.Round( position.x / 16f );
             int row = (int)Mathf.Round( position.y / 16f );
 

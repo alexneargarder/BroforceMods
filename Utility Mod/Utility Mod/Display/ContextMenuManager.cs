@@ -606,8 +606,8 @@ namespace Utility_Mod
                 // If menu didn't open and it was a quick click
                 if ( isHoldingRightClick && !isMenuOpen && rightClickHoldTime < Main.settings.contextMenuHoldDuration )
                 {
-                    // Execute quick action if set, otherwise open menu
-                    if ( Main.settings.selectedQuickAction != null && GetMenuContext() == MenuContext.Live )
+                    // Execute quick action if set and usable here, otherwise open menu
+                    if ( Main.settings.selectedQuickAction != null && GetMenuContext() == MenuContext.Live && ContextMenuBuilder.IsActionAvailable( Main.settings.selectedQuickAction, MenuContext.Live ) )
                     {
                         ExecuteAction( Main.settings.selectedQuickAction, true );  // Use current mouse position
                     }

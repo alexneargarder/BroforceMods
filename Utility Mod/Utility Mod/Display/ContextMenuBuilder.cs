@@ -173,6 +173,7 @@ namespace Utility_Mod
                 // Add Spawn Object submenu
                 MenuItem spawnObjectMenu = new MenuItem( "Spawn Object" );
                 BuildObjectSubmenu( spawnObjectMenu );
+                PruneSeparators( spawnObjectMenu.SubItems );
                 manager.CurrentMenu.AddItem( spawnObjectMenu );
             }
 
@@ -236,10 +237,16 @@ namespace Utility_Mod
             }
         }
 
-        private static bool IsActionAvailable( MenuAction action, ContextMenuManager.MenuContext context )
+        public static bool IsActionAvailable( MenuAction action, ContextMenuManager.MenuContext context )
         {
             if ( context == ContextMenuManager.MenuContext.Live )
+            {
+                if ( action.Type == MenuActionType.SpawnBlock && action.BlockType.HasValue )
+                    return Main.HasThemePrefab( action.BlockType.Value );
+                if ( action.Type == MenuActionType.SpawnDoodad && action.DoodadType.HasValue )
+                    return Main.HasThemePrefab( action.DoodadType.Value );
                 return true;
+            }
 
             switch ( action.Type )
             {
@@ -271,7 +278,7 @@ namespace Utility_Mod
 
             if ( !Main.settings.enableRecentItems )
             {
-                if ( Main.settings.selectedQuickAction != null && IsActionAvailable( Main.settings.selectedQuickAction, menuContext ) )
+                if ( Main.settings.selectedQuickAction != null && IsRecentItemListed( Main.settings.selectedQuickAction ) )
                 {
                     AddRecentlyUsedItem( Main.settings.selectedQuickAction );
                     hasItems = true;
@@ -300,7 +307,7 @@ namespace Utility_Mod
                 // Add recently used items with checkboxes
                 foreach ( var action in Main.settings.recentlyUsedItems.Take( Main.settings.maxRecentItems ) )
                 {
-                    if ( !IsActionAvailable( action, menuContext ) )
+                    if ( !IsRecentItemListed( action ) )
                         continue;
 
                     AddRecentlyUsedItem( action );
@@ -324,9 +331,20 @@ namespace Utility_Mod
                 ActionId = action.Id,
                 MenuAction = action,
                 ShowCheckbox = true,
-                IsChecked = ( Main.settings.selectedQuickAction != null && action.Id == Main.settings.selectedQuickAction.Id )
+                IsChecked = IsQuickAction( action ),
+                Enabled = IsActionAvailable( action, menuContext )
             };
             manager.CurrentMenu.AddItem( item );
+        }
+
+        private bool IsRecentItemListed( MenuAction action )
+        {
+            return IsActionAvailable( action, menuContext ) || ( IsLive && IsQuickAction( action ) );
+        }
+
+        private static bool IsQuickAction( MenuAction action )
+        {
+            return Main.settings.selectedQuickAction != null && action.Id == Main.settings.selectedQuickAction.Id;
         }
 
         public void BuildEnemySubmenu( MenuItem parentMenu )
@@ -828,14 +846,17 @@ namespace Utility_Mod
 
             // Trees/Foliage
             var treeAction = MenuAction.CreateSpawnDoodad( SpawnableDoodadType.Tree );
-            parentMenu.AddSubItem( new MenuItem( "Tree", () =>
+            if ( IsActionAvailable( treeAction, menuContext ) )
             {
-                manager.ExecuteAction( treeAction );
-            } )
-            {
-                ActionId = treeAction.Id,
-                MenuAction = treeAction
-            } );
+                parentMenu.AddSubItem( new MenuItem( "Tree", () =>
+                {
+                    manager.ExecuteAction( treeAction );
+                } )
+                {
+                    ActionId = treeAction.Id,
+                    MenuAction = treeAction
+                } );
+            }
 
             var bushAction = MenuAction.CreateSpawnDoodad( SpawnableDoodadType.Bush );
             parentMenu.AddSubItem( new MenuItem( "Bush", () =>
@@ -2384,6 +2405,9 @@ namespace Utility_Mod
         public void AddBlockMenuItem( MenuItem parentMenu, BlockType blockType, string displayName )
         {
             var action = MenuAction.CreateSpawnBlock( blockType );
+            if ( !IsActionAvailable( action, menuContext ) )
+                return;
+
             parentMenu.AddSubItem( new MenuItem( displayName, () =>
             {
                 manager.ExecuteAction( action );

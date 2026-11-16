@@ -13,6 +13,7 @@
 - Fixed the go to level list showing levels that don't exist and forgetting the chosen starting level.
 - Fixed the right-click menu offering actions that don't work on the main menu and pause menus.
 - Fixed Helicopter Wait sometimes waiting forever for a player who is dead or gone.
+- Fixed the right-click menu's Spawn Object listing objects that place nothing.
 
 ## v2.4.1
 - Added option to go to custom campaigns from right click menu.
