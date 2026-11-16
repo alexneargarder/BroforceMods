@@ -825,7 +825,7 @@ namespace Control_Enemies_Mod
             gameObject.SetActive( false );
             player.character.xI = xI;
             player.character.yI = yI;
-            player.character.gameObject.SetActive( true );
+            Main.ShowUnit( player.character );
             Main.SwitchToHeroAvatar( playerNum );
             state = GhostState.Idle;
             currentTransparency = finalTransparency;

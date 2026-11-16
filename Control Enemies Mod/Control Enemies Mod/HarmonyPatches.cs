@@ -2265,7 +2265,7 @@ namespace Control_Enemies_Mod
                     return;
                 }
 
-                __result.gameObject.SetActive( false );
+                Main.HideUnit( __result );
             }
         }
 

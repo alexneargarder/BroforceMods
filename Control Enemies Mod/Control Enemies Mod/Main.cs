@@ -935,6 +935,7 @@ namespace Control_Enemies_Mod
         public static bool[] currentlyEnemy = { false, false, false, false };
         public static int[] previousPlayerNum = { -1, -1, -1, -1 };
         public static TestVanDammeAnim[] previousCharacter = { null, null, null, null };
+        public static HashSet<TestVanDammeAnim> hiddenUnits = new HashSet<TestVanDammeAnim>();
         public static float[] countdownToRespawn = { 0f, 0f, 0f, 0f };
         public static Material defaultAvatarMat, ghostAvatarMat, mookAvatarMat, cr666AvatarMat, pigAvatarMat, bruiserAvatarMat, satanAvatarMat;
         public static bool[] specialWasDown = { false, false, false, false };
@@ -1173,6 +1174,7 @@ namespace Control_Enemies_Mod
             currentlyEnemy = new bool[] { false, false, false, false };
             previousPlayerNum = new int[] { -1, -1, -1, -1 };
             previousCharacter = new TestVanDammeAnim[] { null, null, null, null };
+            hiddenUnits.Clear();
             countdownToRespawn = new float[] { 0f, 0f, 0f, 0f };
             specialWasDown = new bool[] { false, false, false, false };
             holdingSpecial = new bool[] { false, false, false, false };
@@ -1345,7 +1347,7 @@ namespace Control_Enemies_Mod
                             // Hide previous character
                             if ( !gentleLeave )
                             {
-                                currentCharacter.gameObject.SetActive( false );
+                                HideUnit( currentCharacter );
                             }
 
                             if ( savePreviousCharacter )
@@ -1373,6 +1375,34 @@ namespace Control_Enemies_Mod
             {
                 Log( "Exception playerNum " + playerNum + " controlling unit " + unit.name + ": " + ex.ToString() );
             }
+        }
+
+        public static void HideUnit( TestVanDammeAnim unit )
+        {
+            unit.gameObject.SetActive( false );
+            if ( hiddenUnits.Add( unit ) )
+            {
+                if ( Map.units != null )
+                {
+                    Map.RemoveUnit( unit );
+                }
+
+                BroBase.bros.Remove( unit );
+            }
+        }
+
+        public static void ShowUnit( TestVanDammeAnim unit )
+        {
+            if ( hiddenUnits.Remove( unit ) )
+            {
+                Map.RegisterUnit( unit, false );
+                if ( unit is BroBase )
+                {
+                    BroBase.bros.Add( unit );
+                }
+            }
+
+            unit.gameObject.SetActive( true );
         }
 
         public static void ReaffirmControl( int playerNum )
@@ -1582,7 +1612,7 @@ namespace Control_Enemies_Mod
                                 EffectsController.CreateSlimeExplosion( previous.X, previous.Y + 5f, 10f, 10f, 140f, 0f, 0f, 0f, 0.5f, 0, 20, 120f, 0f, Vector3.up, previous.bloodColor );
                             }
 
-                            originalCharacter.gameObject.SetActive( true );
+                            ShowUnit( originalCharacter );
                             previousCharacter[playerNum] = null;
                         }
 
@@ -2546,7 +2576,7 @@ namespace Control_Enemies_Mod
         {
             if ( HeroController.players[playerNum].character != null )
             {
-                HeroController.players[playerNum].character.gameObject.SetActive( false );
+                HideUnit( HeroController.players[playerNum].character );
             }
 
             if ( settings.spawnMode == SpawnMode.Automatic )
