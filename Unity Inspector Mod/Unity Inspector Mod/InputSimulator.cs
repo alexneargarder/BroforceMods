@@ -19,6 +19,7 @@ namespace Unity_Inspector_Mod
         private const int FirstGamepadController = 4;
         private const int ControllerCount = 8;
         private const int MinTracks = 2, MaxTracks = 8;
+        private const double LateFrames = 1.5;
 
         public const int Up = 0, Down = 1, Left = 2, Right = 3, Fire = 4, Jump = 5, Special = 6, HighFive = 7, Gesture = 8, Sprint = 9, Start = 10, Cancel = 11, Escape = 12;
         private static readonly string[] KeyNames = { "up", "down", "left", "right", "fire", "jump", "special", "highfive", "gesture", "sprint", "start", "cancel", "escape" };
@@ -91,6 +92,7 @@ namespace Unity_Inspector_Mod
             public int Index;
             public int Phase;
             public double PhaseStart;
+            public double PressStart;
             public KeyState Current;
             public KeyState Last;
             public Press[] Presses;
@@ -349,7 +351,7 @@ namespace Unity_Inspector_Mod
             plan.EstimatedMs = Estimate( plan.Steps );
             if ( plan.EstimatedMs > MaxPlanMs )
             {
-                return $"At the game's current {System.Math.Round( 1000f / frameMs )} fps this plan would take about {System.Math.Round( plan.EstimatedMs )}ms, over the {MaxPlanMs}ms limit: every press is held for at least one frame, and a key pressed again is released for at least one frame first";
+                return $"At the game's current {System.Math.Round( 1000f / frameMs )} fps this plan would take about {System.Math.Round( plan.EstimatedMs )}ms, over the {MaxPlanMs}ms limit: every press is held for whole frames, at least one, and a key pressed again is released for at least one frame first";
             }
 
             plan.Player = player;
@@ -673,22 +675,35 @@ namespace Unity_Inspector_Mod
         {
             double frame = frameMs;
             double total = 0;
-            int lastKey = -1;
             for ( int i = 0; i < steps.Length; i++ )
             {
-                Step step = steps[i];
-                if ( step.Key >= 0 )
+                if ( steps[i].Key >= 0 )
                 {
-                    if ( step.Key == lastKey && ( i == 0 || steps[i - 1].GapMs < frame ) )
-                    {
-                        total += frame;
-                    }
-                    total += System.Math.Max( step.HoldMs, frame );
-                    lastKey = step.Key;
+                    total += PressSpan( steps, i, frame );
                 }
-                total += step.GapMs;
+                total += steps[i].GapMs;
             }
             return total;
+        }
+
+        private static double PressSpan( Step[] steps, int index, double frame )
+        {
+            Step step = steps[index];
+            double wait = step.GapMs;
+            int next = index + 1;
+            while ( next < steps.Length && steps[next].Key < 0 )
+            {
+                wait += steps[next].GapMs;
+                next++;
+            }
+
+            // Frame times jitter, so a hold within a tenth of a frame of whole frames often takes a frame more.
+            double busy = System.Math.Ceiling( step.HoldMs / frame + 0.1 ) * frame;
+            if ( next < steps.Length && steps[next].Key == step.Key )
+            {
+                busy += frame;
+            }
+            return System.Math.Max( System.Math.Max( step.HoldMs, frame ), busy - wait );
         }
 
         private static void Tick()
@@ -696,6 +711,7 @@ namespace Unity_Inspector_Mod
             int frame = Time.frameCount;
             double now = Time.realtimeSinceStartup * 1000.0;
             float delta = Time.unscaledDeltaTime * 1000f;
+            bool hitch = delta > LateFrames * frameMs;
             if ( delta > 0f && delta < 1000f )
             {
                 frameMs = frameMs * 0.9f + delta * 0.1f;
@@ -756,7 +772,7 @@ namespace Unity_Inspector_Mod
             {
                 try
                 {
-                    Advance( plan, frame, now );
+                    Advance( plan, frame, now, hitch );
                 }
                 catch ( Exception ex )
                 {
@@ -767,7 +783,7 @@ namespace Unity_Inspector_Mod
             }
         }
 
-        private static void Advance( Plan plan, int frame, double now )
+        private static void Advance( Plan plan, int frame, double now, bool hitch )
         {
             while ( true )
             {
@@ -789,7 +805,7 @@ namespace Unity_Inspector_Mod
                         if ( step.Key < 0 )
                         {
                             plan.Phase = PhaseGap;
-                            plan.PhaseStart = now;
+                            plan.PhaseStart = Anchor( plan.PhaseStart, now, hitch );
                             continue;
                         }
 
@@ -829,11 +845,12 @@ namespace Unity_Inspector_Mod
                         }
                         plan.Current = state;
                         plan.Phase = PhaseDown;
-                        plan.PhaseStart = now;
+                        plan.PhaseStart = Anchor( plan.PhaseStart, now, hitch );
+                        plan.PressStart = now;
                         return;
 
                     case PhaseDown:
-                        if ( now - plan.PhaseStart < step.HoldMs || frame < plan.Current.DownFrom )
+                        if ( now - plan.PressStart < step.HoldMs || frame < plan.Current.DownFrom )
                         {
                             return;
                         }
@@ -842,7 +859,7 @@ namespace Unity_Inspector_Mod
                         plan.Last = plan.Current;
                         plan.Current = null;
                         plan.Phase = PhaseGap;
-                        plan.PhaseStart = now;
+                        plan.PhaseStart = Anchor( plan.PhaseStart + PressSpan( plan.Steps, plan.Index, frameMs ), now, hitch );
                         continue;
 
                     case PhaseGap:
@@ -850,11 +867,17 @@ namespace Unity_Inspector_Mod
                         {
                             return;
                         }
+                        plan.PhaseStart += step.GapMs;
                         plan.Index++;
                         plan.Phase = PhaseBegin;
                         continue;
                 }
             }
+        }
+
+        private static double Anchor( double scheduled, double now, bool hitch )
+        {
+            return hitch || scheduled > now ? now : scheduled;
         }
 
         private static void Release( Plan plan, KeyState state, int upFrom )
@@ -911,7 +934,7 @@ namespace Unity_Inspector_Mod
             if ( plan.Current != null && plan.Current.Owner == plan )
             {
                 Press press = plan.Current.Press;
-                double held = Time.realtimeSinceStartup * 1000.0 - plan.PhaseStart;
+                double held = Time.realtimeSinceStartup * 1000.0 - plan.PressStart;
                 bool ownEffect = ownLoadFrame >= 0 && plan.Current.DownFrom == ownLoadFrame && press.FramesRead > 0;
                 press.Completed = ownEffect || ( held >= plan.Steps[plan.Index].HoldMs && Time.frameCount >= plan.Current.DownFrom );
                 press.HeldMs = held;
