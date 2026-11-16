@@ -1111,7 +1111,7 @@ namespace Control_Enemies_Mod
                                 if ( i != currentHeroNum && HeroController.IsPlayerPlaying( i ) )
                                 {
                                     // If player is not respawning, isn't alive, and isn't a ghost, respawn them
-                                    if ( countdownToRespawn[i] <= 0f && !( HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf ) && !( currentGhosts[i] != null && currentGhosts[i].gameObject.activeSelf ) )
+                                    if ( countdownToRespawn[i] <= 0f && !( HeroController.players[i].character != null && HeroController.players[i].character.health > 0 && HeroController.players[i].character.gameObject.activeSelf ) && !( currentGhosts[i] != null && currentGhosts[i].gameObject.activeSelf ) && !( HeroController.players[i].character != null && hiddenUnits.Contains( HeroController.players[i].character ) && HeroController.players[i].character.health > 0 ) )
                                     {
                                         HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
                                         HeroController.players[i].RespawnBro();
@@ -1334,6 +1334,7 @@ namespace Control_Enemies_Mod
                     }
 
                     waitingToBecomeEnemy.Remove( playerNum );
+                    findNewEnemyCooldown[playerNum] = 0f;
 
                     if ( currentCharacter != null )
                     {
@@ -2199,6 +2200,11 @@ namespace Control_Enemies_Mod
 
         public static bool AvailableToPossess( TestVanDammeAnim character )
         {
+            if ( character == null || character.destroyed )
+            {
+                return false;
+            }
+
             return !IsControlledUnit( character ) && character.name != "p" && character.name != "Hobro" && character.health > 0 && !character.IsHero;
         }
         #endregion
@@ -2584,7 +2590,15 @@ namespace Control_Enemies_Mod
                 // Set avatar to blank one
                 HeroController.players[playerNum].hud.SetAvatar( defaultAvatarMat );
 
-                waitingToBecomeEnemy.Add( playerNum );
+                if ( !waitingToBecomeEnemy.Contains( playerNum ) )
+                {
+                    waitingToBecomeEnemy.Add( playerNum );
+                }
+
+                if ( findNewEnemyCooldown[playerNum] <= 0f )
+                {
+                    findNewEnemyCooldown[playerNum] = settings.automaticallyFindEnemyCooldown;
+                }
             }
             else
             {
@@ -2652,6 +2666,7 @@ namespace Control_Enemies_Mod
                     if ( settings.spawnMode == SpawnMode.Automatic )
                     {
                         currentHeroNum = playerNum;
+                        waitingToBecomeEnemy.Remove( playerNum );
                         HarmonyPatches.Player_WorkOutSpawnScenario_Patch.forceCheckpointSpawn = true;
                         HeroController.players[playerNum].RespawnBro();
                     }

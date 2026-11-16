@@ -180,6 +180,32 @@ namespace Control_Enemies_Mod
             }
         }
 
+        [HarmonyPatch( typeof( TestVanDammeAnim ), "Damage", new Type[] { typeof( int ), typeof( DamageType ), typeof( float ), typeof( float ), typeof( int ), typeof( MonoBehaviour ), typeof( float ), typeof( float ) } )]
+        public static class TestVanDammeAnim_Damage_Patch
+        {
+            public static TestVanDammeAnim currentUnit;
+            public static DamageObject currentDamage;
+
+            public static void Prefix( TestVanDammeAnim __instance, int damage, DamageType damageType, float xI, float yI, MonoBehaviour damageSender, float hitX, float hitY, out KeyValuePair<TestVanDammeAnim, DamageObject> __state )
+            {
+                __state = new KeyValuePair<TestVanDammeAnim, DamageObject>( currentUnit, currentDamage );
+
+                if ( !Main.enabled || !Main.settings.competitiveModeEnabled )
+                {
+                    return;
+                }
+
+                currentUnit = __instance;
+                currentDamage = new DamageObject( damage, damageType, xI, yI, hitX, hitY, damageSender );
+            }
+
+            public static void Finalizer( KeyValuePair<TestVanDammeAnim, DamageObject> __state )
+            {
+                currentUnit = __state.Key;
+                currentDamage = __state.Value;
+            }
+        }
+
         // Check if player died by falling out of bounds, which doesn't call the death function
         [HarmonyPatch( typeof( TestVanDammeAnim ), "Gib" )]
         public static class TestVanDammeAnim_Gib_Patch
@@ -197,7 +223,8 @@ namespace Control_Enemies_Mod
                     {
                         if ( Main.settings.competitiveModeEnabled )
                         {
-                            Main.PlayerDiedInCompetitiveMode( __instance );
+                            DamageObject damage = TestVanDammeAnim_Damage_Patch.currentUnit == __instance ? TestVanDammeAnim_Damage_Patch.currentDamage : null;
+                            Main.PlayerDiedInCompetitiveMode( __instance, damage );
                         }
                         else if ( Main.IsControlledUnit( __instance ) )
                         {
@@ -662,6 +689,21 @@ namespace Control_Enemies_Mod
                 }
 
                 return true;
+            }
+        }
+
+        // Map.Start runs after the next level's Awake, where egg units already start
+        [HarmonyPatch( typeof( Map ), "OnDestroy" )]
+        public static class Map_OnDestroy_Patch
+        {
+            public static void Prefix()
+            {
+                if ( !Main.enabled )
+                {
+                    return;
+                }
+
+                Main.ClearVariables();
             }
         }
 
