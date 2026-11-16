@@ -57,6 +57,9 @@ namespace Utility_Mod
             clone.transform.position = position;
             clone.name = "TestDummy";
             clone.SetActive( true );
+            // An RPC passes a unit by its network ID, so an unregistered dummy arrives as null.
+            NID baseID = Registry.AllocatePlayerUniqueID();
+            Registry.RegisterGameObject( ref baseID, clone );
             // Map.HitUnits checks unit.X/Y, not transform.
             dummy.SetXY( position.x, position.y );
 
