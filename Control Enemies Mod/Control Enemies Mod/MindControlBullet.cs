@@ -63,7 +63,7 @@ namespace Control_Enemies_Mod
             base.Fire( x, y, xI, yI, _zOffset, playerNum, FiredBy );
         }
 
-        public Unit HitClosestUnit( MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool knock, bool canGib, bool firedLocally, bool checkIfUnitIsLocallyOwned )
+        public Unit HitClosestUnit( MonoBehaviour damageSender, int playerNum, int damage, DamageType damageType, float xRange, float yRange, float x, float y, float xI, float yI, bool knock, bool canGib, bool firedLocally, bool checkIfUnitIsLocallyOwned, float maxDistance )
         {
             if ( Map.units == null )
             {
@@ -71,7 +71,7 @@ namespace Control_Enemies_Mod
             }
 
             int num = 999999;
-            float num2 = Mathf.Max( xRange, yRange );
+            float num2 = maxDistance;
             Unit unit = null;
             for ( int i = Map.units.Count - 1; i >= 0; i-- )
             {
@@ -118,7 +118,7 @@ namespace Control_Enemies_Mod
 
         protected override void TryHitUnitsAtSpawn()
         {
-            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, xI, yI, false, false, true, false );
+            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, xI, yI, false, false, true, false, float.MaxValue );
             if ( hitUnit != null )
             {
                 hasHit = true;
@@ -137,7 +137,7 @@ namespace Control_Enemies_Mod
         {
             float xI = this.xI;
             this.xI *= 0.3333334f;
-            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, this.xI, yI, false, false, true, false );
+            Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, projectileSize, projectileSize / 2f, X, Y, this.xI, yI, false, false, true, false, float.MaxValue );
             //if (Map.HitLivingUnits(this, this.playerNum, 0, this.damageType, this.projectileSize, this.projectileSize / 2f, base.X, base.Y, this.xI, this.yI, false, false, true, false))
             if ( hitUnit != null )
             {
@@ -158,7 +158,7 @@ namespace Control_Enemies_Mod
         {
             if ( !hasHitUnit )
             {
-                Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, 16f, 16f, X, Y, 0f, 0f, false, false, true, false );
+                Unit hitUnit = HitClosestUnit( this, playerNum, 0, damageType, 16f, 16f, X, Y, 0f, 0f, false, false, true, false, 16f );
                 if ( hitUnit != null && hitUnit is TestVanDammeAnim anim )
                 {
                     Main.StartControllingUnit( playerNum, anim );

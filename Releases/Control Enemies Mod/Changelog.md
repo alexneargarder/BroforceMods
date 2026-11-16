@@ -3,6 +3,7 @@
 - Fixed possessed enemies carrying on special moves their AI had started.
 - Fixed enemies reacting to where a player started possessing an enemy.
 - Fixed competitive mode's automatic enemy spawning.
+- Fixed the possess shot missing enemies an ordinary bullet would hit.
 
 ## v1.0.3
 - Updated to work with new RocketLib version.
