@@ -29,7 +29,7 @@ namespace Randomizer_Mod
 
             float normalWeight = Main.settings.enableNormalSummoned && Main.settings.enabledNormal.Count > 0 ? Main.settings.normalEnemyPercent : 0f;
             float bossWeight = Main.settings.enableBossSummoned && Main.settings.enabledBosses.Count > 0 ? Main.settings.bossPercent : 0f;
-            double enemyType = rnd.NextDouble() * (int)( normalWeight + bossWeight );
+            double enemyType = rnd.NextDouble() * ( normalWeight + bossWeight );
 
             if ( Main.settings.DEBUG )
                 enemyType = ( Main.settings.debugMookTypeSummoned < Main.normalList.Length ) ? 0 : (int)( Main.settings.normalEnemyPercent + 1 );
@@ -324,7 +324,7 @@ namespace Randomizer_Mod
                 float bossWeight = Main.settings.enableBosses && Main.settings.enabledBosses.Count > 0 ? Main.settings.bossPercent : 0f;
                 float largeBossWeight = Main.settings.enableLargeBosses && Main.settings.enabledLargeBosses.Count > 0 ? Main.settings.largeBossPercent : 0f;
                 float vehicleWeight = Main.settings.enableVehicles && Main.settings.enabledVehicles.Count > 0 ? Main.settings.vehiclePercent : 0f;
-                double enemyType = rnd.NextDouble() * (int)( normalWeight + wormWeight + bossWeight + largeBossWeight + vehicleWeight );
+                double enemyType = rnd.NextDouble() * ( normalWeight + wormWeight + bossWeight + largeBossWeight + vehicleWeight );
 
                 if ( !Main.settings.DEBUG )
                 {
