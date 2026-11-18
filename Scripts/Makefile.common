@@ -1,7 +1,7 @@
 # Makefile.common - Shared build infrastructure for Broforce mods
 # Source: Broforce-Templates/Scripts/Makefile.common
 # Synced to repos via sync.py
-# Revision: 3
+# Revision: 7
 
 # Required variables (must be set before including this file):
 #   PROJECT_NAME  - Display name for help text
@@ -27,7 +27,7 @@
 #   CLEANUP_SETTINGS - Path to ReSharper .DotSettings file (default: Scripts/BroforceMods.DotSettings)
 #   CLEANUP_PROFILE  - Cleanup profile name (default: BroforceMods)
 #   CLEANUP_EXCLUDE  - ";"-separated paths or globs, relative to the solution, that jb cleanupcode skips; no quotes even around spaces
-#   JB               - jb binary (default: jb; override for dotnet local tools: JB="dotnet jb")
+#   JB               - jb binary (default: jb, and on WSL the Windows jb.exe; override for dotnet local tools: JB="dotnet jb", on WSL JB="dotnet.exe jb")
 #   COMPAT_PROJECT   - Project bt compat-check reads; setting it defines the compat-check target (SOLUTION builds only)
 #   BT               - bt binary (default: bt)
 #
@@ -47,6 +47,7 @@
 
 _empty :=
 _space := $(_empty) $(_empty)
+_SETUP_GUIDE := https://github.com/alexneargarder/Broforce-Templates/blob/master/ONBOARDING.md
 _comma := ,
 _hash := \#
 
@@ -71,19 +72,30 @@ ifdef IS_WSL
     # WSL: Use Windows MSBuild via /mnt/c path (override if your VS installation differs)
     MSBUILD ?= /mnt/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe
     _RESTORE_FLAG := -restore
+    _MSBUILD_INSTALL := Install Visual Studio 2022 or its Build Tools on Windows, or set MSBUILD to the path of your MSBuild.exe
+    # A Linux jb loads the Windows MSBuild's restore with no framework and deletes live usings
+    JB ?= jb.exe
 else ifeq ($(OS),Windows_NT)
     # Windows: the recipes need a POSIX shell (Git Bash, MSYS2), where a bare msbuild names the MSBuild folder beside MSBuild.exe
     MSBUILD ?= msbuild.exe
     _RESTORE_FLAG := -restore
+    _MSBUILD_INSTALL := Install Visual Studio 2022 or its Build Tools and put MSBuild.exe's folder on PATH, or set MSBUILD, such as MSBUILD=\"dotnet msbuild -restore\" with the .NET SDK
 else
     # Native Linux/macOS: Use msbuild from PATH
     MSBUILD ?= msbuild
+    _MSBUILD_INSTALL := Install mono's msbuild, or set MSBUILD to a build command on PATH, such as MSBUILD=\"dotnet msbuild -restore\"
     # Under mono each build starts its own Roslyn compiler server, and some never exit
     UseSharedCompilation ?= false
     export UseSharedCompilation
 endif
 
 _MSBUILD_CMD := $(if $(wildcard $(subst $(_space),\ ,$(MSBUILD))),"$(MSBUILD)",$(MSBUILD))
+_MSBUILD_TOOL := $(if $(filter %.exe %.EXE,$(lastword $(MSBUILD))),$(MSBUILD),$(firstword $(MSBUILD)))
+_CHECK_MSBUILD = $(if $(wildcard $(subst $(_space),\ ,$(MSBUILD))),,@command -v "$(_MSBUILD_TOOL)" >/dev/null 2>&1 || { \
+	echo "Error: '$(_MSBUILD_TOOL)' not found."; \
+	echo "$(_MSBUILD_INSTALL)."; \
+	echo "Setup guide: $(_SETUP_GUIDE)"; \
+	exit 1; })
 
 # Dash switches: MSYS (Git Bash) rewrites a native program's /p:... or /nologo argument as a path
 # Visual Studio's MSBuild finds the .NET 3.5 reference assemblies only through the restored PackageReference; a repeated -restore is allowed
@@ -165,8 +177,8 @@ ifeq ($(IS_WSL)$(filter Windows_NT,$(OS)),)
     _MONO := $(realpath $(shell command -v mono 2>/dev/null))
     _JB_FRAMEWORK := $(if $(_MONO),$(realpath $(dir $(_MONO))../lib/mono/2.0-api))
 endif
-_JB_PROPERTIES := Configuration=Release$(if $(_JB_FRAMEWORK),;FrameworkPathOverride=$(_JB_FRAMEWORK))
-# Normalise the list: drop spaces around ";" and a trailing ";", so a multi-line value works
+_JB_PROPERTIES := $(if $(_JB_FRAMEWORK),FrameworkPathOverride=$(_JB_FRAMEWORK))
+# Normalize the list: drop spaces around ";" and a trailing ";", so a multi-line value works
 _CLEANUP_EXCLUDE_LIST = $(patsubst %;,%,$(subst ;$(_space),;,$(subst $(_space);,;,$(strip $(CLEANUP_EXCLUDE)))))
 _CLEANUP_EXCLUDE_FLAG = $(if $(_CLEANUP_EXCLUDE_LIST),--exclude="$(_CLEANUP_EXCLUDE_LIST)")
 # Drops paths jb would exclude: jb's * stops at /, its ** crosses it, **/ may match no directory, and case is ignored. jb exits 3 when --include leaves nothing
@@ -186,7 +198,7 @@ _DROP_EXCLUDED = awk -v ex="$(_CLEANUP_EXCLUDE_LIST)" 'function m(s, p, i, c) { 
 LAUNCH_PROJECT ?= $(shell d=$$(dirname $(SOLUTION)); \
   p=$$(grep -m1 '\.csproj"' $(SOLUTION) 2>/dev/null | sed 's/.*= "[^"]*", "\([^"]*\)".*/\1/; s/[\]/\//g'); \
   if [ -n "$$p" ] && [ "$$d" != "." ]; then printf '%s/%s' "$$d" "$$p"; else printf '%s' "$$p"; fi)
-# Quotes are stripped first so a quoted path with spaces is still recognised as a solution
+# Quotes are stripped first so a quoted path with spaces is still recognized as a solution
 IS_SOLUTION := $(filter %.sln,$(subst ",,$(SOLUTION)))
 
 # Default target shows help
@@ -256,6 +268,7 @@ endef
 ifneq ($(strip $(DISCOVER_TARGETS)),)
 .PHONY: $(DISCOVER_TARGETS)
 $(DISCOVER_TARGETS):
+	$(_CHECK_MSBUILD)
 	$(if $(_MULTI_GOAL),$(call _BUILDS,printf '%s\n' "$(call _csproj_for,$@)",$(_BUILD_ONLY_FLAGS),"$(call _csproj_for,$@)"),@$(call _MSB,"$(call _csproj_for,$@)" $(MSBUILD_FLAGS) $(LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS)))
 endif
 
@@ -271,18 +284,22 @@ else
 
 .PHONY: build
 build:
+	$(_CHECK_MSBUILD)
 	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_BUILD_ONLY_FLAGS),"$(_FIRST_CSPROJ)")
 
 .PHONY: build-no-launch
 build-no-launch:
+	$(_CHECK_MSBUILD)
 	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_NO_LAUNCH_FLAGS),)
 
 .PHONY: clean
 clean:
+	$(_CHECK_MSBUILD)
 	$(_CLEAN_EACH)
 
 .PHONY: rebuild
 rebuild: clean
+	$(_CHECK_MSBUILD)
 	$(call _BUILDS,$(_EACH_PROJECT) | cut -f2,$(_BUILD_ONLY_FLAGS),"$(_FIRST_CSPROJ)")
 
 endif # discovery non-empty
@@ -299,7 +316,16 @@ _CHECK_TOOL = @command -v $(firstword $(1)) >/dev/null 2>&1 || { \
 	echo "Error: '$(firstword $(1))' not found."; \
 	echo "Install with: $(2)"; \
 	exit 1; }
-_CHECK_JB = $(call _CHECK_TOOL,$(JB),dotnet tool install -g JetBrains.ReSharper.GlobalTools)
+_JB_INSTALL := dotnet tool install -g JetBrains.ReSharper.GlobalTools
+ifdef IS_WSL
+_JB_INSTALL += in PowerShell or cmd$(_comma) not inside WSL
+_JB_NOT_EXE = @echo "Error: JB=$(JB) is not the Windows jb.exe: a Linux jb can't read the projects the Windows MSBuild restored."; \
+	echo "Install the Windows jb: run $(_JB_INSTALL)"; \
+	exit 1
+_CHECK_JB = $(if $(filter %.exe,$(firstword $(JB))),$(call _CHECK_TOOL,$(JB),$(_JB_INSTALL)),$(_JB_NOT_EXE))
+else
+_CHECK_JB = $(call _CHECK_TOOL,$(JB),$(_JB_INSTALL))
+endif
 _CHECK_SETTINGS = @test -f "$(CLEANUP_SETTINGS)" || { \
 	echo "Error: $(CLEANUP_SETTINGS) not found."; \
 	echo "Copy it from the Broforce-Templates repo: cp <Broforce-Templates>/Scripts/BroforceMods.DotSettings $(CLEANUP_SETTINGS)"; \
@@ -360,8 +386,8 @@ skip > 0 { c = substr($$0, 1, 1); if (c == "+" || c == "-") skip--; next }
 endef
 export _CHANGED_LINES_AWK
 
-# Splits jb's hunks into runs of corresponding lines by a token diff and keeps the runs on a changed line (an inserted or blank run also beside one or a deletion),
-# then those they need: using-only runs, less usings jb added for no kept line, and the runs holding the partners of a kept run's changed brackets. Lines are joined, not terminated.
+# Splits jb's hunks into runs of corresponding lines by a token diff and keeps the runs on a changed line (an inserted or blank run also beside one or a deletion), then those they need: using-only runs,
+# less the usings jb added that OMIT names, the partners of a kept run's changed brackets, and every run of a /// block a kept run, changed line or inner deletion touches, as jb reflows it whole. Lines are joined, not terminated.
 define _KEEP_HUNKS_AWK
 function take(l) { if (!(l in kept) && !(l in noop)) { kept[l] = 1; q[++nq] = l } }
 function skipchr(s, i, n, c) { while (i <= n) { c = substr(s, i++, 1); if (c == "\134") i++; else if (c == "'") break } return i }
@@ -473,6 +499,18 @@ function refine(h, a, b, c, d, nt, nu, cmd, s, ok, i, j, n, r, op, A, B, C, D, k
   leaf(bw + 1, b, bc + 1, d)
   ht[h] = nl
 }
+function blocks(L, n, S, E, j, s) { for (j = 1; j <= n; j++) if (L[j] ~ DOC) { if (!((j - 1) in S)) s = j; S[j] = s; E[s] = j } }
+function tb(s, j, a, b, h, l, x) {
+  if (!(s ? (j in cdb) : (j in wdb))) return
+  a = s ? cdb[j] : wdb[j]
+  if ((s, a) in tbd) return
+  tbd[s, a] = 1; b = s ? cde[a] : wde[a]
+  for (h = 1; h <= H; h++) if (s ? (cs[h] <= b && ce[h] >= a) : (ws[h] <= b && we[h] >= a)) {
+    refine(h)
+    for (l = hf[h]; l <= ht[h]; l++) if (s ? (lcs[l] <= b && lce[l] >= a) : (ls[l] <= b && le[l] >= a)) take(l)
+  }
+  for (x = a; x <= b; x++) if (s ? (x in cm) : (x in wm)) tb(1 - s, s ? cm[x] : wm[x])
+}
 function near(h, j) {
   for (j = ws[h] - 1; j <= we[h] + 1; j++) if (j in chg) return 1
   for (j = ws[h] - 1; j <= we[h]; j++) if (j in gap) return 1
@@ -491,42 +529,12 @@ function nsname(s) {
   sub(/^[ \t]*using[ \t]+/, "", s); sub(/;[ \t\015]*$$/, "", s); gsub(/[ \t]/, "", s)
   return s ~ /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$$/ ? s : ""
 }
-function longer(s, k, n, i, m) {
-  for (i = 1; i <= nns; i++) {
-    m = nsl[i]
-    if (index(m, n ".") == 1 && substr(s, k, length(m)) == m && substr(s, k + length(m), 1) !~ /[A-Za-z0-9_]/) return 1
-  }
-  return 0
-}
-function qual(s, n, t, k, p, c, x) {
-  x = n "." t
-  for (k = 0; (p = index(substr(s, k + 1), x)) > 0; ) {
-    k += p; c = substr(s, k + length(x), 1)
-    if ((k == 1 || substr(s, k - 1, 1) !~ /[A-Za-z0-9_.]/) && (t == "" ? (c ~ /[A-Za-z_]/) : (c !~ /[A-Za-z0-9_]/)) && !longer(s, k, n)) return 1
-  }
-  return 0
-}
-function anyqual(n, t, j) {
-  if (!((n, t) in aq)) { aq[n, t] = 0; for (j = 1; j <= nw; j++) if (!isusing(w[j]) && qual(w[j], n, t)) { aq[n, t] = 1; break } }
-  return aq[n, t]
-}
-function named(l, n, P, j, s, t) {
-  for (j = ls[l]; j <= le[l]; j++) for (s = w[j]; match(s, ID); s = substr(s, RSTART + RLENGTH)) P[substr(s, RSTART, RLENGTH)] = 1
-  for (j = lcs[l]; j <= lce[l]; j++) if (!isusing(cc[j]))
-    for (s = cc[j]; match(s, ID); s = substr(s, RSTART + RLENGTH)) if (!((t = substr(s, RSTART, RLENGTH)) in P) && anyqual(n, t)) return 1
-  return 0
-}
-function served(n, j, k, l) {
-  if (!anyqual(n, "")) return 1
-  for (k = 1; k <= nq; k++) { l = q[k]; for (j = ls[l]; j <= le[l]; j++) if (!isusing(w[j]) && qual(w[j], n, "")) return 1; if (named(l, n)) return 1 }
-  return 0
-}
 function emit(L, a, b, c, j) {
   for (j = a; j <= b; j++)
     if (c && (j in omit)) { if (L[j] ~ /^\357\273\277/) bom = "\357\273\277" }
-    else { printf "%s%s%s", sep, bom, L[j] > out; sep = "\n"; bom = "" }
+    else { printf "%s%s%s", sep, bom, L[j] > out; sep = "\n"; bom = ""; if (c && (j in au)) wu = wu " " au[j] }
 }
-BEGIN { CR = "\015"; TOK = "[A-Za-z0-9_]+|[^ \t\015]"; ID = "[A-Za-z_][A-Za-z0-9_]*"; BL = "^[ \t\015]*$$"; TW = ENVIRON["_JB_TOKENS"] "/tokw"; TC = ENVIRON["_JB_TOKENS"] "/tokc" }
+BEGIN { CR = "\015"; TOK = "[A-Za-z0-9_]+|[^ \t\015]"; BL = "^[ \t\015]*$$"; DOC = "^(\357\273\277)?[ \t]*///"; TW = ENVIRON["_JB_TOKENS"] "/tokw"; TC = ENVIRON["_JB_TOKENS"] "/tokc" }
 FILENAME == ARGV[1] { if ($$1 ~ /^g/) gap[substr($$1, 2) + 0] = 1; else if ($$1 != "none") changed[$$1 + 0] = 1; next }
 FILENAME == ARGV[2] {
   if ($$0 !~ /^[0-9]/) next
@@ -547,6 +555,10 @@ END {
   for (j in changed) chg[j] = 1
   for (j in changed) { m = split(wp[j], x, " "); for (i = 1; i <= m; i++) if (x[i] - j > 1 && (x[i] in changed)) for (k = j + 1; k < x[i] + 0; k++) chg[k] = 1 }
   for (h = 1; h <= H; h++) if (near(h)) { refine(h); for (l = hf[h]; l <= ht[h]; l++) if (seeds(l)) take(l) }
+  blocks(w, nw, wdb, wde); blocks(cc, nc, cdb, cde)
+  p = 1; o = 0
+  for (h = 1; h <= H + 1; h++) { for (j = p; j < (h > H ? nw + 1 : ws[h]); j++) { wm[j] = j + o; cm[j + o] = j } if (h <= H) { p = we[h] + 1; o = ce[h] - we[h] } }
+  for (j = 1; j <= nw; j++) { if (j in chg) tb(0, j); k = j + 1; if ((j in gap) && (j in wdb) && (k in wdb) && wdb[j] == wdb[k]) tb(0, j) }
   if (nq) for (h = 1; h <= H; h++) {
     if (!(h in refd)) {
       if (usings(w, ws[h], we[h]) && usings(cc, cs[h], ce[h])) { refd[h] = 1; take(h); continue }
@@ -558,14 +570,14 @@ END {
   if (nq) pairs(cc, nc, cb, cp)
   for (k = 1; k <= nq; k++) {
     l = q[k]
+    for (j = ls[l]; j <= le[l]; j++) tb(0, j)
+    for (j = lcs[l]; j <= lce[l]; j++) tb(1, j)
     if (seq(cb, lcs[l], lce[l]) != seq(wb, ls[l], le[l])) { mates(cp, 1, lcs[l], lce[l]); mates(wp, 0, ls[l], le[l]) }
   }
-  if (!ALLUSINGS) {
-    for (j = 1; j <= nw; j++) if ((n = nsname(w[j])) != "" && !(n in inw)) { inw[n] = 1; nsl[++nns] = n }
-    for (j = 1; j <= nc; j++) if ((n = nsname(cc[j])) != "" && !(n in inw) && !(n in inj)) { inj[n] = 1; nsl[++nns] = n }
-    for (k = 1; k <= nq; k++) for (j = lcs[q[k]]; j <= lce[q[k]]; j++)
-      if ((n = nsname(cc[j])) != "" && !(n in inw)) { if (!(n in srv)) srv[n] = served(n); if (!srv[n]) { omit[j] = 1; real++; nu++ } }
-  }
+  for (j = 1; j <= nw; j++) if ((n = nsname(w[j])) != "") inw[n] = 1
+  split(OMIT, oa, " "); for (i in oa) om[oa[i]] = 1
+  for (k = 1; k <= nq; k++) for (j = lcs[q[k]]; j <= lce[q[k]]; j++)
+    if ((n = nsname(cc[j])) != "" && !(n in inw)) { if (n in om) { omit[j] = 1; real++ } else au[j] = n }
   p = 1
   for (h = 1; h <= H; h++) {
     emit(w, p, ws[h] - 1)
@@ -574,7 +586,7 @@ END {
   }
   emit(w, p, nw)
   close(out)
-  print (nu + 0) " " (nq + 0) " " (real - nq)
+  print (real - nq) " " (nq + 0) wu
 }
 endef
 export _KEEP_HUNKS_AWK
@@ -582,70 +594,94 @@ export _KEEP_HUNKS_AWK
 # Optimize-usings deletes live usings when a reference doesn't resolve or match the code, hence the compile first.
 # jb runs --no-build after msbuild's restore: jb's own restore can hang "Building solution" forever.
 # One jb pass isn't always a fixed point (nested redundant parentheses), so the files it changed get a second.
-# jb takes whole files, so for cleanup-changed settle keeps only jb's changes the changed lines need; if that doesn't compile, it retries with all of jb's added usings, then restores the originals.
+# jb takes whole files, so for cleanup-changed settle keeps only jb's changes the changed lines need and leaves out each added using the solution compiles without; a cleaned result that doesn't compile is put back.
+# jb joins the values of a repeated --properties name with ";", so it gets each of the build's properties once, the last value winning as in msbuild.
+# git lists an untracked nested checkout (a .worktrees/ worktree) as "<dir>/", which the *.cs pathspec leaves out.
 _JB_CLEAN = \
-	compile() { $(_MSBUILD_CMD) "$$t" -restore -t:Compile $(MSBUILD_FLAGS) -p:SkipInstall=true < /dev/null > "$$JBLOG/check" 2>&1 && return 0; \
-	  [ -z "$$1" ] || return 1; \
-	  errs=$$(grep -E '(error [A-Z]+[0-9]+|warning (MSB3245|BRO000[123])):' "$$JBLOG/check" | sed 's/^ *//' | sort -u); \
-	  if [ -n "$$errs" ]; then printf '%s\n' "$$errs"; else tail -n 20 "$$JBLOG/check"; fi; \
-	  return 1; }; \
+	perr() { errs=$$(grep -E '(error [A-Z]+[0-9]+|warning (MSB3245|BRO000[123])):' "$$JBLOG/$$1" | sed 's/^ *//' | sort -u); \
+	  if [ -n "$$errs" ]; then printf '%s\n' "$$errs"; else tail -n 20 "$$JBLOG/$$1"; fi; }; \
+	compile() { $(_MSBUILD_CMD) "$$t" -restore -t:Compile $(MSBUILD_FLAGS) $(INSTALL_FLAGS) -p:SkipInstall=true < /dev/null > "$$JBLOG/check" 2>&1 && return 0; \
+	  [ -n "$$1" ] || perr check; return 1; }; \
 	compile || { echo "Error: $$t does not restore or compile against its references, so cleanup could delete live using lines; fix the above and rerun."; exit 1; }; \
 	if [ -n "$$INCL" ]; then printf '%s\n' "$$INCL" | tr ';' '\n'; \
+	elif [ "$$(cd "$$dir" && git rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then \
+	  (cd "$$dir" && git --no-optional-locks ls-files -z -co --exclude-standard -- '*.cs') | tr '\0' '\n' | LC_ALL=C sort -u | while IFS= read -r f; do \
+	    case "/$$f" in */obj/*|*/bin/*) ;; *) [ ! -f "$$dir/$$f" ] || printf '%s\n' "$$f";; esac; done; \
 	else (cd "$$dir" && find . -name '*.cs' -type f ! -path '*/obj/*' ! -path '*/bin/*' | sed 's|^\./||'); fi > "$$JBLOG/files"; \
-	snap() { (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cksum); }; \
-	keep() { [ -n "$$1" ] || { rm -rf "$$JBLOG/jb"; : > "$$JBLOG/omitted"; }; : > "$$JBLOG/cut"; [ -n "$$INCL" ] || return 0; while IFS= read -r f; do \
-	  if [ -n "$$1" ]; then grep -qxF -- "$$f" "$$JBLOG/omitted" || { grep -qxF -- "$$f" "$$JBLOG/cut1" && printf '%s\n' "$$f" >> "$$JBLOG/cut"; continue; }; \
-	    cp "$$JBLOG/jb/$$f" "$$dir/$$f"; fi; \
-	  cmp -s "$$JBLOG/pre/$$f" "$$dir/$$f" && continue; \
-	  LC_ALL=C awk -F'\t' -v f="$$f" '$$1 == f { print $$2 }' "$$JBLOG/lines" > "$$JBLOG/nums"; \
-	  [ -s "$$JBLOG/nums" ] || continue; \
-	  { cat "$$JBLOG/pre/$$f"; echo; } > "$$JBLOG/w"; { cat "$$dir/$$f"; echo; } > "$$JBLOG/c"; \
+	snap() { (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0r cksum); }; \
+	filt() { LC_ALL=C awk -F'\t' -v f="$$1" '$$1 == f { print $$2 }' "$$JBLOG/lines" > "$$JBLOG/nums"; \
+	  [ -s "$$JBLOG/nums" ] || return 1; \
+	  { cat "$$JBLOG/pre/$$1"; echo; } > "$$JBLOG/w"; { cat "$$JBLOG/jb/$$1"; echo; } > "$$JBLOG/c"; \
+	  o=$$(LC_ALL=C awk -v f="$$1" 'substr($$0, length($$1) + 2) == f { printf "%s ", $$1 }' "$$JBLOG/om"); \
 	  diff -a --strip-trailing-cr "$$JBLOG/w" "$$JBLOG/c" > "$$JBLOG/hunks"; [ $$? -lt 2 ] && \
-	  r=$$(_JB_TOKENS="$$JBLOG" LC_ALL=C awk -v BINMODE=3 -v ALLUSINGS="$$1" -v out="$$JBLOG/kept" "$$_KEEP_HUNKS_AWK" "$$JBLOG/nums" "$$JBLOG/hunks" "$$JBLOG/w" "$$JBLOG/c") \
-	    && [ -n "$$r" ] || { echo "Error: could not filter jb's changes to $$f, which keeps all of them."; exit 1; }; \
-	  [ "$${r%% *}" = 0 ] || { mkdir -p "$$JBLOG/jb/$$(dirname "$$f")"; cp "$$dir/$$f" "$$JBLOG/jb/$$f"; printf '%s\n' "$$f" >> "$$JBLOG/omitted"; }; \
-	  case "$${r\#* }" in *" 0") continue;; "0 "*) cp "$$JBLOG/pre/$$f" "$$dir/$$f";; *) cp "$$JBLOG/kept" "$$dir/$$f";; esac; \
-	  printf '%s\n' "$$f" >> "$$JBLOG/cut"; \
+	  r=$$(_JB_TOKENS="$$JBLOG" LC_ALL=C awk -v BINMODE=3 -v OMIT="$$o $$2" -v out="$$JBLOG/kept" "$$_KEEP_HUNKS_AWK" "$$JBLOG/nums" "$$JBLOG/hunks" "$$JBLOG/w" "$$JBLOG/c") \
+	    && [ -n "$$r" ] || { cp "$$JBLOG/jb/$$1" "$$dir/$$1"; echo "Error: could not filter jb's changes to $$1, which keeps all of them."; exit 1; }; \
+	  f=$$1; z=1; set -- $$r; \
+	  case "$$1 $$2" in "0 "*) z=0; cp "$$JBLOG/jb/$$f" "$$dir/$$f";; *" 0") cp "$$JBLOG/pre/$$f" "$$dir/$$f";; *) cp "$$JBLOG/kept" "$$dir/$$f";; esac; \
+	  printf '%s %s\n' "$$z" "$$f" >> "$$JBLOG/st"; shift 2; for a do printf '%s %s\n' "$$a" "$$f"; done > "$$JBLOG/u"; }; \
+	keep() { rm -rf "$$JBLOG/jb"; for a in todo adds om st chg; do : > "$$JBLOG/$$a"; done; while IFS= read -r f; do \
+	  cmp -s "$$JBLOG/pre/$$f" "$$dir/$$f" && continue; \
+	  if [ -n "$$INCL" ]; then mkdir -p "$$JBLOG/jb/$$(dirname "$$f")"; cp "$$dir/$$f" "$$JBLOG/jb/$$f"; \
+	    filt "$$f" && { printf '%s\n' "$$f" >> "$$JBLOG/todo"; cat "$$JBLOG/u" >> "$$JBLOG/adds"; }; fi; \
+	  cmp -s "$$JBLOG/pre/$$f" "$$dir/$$f" || printf '%s\n' "$$f" >> "$$JBLOG/chg"; \
 	done < "$$JBLOG/files"; }; \
+	cuts() { LC_ALL=C awk 'NR == FNR { s[substr($$0, 3)] = substr($$0, 1, 1); next } s[$$0] == "1"' "$$JBLOG/st" "$$JBLOG/todo" > "$$JBLOG/cut"; }; \
 	named() { while IFS= read -r f; do if [ "$$dir" = . ]; then printf '%s\n' "$$f"; else printf '%s/%s\n' "$$dir" "$$f"; fi; done < "$$JBLOG/$${2:-cut}" >> "$$JBLOG/$$1"; }; \
-	settle() { keep; [ -s "$$JBLOG/cut" ] || return 0; rv=cut; \
-	  if [ -s "$$JBLOG/omitted" ]; then \
-	    if compile q; then named partial; return 0; fi; \
-	    mv "$$JBLOG/cut" "$$JBLOG/cut1"; rv=cut1; keep 1; \
-	    if [ ! -s "$$JBLOG/cut" ] || compile; then named partial; named usings omitted; return 0; fi; \
-	  elif compile; then named partial; return 0; fi; \
-	  while IFS= read -r f; do cp "$$JBLOG/pre/$$f" "$$dir/$$f"; done < "$$JBLOG/$$rv"; \
-	  named reverted $$rv; : > "$$JBLOG/failed"; }; \
-	jbrun() { { $(JB) cleanupcode "$$t" --no-build --properties="$(_JB_PROPERTIES)" --settings="$(CLEANUP_SETTINGS)" \
+	tri() { if filt "$$2" "$$1" && compile q; then printf '%s %s\n' "$$1" "$$2" >> "$$JBLOG/om"; else filt "$$2"; return 1; fi; }; \
+	settle() { keep; [ -s "$$JBLOG/todo" ] || [ -s "$$JBLOG/chg" ] || return 0; \
+	  ok=; compile q && ok=1; cp "$$JBLOG/check" "$$JBLOG/check0"; : > "$$JBLOG/def"; \
+	  while read -r n f; do if tri "$$n" "$$f"; then [ -n "$$ok" ] || { ok=1; while read -r n f; do tri "$$n" "$$f"; done < "$$JBLOG/def"; }; \
+	    elif [ -z "$$ok" ]; then printf '%s %s\n' "$$n" "$$f" >> "$$JBLOG/def"; fi; done < "$$JBLOG/adds"; \
+	  if [ -z "$$ok" ] && [ -s "$$JBLOG/adds" ]; then cp "$$JBLOG/adds" "$$JBLOG/om"; while read -r n f; do filt "$$f"; done < "$$JBLOG/adds"; compile q && ok=1; fi; \
+	  if [ -n "$$ok" ]; then cuts; named partial; return 0; fi; \
+	  perr check0; \
+	  while IFS= read -r f; do cp "$$JBLOG/pre/$$f" "$$dir/$$f"; done < "$$JBLOG/chg"; \
+	  named reverted chg; : > "$$JBLOG/failed"; }; \
+	jbp() { shift; for a do case "$$a" in --*) a=$${a$(_hash)-};; esac; \
+	  case "$$a" in [-/][pP]:*|[-/][pP][rR][oO][pP][eE][rR][tT][yY]:*) printf '%s\n' "$${a$(_hash)*:}";; esac; done; }; \
+	JP=$$({ printf '%s\n' "$(_JB_PROPERTIES)"; jbp $(_MSBUILD_CMD) $(MSBUILD_FLAGS) $(INSTALL_FLAGS); } | tr ';' '\n' | \
+	  LC_ALL=C awk -F= 'NF { k = tolower($$1); if (!(k in v)) o[++n] = k; v[k] = $$0 } END { for (i = 1; i <= n; i++) printf "%s%s", (i > 1 ? ";" : ""), v[o[i]] }'); \
+	jbrun() { { $(JB) cleanupcode "$$t" --no-build --properties="$$JP" --settings="$(CLEANUP_SETTINGS)" \
 	  --profile="$(CLEANUP_PROFILE)" $(_CLEANUP_EXCLUDE_FLAG) "$$@" < /dev/null 2>&1; echo $$? > "$$JBLOG/rc"; } | tee "$$JBLOG/out"; \
 	  return "$$(cat "$$JBLOG/rc")"; }; \
 	if [ -n "$$INCL" ]; then \
-	  (cd "$$dir" && git -c core.quotePath=false diff -U0 -M --raw --no-color --no-ext-diff --relative \
+	  (cd "$$dir" && git --no-optional-locks -c core.quotePath=false diff -U0 -M --raw --no-color --no-ext-diff --relative \
 	    --src-prefix=a/ --dst-prefix=b/ "$$B" -- '*.cs') | LC_ALL=C awk -v BINMODE=3 "$$_CHANGED_LINES_AWK" > "$$JBLOG/lines"; \
-	  rm -rf "$$JBLOG/pre"; mkdir "$$JBLOG/pre"; \
-	  (cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0 cp --parents -t "$$JBLOG/pre") \
-	    || { echo "Error: could not record the files in $$t before the cleanup, so they are left as they were."; exit 1; }; \
 	fi; \
+	rm -rf "$$JBLOG/pre"; mkdir "$$JBLOG/pre"; \
+	(cd "$$dir" && tr '\n' '\0' < "$$JBLOG/files" | xargs -0r cp --parents -t "$$JBLOG/pre") \
+	  || { echo "Error: could not record the files in $$t before the cleanup, so they are left as they were."; exit 1; }; \
 	snap > "$$JBLOG/before" || { echo "Error: could not record the files in $$t before the cleanup, so they are left as they were."; exit 1; }; \
+	printf '%s\n' "$$dir" > "$$JBLOG/ran"; \
 	if [ -n "$$INCL" ]; then jbrun --include="$$INCL"; else jbrun; fi || { \
 	  [ -n "$$INCL" ] && grep -q 'No items were found to cleanup' "$$JBLOG/out" || { settle; exit 1; }; \
-	  echo "jb found nothing to clean in $$t: no project there compiles these files."; continue; }; \
+	  echo "jb found nothing to clean in $$t: no project there compiles these files."; rm -f "$$JBLOG/ran"; continue; }; \
 	CHANGED=$$(snap | diff "$$JBLOG/before" - | sed -n 's/^> //p' | cut -d' ' -f3- | paste -sd';' -); \
 	if [ -n "$$CHANGED" ]; then \
 	  echo "Second pass over the files the first pass changed..."; \
 	  jbrun --include="$$CHANGED" || { settle; exit 1; }; \
 	fi; \
-	settle
+	settle; rm -f "$$JBLOG/ran"
 
-_CLEANUP_BODY = JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
-	$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+# The loop runs in the shell make starts, so a signal make passes on reaches the trap once the command running then ends.
+_CLEANUP_TRAPS = stop() { trap '' INT TERM HUP; [ ! -e "$$JBLOG/ran" ] || { d=$$(cat "$$JBLOG/ran"); while IFS= read -r f; do \
+	  cmp -s "$$JBLOG/pre/$$f" "$$d/$$f" && continue; cp "$$JBLOG/pre/$$f" "$$d/$$f"; if [ "$$d" = . ]; then p=$$f; else p=$$d/$$f; fi; \
+	  printf '%s: put back as it was, because the cleanup was interrupted\n' "$$p"; done < "$$JBLOG/files"; }; exit $$1; }; \
+	JBLOG=$$(mktemp -d); trap 'fin $$?' EXIT; trap 'stop 130' INT; trap 'stop 143' TERM; trap 'stop 129' HUP;
+
+_JB_REVERTED = while IFS= read -r p; do printf "%s: put back as it was, because the cleaned result didn't compile\n" "$$p"; done < "$$JBLOG/reverted";
+
+_CLEANUP_BODY = fin() { trap '' INT TERM HUP; rc=$$1; [ -e "$$JBLOG/failed" ] && { rc=1; $(_JB_REVERTED) }; rm -rf "$$JBLOG"; exit $$rc; }; \
+	$(_CLEANUP_TRAPS) \
+	$(_CLEANUP_LIST_CMD) | $(_RESOLVE_CLEANUP_TARGETS) > "$$JBLOG/targets"; \
+	while IFS= read -r t; do \
 	  case "$$t" in "!"*) \
 	    $(if $(PROJECT),echo "Error: no .sln lists $${t$(_hash)!}$(_comma) so it can't be cleaned."; exit 1,echo "Skipping $${t$(_hash)!}: no .sln found" >&2; continue);; \
 	  esac; \
 	  dir="$$(dirname "$$t")"; INCL=; \
 	  echo "Cleaning up $$t..."; \
 	  $(_JB_CLEAN); \
-	done
+	done < "$$JBLOG/targets"
 
 _CLEANUP_UNEXPORT = unset _CLEANUP_PREFLIGHT_SH _CLEANUP_SH _CLEANUP_CHANGED_SH; \
 	_v=$$_KEEP_HUNKS_AWK; unset _KEEP_HUNKS_AWK; _KEEP_HUNKS_AWK=$$_v; \
@@ -661,6 +697,7 @@ cleanup-changed: export _CLEANUP_CHANGED_SH = $(_CLEANUP_UNEXPORT) $(_CLEANUP_CH
 cleanup:
 	$(_CHECK_JB)
 	$(_CHECK_SETTINGS)
+	$(_CHECK_MSBUILD)
 	@eval "$$_CLEANUP_PREFLIGHT_SH"
 	@if [ -n "$(_PROJECT_TABLE)" ] && [ -z "$(PROJECT)" ] && [ -z "$(ALL)" ]; then \
 	  echo "Error: unscoped 'make cleanup' touches every project in this repo."; \
@@ -675,8 +712,8 @@ _CLEANUP_CHANGED_BODY = B=HEAD; \
 	  git rev-parse --verify -q "$(BASE)^{commit}" >/dev/null || { echo "Error: BASE=$(BASE) is not a commit."; exit 1; }; \
 	  B=$$(git merge-base "$(BASE)" HEAD) || { echo "Error: $(BASE) and HEAD have no merge base."; exit 1; }; \
 	fi; \
-	FILES=$$({ git -c core.quotePath=false diff --name-only --diff-filter=ACMR "$$B" -- '*.cs'; \
-	  git -c core.quotePath=false ls-files --others --exclude-standard -- '*.cs'; } | sort -u); \
+	FILES=$$({ git --no-optional-locks -c core.quotePath=false diff --name-only --diff-filter=ACMR "$$B" -- '*.cs'; \
+	  git --no-optional-locks -c core.quotePath=false ls-files --others --exclude-standard -- '*.cs'; } | sort -u); \
 	if [ -z "$$FILES" ]; then \
 	  echo "No changed .cs files."; \
 	  exit 0; \
@@ -695,8 +732,20 @@ _CLEANUP_CHANGED_BODY = B=HEAD; \
 	  LIST=$$($(_CLEANUP_LIST_CMD) 2>/dev/null); \
 	fi; \
 	STRICT="$(PROJECT)$$AUTO_PROJECT"; \
-	JBLOG=$$(mktemp -d); trap 'rm -rf "$$JBLOG"' EXIT; \
-	echo "$$LIST" | $(_RESOLVE_CLEANUP_TARGETS) | while IFS= read -r t; do \
+	fin() { trap '' INT TERM HUP; rc=$$1; [ -e "$$JBLOG/failed" ] && rc=1; \
+	  cmd="make cleanup$(if $(_PROJECT_TABLE), PROJECT=$${STRICT:-<name>})"; \
+	  if [ -s "$$JBLOG/partial" ]; then \
+	    while IFS= read -r p; do printf "%s: cleaned the changed lines and left jb's other changes out\n" "$$p"; done < "$$JBLOG/partial"; \
+	    echo "To take the rest, run '$$cmd' on its own as a formatting-only change."; \
+	  fi; \
+	  if [ -s "$$JBLOG/reverted" ]; then \
+	    $(_JB_REVERTED) \
+	    echo "Format their changed lines by hand, or take the whole files through '$$cmd' on its own as a formatting-only change."; \
+	  fi; \
+	  rm -rf "$$JBLOG"; exit $$rc; }; \
+	$(_CLEANUP_TRAPS) \
+	echo "$$LIST" | $(_RESOLVE_CLEANUP_TARGETS) > "$$JBLOG/targets"; \
+	while IFS= read -r t; do \
 	  case "$$t" in "!"*) \
 	    p="$${t$(_hash)!}"; \
 	    if [ -n "$$STRICT" ] || echo "$$FILES" | awk -v d="$$(dirname "$$p")/" 'index($$0, d) == 1 { f = 1 } END { exit !f }'; then \
@@ -717,26 +766,13 @@ _CLEANUP_CHANGED_BODY = B=HEAD; \
 	  INCL=$$(echo "$$SCOPED" | paste -sd';' -); \
 	  echo "Cleaning up changed files in $$t..."; \
 	  $(_JB_CLEAN); \
-	done; rc=$$?; \
-	[ -e "$$JBLOG/failed" ] && rc=1; \
-	cmd="make cleanup$(if $(_PROJECT_TABLE), PROJECT=$${STRICT:-<name>})"; \
-	if [ -s "$$JBLOG/partial" ]; then \
-	  while IFS= read -r p; do printf "%s: cleaned the changed lines and left jb's other changes out\n" "$$p"; done < "$$JBLOG/partial"; \
-	  echo "To take the rest, run '$$cmd' on its own as a formatting-only change."; \
-	fi; \
-	if [ -s "$$JBLOG/usings" ]; then \
-	  while IFS= read -r p; do printf "%s: kept jb's added usings, because the result didn't compile without them\n" "$$p"; done < "$$JBLOG/usings"; \
-	fi; \
-	if [ -s "$$JBLOG/reverted" ]; then \
-	  while IFS= read -r p; do printf "%s: left as it was, because keeping only the changed lines' cleanup didn't compile\n" "$$p"; done < "$$JBLOG/reverted"; \
-	  echo "Format their changed lines by hand, or take the whole files through '$$cmd' on its own as a formatting-only change."; \
-	fi; \
-	exit $$rc
+	done < "$$JBLOG/targets"
 
 .PHONY: cleanup-changed
 cleanup-changed:
 	$(_CHECK_JB)
 	$(_CHECK_SETTINGS)
+	$(_CHECK_MSBUILD)
 	@eval "$$_CLEANUP_PREFLIGHT_SH"
 	@$(_CLEANUP_UNEXPORT) git rev-parse --verify -q HEAD >/dev/null || { echo "Error: cleanup-changed compares against HEAD, so it needs a git repository with a commit."; exit 1; }
 	@eval "$$_CLEANUP_CHANGED_SH"
@@ -752,6 +788,7 @@ _COMPAT_ARGS = $(call _compat_paths,--corpus,$(CORPUS)) $(call _compat_paths,--w
 ifneq ($(and $(strip $(SOLUTION)),$(if $(_PROJECT_TABLE),,1)),)
 compat-check:
 	$(_CHECK_BT)
+	$(_CHECK_MSBUILD)
 	@$(call _MSB,$(SOLUTION) $(MSBUILD_FLAGS) $(_NO_LAUNCH_FLAGS) -p:SkipInstall=true </dev/null)
 	@$(BT) compat-check "$(COMPAT_PROJECT)" $(_COMPAT_ARGS)
 else
@@ -826,17 +863,21 @@ endif
 
 .PHONY: build
 build:
+	$(_CHECK_MSBUILD)
 	$(_SOLUTION_BUILD)
 
 .PHONY: build-no-launch
 build-no-launch:
+	$(_CHECK_MSBUILD)
 	@$(call _MSB,$(SOLUTION) $(MSBUILD_FLAGS) $(_NO_LAUNCH_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS))
 
 .PHONY: clean
 clean:
+	$(_CHECK_MSBUILD)
 	@$(call _MSB,$(SOLUTION) -t:Clean $(MSBUILD_FLAGS) $(INSTALL_FLAGS) $(LAUNCH_ARGS_FLAGS))
 
 .PHONY: rebuild
 rebuild: clean
+	$(_CHECK_MSBUILD)
 	$(_SOLUTION_BUILD)
 endif

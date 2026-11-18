@@ -1,4 +1,4 @@
-# Revision: 1
+# Revision: 2
 root = true
 
 [*]
@@ -8,6 +8,7 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 indent_style = space
 indent_size = 4
+max_line_length = 180
 
 # Microsoft .NET properties
 csharp_new_line_before_members_in_object_initializers = false
@@ -154,18 +155,25 @@ resharper_csharp_wrap_before_comma = false
 resharper_csharp_blank_lines_after_block_statements = 0
 resharper_csharp_blank_lines_before_block_statements = 0
 resharper_csharp_keep_existing_initializer_arrangement = true
+resharper_csharp_keep_user_linebreaks = false
 resharper_csharp_remove_blank_lines_near_braces_in_code = false
-resharper_csharp_wrap_lines = false
+resharper_csharp_wrap_lines = true
 resharper_formatter_off_tag = @formatter:off
 resharper_formatter_on_tag = @formatter:on
 resharper_formatter_tags_enabled = true
 resharper_indent_preprocessor_directives = normal
 resharper_show_autodetect_configure_formatting_tip = false
 resharper_use_indent_from_vs = false
+xmldoc_indent_child_elements = zero_indent
 xmldoc_indent_text = zero_indent
+resharper_xmldoc_keep_user_linebreaks = false
+# Counted from the text after ///: max_line_length less a type member's 8-column indent and ///, so deeper doc comments can pass it
+xmldoc_max_line_length = 169
+# Compared with an element's inner text only, so a one-line element with long tags, such as a <param> with a long name, can pass max_line_length
+xmldoc_linebreaks_inside_tags_for_elements_longer_than = 142
 xmldoc_wrap_around_elements = false
 xmldoc_wrap_tags_and_pi = false
-xmldoc_wrap_text = false
+xmldoc_wrap_text = true
 
 # ReSharper inspection severities
 resharper_arrange_redundant_parentheses_highlighting = hint

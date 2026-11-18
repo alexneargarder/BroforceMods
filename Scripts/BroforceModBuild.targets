@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Revision: 7 -->
+<!-- Revision: 9 -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!-- Locate the props files by walking up from this file, so builds work from a git worktree
@@ -19,12 +19,16 @@
   <Import Project="$(LocalBroforceProps)" Condition="'$(LocalBroforceProps)' != ''" />
 
   <PropertyGroup>
+    <_BroforceSetupGuide>https://github.com/alexneargarder/Broforce-Templates/blob/master/ONBOARDING.md</_BroforceSetupGuide>
+    <_BroforcePathSet Condition="'$(BroforcePath)' != ''">true</_BroforcePathSet>
     <!-- Windows default -->
     <BroforcePath Condition="'$(BroforcePath)' == '' AND '$(OS)' == 'Windows_NT'">C:\Program Files (x86)\Steam\steamapps\common\Broforce</BroforcePath>
     <!-- Linux default -->
     <BroforcePath Condition="'$(BroforcePath)' == '' AND '$(OS)' != 'Windows_NT'">$(HOME)/.steam/steam/steamapps/common/Broforce</BroforcePath>
     <!-- Linux: Point to Mono reference assemblies for .NET Framework 3.5 -->
     <FrameworkPathOverride Condition="'$(FrameworkPathOverride)' == '' AND '$(OS)' != 'Windows_NT'">$(MSBuildExtensionsPath)/../2.0-api</FrameworkPathOverride>
+    <_BroforcePathMissing Condition="!Exists('$(BroforcePath)')">true</_BroforcePathMissing>
+    <_BroforcePathNoUmm Condition="Exists('$(BroforcePath)') AND !Exists('$(BroforcePath)/Core/UnityModManager.dll') AND $([System.Text.RegularExpressions.Regex]::IsMatch('$(BroforcePath)', '(?i)[\\/]profiles[\\/][^\\/]+[\\/]UMM[\\/]?$'))">true</_BroforcePathNoUmm>
   </PropertyGroup>
 
   <!-- Supplies the .NET Framework 3.5 reference assemblies through NuGet -->
@@ -319,26 +323,59 @@ catch (Exception e) { Failure = "Starting " + Path.Combine(steam, "Steam.exe") +
           Condition="'$(DesignTimeBuild)' != 'true'">
     <Warning Code="BRO0001"
              Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' == 'true'"
-             Text="BroMakerLibPath is set to $(BroMakerLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+             Text="BroMakerLibPath is set to $(BroMakerLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
 
+    <!-- r2modman disables a mod by renaming each of its files to <file>.old -->
+    <PropertyGroup Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true'">
+      <_BroMakerLibDisabled Condition="Exists('$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll.old')">$(BroforcePath)/Mods/BroMaker/BroMakerLib.dll.old</_BroMakerLibDisabled>
+      <_BroMakerLibOldFiles Condition="'$(_BroMakerLibDisabled)' == '' AND Exists('$(BroforcePath)/Mods/BroMaker-BroMaker')">$([System.IO.Directory]::GetFiles('$(BroforcePath)/Mods/BroMaker-BroMaker', 'BroMakerLib.dll.old', System.IO.SearchOption.AllDirectories))</_BroMakerLibOldFiles>
+      <_BroMakerLibDisabled Condition="'$(_BroMakerLibDisabled)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(_BroMakerLibOldFiles)', '(?&lt;=^|;)[^;]*[\\/]BroMaker-BroMaker[\\/][^;\\/]+[\\/]BroMakerLib\.dll\.old(?=;|$)'))</_BroMakerLibDisabled>
+    </PropertyGroup>
     <Warning Code="BRO0001"
-             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true'"
-             Text="BroMakerLibPath does not exist: $(BroMakerLibPath). Neither $(BroforcePath)/Mods/BroMaker/BroMakerLib.dll nor a BroMakerLib.dll in a folder directly under $(BroforcePath)/Mods/BroMaker-BroMaker/ was found. Install BroMaker into that Broforce profile, or set BroMakerLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true' AND '$(_BroMakerLibDisabled)' != ''"
+             Text="BroMakerLibPath does not exist: $(BroMakerLibPath). BroMaker is disabled in r2modman, which renamed its DLL to $(_BroMakerLibDisabled). Enable BroMaker in r2modman for that Broforce profile, or set BroMakerLibPath in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
+    <Warning Code="BRO0001"
+             Condition="'@(_BroMakerLibReference)' != '' AND !Exists('$(BroMakerLibPath)') AND '$(_BroMakerLibPathUserSet)' != 'true' AND '$(_BroMakerLibDisabled)' == ''"
+             Text="BroMakerLibPath does not exist: $(BroMakerLibPath). Neither $(BroforcePath)/Mods/BroMaker/BroMakerLib.dll nor a BroMakerLib.dll in a folder directly under $(BroforcePath)/Mods/BroMaker-BroMaker/ was found. Install BroMaker into that Broforce profile, or set BroMakerLibPath in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
 
     <Warning Code="BRO0002"
              Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' == 'true'"
-             Text="RocketLibPath is set to $(RocketLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props." />
+             Text="RocketLibPath is set to $(RocketLibPath) but that file does not exist. Check the value in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
 
+    <PropertyGroup Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true'">
+      <_RocketLibDisabled Condition="Exists('$(BroforcePath)/Mods/RocketLib/RocketLib.dll.old')">$(BroforcePath)/Mods/RocketLib/RocketLib.dll.old</_RocketLibDisabled>
+      <_RocketLibOldFiles Condition="'$(_RocketLibDisabled)' == '' AND Exists('$(BroforcePath)/Mods/RocketLib-RocketLib')">$([System.IO.Directory]::GetFiles('$(BroforcePath)/Mods/RocketLib-RocketLib', 'RocketLib.dll.old', System.IO.SearchOption.AllDirectories))</_RocketLibOldFiles>
+      <_RocketLibDisabled Condition="'$(_RocketLibDisabled)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(_RocketLibOldFiles)', '(?&lt;=^|;)[^;]*[\\/]RocketLib-RocketLib[\\/][^;\\/]+[\\/]RocketLib\.dll\.old(?=;|$)'))</_RocketLibDisabled>
+    </PropertyGroup>
     <Warning Code="BRO0002"
-             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true'"
-             Text="RocketLibPath does not exist: $(RocketLibPath). Neither $(BroforcePath)/Mods/RocketLib/RocketLib.dll nor a RocketLib.dll in a folder directly under $(BroforcePath)/Mods/RocketLib-RocketLib/ was found. Install RocketLib into that Broforce profile, or set RocketLibPath in BroforceGlobal.props or LocalBroforcePath.props." />
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true' AND '$(_RocketLibDisabled)' != ''"
+             Text="RocketLibPath does not exist: $(RocketLibPath). RocketLib is disabled in r2modman, which renamed its DLL to $(_RocketLibDisabled). Enable RocketLib in r2modman for that Broforce profile, or set RocketLibPath in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
+    <Warning Code="BRO0002"
+             Condition="'@(_RocketLibReference)' != '' AND !Exists('$(RocketLibPath)') AND '$(_RocketLibPathUserSet)' != 'true' AND '$(_RocketLibDisabled)' == ''"
+             Text="RocketLibPath does not exist: $(RocketLibPath). Neither $(BroforcePath)/Mods/RocketLib/RocketLib.dll nor a RocketLib.dll in a folder directly under $(BroforcePath)/Mods/RocketLib-RocketLib/ was found. Install RocketLib into that Broforce profile, or set RocketLibPath in BroforceGlobal.props or LocalBroforcePath.props. Setup guide: $(_BroforceSetupGuide)" />
 
     <Warning Code="BRO0003"
              Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' == 'true'"
-             Text="LibPath is set to $(LibPath) but that directory does not exist. Set LibPath in LocalBroforcePath.props or BroforceGlobal.props to the libs folder of a BroforceMods or Broforce-Templates clone." />
+             Text="LibPath is set to $(LibPath) but that directory does not exist. Set LibPath in LocalBroforcePath.props or BroforceGlobal.props to the libs folder of a BroforceMods or Broforce-Templates clone. Setup guide: $(_BroforceSetupGuide)" />
     <Warning Code="BRO0003"
              Condition="!Exists('$(LibPath)') AND '$(_LibPathUserSet)' != 'true'"
-             Text="LibPath does not exist: $(LibPath). Clone BroforceMods beside this repo, or set LibPath in LocalBroforcePath.props to the libs folder of a BroforceMods or Broforce-Templates clone." />
+             Text="LibPath does not exist: $(LibPath). Clone BroforceMods beside this repo, or set LibPath in LocalBroforcePath.props to the libs folder of a BroforceMods or Broforce-Templates clone. Setup guide: $(_BroforceSetupGuide)" />
+  </Target>
+
+  <Target Name="WarnInstallPath" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(SkipInstall)' != 'true' AND '$(InstallTarget)' == 'default'">
+    <Warning Code="BRO0020"
+             Condition="'$(BroforceGlobalProps)' == '' AND '$(LocalBroforceProps)' == '' AND '$(_BroforcePathSet)' != 'true'"
+             Text="No LocalBroforcePath.props or BroforceGlobal.props was found and BroforcePath is not set, so this build installs into the Steam default $(BroforcePath). Create $([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../LocalBroforcePath.props')) from LocalBroforcePath.example.props and set its BroforcePath to your r2modman profile's UMM folder, or to the game folder if Unity Mod Manager is installed there. Setup guide: $(_BroforceSetupGuide)" />
+    <Warning Code="BRO0020"
+             Condition="('$(BroforceGlobalProps)' != '' OR '$(LocalBroforceProps)' != '') AND '$(_BroforcePathSet)' != 'true'"
+             Text="BroforcePath is not set in $([MSBuild]::ValueOrDefault('$(LocalBroforceProps)', '$(BroforceGlobalProps)')), so this build installs into the Steam default $(BroforcePath). Set BroforcePath in that file to your r2modman profile's UMM folder, or to the game folder if Unity Mod Manager is installed there. Setup guide: $(_BroforceSetupGuide)" />
+    <Warning Code="BRO0020"
+             Condition="'$(_BroforcePathSet)' == 'true' AND '$(_BroforcePathMissing)' == 'true'"
+             Text="BroforcePath is $(BroforcePath), which does not exist, so this build creates it and installs there. Set BroforcePath in LocalBroforcePath.props or BroforceGlobal.props to your r2modman profile's UMM folder, or create that profile in r2modman and install the UMM package into it. Setup guide: $(_BroforceSetupGuide)" />
+    <Warning Code="BRO0020"
+             Condition="'$(_BroforcePathSet)' == 'true' AND '$(_BroforcePathNoUmm)' == 'true'"
+             Text="BroforcePath is $(BroforcePath), an r2modman profile's UMM folder without Unity Mod Manager ($(BroforcePath)/Core/UnityModManager.dll does not exist), so Broforce won't load this build from it. Install the UMM package into that profile in r2modman. Setup guide: $(_BroforceSetupGuide)" />
   </Target>
 
   <!-- A /p: global overrides any property set here but not a target condition, hence CLAUDECODE in the kill and launch conditions -->
@@ -545,7 +582,7 @@ cp -RL "%24MC/." "%24STG/"</_CopyContentScript>
     </Exec>
     <Exec Condition="'$(IsLinux)' == 'true'" IgnoreExitCode="true" StandardOutputImportance="low" ConsoleToMSBuild="true"
           EnvironmentVariables="D=$([MSBuild]::Escape($(MSBuildProjectDirectory)))"
-          Command="if git -C &quot;%24D&quot; rev-parse --git-dir &gt;/dev/null 2&gt;&amp;1; then if [ -n &quot;`git -C &quot;%24D&quot; status --porcelain --untracked-files=no 2&gt;/dev/null`&quot; ]; then echo true; else echo false; fi; fi">
+          Command="if git -C &quot;%24D&quot; rev-parse --git-dir &gt;/dev/null 2&gt;&amp;1; then if [ -n &quot;`git --no-optional-locks -C &quot;%24D&quot; status --porcelain --untracked-files=no 2&gt;/dev/null`&quot; ]; then echo true; else echo false; fi; fi">
       <Output TaskParameter="ConsoleOutput" PropertyName="_StampDirty" />
     </Exec>
 
