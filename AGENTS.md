@@ -15,7 +15,7 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 ## UMM mods and bros
 
 - A UMM mod (`_ModContent/Info.json`) other than Unity Inspector Mod and BroforceDevTools: static `Main.Load` keeps the entry in `Main.mod` and calls `PatchAll` once; `OnToggle` stores `Main.enabled` and returns `true`, and patch bodies return early while it is false.
-- A BroMaker bro (`_ModContent/<Name>.mod.json`): a `[HeroPreset]` class deriving from `CustomHero` or a BroMakerLib subclass; BroMaker calls its `HarmonyPatches( Harmony )` override, so it never creates its own `Harmony`. Handle situations the base game handles for its bros the way the vanilla bros do, and expose behaviour players may want in custom levels as a RocketLib `CustomTriggerAction<T>` registered in `RegisterCustomTriggers()`.
+- A BroMaker bro (`_ModContent/<Name>.mod.json`): a `[HeroPreset]` class deriving from `CustomHero` or a BroMakerLib subclass; BroMaker calls its `HarmonyPatches( Harmony )` override, so it never creates its own `Harmony`. Handle situations the base game handles for its bros the way the vanilla bros do, and expose behavior players may want in custom levels as a RocketLib `CustomTriggerAction<T>` registered in `RegisterCustomTriggers()`.
 - Outside Unity Inspector Mod and BroforceDevTools, patches are attribute-declared and installed by the one `PatchAll` call (a bro's in its `HarmonyPatches` override), never by hand. A patch class is `static`, named `<Type>_<Method>_Patch`, usually nested in a `HarmonyPatches` class.
 - UMM mod settings are UMM XML (`UnityModManager.ModSettings` or RocketLib's `XmlModSettings`): no interfaces or `Dictionary<,>`; persist a dictionary as an `[XmlIgnore]` field plus an `[XmlArray]` property of RocketLib's `SerializableKeyValuePair` array. A bro persists settings through BroMaker's `[SaveableSetting]` static fields.
 - A mod that uses another mod only when it's installed (BroMaker, Swap Bros Mod) reaches it by reflection or only from methods called inside a `try`/`catch`: a direct call into a missing assembly breaks the mod for players without it.
@@ -56,8 +56,8 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 
 ## Folder AGENTS.md files
 
-- `BroforceDevTools/AGENTS.md` — manual patching, profiler wrapper lifetime and crash-avoiding scope, Demystify limits, ported-code licence duties
-- `Brostbuster/AGENTS.md` — trapped-unit patch guard, Slimer blood-colour counter
+- `BroforceDevTools/AGENTS.md` — manual patching, profiler wrapper lifetime and crash-avoiding scope, Demystify limits, ported-code license duties
+- `Brostbuster/AGENTS.md` — trapped-unit patch guard, Slimer blood-color counter
 - `Captain Ameribro/AGENTS.md` — shield as special ammo, throw and catch state
 - `Control Enemies Mod/AGENTS.md` — unit-name markers, optional BroMaker calls, null mook spawns
 - `Drunken Broster/AGENTS.md` — melee-item enum and additions, friendly-spawn marker, drunk camera

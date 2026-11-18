@@ -1056,7 +1056,7 @@ namespace Brostbuster
 
         protected override void CancelMelee()
         {
-            // Stop portal sound if melee was cancelled before slimer spawned
+            // Stop portal sound if melee was canceled before slimer spawned
             if ( this.slimerPortalSource != null && !this.alreadySpawnedSlimer && this.usingSlimerMelee )
             {
                 this.slimerPortalSource.Stop();

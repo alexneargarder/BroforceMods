@@ -84,7 +84,7 @@ namespace Unity_Inspector_Mod
             public double EstimatedMs;
             public System.Diagnostics.Stopwatch Clock;
 
-            public bool Cancelled;
+            public bool Canceled;
             public bool Done;
             public JObject Result;
             public int FinishedSeq;
@@ -443,10 +443,10 @@ namespace Unity_Inspector_Mod
 
         private static void CancelOne( Plan plan )
         {
-            plan.Cancelled = true;
+            plan.Canceled = true;
             foreach ( Plan member in plan.Members ?? new Plan[0] )
             {
-                member.Cancelled = true;
+                member.Canceled = true;
             }
             plans.Remove( plan.Id );
         }
@@ -464,11 +464,11 @@ namespace Unity_Inspector_Mod
                 Plan plan;
                 if ( !plans.TryGetValue( id.Value, out plan ) || plan.Owner != owner )
                 {
-                    return new JObject { ["cancelled"] = false };
+                    return new JObject { ["canceled"] = false };
                 }
 
                 CancelOne( plan );
-                return new JObject { ["cancelled"] = !plan.Done };
+                return new JObject { ["canceled"] = !plan.Done };
             }
         }
 
@@ -498,7 +498,7 @@ namespace Unity_Inspector_Mod
 
             foreach ( var plan in queued )
             {
-                if ( !plan.Cancelled )
+                if ( !plan.Canceled )
                 {
                     Finish( plan, reason );
                 }
@@ -718,7 +718,7 @@ namespace Unity_Inspector_Mod
             }
 
             List<Plan> arriving = null;
-            List<Plan> cancelled = null;
+            List<Plan> canceled = null;
             lock ( inputLock )
             {
                 if ( incoming.Count > 0 )
@@ -729,16 +729,16 @@ namespace Unity_Inspector_Mod
 
                 foreach ( var plan in running )
                 {
-                    if ( plan.Cancelled )
+                    if ( plan.Canceled )
                     {
-                        ( cancelled = cancelled ?? new List<Plan>() ).Add( plan );
+                        ( canceled = canceled ?? new List<Plan>() ).Add( plan );
                     }
                 }
             }
 
-            if ( cancelled != null )
+            if ( canceled != null )
             {
-                foreach ( var plan in cancelled )
+                foreach ( Plan plan in canceled )
                 {
                     Stop( plan, frame + 1, null );
                 }
@@ -748,7 +748,7 @@ namespace Unity_Inspector_Mod
             {
                 foreach ( var plan in arriving )
                 {
-                    if ( plan.Cancelled )
+                    if ( plan.Canceled )
                     {
                         continue;
                     }
@@ -1072,7 +1072,7 @@ namespace Unity_Inspector_Mod
                 Plan call = plan.Group ?? plan;
                 if ( call != plan )
                 {
-                    if ( call.Cancelled || call.Members.Any( m => !m.Done ) )
+                    if ( call.Canceled || call.Members.Any( m => !m.Done ) )
                     {
                         return;
                     }
@@ -1080,7 +1080,7 @@ namespace Unity_Inspector_Mod
                     call.Done = true;
                 }
                 call.FinishedSeq = ++finishedSeq;
-                if ( call.Cancelled )
+                if ( call.Canceled )
                 {
                     plans.Remove( call.Id );
                 }

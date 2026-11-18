@@ -1764,7 +1764,7 @@ namespace Unity_Inspector_Mod
                     prefix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "ModuleNotFullyDefined",
                         BindingFlags.Static | BindingFlags.NonPublic ) ) );
                 harmony.Patch( typeof( InflatedTypeSpec ).GetMethod( "CreateMetaInfo", BindingFlags.Instance | BindingFlags.NonPublic ),
-                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "InitialiseGenericStruct",
+                    postfix: new HarmonyMethod( typeof( ScriptCompiler ).GetMethod( "InitializeGenericStruct",
                         BindingFlags.Static | BindingFlags.NonPublic ) ) );
             }
             catch ( Exception e )
@@ -1808,8 +1808,8 @@ namespace Unity_Inspector_Mod
             __instance.HasTypesFullyDefined = false;
         }
 
-        // An instance of a baked generic struct has no size until reflection or a box initialises it, and a local of one fails the JIT with "stack is too big".
-        private static void InitialiseGenericStruct( Type __result )
+        // An instance of a baked generic struct has no size until reflection or a box initializes it, and a local of one fails the JIT with "stack is too big".
+        private static void InitializeGenericStruct( Type __result )
         {
             if ( !__result.IsValueType || __result.ContainsGenericParameters )
             {

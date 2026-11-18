@@ -1945,7 +1945,7 @@ namespace Unity_Inspector_Mod
             "MuscleTemple_4"
         };
 
-        // The game stores the campaign name with runtime capitalisation ("WM_Hell"); the roster spelling is what go_to_level and list_campaigns use.
+        // The game stores the campaign name with runtime capitalization ("WM_Hell"); the roster spelling is what go_to_level and list_campaigns use.
         public static string GetCanonicalCampaignName( string campaignName )
         {
             if ( string.IsNullOrEmpty( campaignName ) )

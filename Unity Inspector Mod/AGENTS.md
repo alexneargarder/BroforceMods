@@ -10,7 +10,7 @@ Besides `PatchAll` the mod patches by hand (`FrozenClock`, the binding patch, `S
 - A connection is served one request per line, each read, run and answered in turn, after a token hello.
 - The hello's 5s deadline is a `System.Threading.Timer` that shuts the socket down: `ReceiveTimeout` is no deadline on this Mono.
 - Replies go out ASCII-only (`AsciiOnly`): Mono's `StreamWriter` encodes each 1024-character block separately and would split a surrogate pair.
-- Timed-out and cancelled commands drop their socket before the reply, so a write to a gone client and a client-reset read end the connection with nothing logged; a receive, hello-read or reply failure logs only while `isConnected` is set.
+- Timed-out and canceled commands drop their socket before the reply, so a write to a gone client and a client-reset read end the connection with nothing logged; a receive, hello-read or reply failure logs only while `isConnected` is set.
 - The token rotates on every `TcpServer.Start`. `Start` binds, writes `unity-inspector-<port>.token`, then listens, all under `StartLock` on a `.lock` file beside it, since Mono binds with `SO_REUSEADDR` and two games could both bind; a failed bind writes nothing, and `Stop` deletes only a file its server wrote.
 - The token file is 0600 from creation: a 077 `umask` on Unix and macOS; under wine, `CreateFileW` with descriptor `O:OWD:P(A;;FRFW;;;OW)`, which wine maps to 0600.
 

@@ -180,7 +180,7 @@ namespace Utility_Mod
                 case BlockType.ThatchRoof: return "Thatch Roof";
                 case BlockType.Statue: return "Statue";
                 case BlockType.BuriedRocket: return "Buried Rocket";
-                case BlockType.TyreBlock: return "Tyre Block";
+                case BlockType.TyreBlock: return "Tire Block";
                 case BlockType.FactoryRoof: return "Factory Roof";
                 case BlockType.DesertRoof: return "Desert Roof";
                 case BlockType.DesertRoofRed: return "Desert Roof Red";

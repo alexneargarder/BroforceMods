@@ -603,7 +603,7 @@ namespace Utility_Mod
             AddBlockMenuItem( parentMenu, BlockType.Pipe, "Pipe" );
             AddBlockMenuItem( parentMenu, BlockType.OilPipe, "Oil Pipe" );
             AddBlockMenuItem( parentMenu, BlockType.Statue, "Statue" );
-            AddBlockMenuItem( parentMenu, BlockType.TyreBlock, "Tyre Block" );
+            AddBlockMenuItem( parentMenu, BlockType.TyreBlock, "Tire Block" );
             AddBlockMenuItem( parentMenu, BlockType.CityAssMouth, "City Ass Mouth" );
         }
 

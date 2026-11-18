@@ -623,7 +623,7 @@ namespace Utility_Mod
             {
                 if ( kvp.Value && !keybindings[kvp.Key][0].isSettingKey )
                 {
-                    // Assignment completed, check if key was assigned or cancelled
+                    // Assignment completed, check if key was assigned or canceled
                     if ( keybindings[kvp.Key].HasAnyKeysAssigned() )
                     {
                         if ( !activeKeybindings.Contains( kvp.Key ) )
