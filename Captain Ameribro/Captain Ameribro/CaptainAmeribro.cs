@@ -49,6 +49,9 @@ namespace Captain_Ameribro
         protected int punchingIndex = 0;
         protected const int normalAttackDamage = 7;
         protected bool heldGunFrame = false;
+        private Vector2 hangCell;
+        private bool resetHangArm;
+        private Vector3 hangGunPosition;
 
         // Melee variables
         protected const int meleeAttackDamage = 8;
@@ -358,13 +361,21 @@ namespace Captain_Ameribro
                 {
                     this.AirDashLeft();
                 }
-                return;
+                if ( this.attachedToZipline == null )
+                {
+                    return;
+                }
             }
             Map.HurtWildLife( x + base.transform.localScale.x * 13f, y + 5f, 12f );
             this.gunFrame = 1;
             this.punchingIndex++;
             this.gunCounter = 0f;
             this.SetGunFrame();
+            this.RedrawHangFrame();
+            if ( !this.hasBeenCoverInAcid && !this.WallDrag && this.gunSprite.gameObject.activeSelf )
+            {
+                base.GetComponent<Renderer>().material = this.materialArmless;
+            }
             currentlyHitting = new List<Unit>();
             float num = base.transform.localScale.x * 12f;
             this.ConstrainToFragileBarriers( ref num, 16f );
@@ -466,6 +477,10 @@ namespace Captain_Ameribro
                         {
                             this.SetGunFrame();
                         }
+                        if ( this.gunFrame == 0 )
+                        {
+                            this.RedrawHangFrame();
+                        }
                         if ( this.gunFrame == 2 )
                         {
                             if ( this.hasHitWithSlice )
@@ -485,7 +500,10 @@ namespace Captain_Ameribro
             if ( !this.animateSpecial && ( !this.gunSprite.gameObject.activeSelf || this.gunFrame == 0 ) && !this.hasBeenCoverInAcid )
             {
                 base.GetComponent<Renderer>().material = this.materialNormal;
-                this.heldGunFrame = false;
+                if ( this.gunFrame == 0 )
+                {
+                    this.heldGunFrame = false;
+                }
             }
         }
 
@@ -898,9 +916,11 @@ namespace Captain_Ameribro
                     this.specialFrameRate = 0.05f;
                     this.specialCounter = this.specialFrameRate;
                     this.animateSpecial = true;
+                    this.gunFrame = 0;
                     this.playedShingNoise = false;
                     base.frame = 0;
                     this.pressSpecialFacingDirection = (int)base.transform.localScale.x;
+                    this.RedrawHangFrame();
                 }
             }
         }
@@ -930,7 +950,114 @@ namespace Captain_Ameribro
             {
                 this.CancelSpecial();
             }
+            this.resetHangArm = false;
             base.AttachToZipline( zipLine );
+        }
+
+        protected override void StartHanging()
+        {
+            if ( base.actionState != ActionState.Hanging )
+            {
+                this.resetHangArm = false;
+            }
+            base.StartHanging();
+        }
+
+        protected override void AnimateZipline()
+        {
+            base.AnimateZipline();
+            if ( this.gunFrame > 0 )
+            {
+                this.AnimateHangPunch();
+            }
+            else
+            {
+                this.SetGunSprite( 0, 0 );
+                this.ResetHangArm();
+            }
+            this.hangCell = this.sprite.lowerLeftPixel;
+        }
+
+        protected override void AnimateHanging()
+        {
+            // The Hanging branch of ChangeFrame never runs AnimateSpecial, so a shield catch ends here without its animation
+            if ( this.grabbingShield )
+            {
+                this.grabbingShield = false;
+                this.usingSpecial = false;
+            }
+            if ( ( this.gunFrame > 0 || this.animateSpecial ) && !this.chimneyFlip )
+            {
+                this.frameRate = 0.0667f;
+                this.SetSpriteOffset( 0f, 0f );
+                this.AnimateHangPunch();
+            }
+            else
+            {
+                base.AnimateHanging();
+                if ( !this.chimneyFlip && this.ResetHangArm() )
+                {
+                    this.SetGunSprite( 0, 1 );
+                }
+            }
+            this.hangCell = this.sprite.lowerLeftPixel;
+        }
+
+        protected void AnimateHangPunch()
+        {
+            if ( !this.resetHangArm )
+            {
+                this.resetHangArm = true;
+                this.hangGunPosition = this.gunSprite.transform.localPosition;
+            }
+            this.AnimateActualJumpingFrames();
+        }
+
+        protected bool ResetHangArm()
+        {
+            if ( !this.resetHangArm )
+            {
+                return false;
+            }
+            this.resetHangArm = false;
+            this.gunSprite.transform.localPosition = this.hangGunPosition;
+            return true;
+        }
+
+        protected void RedrawHangFrame()
+        {
+            if ( this.sprite.lowerLeftPixel != this.hangCell )
+            {
+                return;
+            }
+            if ( this.attachedToZipline != null )
+            {
+                if ( this.gunFrame > 0 )
+                {
+                    this.AnimateHangPunch();
+                }
+                else
+                {
+                    // Base AnimateZipline makes sparks on every call while sliding
+                    if ( !this.slidingOnZipline && ( ( this.left && ( this.attachedToZipline.Direction.x > 0f || this.attachedToZipline.IsHorizontalZipline ) ) || ( this.right && ( this.attachedToZipline.Direction.x < 0f || this.attachedToZipline.IsHorizontalZipline ) ) ) && !this.fire )
+                    {
+                        this.DeactivateGun();
+                        this.sprite.SetLowerLeftPixel( (float)( ( 11 + base.frame % 12 ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 4 ) );
+                    }
+                    else
+                    {
+                        this.ActivateGun();
+                        this.sprite.SetLowerLeftPixel( (float)( ( 23 + Mathf.Clamp( base.frame, 0, 5 ) ) * this.spritePixelWidth ), (float)( this.spritePixelHeight * 4 ) );
+                    }
+                    this.SetGunSprite( 0, 0 );
+                    this.ResetHangArm();
+                }
+                this.hangCell = this.sprite.lowerLeftPixel;
+            }
+            else if ( base.actionState == ActionState.Hanging )
+            {
+                this.AnimateHanging();
+            }
         }
 
         public override void SetGestureAnimation( GestureElement.Gestures gesture )
