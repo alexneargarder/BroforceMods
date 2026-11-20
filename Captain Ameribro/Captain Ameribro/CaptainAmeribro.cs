@@ -525,14 +525,14 @@ namespace Captain_Ameribro
 
         protected override void PressHighFiveMelee( bool forceHighFive = false )
         {
-            if ( this.right && this.CanAirDash( DirectionEnum.Right ) && this.SpecialAmmo > 0 )
+            if ( this.right && this.CanAirDash( DirectionEnum.Right ) && this._specialAmmo > 0 )
             {
                 if ( !this.wasHighFive )
                 {
                     this.Airdash( true );
                 }
             }
-            else if ( this.left && this.CanAirDash( DirectionEnum.Left ) && this.SpecialAmmo > 0 )
+            else if ( this.left && this.CanAirDash( DirectionEnum.Left ) && this._specialAmmo > 0 )
             {
                 if ( !this.wasHighFive )
                 {
@@ -773,7 +773,7 @@ namespace Captain_Ameribro
                     this.currentSpecialCharge = this.maxSpecialCharge;
                 }
 
-                this.SpecialAmmo--;
+                this.SpecialAmmo = this._specialAmmo - 1;
 
                 float chargedShieldSpeed = shieldSpeed + Shield.ChargeSpeedScalar * this.currentSpecialCharge;
 
@@ -819,11 +819,24 @@ namespace Captain_Ameribro
             }
         }
 
+        protected override void RemoveAcidRPC()
+        {
+            base.RemoveAcidRPC();
+            if ( this._specialAmmo > 0 )
+            {
+                this.SwitchToWithShieldMats();
+            }
+            else
+            {
+                this.SwitchToNoShieldMats();
+            }
+        }
+
         public void ReturnShield( Shield shield )
         {
             if ( this.hasBeenCoverInAcid )
             {
-                ++this.SpecialAmmo;
+                this.SpecialAmmo = this._specialAmmo + 1;
                 return;
             }
             if ( this.doingMelee )
@@ -859,7 +872,7 @@ namespace Captain_Ameribro
                 this.grabbingShield = true;
                 this.ChangeFrame();
             }
-            this.SpecialAmmo++;
+            this.SpecialAmmo = this._specialAmmo + 1;
         }
 
         // Make shield drop if character is destroyed
@@ -1017,7 +1030,7 @@ namespace Captain_Ameribro
         protected override void AirDashLeft()
         {
             // Airdash if we have the shield and are not charging, unless we've fully charged
-            if ( ( !this.animateSpecial || this.playedShingNoise ) && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
+            if ( ( !this.animateSpecial || this.playedShingNoise ) && this._specialAmmo > 0 && this.airDashCooldown <= 0 )
             {
                 this.SetAirDashTime();
                 if ( this.attachedToZipline != null )
@@ -1044,7 +1057,7 @@ namespace Captain_Ameribro
         protected override void AirDashRight()
         {
             // Airdash if we have the shield and are not charging, unless we've fully charged
-            if ( ( !this.animateSpecial || this.playedShingNoise ) && this.SpecialAmmo > 0 && this.airDashCooldown <= 0 )
+            if ( ( !this.animateSpecial || this.playedShingNoise ) && this._specialAmmo > 0 && this.airDashCooldown <= 0 )
             {
                 this.SetAirDashTime();
                 if ( this.attachedToZipline != null )
