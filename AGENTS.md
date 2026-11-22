@@ -7,10 +7,11 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 ## Build
 
 - Each project is `<Name>/<Name>/<Name>.csproj` with its own `.sln`. Run `make -C .. <target>` from `<Name>/`.
+- After changing RocketLib or BroMakerLib, rebuild the library with `make -C ../RocketLib build` or `make -C ../Bro-Maker build` from this repo's root, with the clones side by side: mods compile against its installed build.
 - `Scripts/BroforceModBuild.targets`, `Scripts/Makefile.common`, `Scripts/BroforceMods.DotSettings`, the root `.editorconfig` and `LocalBroforcePath.example.props` are edited in [Broforce-Templates](https://github.com/alexneargarder/Broforce-Templates) and synced here, never edited in this repo; their facts are in [its `Scripts/AGENTS.md`](https://github.com/alexneargarder/Broforce-Templates/blob/master/Scripts/AGENTS.md).
 - Projects target .NET Framework 3.5 (the game's Mono): no `Task`/`async`, `Tuple`, `ConcurrentDictionary`, `string.IsNullOrWhiteSpace`, `Enum.HasFlag`, `IReadOnly*` or `Dictionary.GetValueOrDefault`. Use `Thread`/`ThreadPool` or coroutines.
 - Namespace: the project folder's name with spaces turned to underscores; subfolders add sub-namespaces.
-- Never hand-copy a built DLL into `_ModContent/` or commit one.
+- Install a mod only through its build, never by copying a DLL by hand into `_ModContent/` or the game; never commit a built DLL.
 
 ## UMM mods and bros
 
@@ -23,7 +24,7 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 ## Logging
 
 - Never call `UnityEngine.Debug.Log`: its output never reaches the Unity Mod Manager (UMM) log.
-- Log through `Main.mod.Logger.Log(...)` in a UMM mod, `BMLogger.Log(...)` in a BroMaker bro.
+- Log through `Main.mod.Logger.Log(...)` in a UMM mod, `this.Log(...)` (BroMakerLib's `ICustomHero` extension) in a BroMaker bro's hero class and `BMLogger.Log(...)` in its other classes.
 - For file logging, extend RocketLib's logger; never write ad-hoc file output in a mod.
 
 ## Logs
@@ -31,11 +32,23 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 - **UMM log** (UMM's and every mod logger's output): `UMM/Core/Log.txt` in the r2modman profile the game ran with, under `%AppData%\r2modmanPlus-local\Broforce\profiles\<profile>\` on Windows and `~/.config/r2modmanPlus-local/Broforce/profiles/<profile>/` on Linux.
 - **Unity player log** (the engine's log from process start, overwritten each launch): read it when the UMM log is missing, for engine errors and for native crashes. Windows `%USERPROFILE%\AppData\LocalLow\Free Lives\Broforce\output_log.txt`; native Linux `~/.config/unity3d/Free Lives/Broforce/Player.log`; Proton `<Steam library>/steamapps/compatdata/274190/pfx/drive_c/users/steamuser/AppData/LocalLow/Free Lives/Broforce/output_log.txt`.
 
+## In-game testing
+
+- Before reporting a game run, account for every crash, error, exception and BroMaker Issues entry its log holds: trace it to its cause in source, or show it in a vanilla or default-branch run of the same steps.
+- Never crash the game on purpose, or drive it with a load normal play doesn't produce.
+- A change a player meets in game is done once the scenario scripts [unity-inspector-mcp's `scripts/README.md`](https://github.com/alexneargarder/unity-inspector-mcp/blob/master/scripts/README.md) names for it pass on the final build, with every new UMM log line fixed or explained.
+
 ## Code style
 
 - Comment only a genuinely complex algorithm or an engine or runtime gotcha the code can't show: at most two lines, at the point of use, never wrapped to a column width. No labels, rationale, ordering or coupling notes, contracts, restatements, deletions or history; keep existing label comments.
 - No doc blocks on files, classes, methods or fields, except a one-sentence XML `///` comment on a public API another project calls.
 - Run `make cleanup-changed` (ReSharper cleanup of changed C# lines) before every commit, never during feature work; `BASE=master` adds the branch's committed changes.
+- A project whose history has no commit reformatting the whole project is formatted only by its own pull request running `make cleanup PROJECT=<name>` and carrying no other change; until that merges, skip `make cleanup-changed` in it.
+
+## Commits
+
+- A commit is one imperative subject line with no body, naming at most its two largest changes, with no trailing period and no version number except in a `Release vX.Y.Z` commit.
+- A commit changing one project starts `<ProjectName> - `, its release commit included (`<ProjectName> - Release vX.Y.Z`); one changing several projects or only repo-level files has no prefix.
 
 ## Changelogs
 
