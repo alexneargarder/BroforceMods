@@ -10,6 +10,9 @@ Discord: alexneargarder
 You can also find me on the [Free Lives Discord Server](https://discord.gg/freelives) as well as other modders and sprite artists if you need any help.
 
 ## How to Create Your Own Mods
+
+If you're new to Broforce modding, start with the [getting started guide](https://github.com/alexneargarder/Broforce-Templates/blob/master/ONBOARDING.md).
+
 For anyone interested in creating their own mods for this game, feel free to use my code as a starting off point. 
 
 For detailed instructions on how to create mods for Broforce, see [the wiki for this repo.](https://github.com/alexneargarder/BroforceMods/wiki)
