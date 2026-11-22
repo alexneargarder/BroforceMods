@@ -29,7 +29,7 @@ Setup, Unity Mod Manager, logs and debugging, multiplayer testing and Thundersto
 ## Logs
 
 - **UMM log** (UMM's and every mod logger's output): `UMM/Core/Log.txt` in the r2modman profile the game ran with, under `%AppData%\r2modmanPlus-local\Broforce\profiles\<profile>\` on Windows and `~/.config/r2modmanPlus-local/Broforce/profiles/<profile>/` on Linux.
-- **Unity player log** (the engine's log from process start, rotated each launch): read it when the UMM log is missing, for engine errors and for native crashes. Windows `%USERPROFILE%\AppData\LocalLow\Free Lives\Broforce\output_log.txt`; native Linux `~/.config/unity3d/Free Lives/Broforce/Player.log`; Proton `<Steam library>/steamapps/compatdata/274190/pfx/drive_c/users/steamuser/AppData/LocalLow/Free Lives/Broforce/output_log.txt`.
+- **Unity player log** (the engine's log from process start, overwritten each launch): read it when the UMM log is missing, for engine errors and for native crashes. Windows `%USERPROFILE%\AppData\LocalLow\Free Lives\Broforce\output_log.txt`; native Linux `~/.config/unity3d/Free Lives/Broforce/Player.log`; Proton `<Steam library>/steamapps/compatdata/274190/pfx/drive_c/users/steamuser/AppData/LocalLow/Free Lives/Broforce/output_log.txt`.
 
 ## Code style
 
